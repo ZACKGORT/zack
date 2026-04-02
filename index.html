@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>zack.cx · design (for agentic) architecture (& human) bridges · client experience</title>
+<title>zack.cx · experience architecture</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><text y='26' font-size='26' font-family='Georgia,serif' font-weight='600' fill='%23daa520'>&#918;</text><ellipse cx='18' cy='18' rx='15' ry='4.8' fill='none' stroke='%23daa520' stroke-width='1.2' opacity='0.55'/><circle cx='33' cy='15.8' r='2.4' fill='%23daa520' opacity='0.82'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
@@ -1532,6 +1532,18 @@ function getClusterDotPositions(cl) {
   return cl.nodeIds.map((_,i) => { const a=(i/Math.max(cl.nodeIds.length,1))*Math.PI*2; return {x:Math.cos(a)*R*0.75,y:0,z:Math.sin(a)*R*0.75,size:DS}; });
 }
 
+// Per-cluster node dot orbital state
+const clusterNodeDots = {}; // clusterId -> [{mesh, hitMesh, glow, labelSpr, nodeId, baseAngle, orbitR, orbitTilt, orbitSpeed}]
+
+function makeNodeDotLabelCanvas(text, hexColor) {
+  const c = document.createElement('canvas'); c.width = 320; c.height = 40;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = hexColor + 'cc';
+  ctx.font = 'italic 600 14px "Crimson Text", serif';
+  ctx.fillText(text, 6, 28);
+  return c;
+}
+
 function buildGalaxyLayer() {
   CLUSTERS.forEach(cl => {
     const geo=new THREE.SphereGeometry(cl.size,32,32);
@@ -1540,20 +1552,63 @@ function buildGalaxyLayer() {
     const atm=new THREE.Mesh(new THREE.SphereGeometry(cl.size*1.55,24,24),new THREE.MeshBasicMaterial({color:cl.color,transparent:true,opacity:0,side:THREE.BackSide,depthWrite:false}));
     atm.position.copy(cl.pos); galaxyGroup.add(atm);
     const glowSpr=makeGlowSprite(cl.color,cl.size); glowSpr.scale.setScalar(cl.size*9); glowSpr.position.copy(cl.pos); glowSpr.material.opacity=0; galaxyGroup.add(glowSpr);
+    // Label: centered above planet, no x offset
     const lc=makeClusterCanvas(cl,false);
     const lSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(lc),transparent:true,depthWrite:false}));
-    lSpr.scale.set(28,14,1); lSpr.position.set(cl.pos.x-cl.size*6.5,cl.pos.y+cl.size*3.5,cl.pos.z); lSpr.material.opacity=0; galaxyGroup.add(lSpr);
-    // orbit ring around the black hole hub
+    lSpr.scale.set(22,11,1); lSpr.position.set(0, cl.size*2.2, 0); lSpr.material.opacity=0; galaxyGroup.add(lSpr);
+    // planet orbital path around black hole
     const orbitRingPts=[];
     for(let i=0;i<=80;i++){const a=i/80*Math.PI*2;orbitRingPts.push(new THREE.Vector3(Math.cos(a)*cl.orbitR,0,Math.sin(a)*cl.orbitR));}
     const orbitRingLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(orbitRingPts),new THREE.LineBasicMaterial({color:cl.color,transparent:true,opacity:0}));
     galaxyGroup.add(orbitRingLine); galaxyLines.push({line:orbitRingLine,baseOp:0.18,clusterId:cl.id});
-    // planet ring (equatorial)
-    const ringPts=[];
-    for(let i=0;i<=80;i++){const a=i/80*Math.PI*2;ringPts.push(new THREE.Vector3(cl.pos.x+Math.cos(a)*cl.size*1.35,cl.pos.y,cl.pos.z+Math.sin(a)*cl.size*1.35));}
-    const ringLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts),new THREE.LineBasicMaterial({color:cl.color,transparent:true,opacity:0}));
-    galaxyGroup.add(ringLine); galaxyLines.push({line:ringLine,baseOp:0.35,clusterId:cl.id});
-    galaxyObjects.push({type:'cluster',mesh,atm,glow:glowSpr,label:lSpr,ring:ringLine,orbitRing:orbitRingLine,cluster:cl});
+    // planet equatorial ring (tilted)
+    const eqRingGeo = new THREE.RingGeometry(cl.size*1.25, cl.size*2.0, 64);
+    const eqRing = new THREE.Mesh(eqRingGeo, new THREE.MeshBasicMaterial({color:cl.color,side:THREE.DoubleSide,transparent:true,opacity:0,depthWrite:false}));
+    eqRing.rotation.x = Math.PI*0.42; eqRing.rotation.y = Math.PI*0.1;
+    eqRing.position.copy(cl.pos); galaxyGroup.add(eqRing);
+    // node dot orbit ring (visible guide ring around planet)
+    const nodeOrbitR = cl.size * 4.2;
+    const nodORingPts=[];
+    for(let i=0;i<=80;i++){const a=i/80*Math.PI*2;nodORingPts.push(new THREE.Vector3(Math.cos(a)*nodeOrbitR,Math.sin(a)*nodeOrbitR*0.18,Math.sin(a)*nodeOrbitR*0.55));}
+    const nodeOrbitRingLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(nodORingPts),new THREE.LineBasicMaterial({color:cl.color,transparent:true,opacity:0}));
+    galaxyGroup.add(nodeOrbitRingLine); galaxyLines.push({line:nodeOrbitRingLine,baseOp:0.22,clusterId:cl.id});
+    // store cluster object with label as separate field
+    galaxyObjects.push({type:'cluster',mesh,atm,glow:glowSpr,label:lSpr,ring:eqRing,orbitRing:orbitRingLine,nodeOrbitRing:nodeOrbitRingLine,cluster:cl});
+
+    // Node dots orbiting this planet
+    clusterNodeDots[cl.id] = [];
+    const pool = cl.layer==='narrative' ? NARRATIVE_ERAS : ERAS;
+    const nodeIds = cl.nodeIds.slice(0, Math.min(cl.nodeIds.length, 12)); // cap at 12 for performance
+    nodeIds.forEach((nid, ni) => {
+      const node = ERA_BY_ID[nid]; if(!node) return;
+      const dotSize = cl.size * 0.18;
+      const dotMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(dotSize, 12, 12),
+        new THREE.MeshPhysicalMaterial({color:cl.color,emissive:cl.color,emissiveIntensity:2.0,metalness:0.05,roughness:0.1,clearcoat:1.0,transparent:true,opacity:0})
+      );
+      dotMesh.userData = {clusterDot:true, nodeId:nid, cluster:cl, isGalaxyDot:true};
+      galaxyGroup.add(dotMesh);
+      // invisible hit sphere (larger)
+      const hitMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(dotSize*4, 8, 8),
+        new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false})
+      );
+      hitMesh.userData = {clusterDot:true, nodeId:nid, cluster:cl, isGalaxyDot:true};
+      galaxyGroup.add(hitMesh);
+      // glow sprite
+      const dotGlow = makeGlowSprite(cl.color, dotSize);
+      dotGlow.scale.setScalar(dotSize*10); dotGlow.material.opacity=0; galaxyGroup.add(dotGlow);
+      // label sprite
+      const shortTitle = node.title.length>20 ? node.title.slice(0,18)+'…' : node.title;
+      const lCanvas = makeNodeDotLabelCanvas(shortTitle, node.hex||cl.hex);
+      const labelSpr = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(lCanvas),transparent:true,depthWrite:false}));
+      labelSpr.scale.set(7,0.9,1); labelSpr.material.opacity=0; galaxyGroup.add(labelSpr);
+
+      const baseAngle = (ni / nodeIds.length) * Math.PI * 2;
+      const orbitSpeed = 0.06 + (ni % 3) * 0.015;
+      clusterNodeDots[cl.id].push({mesh:dotMesh, hitMesh, glow:dotGlow, labelSpr, nodeId:nid, baseAngle, orbitR:nodeOrbitR, orbitSpeed, cluster:cl});
+      galaxyObjects.push({type:'dot', mesh:dotMesh, glow:dotGlow, cluster:cl, nodeId:nid, hitMesh});
+    });
   });
   // arc between planets
   CLUSTER_CONNECTIONS.forEach(cc => {
@@ -1565,18 +1620,42 @@ function buildGalaxyLayer() {
     galaxyLines.push({line:arcLine,baseOp:0.28,isArc:true,label:cc.label,clFrom:cc.from,clTo:cc.to});
   });
 }
-// Tick the galaxy planet orbits
+
+// Tick galaxy planet orbits AND node dot orbits
 function tickGalaxyOrbits(elapsed) {
   if(!isGalaxyView) return;
-  CLUSTERS.forEach((cl,i) => {
+  CLUSTERS.forEach((cl, i) => {
     const obj = galaxyObjects.find(o=>o.type==='cluster'&&o.cluster===cl); if(!obj) return;
+    // planet orbits black hole
     cl.orbitAngle = (i===0?0:Math.PI) + elapsed * cl.orbitSpeed;
     const nx = Math.cos(cl.orbitAngle)*cl.orbitR, nz = Math.sin(cl.orbitAngle)*cl.orbitR;
-    cl.pos.set(nx,0,nz);
-    obj.mesh.position.copy(cl.pos); obj.atm.position.copy(cl.pos); obj.glow.position.copy(cl.pos);
-    obj.label.position.set(cl.pos.x-cl.size*6.5, cl.pos.y+cl.size*3.5, cl.pos.z);
-    // update planet equatorial ring
-    obj.ring.geometry.setFromPoints((()=>{const pts=[];for(let k=0;k<=80;k++){const a=k/80*Math.PI*2;pts.push(new THREE.Vector3(cl.pos.x+Math.cos(a)*cl.size*1.35,cl.pos.y,cl.pos.z+Math.sin(a)*cl.size*1.35));}return pts;})());
+    cl.pos.set(nx, 0, nz);
+    obj.mesh.position.copy(cl.pos);
+    obj.atm.position.copy(cl.pos);
+    obj.glow.position.copy(cl.pos);
+    // label centered above planet
+    obj.label.position.set(cl.pos.x, cl.pos.y + cl.size*2.2, cl.pos.z);
+    // equatorial ring follows planet
+    obj.ring.position.copy(cl.pos);
+    // node orbit guide ring follows planet
+    if(obj.nodeOrbitRing){
+      const norp=[];
+      const nr=cl.size*4.2;
+      for(let k=0;k<=80;k++){const a=k/80*Math.PI*2;norp.push(new THREE.Vector3(cl.pos.x+Math.cos(a)*nr,cl.pos.y+Math.sin(a)*nr*0.18,cl.pos.z+Math.sin(a)*nr*0.55));}
+      obj.nodeOrbitRing.geometry.setFromPoints(norp);
+    }
+    // node dots orbit the planet
+    const dots = clusterNodeDots[cl.id]||[];
+    dots.forEach(d => {
+      const angle = d.baseAngle + elapsed * d.orbitSpeed;
+      const ox = cl.pos.x + Math.cos(angle)*d.orbitR;
+      const oy = cl.pos.y + Math.sin(angle)*d.orbitR*0.18;
+      const oz = cl.pos.z + Math.sin(angle)*d.orbitR*0.55;
+      d.mesh.position.set(ox,oy,oz);
+      d.hitMesh.position.set(ox,oy,oz);
+      d.glow.position.set(ox,oy,oz);
+      d.labelSpr.position.set(ox, oy+d.orbitR*0.12, oz);
+    });
   });
   // update arc connection
   const arcObj = galaxyLines.find(gl=>gl.isArc);
@@ -1590,27 +1669,57 @@ buildGalaxyLayer();
 const galaxyHubGroup = new THREE.Group();
 galaxyHubGroup.visible = false;
 (function buildGalaxyHub() {
-  // Black hole: dark sphere with accretion glow
-  const bhGeo = new THREE.SphereGeometry(3.2,32,32);
-  const bhMat = new THREE.MeshPhysicalMaterial({color:0x050308,emissive:0x000000,emissiveIntensity:0,metalness:0.0,roughness:1.0,transparent:true,opacity:0});
+  // Core: deep dark sphere (the event horizon itself)
+  const bhGeo = new THREE.SphereGeometry(2.8, 32, 32);
+  const bhMat = new THREE.MeshPhysicalMaterial({color:0x020105,emissive:0x000000,emissiveIntensity:0,metalness:0,roughness:1,transparent:true,opacity:0});
   const hubMesh = new THREE.Mesh(bhGeo, bhMat); hubMesh.userData={isGalaxyHub:true}; galaxyHubGroup.add(hubMesh);
-  // Accretion disk glow
-  const hubAtm=new THREE.Mesh(new THREE.SphereGeometry(3.2*2.2,24,24),new THREE.MeshBasicMaterial({color:0xff8800,transparent:true,opacity:0,side:THREE.BackSide,depthWrite:false})); galaxyHubGroup.add(hubAtm);
-  // Outer accretion ring
-  const ringGeo = new THREE.RingGeometry(3.2*1.6, 3.2*3.5, 64);
-  const ringMat = new THREE.MeshBasicMaterial({color:0xff6600,side:THREE.DoubleSide,transparent:true,opacity:0,depthWrite:false});
-  const accRing = new THREE.Mesh(ringGeo, ringMat); accRing.rotation.x = Math.PI*0.44; accRing.rotation.y = Math.PI*0.08; galaxyHubGroup.add(accRing);
-  const hubGlow = makeGlowSprite(0xff8822, 3.2); hubGlow.scale.setScalar(3.2*14); hubGlow.material.opacity=0; galaxyHubGroup.add(hubGlow);
+
+  // Inner corona — hot white-orange shell just outside event horizon
+  const coronaAtm = new THREE.Mesh(new THREE.SphereGeometry(2.8*1.35, 32, 32), new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0,side:THREE.BackSide,depthWrite:false}));
+  galaxyHubGroup.add(coronaAtm);
+
+  // Mid glow — orange halo
+  const hubAtm = new THREE.Mesh(new THREE.SphereGeometry(2.8*2.4, 24, 24), new THREE.MeshBasicMaterial({color:0xff6600,transparent:true,opacity:0,side:THREE.BackSide,depthWrite:false}));
+  galaxyHubGroup.add(hubAtm);
+
+  // Outer lensing halo — large diffuse ring
+  const lensAtm = new THREE.Mesh(new THREE.SphereGeometry(2.8*4.5, 20, 20), new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0,side:THREE.BackSide,depthWrite:false}));
+  galaxyHubGroup.add(lensAtm);
+
+  // Photon ring — tight bright ring right at Schwarzschild radius
+  const photonRingGeo = new THREE.RingGeometry(2.8*1.05, 2.8*1.45, 80);
+  const photonRing = new THREE.Mesh(photonRingGeo, new THREE.MeshBasicMaterial({color:0xffffff,side:THREE.DoubleSide,transparent:true,opacity:0,depthWrite:false}));
+  photonRing.rotation.x = Math.PI*0.5; galaxyHubGroup.add(photonRing);
+
+  // Accretion disk — tilted, wide, orange-to-red
+  const accRingGeo = new THREE.RingGeometry(2.8*1.5, 2.8*4.2, 80);
+  const accRing = new THREE.Mesh(accRingGeo, new THREE.MeshBasicMaterial({color:0xff6600,side:THREE.DoubleSide,transparent:true,opacity:0,depthWrite:false}));
+  accRing.rotation.x = Math.PI*0.44; accRing.rotation.y = Math.PI*0.08; galaxyHubGroup.add(accRing);
+
+  // Outer accretion haze
+  const accRing2Geo = new THREE.RingGeometry(2.8*4.2, 2.8*7.5, 80);
+  const accRing2 = new THREE.Mesh(accRing2Geo, new THREE.MeshBasicMaterial({color:0xff3300,side:THREE.DoubleSide,transparent:true,opacity:0,depthWrite:false}));
+  accRing2.rotation.x = accRing.rotation.x; accRing2.rotation.y = accRing.rotation.y; galaxyHubGroup.add(accRing2);
+
+  // Primary glow sprite — massive orange bloom
+  const hubGlow = makeGlowSprite(0xff8822, 2.8); hubGlow.scale.setScalar(2.8*22); hubGlow.material.opacity=0; galaxyHubGroup.add(hubGlow);
+  // Secondary tighter hot-white core glow
+  const coreGlow = makeGlowSprite(0xffeecc, 2.8); coreGlow.scale.setScalar(2.8*8); coreGlow.material.opacity=0; galaxyHubGroup.add(coreGlow);
+
+  // Label — sits above the black hole
   const hubCanvas=document.createElement('canvas'); hubCanvas.width=512; hubCanvas.height=128;
   const hCtx=hubCanvas.getContext('2d');
-  hCtx.fillStyle='rgba(255,136,34,0.88)'; hCtx.font='900 28px "Crimson Text",serif'; hCtx.fillText('Galaxy',12,48);
-  hCtx.fillStyle='rgba(255,136,34,0.45)'; hCtx.font='300 14px "DM Mono",monospace'; hCtx.fillText('TWO ORRERIES · CLICK A PLANET',12,76);
+  hCtx.fillStyle='rgba(255,160,60,0.92)'; hCtx.font='900 28px "Crimson Text",serif'; hCtx.fillText('Galaxy',12,48);
+  hCtx.fillStyle='rgba(255,160,60,0.50)'; hCtx.font='300 14px "DM Mono",monospace'; hCtx.fillText('TWO ORRERIES · CLICK A PLANET',12,76);
   const hubLabel=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(hubCanvas),transparent:true,depthWrite:false}));
-  hubLabel.scale.set(22,5.5,1); hubLabel.position.set(-3.2*5,3.2*4,0); hubLabel.material.opacity=0; galaxyHubGroup.add(hubLabel);
+  hubLabel.scale.set(22,5.5,1); hubLabel.position.set(0, 2.8*5.5, 0); hubLabel.material.opacity=0; galaxyHubGroup.add(hubLabel);
+
+  // Hub orbit guide ring
   const hubRingPts=[];
-  for(let i=0;i<=80;i++){const a=i/80*Math.PI*2;hubRingPts.push(new THREE.Vector3(Math.cos(a)*3.2*1.5,0,Math.sin(a)*3.2*1.5));}
-  const hubRing=new THREE.Line(new THREE.BufferGeometry().setFromPoints(hubRingPts),new THREE.LineBasicMaterial({color:0xff7700,transparent:true,opacity:0})); galaxyHubGroup.add(hubRing);
-  galaxyHubGroup.userData={mesh:hubMesh,atm:hubAtm,glow:hubGlow,label:hubLabel,ring:hubRing,accRing};
+  for(let i=0;i<=80;i++){const a=i/80*Math.PI*2;hubRingPts.push(new THREE.Vector3(Math.cos(a)*2.8*1.6,0,Math.sin(a)*2.8*1.6));}
+  const hubRing=new THREE.Line(new THREE.BufferGeometry().setFromPoints(hubRingPts),new THREE.LineBasicMaterial({color:0xff9933,transparent:true,opacity:0})); galaxyHubGroup.add(hubRing);
+
+  galaxyHubGroup.userData={mesh:hubMesh,atm:hubAtm,coronaAtm,lensAtm,glow:hubGlow,coreGlow,label:hubLabel,ring:hubRing,accRing,accRing2,photonRing};
 })();
 
 const hubMeshList=[galaxyHubGroup.userData.mesh];
@@ -1660,20 +1769,33 @@ function updateGalaxyAlpha() {
     line.material.opacity=Math.min(ga*op*dim,0.95);
   });
   if(isGalaxyView&&galaxyHubGroup.userData.mesh){
-    const hub=galaxyHubGroup.userData,hDim=focCl?0.30:1.0,lk=0.10;
-    hub.mesh.material.opacity+=(ga*0.98*hDim-hub.mesh.material.opacity)*lk;
-    hub.atm.material.opacity+=(ga*0.35*hDim-hub.atm.material.opacity)*lk;
-    hub.glow.material.opacity+=((isLight?0:ga*1.2*hDim)-hub.glow.material.opacity)*lk;
-    hub.label.material.opacity+=(ga*hDim-hub.label.material.opacity)*lk;
-    hub.ring.material.opacity+=(ga*0.55*hDim-hub.ring.material.opacity)*lk;
-    if(hub.accRing)hub.accRing.material.opacity+=(ga*0.60*hDim-hub.accRing.material.opacity)*lk;
+    const hub=galaxyHubGroup.userData, hDim=focCl?0.28:1.0, lk=0.10;
+    const pulseFire = 0.85 + Math.sin(typeof elapsed!=='undefined'?elapsed*1.2:0)*0.15;
+    hub.mesh.material.opacity += (ga*0.97*hDim - hub.mesh.material.opacity)*lk;
+    if(hub.coronaAtm) hub.coronaAtm.material.opacity += (ga*0.55*hDim - hub.coronaAtm.material.opacity)*lk;
+    hub.atm.material.opacity += (ga*0.38*hDim*pulseFire - hub.atm.material.opacity)*lk;
+    if(hub.lensAtm) hub.lensAtm.material.opacity += (ga*0.18*hDim - hub.lensAtm.material.opacity)*lk;
+    hub.glow.material.opacity += ((isLight?0:ga*0.95*hDim*pulseFire) - hub.glow.material.opacity)*lk;
+    if(hub.coreGlow) hub.coreGlow.material.opacity += ((isLight?0:ga*1.4*hDim) - hub.coreGlow.material.opacity)*lk;
+    hub.label.material.opacity += (ga*hDim - hub.label.material.opacity)*lk;
+    hub.ring.material.opacity += (ga*0.45*hDim - hub.ring.material.opacity)*lk;
+    if(hub.photonRing) hub.photonRing.material.opacity += (ga*0.90*hDim*pulseFire - hub.photonRing.material.opacity)*lk;
+    if(hub.accRing) hub.accRing.material.opacity += (ga*0.70*hDim*pulseFire - hub.accRing.material.opacity)*lk;
+    if(hub.accRing2) hub.accRing2.material.opacity += (ga*0.30*hDim - hub.accRing2.material.opacity)*lk;
   }
+  // node dot labels — visible only on hover
+  Object.values(clusterNodeDots).forEach(dots => {
+    dots.forEach(d => {
+      const isHov = d.mesh===hoveredDotMesh;
+      d.labelSpr.material.opacity += ((isHov?ga*0.90:0) - d.labelSpr.material.opacity)*0.12;
+    });
+  });
   if(typeof _galaxyNebulaTick==='undefined')window._galaxyNebulaTick=0;
   _galaxyNebulaTick++; if(_galaxyNebulaTick%3===0)drawMesh();
 }
 
 const clusterMeshes=galaxyObjects.filter(o=>o.type==='cluster').map(o=>o.mesh);
-const dotMeshes=galaxyObjects.filter(o=>o.type==='dot').map(o=>o.mesh);
+const dotMeshes=galaxyObjects.filter(o=>o.type==='dot').flatMap(o=>[o.mesh, o.hitMesh].filter(Boolean));
 function setGalaxyFocus(cl){activeGalaxyCluster=cl;}
 function clearGalaxyFocus(){activeGalaxyCluster=null;}
 
@@ -1685,7 +1807,16 @@ function checkGalaxyHover(mouseVec){
   const cHits=raycaster.intersectObjects(clusterMeshes);
   if(cHits.length){const cl=cHits[0].object.userData.cluster;if(cl!==hoveredCluster){hoveredCluster=cl;document.getElementById('tt-era').textContent=cl.nodeIds.length+' nodes';document.getElementById('tt-title').textContent=cl.name.replace('\n',' ');document.getElementById('tt-title').style.color=cl.hex;document.getElementById('tt-role').textContent=cl.sub;tooltip.classList.add('vis');}hoveredDotMesh=null;setGalaxyFocus(cl);document.body.style.cursor='pointer';return true;}
   const dHits=raycaster.intersectObjects(dotMeshes);
-  if(dHits.length){const dot=dHits[0].object,node=ERA_BY_ID[dot.userData.nodeId],cl=dot.userData.cluster;if(node){document.getElementById('tt-era').textContent=cl.name.replace('\n',' ');document.getElementById('tt-title').textContent=node.title;document.getElementById('tt-title').style.color=cl.hex;document.getElementById('tt-role').textContent=node.role;tooltip.classList.add('vis');}hoveredDotMesh=dot;setGalaxyFocus(cl);document.body.style.cursor='pointer';return true;}
+  if(dHits.length){
+    const hitObj=dHits[0].object;
+    const dotObj=galaxyObjects.find(o=>o.type==='dot'&&(o.mesh===hitObj||o.hitMesh===hitObj));
+    const node=dotObj?ERA_BY_ID[dotObj.nodeId]:null;
+    const cl=dotObj?dotObj.cluster:null;
+    if(node&&cl){document.getElementById('tt-era').textContent=cl.name.replace('\n',' ');document.getElementById('tt-title').textContent=node.title;document.getElementById('tt-title').style.color=cl.hex;document.getElementById('tt-role').textContent=node.role;tooltip.classList.add('vis');}
+    hoveredDotMesh=dotObj?dotObj.mesh:null;
+    if(cl)setGalaxyFocus(cl);
+    document.body.style.cursor='pointer';return true;
+  }
   hoveredDotMesh=null;
   if(hoveredCluster){hoveredCluster=null;tooltip.classList.remove('vis');}
   clearGalaxyFocus(); return false;
@@ -1707,7 +1838,19 @@ function handleGalaxyClick(mouseVec){
     return true;
   }
   const dHits=raycaster.intersectObjects(dotMeshes);
-  if(dHits.length){const node=ERA_BY_ID[dHits[0].object.userData.nodeId];if(node){switchLayer(LAYER_ORRERY);setTimeout(()=>focusEra(node),600);}return true;}
+  if(dHits.length){
+    const hitObj=dHits[0].object;
+    const dotObj=galaxyObjects.find(o=>o.type==='dot'&&(o.mesh===hitObj||o.hitMesh===hitObj));
+    const node=dotObj?ERA_BY_ID[dotObj.nodeId]:null;
+    const cl=dotObj?dotObj.cluster:null;
+    if(node&&cl){
+      const targetLayer=cl.layer==='narrative'?LAYER_NARRATIVE:LAYER_ORRERY;
+      clearGalaxyFocus();
+      switchLayer(targetLayer);
+      setTimeout(()=>focusEra(node),600);
+    }
+    return true;
+  }
   return false;
 }
 
@@ -2203,8 +2346,12 @@ function animate(ts){
     nodeObjects.forEach(({mesh,era})=>{const pulse=1+Math.sin(elapsed*0.7+era._t*Math.PI*2)*0.025;mesh.scale.setScalar(pulse);});
     if(currentLayer===LAYER_NARRATIVE){narrativeObjects.forEach(({mesh,era})=>{const pulse=1+Math.sin(elapsed*0.7+era._t*Math.PI*2)*0.025;mesh.scale.setScalar(pulse);});}
   }
-  // spin accretion ring on black hole
-  if(isGalaxyView&&galaxyHubGroup.userData.accRing){galaxyHubGroup.userData.accRing.rotation.z+=0.004;}
+  // animate black hole components
+  if(isGalaxyView&&galaxyHubGroup.userData.accRing){
+    galaxyHubGroup.userData.accRing.rotation.z += 0.005;
+    if(galaxyHubGroup.userData.accRing2) galaxyHubGroup.userData.accRing2.rotation.z -= 0.003;
+    if(galaxyHubGroup.userData.photonRing) galaxyHubGroup.userData.photonRing.rotation.z += 0.012;
+  }
   tickGalaxyOrbits(elapsed);
   const pa=pGeo.attributes.position.array;
   for(let i=0;i<PC;i++)pa[i*3+1]=pOrig[i*3+1]+Math.sin(elapsed*pSp[i]+pPh[i])*0.35;
