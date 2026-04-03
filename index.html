@@ -4649,6 +4649,7 @@ let galaxyMode = true;  // start in galaxy overview
 
 function switchView(view) {
   if (view === 'overview') {
+    focusedStarGalaxyId = null; // reset star focus on overview
     // Overview = zoom out to see all three orreries around the black hole
     // Focus on the orbital ring with a tilted-down angle for comfortable viewing
     closeGridView();
@@ -4714,17 +4715,32 @@ function handleStarClick(mouseVec) {
 
   const gid = star.def.galaxyId;
   isBlackHoleFocused = false;
-  focusedStarGalaxyId = gid;
 
-  if (window.innerWidth <= 768) {
-    // Mobile: star tap = swoop into that galaxy (same as cluster tap)
-    const listMap = { career: ERAS, sentence: PLATFORM_ERAS, claude: CLAUDE_ERAS, manifesto: MANIFESTO_ERAS };
-    const list = listMap[gid];
-    if (list && list[0]) focusEra(list[0]);
-  } else {
-    // Desktop: star click opens that galaxy's tesseract
+  // ── STAR CLICK LOGIC ──────────────────────────────────────
+  // Rule: must focus the star's galaxy BEFORE the tesseract is accessible.
+  // First click (not yet focused) → swoop to orrery overview.
+  // Second click (already focused in this galaxy) → open tesseract.
+
+  const alreadyFocused = focusedStarGalaxyId === gid && !galaxyMode && galaxyAlpha < 0.5;
+
+  if (alreadyFocused) {
+    // Star is already in focus — open its tesseract
     openGalaxyTesseract(gid);
+    return true;
   }
+
+  // Not yet focused — swoop into the orrery overview for this galaxy
+  focusedStarGalaxyId = gid;
+  const p = star.def.center;
+  const angle = Math.atan2(p.z, p.x);
+  const orreryTheta  = angle + Math.PI * 0.55;
+  const orreryPhi    = Math.PI * 0.28;
+  const orreryRadius = 52;
+  galaxyMode = false;
+  swoopTo(orreryPhi, orreryTheta, orreryRadius, p.clone());
+  camTarget.phi = orreryPhi; camTarget.theta = orreryTheta; camTarget.radius = orreryRadius;
+  scenePivotTgt.copy(p);
+  isFocused = false; focusedEra = null;
   return true;
 }
 
@@ -4732,6 +4748,7 @@ function handleStarClick(mouseVec) {
 function clearStarFocus() {
   focusedStarGalaxyId = null;
 }
+// Star focus cleared in switchView overview branch above
 
 // ─────────────────────────────────────────────────────────────
 // PER-GALAXY TESSERACT
@@ -5086,34 +5103,33 @@ function eraPreset(era) {
   const pos = era._pos;
   const isMobile = window.innerWidth <= 768;
 
-  // Use each spiral's own center for nodeR and approach angle.
-  const center = era.id.startsWith('m-') ? new THREE.Vector3(0, 0, 0)
-               : era.id.startsWith('cc-')          ? CLAUDE_CENTER.clone()
-               : era.id.startsWith('p-')           ? SENTENCE_CENTER.clone()
-               :                                     CAREER_OFFSET.clone();
+  // Galaxy center for azimuth calculation
+  const center = era.id.startsWith('m-')  ? new THREE.Vector3(0, 0, 0)
+               : era.id.startsWith('cc-') ? CLAUDE_CENTER.clone()
+               : era.id.startsWith('p-')  ? SENTENCE_CENTER.clone()
+               :                            CAREER_OFFSET.clone();
 
   const relX = pos.x - center.x;
   const relZ = pos.z - center.z;
+  // Camera angle: directly behind the node (away from center), so looking inward
   const nodeAngle = Math.atan2(relZ, relX);
-  const nodeR     = Math.sqrt(relX * relX + relZ * relZ);
+  const theta     = nodeAngle; // camera at same azimuth as node, further out
 
-  // Camera positioned BEYOND the node along the center→node radial line.
-  // theta = nodeAngle: same azimuth as node, further from center.
-  // Pivot between node and center: star visible in background behind node.
-  const theta = nodeAngle;
-  const camOffset = isMobile ? 10 : 14;
-  const radius = nodeR + camOffset;
-  const phi = isMobile ? Math.PI * 0.30 : Math.PI * 0.32;
+  // Elevation: slight tilt down so the node is well-lit and in frame
+  const phi = isMobile ? Math.PI * 0.28 : Math.PI * 0.30;
 
-  const pivotLerp = 0.6;
-  const pivotBase = new THREE.Vector3(
-    center.x + relX * pivotLerp,
-    pos.y * pivotLerp,
-    center.z + relZ * pivotLerp
-  );
-  const panelShift  = isMobile ? 0 : -4.0;
-  const screenRight = new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta));
-  const pivot       = pivotBase.clone().addScaledVector(screenRight, panelShift);
+  // Radius: fixed orbit distance around the node itself
+  // Larger for outer nodes (they have more context to show), tighter for inner
+  const nodeR  = Math.sqrt(relX * relX + relZ * relZ);
+  const radius = isMobile
+    ? Math.max(10, Math.min(18, 8 + nodeR * 0.28))
+    : Math.max(14, Math.min(26, 10 + nodeR * 0.38));
+
+  // PIVOT = exact node position so the node is CENTERED in viewport
+  // On desktop, shift slightly left (toward star) to give ghost panel room on right
+  const panelShift  = isMobile ? 0 : 3.5;  // positive = toward star (left of screen)
+  const screenLeft  = new THREE.Vector3(-Math.cos(theta + Math.PI * 0.5), 0, Math.sin(theta + Math.PI * 0.5));
+  const pivot       = pos.clone().addScaledVector(screenLeft, panelShift);
 
   return { theta, phi, radius, pivot };
 }
