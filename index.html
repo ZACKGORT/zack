@@ -74,33 +74,40 @@ body.light .hud-btn{color:rgba(0,0,0,0.55);border-right-color:rgba(0,0,0,0.08);}
 body.light .hud-btn:hover{color:#000;}
 body.light .hud-btn.active{color:#000;background:rgba(0,0,0,0.08);}
 
-/* ── SENTENCE GHOST IMAGE ── */
+/* ── SENTENCE GHOST IMAGE — top toast banner ── */
 #sent-ghost{
-  position:fixed;left:0;top:0;
-  width:220px;height:165px;
+  position:fixed;
+  top:0;left:50%;
+  transform:translateX(-50%) translateY(-110%);
+  width:min(460px,88vw);
   pointer-events:none;
   opacity:0;
-  transition:opacity 0.35s, transform 0.35s;
+  transition:opacity 0.30s, transform 0.38s cubic-bezier(0.22,1,0.36,1);
   z-index:690;
-  transform:translateX(-12px);
+  display:flex;align-items:stretch;gap:0;
+  background:rgba(5,3,10,0.96);
+  border:1px solid rgba(218,165,32,0.18);
+  border-top:none;
+  border-radius:0 0 6px 6px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.70);
+  backdrop-filter:blur(18px);
+  overflow:hidden;
 }
-#sent-ghost.vis{opacity:1;transform:translateX(0);}
+#sent-ghost.vis{opacity:1;transform:translateX(-50%) translateY(0);}
 #sent-ghost-img{
-  width:100%;height:100%;object-fit:cover;
-  border-radius:3px;
-  filter:saturate(0.7) brightness(0.75);
+  width:72px;flex-shrink:0;object-fit:cover;
+  filter:saturate(0.65) brightness(0.72);
   display:block;
 }
 #sent-ghost-cap{
-  position:absolute;bottom:0;left:0;right:0;
-  padding:6px 10px;
-  font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.14em;
-  text-transform:uppercase;color:rgba(245,236,213,0.55);
-  background:linear-gradient(transparent,rgba(0,0,0,0.6));
-  border-radius:0 0 3px 3px;
+  padding:10px 14px;
+  font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.15em;
+  text-transform:uppercase;color:rgba(245,236,213,0.60);
+  line-height:1.6;flex:1;display:flex;align-items:center;
 }
+body.light #sent-ghost{background:rgba(255,255,255,0.97);border-color:rgba(0,0,0,0.12);}
 body.light #sent-ghost-img{filter:saturate(0) brightness(1.0);}
-body.light #sent-ghost-cap{color:rgba(0,0,0,0.55);}
+body.light #sent-ghost-cap{color:rgba(0,0,0,0.60);}
 @media(max-width:768px){#sent-ghost{display:none;}}
 
 /* ── GRID VIEW ── */
@@ -904,11 +911,27 @@ body.light #mf-close:hover{color:#000;}
   pointer-events:none;
 }
 
-
+/* ── CUSTOM ELLIPTICAL CURSOR ── */
+html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
+.cs-nav-btn, .gcclose, .gcnav-btn, .gcexpand, .toc-row, .grid-card,
+#brand { cursor: none !important; }
+#cursor-outer, #cursor-inner {
+  position:fixed; top:0; left:0; pointer-events:none;
+  z-index:9999; will-change:transform; overflow:visible;
+}
 
 </style>
 </head>
 <body>
+<!-- CUSTOM ELLIPTICAL CURSOR -->
+<svg id="cursor-outer" width="60" height="36" viewBox="-30 -18 60 36">
+  <ellipse id="co-ellipse" cx="0" cy="0" rx="20" ry="11"
+    fill="none" stroke="rgba(218,165,32,0.50)" stroke-width="1.2"/>
+</svg>
+<svg id="cursor-inner" width="60" height="36" viewBox="-30 -18 60 36">
+  <ellipse id="ci-ellipse" cx="0" cy="0" rx="7" ry="4"
+    fill="rgba(218,165,32,0.15)" stroke="rgba(218,165,32,0.95)" stroke-width="1"/>
+</svg>
 <canvas id="bg-mesh"></canvas>
 <canvas id="canvas"></canvas>
 
@@ -4485,13 +4508,6 @@ function showSentGhost(era, sentIndex, anchorEl) {
   if (!img) { hideSentGhost(); return; }
   sentGhostImg.src = img.src;
   sentGhostCap.textContent = img.caption || '';
-  // Position: vertically centered on sentence, to the left of the ghost panel
-  const anchorRect = anchorEl ? anchorEl.getBoundingClientRect() : { top: window.innerHeight/2, height: 40 };
-  const midY = anchorRect.top + anchorRect.height / 2;
-  const y = Math.max(20, Math.min(window.innerHeight - 190, midY - 82));
-  const panelLeft = window.innerWidth - 28 - 360;  // ghost panel: right:28px width:360px
-  sentGhostEl.style.top = y + 'px';
-  sentGhostEl.style.left = Math.max(8, panelLeft - 244) + 'px';
   sentGhostEl.classList.add('vis');
 }
 
@@ -5347,15 +5363,36 @@ cvs.addEventListener('pointerup', e => {
       const nodeObj = nodeObjects.find(o => o.mesh === hit || o.hitMesh === hit);
       if (nodeObj) focusEra(nodeObj.era);
     } else if (isFocused) {
-      document.getElementById('ghost').classList.remove('on');
-      document.getElementById('msheet').classList.remove('on');
-      hideSentGhost();
-      focusedEra = null; isFocused = false;
-      swoop.active = false;
-      activeNodeNebulaIdx = -1;
-      scenePivotTgt.copy(CAREER_OFFSET);
-      camTarget.radius = 68; camTarget.phi = Math.PI * 0.28; camTarget.theta = Math.PI * 0.1;
-      resetHighlights();
+      if (galaxyAlpha > 0.15) {
+        // Galaxy view: only exit if click is outside the outer orbital ring
+        const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+        const worldPt = new THREE.Vector3();
+        raycaster.ray.intersectPlane(plane, worldPt);
+        const dist = Math.sqrt(worldPt.x*worldPt.x + worldPt.z*worldPt.z);
+        if (dist > 170) {
+          document.getElementById('ghost').classList.remove('on');
+          document.getElementById('msheet').classList.remove('on');
+          hideSentGhost();
+          focusedEra = null; isFocused = false;
+          swoop.active = false; activeNodeNebulaIdx = -1;
+          scenePivotTgt.set(0,0,0);
+          swoopTo(Math.PI*0.18, Math.PI*0.25, 270, new THREE.Vector3(0,0,0));
+          camTarget.phi=Math.PI*0.18; camTarget.theta=Math.PI*0.25; camTarget.radius=270;
+          resetHighlights();
+          if (window._updateSSFilter) window._updateSSFilter(null);
+          if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
+        }
+      } else {
+        document.getElementById('ghost').classList.remove('on');
+        document.getElementById('msheet').classList.remove('on');
+        hideSentGhost();
+        focusedEra = null; isFocused = false;
+        swoop.active = false;
+        activeNodeNebulaIdx = -1;
+        scenePivotTgt.copy(CAREER_OFFSET);
+        camTarget.radius = 68; camTarget.phi = Math.PI * 0.28; camTarget.theta = Math.PI * 0.1;
+        resetHighlights();
+      }
     }
   }
   if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; }
@@ -6610,3 +6647,76 @@ applyTesseractCam = function() {
     </div>
   </div>
 </div>
+
+<script>
+// ── CUSTOM ELLIPTICAL CURSOR ─────────────────────────────
+(function() {
+  var outerEl = document.getElementById('cursor-outer');
+  var innerEl = document.getElementById('cursor-inner');
+  var coEll   = document.getElementById('co-ellipse');
+  var ciEll   = document.getElementById('ci-ellipse');
+  if (!outerEl || !innerEl || !coEll || !ciEll) return;
+  if (window.matchMedia('(hover:none)').matches) {
+    outerEl.style.display = 'none'; innerEl.style.display = 'none'; return;
+  }
+
+  var mx = window.innerWidth/2, my = window.innerHeight/2;
+  var ox = mx, oy = my, vx = 0, vy = 0, prevMx = mx, prevMy = my;
+  var outerRx = 20, outerRy = 11, outerAngle = 0;
+  var isPointer = false, isDown = false;
+
+  document.addEventListener('mousemove', function(e) {
+    prevMx = mx; prevMy = my; mx = e.clientX; my = e.clientY;
+    vx = mx - prevMx; vy = my - prevMy;
+  }, {passive:true});
+  document.addEventListener('mousedown', function() { isDown = true; });
+  document.addEventListener('mouseup', function() { isDown = false; });
+  document.addEventListener('mouseleave', function() { outerEl.style.opacity='0'; innerEl.style.opacity='0'; });
+  document.addEventListener('mouseenter', function() { outerEl.style.opacity='1'; innerEl.style.opacity='1'; });
+
+  function tick() {
+    requestAnimationFrame(tick);
+    ox += (mx - ox) * 0.10;
+    oy += (my - oy) * 0.10;
+    var speed = Math.sqrt(vx*vx + vy*vy);
+    vx *= 0.75; vy *= 0.75;
+    var t = Math.min(speed / 35, 1);
+
+    var el = document.elementFromPoint(mx, my);
+    isPointer = false;
+    if (el) {
+      var tag = el.tagName;
+      isPointer = (tag==='BUTTON'||tag==='A'||tag==='INPUT'||tag==='SELECT') ||
+        el.hasAttribute('onclick') || el.classList.contains('hud-btn') ||
+        el.classList.contains('gc-moon-pill') || el.classList.contains('toc-row') ||
+        el.classList.contains('grid-card') || !!el.closest('button') || !!el.closest('a');
+    }
+
+    var tRx, tRy, tAngle;
+    if (isDown) { tRx=6; tRy=6; tAngle=0; }
+    else if (isPointer) { tRx=24; tRy=24; tAngle=0; }
+    else {
+      tRx = 20*(1+t*1.6); tRy = 11*(1-t*0.32);
+      tAngle = (speed>1.5) ? Math.atan2(vy,vx)*180/Math.PI : outerAngle;
+    }
+
+    outerRx += (tRx-outerRx)*0.14; outerRy += (tRy-outerRy)*0.14;
+    var da = tAngle - outerAngle;
+    if (da>180) da-=360; if (da<-180) da+=360;
+    outerAngle += da*0.12;
+
+    coEll.setAttribute('rx', outerRx.toFixed(1));
+    coEll.setAttribute('ry', outerRy.toFixed(1));
+    coEll.setAttribute('transform', 'rotate('+outerAngle.toFixed(1)+')');
+    coEll.setAttribute('stroke', isPointer ? 'rgba(218,165,32,0.95)' : 'rgba(218,165,32,'+(0.35+t*0.45).toFixed(2)+')');
+    outerEl.style.transform = 'translate('+(ox-30).toFixed(1)+'px,'+(oy-18).toFixed(1)+'px)';
+
+    var ir = isDown?3:isPointer?5:7, irY = isDown?3:isPointer?5:4;
+    ciEll.setAttribute('rx', ir); ciEll.setAttribute('ry', irY);
+    ciEll.setAttribute('fill', isPointer?'rgba(218,165,32,0.28)':'rgba(218,165,32,0.15)');
+    ciEll.setAttribute('stroke', isPointer?'rgba(218,165,32,1)':'rgba(218,165,32,0.92)');
+    innerEl.style.transform = 'translate('+(mx-30).toFixed(1)+'px,'+(my-18).toFixed(1)+'px)';
+  }
+  tick();
+})();
+</script>
