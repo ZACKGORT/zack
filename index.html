@@ -5256,7 +5256,7 @@ cvs.addEventListener('pointermove', e => {
 
   if (e.buttons && e.button !== 2) {
     const dx = e.clientX - pointerDownX, dy = e.clientY - pointerDownY;
-    const dragThreshold = isMobileDevice() ? 12 : 4; // slightly more resistant on mobile
+    const dragThreshold = isMobileDevice() ? 4 : 4;
     if (!drag && Math.sqrt(dx*dx + dy*dy) > dragThreshold) {
       drag = true;
       if (swoop.active) {
@@ -5265,12 +5265,29 @@ cvs.addEventListener('pointermove', e => {
         camTarget.theta  = camState.theta;
         camTarget.radius = camState.radius;
       }
+      // On mobile, sync target to state immediately to avoid jump
+      if (isMobileDevice()) {
+        camTarget.phi    = camState.phi;
+        camTarget.theta  = camState.theta;
+        camTarget.radius = camState.radius;
+      }
     }
     if (drag) {
       isDragging = true;
-      const sensitivity = isMobileDevice() ? 0.012 : 0.005;
-      camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
-      camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + (e.clientY - lastDragY) * sensitivity));
+      if (isMobileDevice()) {
+        // Mobile: apply directly to both state and target so there's zero lag
+        const sensitivity = 0.008;
+        const dTheta = -(e.clientX - lastDragX) * sensitivity;
+        const dPhi   =  (e.clientY - lastDragY) * sensitivity;
+        camTarget.theta += dTheta;
+        camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + dPhi));
+        camState.theta += dTheta;
+        camState.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
+      } else {
+        const sensitivity = 0.005;
+        camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
+        camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + (e.clientY - lastDragY) * sensitivity));
+      }
     }
     lastDragX = e.clientX; lastDragY = e.clientY;
   } else {
