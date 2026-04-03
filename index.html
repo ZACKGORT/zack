@@ -5275,14 +5275,15 @@ cvs.addEventListener('pointermove', e => {
     if (drag) {
       isDragging = true;
       if (isMobileDevice()) {
-        // Mobile: apply directly to both state and target so there's zero lag
-        const sensitivity = 0.008;
-        const dTheta = -(e.clientX - lastDragX) * sensitivity;
-        const dPhi   =  (e.clientY - lastDragY) * sensitivity;
+        // Mobile: write directly to camState AND camTarget — no lerp lag
+        const sens = 0.007;
+        const dTheta = -(e.clientX - lastDragX) * sens;
+        const dPhi   =  (e.clientY - lastDragY) * sens;
+        camState.theta  += dTheta;
         camTarget.theta += dTheta;
-        camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + dPhi));
-        camState.theta += dTheta;
-        camState.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
+        const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
+        camState.phi  = newPhi;
+        camTarget.phi = newPhi;
       } else {
         const sensitivity = 0.005;
         camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
@@ -5301,19 +5302,19 @@ cvs.addEventListener('pointerup', e => {
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   const dist = Math.sqrt(dx * dx + dy * dy);
+  drag = false; // always reset drag flag
 
   if (isMobileDevice()) {
-    // ── MOBILE: swipe-to-navigate tour ──
-    const SWIPE_THRESHOLD = 48;   // px — minimum horizontal swipe distance
-    const AXIS_RATIO = 1.4;       // horizontal must dominate vertical by this factor
+    // ── MOBILE: swipe-to-navigate only when focused on a node ──
+    // In galaxy view, swipe = camera orbit (handled in pointermove), not nav
+    const SWIPE_THRESHOLD = 48;
+    const AXIS_RATIO = 1.4;
 
-    if (dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
-      // Horizontal swipe detected
+    if (isFocused && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
+      // Horizontal swipe → navigate nodes
       if (dx < 0) {
-        // Swipe LEFT → next node
         navNext();
       } else {
-        // Swipe RIGHT → prev node
         navPrev();
       }
       return;
@@ -5912,13 +5913,17 @@ function animate(ts) {
     tickSwoop(dt);
     // Suppress auto-orbit and user drag during swoop
   } else {
-    const lerpK = isMobileDevice() ? 0.14 : 0.08;
-    camState.phi   += (camTarget.phi   - camState.phi)   * lerpK;
-    camState.theta += (camTarget.theta - camState.theta) * lerpK;
-    camState.radius+= (camTarget.radius- camState.radius)* lerpK;
+    // On mobile during active drag: camState is already set directly in pointermove — skip lerp
+    if (!isMobileDevice() || !drag) {
+      const lerpK = isMobileDevice() ? 0.14 : 0.08;
+      camState.phi   += (camTarget.phi   - camState.phi)   * lerpK;
+      camState.theta += (camTarget.theta - camState.theta) * lerpK;
+      camState.radius+= (camTarget.radius- camState.radius)* lerpK;
+    }
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
-    if (!isFocused && !isDragging && !orbitPaused) {
+    // Auto-orbit: never run on mobile while drag is active
+    if (!isFocused && !isDragging && !drag && !orbitPaused) {
       // Galaxy view: slower, more cinematic orbit around the ring
       const orbitSpeed = galaxyAlpha > 0.5 ? 0.008 : 0.015;
       camTarget.theta += dt * orbitSpeed;
