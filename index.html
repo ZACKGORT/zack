@@ -5591,10 +5591,6 @@ let pointerDownX = 0, pointerDownY = 0;
 let _lastCX = 0, _lastCY = 0;
 const isMobileDevice = () => window.innerWidth <= 768;
 
-// Mobile momentum tracking
-let mobileVelX = 0, mobileVelY = 0;
-let mobileMomentumActive = false;
-
 cvs.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
   isDragging = false; drag = false;
@@ -5633,8 +5629,8 @@ cvs.addEventListener('pointermove', e => {
       isDragging = true;
       if (isMobileDevice()) {
         // Mobile: write directly to camState AND camTarget — no lerp lag
-        // Higher sensitivity for better touch response
-        const sens = 0.008;
+        // Smooth touch response with good sensitivity
+        const sens = 0.006;
         const dTheta = -(e.clientX - lastDragX) * sens;
         const dPhi   =  (e.clientY - lastDragY) * sens;
         camState.theta  += dTheta;
@@ -5642,10 +5638,6 @@ cvs.addEventListener('pointermove', e => {
         const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
         camState.phi  = newPhi;
         camTarget.phi = newPhi;
-        
-        // Track velocity for momentum on touch end
-        mobileVelX = (e.clientX - lastDragX) * 0.5;
-        mobileVelY = (e.clientY - lastDragY) * 0.5;
       } else {
         const sensitivity = 0.005;
         camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
@@ -5664,47 +5656,12 @@ cvs.addEventListener('pointerup', e => {
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  
+
   // Store drag state before resetting - if we dragged, don't process as click
   const wasDragging = drag;
   drag = false; // always reset drag flag
 
-  // Apply momentum on mobile after drag
-  if (isMobileDevice() && wasDragging) {
-    // Only apply momentum if velocity is significant
-    if (Math.abs(mobileVelX) > 0.5 || Math.abs(mobileVelY) > 0.5) {
-      mobileMomentumActive = true;
-    }
-  }
-
   if (isMobileDevice()) {
-    // ── MOBILE: diorama/slideshow navigation ──
-    // Swipe horizontal to navigate through nodes like an IKEA storefront walkthrough
-    // Works in both focused view AND galaxy overview for consistent experience
-    const SWIPE_THRESHOLD = 40;
-    const AXIS_RATIO = 1.2;
-
-    // In galaxy view with no focus: auto-focus first node on swipe
-    if (!isFocused && galaxyAlpha > 0.3 && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
-      // Start the diorama walkthrough from the beginning
-      const firstEra = ERAS[0];
-      if (firstEra) {
-        focusEra(firstEra, dx < 0 ? 1 : -1);
-      }
-      return;
-    }
-
-    // When focused on a node: swipe to navigate prev/next
-    if (isFocused && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
-      // Horizontal swipe → navigate nodes
-      if (dx < 0) {
-        navNext();
-      } else {
-        navPrev();
-      }
-      return;
-    }
-
     // Short tap: open panel for current focused node, or jump to tapped node
     // Only process as tap if we didn't drag significantly
     if (dist < 16 && !wasDragging) {
@@ -6335,25 +6292,6 @@ function animate(ts) {
     tickSwoop(dt);
     // Suppress auto-orbit and user drag during swoop
   } else {
-    // Mobile momentum decay
-    if (mobileMomentumActive && isMobileDevice()) {
-      const sens = 0.008;
-      camTarget.theta -= mobileVelX * sens;
-      const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + mobileVelY * sens));
-      camTarget.phi = newPhi;
-      
-      // Decay velocity
-      mobileVelX *= 0.92;
-      mobileVelY *= 0.92;
-      
-      // Stop momentum when velocity is very low
-      if (Math.abs(mobileVelX) < 0.1 && Math.abs(mobileVelY) < 0.1) {
-        mobileMomentumActive = false;
-        mobileVelX = 0;
-        mobileVelY = 0;
-      }
-    }
-    
     // On mobile during active drag: camState is already set directly in pointermove — skip lerp
     if (!isMobileDevice() || !drag) {
       const lerpK = isMobileDevice() ? 0.14 : 0.08;
@@ -6363,8 +6301,8 @@ function animate(ts) {
     }
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
-    // Auto-orbit: never run on mobile while drag is active or momentum is running
-    if (!isFocused && !isDragging && !drag && !orbitPaused && !mobileMomentumActive) {
+    // Auto-orbit: never run on mobile while drag is active
+    if (!isFocused && !isDragging && !drag && !orbitPaused) {
       // Galaxy view: slower, more cinematic orbit around the ring
       const orbitSpeed = galaxyAlpha > 0.5 ? 0.008 : 0.015;
       camTarget.theta += dt * orbitSpeed;
