@@ -1062,6 +1062,38 @@ body.light .toast-role{color:rgba(0,0,0,0.40);}
   #era-label { display: none; }
 }
 body.light #hud { background: rgba(255,255,255,0.96) !important; }
+
+/* Right contextual HUD — visible when in sol (orrery) view */
+#right-hud {
+  position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
+  display: none; flex-direction: column; gap: 2px;
+  z-index: 100;
+  background: rgba(5,3,10,0.88);
+  border: 1px solid rgba(218,165,32,0.12);
+  border-radius: 4px; overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+#right-hud.vis { display: flex; }
+.rhud-btn {
+  background: none; border: none; cursor: pointer;
+  color: rgba(218,165,32,0.40);
+  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.10em;
+  padding: 10px 12px; border-bottom: 1px solid rgba(218,165,32,0.08);
+  transition: color 0.15s, background 0.15s;
+  text-align: center; min-width: 38px;
+}
+.rhud-btn:last-child { border-bottom: none; }
+.rhud-btn:hover, .rhud-btn:active { color: #daa520; background: rgba(218,165,32,0.07); }
+.rhud-btn.active { color: #daa520; }
+.rhud-sep { height: 1px; background: rgba(218,165,32,0.10); margin: 1px 0; }
+@media(max-width:768px){
+  #right-hud { right: 8px; }
+  .rhud-btn { padding: 12px 14px; font-size: 10px; }
+}
+body.light #right-hud { background: rgba(255,255,255,0.96); border-color: rgba(0,0,0,0.10); }
+body.light .rhud-btn { color: rgba(0,0,0,0.45); }
+body.light .rhud-btn:hover { color: #000; }
+body.light .rhud-btn.active { color: #000; }
 </style>
 </head>
 <body>
@@ -1139,6 +1171,15 @@ body.light #hud { background: rgba(255,255,255,0.96) !important; }
   <button class="hud-btn" id="theme-toggle-hud">LGHT</button>
 </div>
   <button class="hud-btn" id="theme-toggle-hud" title="Toggle light/dark">READ</button>
+</div>
+
+<!-- Right contextual HUD: zoom + layout toggle -->
+<div id="right-hud">
+  <button class="rhud-btn" id="rhud-zoom-in"  title="Zoom in">+</button>
+  <button class="rhud-btn" id="rhud-zoom-out" title="Zoom out">−</button>
+  <div class="rhud-sep"></div>
+  <button class="rhud-btn active" id="rhud-spiral"   title="Spiral view">↺</button>
+  <button class="rhud-btn"        id="rhud-timeline" title="Timeline view">⇢</button>
 </div>
 
 <!-- hidden stubs so JS refs don't break -->
@@ -3710,20 +3751,30 @@ buildScene();
 // PLATFORM SCENE — Wolfgang & Co. ecosystem spiral
 // ─────────────────────────────────────────────────────────
 function buildPlatformScene() {
+  // ── Spiral tube ─────────────────────────────────────────────
   const pts = PLATFORM_ERAS.map(e => e._spiralPos.clone());
   const curve = new THREE.CatmullRomCurve3(pts);
-  const tubePts = curve.getPoints(140);
+  const tubePts = curve.getPoints(160);
   const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
-    new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.10 }));
+    new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.08 }));
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.10, lightOp: 0.25, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
-
+  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.22, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
   const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
     new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.04 }));
   scene.add(inner);
   allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xffd700, lightColor: 0x000000, galaxy: 'sentence' });
 
-  // Ellipse rings for orrery mode
+  // ── Spine axis ──────────────────────────────────────────────
+  const spinePts = [
+    new THREE.Vector3(SENTENCE_CENTER.x, -14, SENTENCE_CENTER.z),
+    new THREE.Vector3(SENTENCE_CENTER.x,  14, SENTENCE_CENTER.z),
+  ];
+  const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
+    new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.04 }));
+  scene.add(spine);
+  allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
+
+  // ── Ellipse rings ───────────────────────────────────────────
   Object.keys(SENTENCE_ELLIPSES).forEach(tier => {
     drawGalaxyEllipse(SENTENCE_CENTER, SENTENCE_ELLIPSES, tier, scene, allLines, 'sentence');
   });
@@ -3734,36 +3785,34 @@ function buildPlatformScene() {
       SENTENCE_CENTER.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4, (e.y||0) + 0.1,
       SENTENCE_CENTER.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
     );
-    addLabel(e.label, lp, 'rgba(' + [(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',') + ',0.30)', 5.8);
+    addLabel(e.label, lp, 'rgba('+[(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',')+',0.30)', 5.8);
   });
 
   PLATFORM_ERAS.forEach((era) => {
     era._flatPos = ellipsePos(SENTENCE_CENTER, SENTENCE_ELLIPSES, era.tier || 'mid', era.angle || era._t);
-
     const pos = era._spiralPos;
     era._pos.copy(pos);
-    const nodeSize = 0.16 + era._t * 0.09;
+    const nodeSize = era.id === 'p-origin' ? 0.28 : 0.16 + era._t * 0.08;
 
-    const center = new THREE.Vector3(SENTENCE_CENTER.x, pos.y, SENTENCE_CENTER.z);
-    const spoke = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([center, pos.clone()]),
-      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 }));
+    const spokeY = new THREE.Vector3(SENTENCE_CENTER.x, pos.y, SENTENCE_CENTER.z);
+    const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]),
+      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.06 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000, galaxy: 'sentence' });
+    allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.15, darkColor: era.color, lightColor: 0x000000, galaxy: 'sentence' });
 
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(nodeSize, 16, 16),
       new THREE.MeshPhysicalMaterial({
-        color: era.color, emissive: era.color, emissiveIntensity: 1.5,
+        color: era.color, emissive: era.color,
+        emissiveIntensity: era.id === 'p-origin' ? 2.4 : 1.4,
         metalness: 0.3, roughness: 0.08, clearcoat: 1.0, transparent: true, opacity: 0.92
       })
     );
     mesh.position.copy(pos);
-    mesh.userData = { era, origColor: era.color, origEI: 1.5, isMoon: false, isPlatform: true };
+    mesh.userData = { era, origColor: era.color, origEI: era.id === 'p-origin' ? 2.4 : 1.4, isMoon: false, isPlatform: true };
     scene.add(mesh);
 
-    const hitMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
+    const hitMesh = new THREE.Mesh(new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isPlatform: true };
@@ -3774,29 +3823,23 @@ function buildPlatformScene() {
     gs.position.copy(pos); gs.material.opacity = 0.65;
     scene.add(gs); glowSprites.push(gs);
 
-    addLabel(era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title, pos, era.hex + 'bb', 6.5);
+    const shortTitle = era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title;
+    addLabel(shortTitle, pos, era.hex + 'bb', 6.5);
     addLabel(era.year, new THREE.Vector3(SENTENCE_CENTER.x - 0.8, pos.y, SENTENCE_CENTER.z), 'rgba(255,224,102,0.30)', 5.5);
     buildMoons(era, pos, nodeSize);
+    if (era.caseStudy) buildCaseStudyMoon(era, pos, nodeSize);
   });
 
-  // Directed arcs
-  const sentArcPairs = [
-    ['p-origin','p-wolfie-love'],['p-wolfie-love','p-ifimaybefrank'],
-    ['p-wolfie-love','p-wolfie-life'],['p-wolfie-love','p-emdash'],
-    ['p-ifimaybefrank','p-reasonandresolution'],['p-reasonandresolution','p-rsp'],
-    ['p-wolfie-life','p-intoview'],['p-intoview','p-dab'],['p-reasonandresolution','p-dab'],
-  ];
-  sentArcPairs.forEach(([fromId, toId]) => {
-    const a = ERA_BY_ID[fromId], b = ERA_BY_ID[toId];
-    if (!a || !b) return;
-    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 2.2;
+  for (let i = 0; i < PLATFORM_ERAS.length - 1; i++) {
+    const a = PLATFORM_ERAS[i], b = PLATFORM_ERAS[i+1];
+    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
     const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.20 }));
-    scene.add(line);
-    allLines.push({ line, darkOp: 0.20, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
-    registerConnection(line, a, b);
-  });
+    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.22 }));
+    scene.add(conn);
+    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
+    registerConnection(conn, a, b);
+  }
 }
 buildPlatformScene();
 
@@ -3811,64 +3854,59 @@ function buildManifestoScene() {
   const tubeMat = new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.09 });
   const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(100)), tubeMat);
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.09, lightOp: 0.20, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'claude' });
+  allLines.push({ line: tube, darkOp: 0.09, lightOp: 0.20, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'manifesto' });
 
   MANIFESTO_ERAS.forEach((era) => {
     const pos = era._spiralPos;
+    era._pos = era._pos || pos.clone();
+    era._pos.copy(pos);
     const nodeSize = 0.17 + era._t * 0.09;
 
     const spokeMat = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 });
     const spoke = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, pos.y, 0), pos.clone()]),
-      spokeMat
-    );
+      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, pos.y, 0), pos.clone()]), spokeMat);
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000, galaxy: 'claude' });
+    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000, galaxy: 'manifesto' });
 
-    const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: era.color, emissive: era.color, emissiveIntensity: 1.6,
-      metalness: 0.3, roughness: 0.08, clearcoat: 1.0,
-      transparent: true, opacity: 0.92
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize, 16, 16),
+      new THREE.MeshPhysicalMaterial({
+        color: era.color, emissive: era.color, emissiveIntensity: 1.6,
+        metalness: 0.3, roughness: 0.08, clearcoat: 1.0, transparent: true, opacity: 0.92
+      })
+    );
     mesh.position.copy(pos);
     mesh.userData = { era, origColor: era.color, origEI: 1.6, isMoon: false, isManifesto: true };
     scene.add(mesh);
 
-    const hitGeo = new THREE.SphereGeometry(nodeSize * 3.5, 8, 8);
-    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    const hitMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isManifesto: true };
     scene.add(hitMesh);
     nodeObjects.push({ mesh, hitMesh, era, isManifesto: true });
 
     const gs = makeGlowSprite(era.color, nodeSize);
-    gs.position.copy(pos);
-    gs.material.opacity = 0.65;
-    scene.add(gs);
-    glowSprites.push(gs);
+    gs.position.copy(pos); gs.material.opacity = 0.65;
+    scene.add(gs); glowSprites.push(gs);
 
-    const shortTitle = era.title.length > 28 ? era.title.slice(0, 26) + '…' : era.title;
-    addLabel(shortTitle, pos, era.hex + 'cc', 6.5);
+    addLabel(era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title, pos, era.hex + 'cc', 6.5);
     addLabel(era.year, new THREE.Vector3(-0.8, pos.y, 0), 'rgba(218,165,32,0.35)', 5.5);
-
     buildMoons(era, pos, nodeSize);
   });
 
   for (let i = 0; i < MANIFESTO_ERAS.length - 1; i++) {
     const a = MANIFESTO_ERAS[i], b = MANIFESTO_ERAS[i+1];
     const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
-    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(20);
-    const conn = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 })
-    );
+    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
+    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 }));
     scene.add(conn);
-    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'claude' });
+    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'manifesto' });
   }
 }
+
 buildManifestoScene();
 
 // ─────────────────────────────────────────────────────────
@@ -3876,16 +3914,30 @@ buildManifestoScene();
 // pipeline (inner) → memory (mid) → permission (outer) → experimental (outermost)
 // ─────────────────────────────────────────────────────────
 function buildClaudeScene() {
-  // CLAUDE_ERAS already have ellipse-based _spiralPos from their init
-  // Draw spiral tube through them
+  // ── Spiral tube ─────────────────────────────────────────────
   const pts = CLAUDE_ERAS.map(e => e._spiralPos.clone());
   const curve = new THREE.CatmullRomCurve3(pts);
-  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(200)),
-    new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.08 }));
+  const tubePts = curve.getPoints(200);
+  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.08 }));
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x88aaff, lightColor: 0x000000, galaxy: 'claude' });
+  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x6699ff, lightColor: 0x000000, galaxy: 'claude' });
+  const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0x4466cc, transparent: true, opacity: 0.04 }));
+  scene.add(inner);
+  allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0x4466cc, lightColor: 0x000000, galaxy: 'claude' });
 
-  // Ellipse rings for orrery mode
+  // ── Spine axis ──────────────────────────────────────────────
+  const spinePts = [
+    new THREE.Vector3(CLAUDE_CENTER.x, -14, CLAUDE_CENTER.z),
+    new THREE.Vector3(CLAUDE_CENTER.x,  14, CLAUDE_CENTER.z),
+  ];
+  const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
+    new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.04 }));
+  scene.add(spine);
+  allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0x6699ff, lightColor: 0x000000, galaxy: 'claude' });
+
+  // ── Ellipse rings ───────────────────────────────────────────
   Object.keys(CLAUDE_ELLIPSES).forEach(tier => {
     drawGalaxyEllipse(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, scene, allLines, 'claude');
   });
@@ -3896,39 +3948,34 @@ function buildClaudeScene() {
       CLAUDE_CENTER.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4, (e.y||0) + 0.1,
       CLAUDE_CENTER.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
     );
-    addLabel(e.label, lp, 'rgba(' + [(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',') + ',0.30)', 5.8);
+    addLabel(e.label, lp, 'rgba('+[(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',')+',0.30)', 5.8);
   });
 
   CLAUDE_ERAS.forEach((era) => {
     const tier = era.tier || { pipeline:'inner', memory:'mid', permission:'outer', experimental:'outer2' }[era.solarSystem] || 'inner';
     era._flatPos = ellipsePos(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, era.angle || era._t);
-
     const pos = era._spiralPos;
     era._pos.copy(pos);
-    const nodeSize = 0.13 + era._t * 0.06;
+    const nodeSize = 0.15 + era._t * 0.07;
 
-    const ellipseData = CLAUDE_ELLIPSES[tier];
-    const color = ellipseData ? ellipseData.color : era.color;
-
-    const spoke = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([CLAUDE_CENTER.clone(), pos.clone()]),
-      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.04 }));
+    const spokeY = new THREE.Vector3(CLAUDE_CENTER.x, pos.y, CLAUDE_CENTER.z);
+    const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]),
+      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.06 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.04, lightOp: 0.14, darkColor: color, lightColor: 0x000000, galaxy: 'claude' });
+    allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.14, darkColor: era.color, lightColor: 0x000000, galaxy: 'claude' });
 
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(nodeSize, 16, 16),
       new THREE.MeshPhysicalMaterial({
-        color: era.color, emissive: era.color, emissiveIntensity: 1.5,
+        color: era.color, emissive: era.color, emissiveIntensity: 1.4,
         metalness: 0.2, roughness: 0.08, clearcoat: 1.0, transparent: true, opacity: 0.92
       })
     );
     mesh.position.copy(pos);
-    mesh.userData = { era, origColor: era.color, origEI: 1.5, isMoon: false, isClaude: true };
+    mesh.userData = { era, origColor: era.color, origEI: 1.4, isMoon: false, isClaude: true };
     scene.add(mesh);
 
-    const hitMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
+    const hitMesh = new THREE.Mesh(new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isClaude: true };
@@ -3939,24 +3986,22 @@ function buildClaudeScene() {
     gs.position.copy(pos); gs.material.opacity = 0.55;
     scene.add(gs); glowSprites.push(gs);
 
-    addLabel(era.title.length > 26 ? era.title.slice(0,24)+'…' : era.title, pos, era.hex + 'bb', 6.5);
+    const shortTitle = era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title;
+    addLabel(shortTitle, pos, era.hex + 'bb', 6.5);
+    addLabel(era.year, new THREE.Vector3(CLAUDE_CENTER.x - 0.8, pos.y, CLAUDE_CENTER.z), 'rgba(102,153,255,0.30)', 5.5);
     buildMoons(era, pos, nodeSize);
   });
 
-  const tierNodes = {};
-  CLAUDE_ERAS.forEach(e => { if (!tierNodes[e.solarSystem]) tierNodes[e.solarSystem]=[]; tierNodes[e.solarSystem].push(e); });
-  Object.values(tierNodes).forEach(group => {
-    for (let i = 0; i < group.length-1; i++) {
-      const a = group[i], b = group[i+1];
-      const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.3;
-      const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.12 }));
-      scene.add(line);
-      allLines.push({ line, darkOp: 0.12, lightOp: 0.24, darkColor: a.color, lightColor: 0x000000, galaxy: 'claude' });
-      registerConnection(line, a, b);
-    }
-  });
+  for (let i = 0; i < CLAUDE_ERAS.length - 1; i++) {
+    const a = CLAUDE_ERAS[i], b = CLAUDE_ERAS[i+1];
+    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.4;
+    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
+    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.22 }));
+    scene.add(conn);
+    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0x6699ff, lightColor: 0x000000, galaxy: 'claude' });
+    registerConnection(conn, a, b);
+  }
 }
 buildClaudeScene();
 
@@ -4453,6 +4498,8 @@ function updateGalaxyAlpha() {
     if (galaxyAlpha > 0.5) { hud.classList.add('galaxy-view'); hud.classList.remove('orrery-view'); }
     else { hud.classList.add('orrery-view'); hud.classList.remove('galaxy-view'); }
   }
+  // Show right HUD when in sol (orrery) view
+  if (window._showRightHud) window._showRightHud(galaxyAlpha < 0.5);
   // Close panel once as galaxy fades in past threshold (not while user is dragging)
   if (prevGa < 0.25 && galaxyAlpha >= 0.25 && isFocused && !drag && !isDragging) {
     closePanel();
@@ -5297,7 +5344,7 @@ function focusBlackHole() {
 
 // Variable to track if black hole is focused
 let isBlackHoleFocused = false;
-let focusedStarGalaxyId = null;
+var focusedStarGalaxyId = null;
 var lastFocusedGalaxyId = null; // tracks which galaxy star is currently the focus
 
 // Moon image ghost — disabled
@@ -6316,11 +6363,7 @@ function animate(ts) {
     const btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', () => {
-      galaxyMode = false;
-      const list = cfg.list();
-      if (list && list[0]) focusEra(list[0]);
-      document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      swoopToGalaxyOverview(cfg.galaxyId);
     });
   });
 
