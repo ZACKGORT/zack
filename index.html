@@ -1042,11 +1042,26 @@ body.light .toast-role{color:rgba(0,0,0,0.40);}
 .tess-grid-title { font-family: 'Crimson Text',serif; font-size: 14px; color: #f5ecd5; line-height: 1.2; }
 .tess-grid-domain { font-family: 'DM Mono',monospace; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(218,165,32,0.28); margin-top: 4px; }
 
-/* HUD mobile sizing */
+/* HUD mobile sizing — centered top bar */
 @media(max-width:768px){
-  #hud { top:12px; right:10px; }
-  .hud-btn { font-size:7px; padding:6px 10px; letter-spacing:0.12em; }
+  #hud {
+    top: 0; left: 0; right: 0;
+    border-radius: 0;
+    border-top: none; border-left: none; border-right: none;
+    border-bottom: 1px solid rgba(218,165,32,0.14);
+    background: rgba(5,3,10,0.92);
+    backdrop-filter: blur(12px);
+    justify-content: center;
+    gap: 0;
+    z-index: 150;
+  }
+  #hud .hud-sep { margin: 6px 0; }
+  .hud-btn { font-size:7px; padding:10px 14px; letter-spacing:0.14em; }
+  /* Push brand below the HUD bar */
+  #brand { top: 52px; }
+  #era-label { display: none; }
 }
+body.light #hud { background: rgba(255,255,255,0.96) !important; }
 </style>
 </head>
 <body>
@@ -6967,11 +6982,26 @@ window.closeTesseractGrid = closeTesseractGrid;
 
   overlay.addEventListener('pointerup', e => {
     tesseractDrag = false;
-    if (!pdDragged && tesseractHovered) {
-      // Click: close tesseract and focus the era in the main scene
-      const era = tesseractHovered.node.era;
-      window.closeTesseract();
-      setTimeout(() => { focusEra(era); }, 300);
+    if (pdDragged) return;
+
+    // On touch, tesseractHovered won't be set (no hover events).
+    // Do a fresh raycast on pointer-up position instead.
+    if (!tesseractCam || !tesseractScene) return;
+    const cvs = document.getElementById('tesseract-canvas');
+    const ux = (e.clientX / cvs.clientWidth)  * 2 - 1;
+    const uy = -((e.clientY / cvs.clientHeight) * 2 - 1);
+    const uMouse = new THREE.Vector2(ux, uy);
+    const uRc = new THREE.Raycaster();
+    uRc.setFromCamera(uMouse, tesseractCam);
+    const hitMeshes = tesseractNodeObjs.map(o => o.hitMesh).filter(Boolean);
+    const hits = uRc.intersectObjects(hitMeshes);
+    if (hits.length) {
+      const obj = tesseractNodeObjs.find(o => o.hitMesh === hits[0].object);
+      if (obj) {
+        const era = obj.node.era;
+        window.closeTesseract();
+        setTimeout(() => { focusEra(era); }, 300);
+      }
     }
   });
 
