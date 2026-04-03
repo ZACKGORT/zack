@@ -1778,7 +1778,7 @@ const MANIFESTO_ERAS = [
   {
     id: 'm-hold',
     year: '↯',
-    title: 'I Hold the Thread',
+    title: 'I think. I make. I built this.',
     role: 'Systems Thinking · Code-Native',
     era: 'The Capability',
     domain: 'manifesto',
@@ -4277,9 +4277,9 @@ window.addEventListener('load', () => {
 setTimeout(() => nodeObjects.forEach(o => { if (o && o.mesh && o.mesh.material) { o.mesh.material.opacity = isLight ? 0.88 : 0.95; } if (o && o.hitMesh) o.hitMesh.visible = true; }), 0);
 
 function updateGalaxyAlpha() {
-  // Drive galaxyAlpha from camera radius
+  // Drive galaxyAlpha from camera radius — but pin at 1 when explicitly in galaxy mode
   const r = camState.radius;
-  const target = Math.min(1, Math.max(0,
+  const target = galaxyMode ? 1 : Math.min(1, Math.max(0,
     (r - GALAXY_ENTER_RADIUS) / (GALAXY_FULL_RADIUS - GALAXY_ENTER_RADIUS)
   ));
   const prevGa = galaxyAlpha;
@@ -4501,6 +4501,7 @@ function hideSentGhost() {
 
 let currentView = 'spiral';
 let morphing = false, morphT = 0;
+let galaxyMode = false;  // true when user is in overview/galaxy view
 
 function switchView(view) {
   if (view === 'overview') {
@@ -4508,6 +4509,7 @@ function switchView(view) {
     // Focus on the orbital ring with a tilted-down angle for comfortable viewing
     closeGridView();
     isFocused = false; focusedEra = null;
+    galaxyMode = true;
     document.getElementById('ghost').classList.remove('on');
     document.getElementById('msheet').classList.remove('on');
     hideSentGhost();
@@ -4519,6 +4521,8 @@ function switchView(view) {
     document.querySelector('[data-view="overview"]').classList.add('active');
     return;
   }
+
+  galaxyMode = false;
   
   if (view === 'grid') { openGridView(); return; }
   closeGridView();
@@ -4950,6 +4954,7 @@ function eraPreset(era) {
 
 function focusEra(era) {
   closeGridView();
+  galaxyMode = false;
   
   // Switch orrery mode if needed
   // No orrery mode switching — all nodes coexist
@@ -5367,15 +5372,14 @@ cvs.addEventListener('wheel', e => {
   if (swoop.active) { swoop.active = false; camTarget.phi = camState.phi; camTarget.theta = camState.theta; camTarget.radius = camState.radius; }
   lockPivotToFocus();
 
-  // In galaxy view: limit zoom and use scroll for galaxy cycling
+  // In galaxy view: allow deep zoom into the black hole
   if (galaxyAlpha > 0.5) {
-    // Clamp galaxy view zoom — comfortable range around the ring
-    const GALAXY_ZOOM_MIN = 180;
+    const GALAXY_ZOOM_MIN = 8;
     const GALAXY_ZOOM_MAX = 360;
-    const sensitivity = Math.max(0.015, camTarget.radius * 0.0015);
+    const sensitivity = Math.max(0.008, camTarget.radius * 0.0015);
     camTarget.radius = Math.max(GALAXY_ZOOM_MIN, Math.min(GALAXY_ZOOM_MAX, camTarget.radius + e.deltaY * sensitivity));
-    // Scroll also nudges theta for galaxy cycling
-    camTarget.theta += e.deltaY * 0.0003;
+    // Only nudge theta for galaxy cycling when zoomed out
+    if (camTarget.radius > 120) camTarget.theta += e.deltaY * 0.0003;
     return;
   }
 
@@ -5407,7 +5411,7 @@ cvs.addEventListener('touchmove', e => {
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx*dx + dy*dy);
     const delta = pinchDist - dist;
-    const mn = ORRERY_RADIUS_MIN;
+    const mn = galaxyAlpha > 0.5 ? 8 : ORRERY_RADIUS_MIN;
     const mx = 340;
     const pinchSens = Math.max(0.03, camTarget.radius * 0.004);
     camTarget.radius = Math.max(mn, Math.min(mx, camTarget.radius + delta * pinchSens));
@@ -5601,10 +5605,10 @@ document.getElementById('theme-toggle').addEventListener('click', () => { isLigh
 const bgCanvas = document.getElementById('bg-mesh'), bgCtx = bgCanvas.getContext('2d');
 function resizeBg() { bgCanvas.width = innerWidth; bgCanvas.height = innerHeight; } resizeBg();
 const BD = [
-  { x:0.12,y:0.22,vx:0.00007,vy:0.00005,r:0.65,col:[60,30,5] },
-  { x:0.78,y:0.70,vx:-0.00005,vy:0.00007,r:0.55,col:[50,20,2] },
-  { x:0.85,y:0.15,vx:-0.00006,vy:-0.00006,r:0.45,col:[80,45,8] },
-  { x:0.20,y:0.82,vx:0.00006,vy:-0.00005,r:0.50,col:[40,15,2] },
+  { x:0.12,y:0.22,vx:0.00007,vy:0.00005,r:0.30,col:[60,30,5] },
+  { x:0.78,y:0.70,vx:-0.00005,vy:0.00007,r:0.26,col:[50,20,2] },
+  { x:0.85,y:0.15,vx:-0.00006,vy:-0.00006,r:0.22,col:[80,45,8] },
+  { x:0.20,y:0.82,vx:0.00006,vy:-0.00005,r:0.24,col:[40,15,2] },
 ];
 // Galaxy nebula — lighter, more luminous
 const BG = [
@@ -5660,7 +5664,7 @@ function drawMesh() {
     const nc = NODE_NEBULA_DARK[activeNodeNebulaIdx];
     if (nc) {
       const nodeSet = BD.map((b, i) => ({ ...b, col: nc[i] || b.col }));
-      baseSet = lerpBlobSets(BD, nodeSet, 0.65);
+      baseSet = lerpBlobSets(BD, nodeSet, 0.30);
     }
   }
   const galaxySet = isLight ? BGL : BG;
@@ -5683,7 +5687,7 @@ function drawMesh() {
     const cx = b.x*w, cy = b.y*h, rad = Math.max(w,h)*b.r;
     const grd = bgCtx.createRadialGradient(cx,cy,0,cx,cy,rad);
     const [r,g,bl] = b.col;
-    const intensity = isLight ? (ga > 0.01 ? 0.45 : 0.40) : (ga > 0.01 ? 0.42 + ga * 0.18 : 0.55);
+    const intensity = isLight ? (ga > 0.01 ? 0.45 : 0.40) : (ga > 0.01 ? 0.42 + ga * 0.18 : 0.22);
     grd.addColorStop(0, `rgba(${r},${g},${bl},${intensity})`);
     grd.addColorStop(0.5, `rgba(${r},${g},${bl},${intensity*0.28})`);
     grd.addColorStop(1, `rgba(${r},${g},${bl},0)`);
