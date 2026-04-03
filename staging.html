@@ -958,6 +958,35 @@ html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
   z-index:9999; will-change:transform; overflow:visible;
 }
 
+/* ── BOTTOM TOAST BANNER ── */
+#toast{
+  position:fixed;
+  bottom:60px;
+  left:50%;
+  transform:translateX(-50%) translateY(6px);
+  z-index:200;pointer-events:none;
+  opacity:0;transition:opacity 0.16s, transform 0.16s;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(5,3,10,0.92);
+  border:1px solid rgba(218,165,32,0.12);
+  border-radius:3px;
+  padding:5px 14px 5px 11px;
+  backdrop-filter:blur(14px);
+  max-width:min(400px, calc(100vw - 24px));
+  white-space:nowrap;overflow:hidden;
+}
+#toast.vis{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast-era{font-family:"DM Mono",monospace;font-size:6px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);flex-shrink:0;}
+.toast-sep{color:rgba(218,165,32,0.18);font-size:8px;flex-shrink:0;}
+.toast-title{font-family:"Crimson Text",serif;font-size:13px;color:rgba(245,236,213,0.88);letter-spacing:-0.01em;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.toast-role{font-family:"DM Mono",monospace;font-size:6px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(218,165,32,0.28);flex-shrink:0;display:none;}
+@media(min-width:769px){#toast{bottom:24px;}.toast-role{display:inline;}}
+body.light #toast{background:rgba(255,255,255,0.96);border-color:rgba(0,0,0,0.10);}
+body.light .toast-era{color:rgba(0,0,0,0.42);}
+body.light .toast-title{color:#000;}
+body.light .toast-role{color:rgba(0,0,0,0.40);}
+#tooltip{display:none;}
+
 </style>
 </head>
 <body>
@@ -970,6 +999,15 @@ html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
   <ellipse id="ci-ellipse" cx="0" cy="0" rx="7" ry="4"
     fill="rgba(218,165,32,0.15)" stroke="rgba(218,165,32,0.95)" stroke-width="1"/>
 </svg>
+
+<div id="tooltip" style="display:none"></div>
+<div id="toast">
+  <span class="toast-era" id="tt-era"></span>
+  <span class="toast-sep">·</span>
+  <span class="toast-title" id="tt-title"></span>
+  <span class="toast-sep">·</span>
+  <span class="toast-role" id="tt-role"></span>
+</div>
 
 <!-- MOBILE ZOOM RAIL -->
 <div id="mobile-zoom-rail">
@@ -2665,14 +2703,16 @@ const scenePivotTgt = new THREE.Vector3();
 const swoop = {
   active: false,
   t: 0,
-  totalDur: 1.40,   // seconds — unhurried, cinematic
+  totalDur: 1.40,
+  forcedDir: 0,   // seconds — unhurried, cinematic
   startPhi: 0, startTheta: 0, startRadius: 0,
   startPivot: new THREE.Vector3(),
   endPhi: 0, endTheta: 0, endRadius: 0,
   endPivot: new THREE.Vector3(),
 };
 
-function swoopTo(endPhi, endTheta, endRadius, endPivotVec) {
+function swoopTo(endPhi, endTheta, endRadius, endPivotVec, forcedDir) {
+  swoop.forcedDir = forcedDir || 0;
   swoop.startPhi    = camState.phi;
   swoop.startTheta  = camState.theta;
   swoop.startRadius = camState.radius;
@@ -2707,10 +2747,18 @@ function tickSwoop(dt) {
   const baseRadius = swoop.startRadius + (swoop.endRadius - swoop.startRadius) * e;
   camState.radius = baseRadius * (1 + bow);
 
-  // Theta: sweep the short way around
+  // Theta: direction-aware sweep
   let dTheta = swoop.endTheta - swoop.startTheta;
-  while (dTheta >  Math.PI) dTheta -= Math.PI * 2;
-  while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+  if (swoop.forcedDir === 1) {
+    while (dTheta <= 0) dTheta += Math.PI * 2;
+    if (dTheta > Math.PI * 2) dTheta = Math.PI * 2;
+  } else if (swoop.forcedDir === -1) {
+    while (dTheta >= 0) dTheta -= Math.PI * 2;
+    if (dTheta < -Math.PI * 2) dTheta = -Math.PI * 2;
+  } else {
+    while (dTheta >  Math.PI) dTheta -= Math.PI * 2;
+    while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+  }
   camState.theta = swoop.startTheta + dTheta * e;
 
   // Phi: arrive lower than start — ease from current elevation down to endPhi
@@ -4395,20 +4443,22 @@ function updateGalaxyAlpha() {
   }
 
   // Galaxy cluster planets fade in as galaxy alpha increases
+  // Cluster objects: fully invisible in orrery view (ga < 0.25), full above 0.70
+  const gaCluster = Math.max(0, Math.min(1, (ga - 0.25) / 0.45));
   const pulseFire = 0.85 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 0.9 : 0) * 0.15;
   if (galaxyClusterObjects && galaxyClusterObjects.length) galaxyClusterObjects.forEach(({ cl, mesh, atm, glow, ring, ring2, mOrbitLine, label }) => {
-    mesh.material.opacity  += (ga * 0.95              - mesh.material.opacity)  * lk;
-    atm.material.opacity   += (ga * 0.28 * pulseFire  - atm.material.opacity)   * lk;
-    glow.material.opacity  += ((isLight ? 0 : ga * 0.88 * pulseFire) - glow.material.opacity) * lk;
-    if (ring)       ring.material.opacity       += (ga * 0.65   - ring.material.opacity)       * lk;
-    if (ring2)      ring2.material.opacity      += (ga * 0.28   - ring2.material.opacity)      * lk;
-    if (mOrbitLine) mOrbitLine.material.opacity += (ga * 0.22   - mOrbitLine.material.opacity) * lk;
-    label.material.opacity += (ga               - label.material.opacity) * lk;
+    mesh.material.opacity  += (gaCluster * 0.95              - mesh.material.opacity)  * lk;
+    atm.material.opacity   += (gaCluster * 0.28 * pulseFire  - atm.material.opacity)   * lk;
+    glow.material.opacity  += ((isLight ? 0 : gaCluster * 0.88 * pulseFire) - glow.material.opacity) * lk;
+    if (ring)       ring.material.opacity       += (gaCluster * 0.65   - ring.material.opacity)       * lk;
+    if (ring2)      ring2.material.opacity      += (gaCluster * 0.28   - ring2.material.opacity)      * lk;
+    if (mOrbitLine) mOrbitLine.material.opacity += (gaCluster * 0.22   - mOrbitLine.material.opacity) * lk;
+    label.material.opacity += (gaCluster - label.material.opacity) * lk;
   });
 
   // Moon dots — fade in with galaxy, orbit their cluster planet
-  const moonTargetOp = isLight ? 0 : ga * 0.90;
-  const moonGlowTarget = isLight ? 0 : ga * 0.55;
+  const moonTargetOp = isLight ? 0 : gaCluster * 0.90;
+  const moonGlowTarget = isLight ? 0 : gaCluster * 0.55;
   if (galaxyMoonDots) galaxyMoonDots.forEach(m => {
     if (m.mesh && m.mesh.material) m.mesh.material.opacity  += (moonTargetOp   - m.mesh.material.opacity)  * lk;
     if (m.glow && m.glow.material) m.glow.material.opacity  += (moonGlowTarget - m.glow.material.opacity)  * lk;
@@ -4416,7 +4466,7 @@ function updateGalaxyAlpha() {
 
   // Inter-cluster arcs
   if (galaxyArcs) galaxyArcs.forEach(({ line }) => {
-    if (line && line.material) line.material.opacity += (ga * 0.28 - line.material.opacity) * lk;
+    if (line && line.material) line.material.opacity += (gaCluster * 0.28 - line.material.opacity) * lk;
   });
 
   // Galaxy center stars — small fixed point, slightly larger as camera pulls back
@@ -4443,38 +4493,38 @@ document.getElementById('tl-prev').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx > 0) focusEra(list[idx - 1]);
+  if (idx > 0) focusEra(list[idx - 1], -1);
 });
 document.getElementById('tl-next').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx < list.length - 1) focusEra(list[idx + 1]);
+  if (idx < list.length - 1) focusEra(list[idx + 1], 1);
 });
 
 document.getElementById('gc-prev').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx > 0) focusEra(list[idx - 1]);
+  if (idx > 0) focusEra(list[idx - 1], -1);
 });
 document.getElementById('gc-next').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx < list.length - 1) focusEra(list[idx + 1]);
+  if (idx < list.length - 1) focusEra(list[idx + 1], 1);
 });
 document.getElementById('ms-prev').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx > 0) focusEra(list[idx - 1]);
+  if (idx > 0) focusEra(list[idx - 1], -1);
 });
 document.getElementById('ms-next').addEventListener('click', () => {
   if (!focusedEra) return;
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx < list.length - 1) focusEra(list[idx + 1]);
+  if (idx < list.length - 1) focusEra(list[idx + 1], 1);
 });
 
 // ─────────────────────────────────────────────────────────
@@ -4680,13 +4730,13 @@ function navPrev() {
   if (!focusedEra) { focusEra(ERAS[0]); return; }
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx > 0) focusEra(list[idx - 1]);
+  if (idx > 0) focusEra(list[idx - 1], -1);
 }
 function navNext() {
   if (!focusedEra) { focusEra(ERAS[0]); return; }
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx < list.length - 1) focusEra(list[idx + 1]);
+  if (idx < list.length - 1) focusEra(list[idx + 1], 1);
 }
 
 // prev/next handled by mobile-nav-bar onclick
@@ -5000,21 +5050,31 @@ function eraPreset(era) {
 
   const relX = pos.x - center.x;
   const relZ = pos.z - center.z;
-  const nodeAngle  = Math.atan2(relZ, relX);
-  const theta      = nodeAngle + Math.PI * 0.55;
-  const nodeR      = Math.sqrt(relX * relX + relZ * relZ);
-  const baseRadius = 12 + nodeR * 0.55;
-  const radius     = isMobile ? Math.max(10, baseRadius * 0.85) : Math.max(14, baseRadius);
-  const phi        = isMobile ? Math.PI * 0.25 : Math.PI * 0.34;
+  const nodeAngle = Math.atan2(relZ, relX);
+  const nodeR     = Math.sqrt(relX * relX + relZ * relZ);
 
-  const panelShift  = isMobile ? 0 : 3.5;
+  // Camera positioned BEYOND the node along the center→node radial line.
+  // theta = nodeAngle: same azimuth as node, further from center.
+  // Pivot between node and center: star visible in background behind node.
+  const theta = nodeAngle;
+  const camOffset = isMobile ? 10 : 14;
+  const radius = nodeR + camOffset;
+  const phi = isMobile ? Math.PI * 0.30 : Math.PI * 0.32;
+
+  const pivotLerp = 0.6;
+  const pivotBase = new THREE.Vector3(
+    center.x + relX * pivotLerp,
+    pos.y * pivotLerp,
+    center.z + relZ * pivotLerp
+  );
+  const panelShift  = isMobile ? 0 : -4.0;
   const screenRight = new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta));
-  const pivot       = pos.clone().addScaledVector(screenRight, panelShift);
+  const pivot       = pivotBase.clone().addScaledVector(screenRight, panelShift);
 
   return { theta, phi, radius, pivot };
 }
 
-function focusEra(era) {
+function focusEra(era, navDir) {
   closeGridView();
   galaxyMode = false;
   
@@ -5026,7 +5086,7 @@ function focusEra(era) {
   const targetPivot = preset.pivot;
   scenePivotTgt.copy(targetPivot);
 
-  swoopTo(preset.phi, preset.theta, preset.radius, targetPivot);
+  swoopTo(preset.phi, preset.theta, preset.radius, targetPivot, navDir || 0);
 
   camTarget.phi    = preset.phi;
   camTarget.theta  = preset.theta;
@@ -5077,7 +5137,7 @@ function hideMoonGhost() { /* no-op */ }
 // ─────────────────────────────────────────────────────────
 // INTERACTION
 // ─────────────────────────────────────────────────────────
-const tooltip = document.getElementById('tooltip');
+const tooltip = document.getElementById('toast');
 let hoveredMesh = null, mouse = new THREE.Vector2();
 let drag = false, lastDragX = 0, lastDragY = 0, isDragging = false;
 let hintFaded = false, orbitPaused = false;
@@ -5542,14 +5602,14 @@ document.addEventListener('keydown', e => {
     if (!focusedEra) { focusEra(ERAS[0]); return; }
     const list = activeList(focusedEra);
     const idx = list.findIndex(er => er.id === focusedEra.id);
-    if (idx < list.length - 1) focusEra(list[idx + 1]);
+    if (idx < list.length - 1) focusEra(list[idx + 1], 1);
   }
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
     e.preventDefault();
     if (!focusedEra) return;
     const list = activeList(focusedEra);
     const idx = list.findIndex(er => er.id === focusedEra.id);
-    if (idx > 0) focusEra(list[idx - 1]);
+    if (idx > 0) focusEra(list[idx - 1], -1);
   }
 });
 
@@ -5557,6 +5617,11 @@ document.addEventListener('keydown', e => {
 // TABLE OF CONTENTS
 // ─────────────────────────────────────────────────────────
 let tocVisible = false;
+
+// Mobile: scale up hit proxies for finger-friendly tap targets
+if (isMobileDevice()) {
+  nodeObjects.forEach(({ hitMesh }) => { if (hitMesh) hitMesh.scale.setScalar(1.8); });
+}
 
 function buildTOC() {
   const list = document.getElementById('toc-list');
@@ -5877,7 +5942,9 @@ function tickGalaxyStars(elapsed) {
     mesh.material.emissiveIntensity = 3.5 * pulse;
     mesh.scale.setScalar(pulse);
     // Three stacked glow layers — outer/mid/core at different rates
-    const layerTargets = [0.22, 0.55, 0.85];
+    const gaVal = (typeof galaxyAlpha !== 'undefined') ? galaxyAlpha : 0;
+    const gaGlow = Math.max(0.12, gaVal);
+    const layerTargets = [0.22 * gaGlow * 4, 0.55 * (0.3 + gaGlow * 0.7), 0.85];
     if (glowLayers) glowLayers.forEach((gs, i) => {
       if (gs && gs.material) {
         const target = isLight ? 0 : layerTargets[i] * pulse;
