@@ -771,6 +771,112 @@ body.light .mf-link{color:rgba(0,0,0,0.70);}
 body.light #mf-close{color:rgba(0,0,0,0.42);border-color:rgba(0,0,0,0.16);}
 body.light #mf-close:hover{color:#000;}
 
+/* ── GALAXY ORBIT CYCLING HUD ── */
+#galaxy-cycle-hint {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  z-index:110; pointer-events:none;
+  display:flex; align-items:center; gap:14px;
+  opacity:0; transition:opacity 0.4s;
+}
+#galaxy-cycle-hint.vis { opacity:1; }
+.gc-cycle-dots { display:flex; gap:8px; align-items:center; }
+.gc-cycle-dot {
+  width:6px; height:6px; border-radius:50%;
+  border:1px solid rgba(218,165,32,0.35);
+  transition:all 0.3s;
+}
+.gc-cycle-dot.active {
+  background:rgba(218,165,32,0.80); border-color:rgba(218,165,32,0.80);
+  width:8px; height:8px;
+}
+.gc-cycle-label {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.38);
+}
+
+/* ── TESSERACT OVERLAY ── */
+#tesseract-overlay {
+  position:fixed; inset:0; z-index:960;
+  background:radial-gradient(ellipse at 50% 50%, rgba(2,1,12,0.97) 0%, rgba(0,0,6,0.99) 100%);
+  display:none; opacity:0; transition:opacity 0.5s;
+  pointer-events:none;
+}
+#tesseract-overlay.on { opacity:1; pointer-events:all; display:block; }
+#tesseract-canvas {
+  position:absolute; inset:0; width:100%; height:100%;
+}
+#tesseract-header {
+  position:absolute; top:0; left:0; right:0;
+  padding:24px 28px 0;
+  display:flex; align-items:flex-start; justify-content:space-between;
+  z-index:2; pointer-events:none;
+}
+#tesseract-title-block { pointer-events:none; }
+#tesseract-eyebrow {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
+  text-transform:uppercase; color:rgba(218,165,32,0.30); margin-bottom:6px;
+}
+#tesseract-title {
+  font-family:'Crimson Text',serif; font-size:28px; letter-spacing:-0.02em;
+  color:#f5ecd5; line-height:1.1;
+}
+#tesseract-sub {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-top:5px;
+}
+#tesseract-close {
+  background:none; border:1px solid rgba(218,165,32,0.20);
+  color:rgba(218,165,32,0.45); width:30px; height:30px;
+  border-radius:2px; cursor:pointer; font-size:13px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Mono',monospace; transition:all 0.18s;
+  pointer-events:all; flex-shrink:0;
+}
+#tesseract-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.65); }
+#tesseract-tooltip {
+  position:absolute; left:0; top:0;
+  pointer-events:none; z-index:3;
+  opacity:0; transition:opacity 0.15s;
+}
+#tesseract-tooltip.vis { opacity:1; }
+#tesseract-tt-inner {
+  background:rgba(5,3,10,0.97); border:1px solid rgba(218,165,32,0.16);
+  border-radius:4px; padding:10px 14px; backdrop-filter:blur(12px);
+  max-width:220px;
+}
+#tesseract-tt-era {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.18em;
+  text-transform:uppercase; color:rgba(218,165,32,0.40); margin-bottom:4px;
+}
+#tesseract-tt-title {
+  font-family:'Crimson Text',serif; font-size:15px; color:#f5ecd5;
+  line-height:1.2; margin-bottom:3px;
+}
+#tesseract-tt-domain {
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.12em;
+  text-transform:uppercase; color:rgba(218,165,32,0.30);
+}
+#tesseract-legend {
+  position:absolute; bottom:28px; left:28px; z-index:2;
+  display:flex; flex-direction:column; gap:6px; pointer-events:none;
+}
+.tess-legend-row {
+  display:flex; align-items:center; gap:8px;
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.14em;
+  text-transform:uppercase;
+}
+.tess-legend-dot {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+}
+#tesseract-count {
+  position:absolute; bottom:28px; right:28px; z-index:2;
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.18em;
+  text-transform:uppercase; color:rgba(218,165,32,0.22); text-align:right;
+  pointer-events:none;
+}
+
+
+
 </style>
 </head>
 <body>
@@ -3497,7 +3603,7 @@ bhGroup.visible = false;
   lctx.fillText('Thinker & Maker', 12, 48);
   lctx.fillStyle = 'rgba(255,160,60,0.50)';
   lctx.font = '300 13px "DM Mono", monospace';
-  lctx.fillText('THREE GALAXIES  ·  CLICK TO READ', 12, 76);
+  lctx.fillText('THREE GALAXIES  ·  CLICK TO OPEN TESSERACT', 12, 76);
   const lbl = new THREE.Sprite(new THREE.SpriteMaterial({
     map: new THREE.CanvasTexture(lc), transparent: true, depthWrite: false
   }));
@@ -3667,6 +3773,9 @@ function updateGalaxyAlpha() {
   galaxyArcs.forEach(({ line }) => {
     if (line && line.material) line.material.opacity += (ga * 0.28 - line.material.opacity) * lk;
   });
+
+  // Update galaxy cycle hint dots
+  if (window._updateGalaxyCycleHint) window._updateGalaxyCycleHint(ga);
 }
 
 
@@ -3815,14 +3924,15 @@ let morphing = false, morphT = 0;
 function switchView(view) {
   if (view === 'overview') {
     // Overview = zoom out to see all three orreries around the black hole
+    // Focus on the orbital ring with a tilted-down angle for comfortable viewing
     closeGridView();
     isFocused = false; focusedEra = null;
     document.getElementById('ghost').classList.remove('on');
     document.getElementById('msheet').classList.remove('on');
     hideSentGhost();
     resetHighlights();
-    swoopTo(Math.PI * 0.14, Math.PI * 0.25, 310, new THREE.Vector3(25, 0, 10));
-    camTarget = { phi: Math.PI * 0.14, theta: Math.PI * 0.25, radius: 310 };
+    swoopTo(Math.PI * 0.18, Math.PI * 0.25, 270, new THREE.Vector3(0, 0, 0));
+    camTarget = { phi: Math.PI * 0.18, theta: Math.PI * 0.25, radius: 270 };
     scenePivotTgt.set(0, 0, 0);
     document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
     document.querySelector('[data-view="overview"]').classList.add('active');
@@ -4229,6 +4339,23 @@ function checkHover(clientX, clientY) {
   // Galaxy cluster hover (radius-driven, not layer-driven)
   if (galaxyAlpha > 0.15) {
     raycaster.setFromCamera(mouse, cam);
+
+    // Black hole hover
+    const bhHitMesh = bhGroup.userData.bhHit;
+    if (bhHitMesh) {
+      const bhHits = raycaster.intersectObject(bhHitMesh);
+      if (bhHits.length) {
+        document.getElementById('tt-era').textContent = 'The Gravitational Center';
+        document.getElementById('tt-title').textContent = 'Open Tesseract';
+        document.getElementById('tt-title').style.color = '#ff9944';
+        document.getElementById('tt-role').textContent = 'All ' + (ERAS.length + PLATFORM_ERAS.length + CLAUDE_ERAS.length + MANIFESTO_ERAS.length) + ' nodes mapped in 3D';
+        document.getElementById('tt-sub').textContent  = 'click to enter';
+        tooltip.classList.add('vis');
+        document.body.style.cursor = 'pointer';
+        return;
+      }
+    }
+
     const clMeshes = galaxyClusterObjects.map(o => o.mesh);
     const clHits = raycaster.intersectObjects(clMeshes);
     if (clHits.length) {
@@ -4391,6 +4518,15 @@ cvs.addEventListener('pointerup', e => {
 
     // Short tap: open panel for current focused node, or jump to tapped node
     if (dist < 16) {
+      // Black hole tap → Tesseract
+      if (galaxyAlpha > 0.15) {
+        raycaster.setFromCamera(mouse, cam);
+        const bhHitMesh = bhGroup.userData.bhHit;
+        if (bhHitMesh) {
+          const bhHits = raycaster.intersectObject(bhHitMesh);
+          if (bhHits.length) { window.openTesseract(); return; }
+        }
+      }
       // Galaxy cluster click
       if (galaxyAlpha > 0.15) {
         raycaster.setFromCamera(mouse, cam);
@@ -4443,6 +4579,38 @@ cvs.addEventListener('pointerup', e => {
 
   // ── DESKTOP: existing behavior ──
   if (!drag) {
+    if (galaxyAlpha > 0.15) {
+      raycaster.setFromCamera(mouse, cam);
+
+      // Black hole click → Tesseract
+      const bhHitMesh = bhGroup.userData.bhHit;
+      if (bhHitMesh) {
+        const bhHits = raycaster.intersectObject(bhHitMesh);
+        if (bhHits.length) { window.openTesseract(); return; }
+      }
+
+      // Galaxy cluster click → swoop into that galaxy
+      const clMeshes = galaxyClusterObjects.map(o => o.mesh);
+      const clHits = raycaster.intersectObjects(clMeshes);
+      if (clHits.length) {
+        const cl = clHits[0].object.userData.galaxyCluster;
+        if (cl) {
+          tooltip.classList.remove('vis');
+          let targetEra;
+          if (cl.id === 'sentence')     { targetEra = PLATFORM_ERAS[0]; }
+          else if (cl.id === 'career')  { targetEra = ERAS[0]; }
+          else                          { targetEra = CLAUDE_ERAS[0]; }
+          isFocused = true; focusedEra = targetEra;
+          const preset = eraPreset(targetEra);
+          scenePivotTgt.copy(preset.pivot);
+          swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
+          camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
+          setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
+          if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; }
+          return;
+        }
+      }
+    }
     if (handleGalaxyClick(mouse)) { if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; } return; }
     raycaster.setFromCamera(mouse, cam);
     const hits = raycaster.intersectObjects(getAllHittable());
@@ -4478,6 +4646,19 @@ function lockPivotToFocus() {
 cvs.addEventListener('wheel', e => {
   if (swoop.active) { swoop.active = false; camTarget.phi = camState.phi; camTarget.theta = camState.theta; camTarget.radius = camState.radius; }
   lockPivotToFocus();
+
+  // In galaxy view: limit zoom and use scroll for galaxy cycling
+  if (galaxyAlpha > 0.5) {
+    // Clamp galaxy view zoom — comfortable range around the ring
+    const GALAXY_ZOOM_MIN = 180;
+    const GALAXY_ZOOM_MAX = 360;
+    const sensitivity = Math.max(0.015, camTarget.radius * 0.0015);
+    camTarget.radius = Math.max(GALAXY_ZOOM_MIN, Math.min(GALAXY_ZOOM_MAX, camTarget.radius + e.deltaY * sensitivity));
+    // Scroll also nudges theta for galaxy cycling
+    camTarget.theta += e.deltaY * 0.0003;
+    return;
+  }
+
   const mx = 340;
   const mn = ORRERY_RADIUS_MIN;
   const sensitivity = Math.max(0.012, camTarget.radius * 0.0018);
@@ -4518,8 +4699,18 @@ cvs.addEventListener('touchmove', e => {
 cvs.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (tocVisible) { closeTOC(); } else if (gridVisible) { closeGridView(); switchView('spiral'); } else { closePanel(); } }
+  if (e.key === 'Escape') { if (tesseractOpen) { closeTesseract(); } else if (tocVisible) { closeTOC(); } else if (gridVisible) { closeGridView(); switchView('spiral'); } else { closePanel(); } }
   if (e.code === 'Space') { e.preventDefault(); orbitPaused = !orbitPaused; }
+
+  // In galaxy view: arrow keys orbit smoothly around the ring to cycle through galaxies
+  if (galaxyAlpha > 0.5) {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const dir = e.key === 'ArrowRight' ? 1 : -1;
+      camTarget.theta += dir * Math.PI * 0.45; // ~80 degree sweep to next galaxy
+    }
+    return;
+  }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
     e.preventDefault();
     const idx = focusedEra ? ERAS.findIndex(er => er.id === focusedEra.id) : -1;
@@ -4871,7 +5062,11 @@ function animate(ts) {
     camState.radius+= (camTarget.radius- camState.radius)* 0.08;
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
-    if (!isFocused && !isDragging && !orbitPaused) camTarget.theta += dt * 0.015;
+    if (!isFocused && !isDragging && !orbitPaused) {
+      // Galaxy view: slower, more cinematic orbit around the ring
+      const orbitSpeed = galaxyAlpha > 0.5 ? 0.008 : 0.015;
+      camTarget.theta += dt * orbitSpeed;
+    }
   }
 
   if (!isFocused) {
@@ -4959,7 +5154,420 @@ window.addEventListener('resize', () => {
   resizeBg(); drawMesh();
 });
 </script>
-<!-- ═══ SOLAR SYSTEM FILTER PILLS ═══ -->
+<!-- ═══ GALAXY ORBIT CYCLING HINT ═══ -->
+<div id="galaxy-cycle-hint">
+  <span class="gc-cycle-label">orbit</span>
+  <div class="gc-cycle-dots">
+    <div class="gc-cycle-dot" data-galaxy="sentence"></div>
+    <div class="gc-cycle-dot" data-galaxy="career"></div>
+    <div class="gc-cycle-dot" data-galaxy="claude"></div>
+  </div>
+  <span class="gc-cycle-label">drag · scroll · ←→</span>
+</div>
+
+<!-- ═══ TESSERACT OVERLAY ═══ -->
+<div id="tesseract-overlay">
+  <canvas id="tesseract-canvas"></canvas>
+  <div id="tesseract-header">
+    <div id="tesseract-title-block">
+      <div id="tesseract-eyebrow">The Black Hole · All Nodes · All Galaxies</div>
+      <div id="tesseract-title">Tesseract</div>
+      <div id="tesseract-sub">Every node in this universe · mapped in three dimensions</div>
+    </div>
+    <button id="tesseract-close" onclick="closeTesseract()">✕</button>
+  </div>
+  <div id="tesseract-tooltip">
+    <div id="tesseract-tt-inner">
+      <div id="tesseract-tt-era"></div>
+      <div id="tesseract-tt-title"></div>
+      <div id="tesseract-tt-domain"></div>
+    </div>
+  </div>
+  <div id="tesseract-legend">
+    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#daa520"></div><span style="color:rgba(218,165,32,0.55)">Career</span></div>
+    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#ffe066"></div><span style="color:rgba(255,224,102,0.55)">Sentence Primitive</span></div>
+    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#6699ff"></div><span style="color:rgba(102,153,255,0.55)">Claude Code</span></div>
+    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#ff9944"></div><span style="color:rgba(255,153,68,0.55)">Manifesto</span></div>
+  </div>
+  <div id="tesseract-count"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────
+// GALAXY ORBIT CYCLING HINT
+// ─────────────────────────────────────────────────────────
+(function() {
+  const hint = document.getElementById('galaxy-cycle-hint');
+  const dots = hint.querySelectorAll('.gc-cycle-dot');
+  const GALAXY_ANGLES = {
+    sentence: Math.atan2(SENTENCE_CENTER.z, SENTENCE_CENTER.x),
+    career:   Math.atan2(CAREER_OFFSET.z,   CAREER_OFFSET.x),
+    claude:   Math.atan2(CLAUDE_CENTER.z,    CLAUDE_CENTER.x),
+  };
+  const GALAXY_ORDER = ['sentence', 'career', 'claude'];
+
+  function nearestGalaxy(theta) {
+    let best = 0, bestDist = Infinity;
+    GALAXY_ORDER.forEach((id, i) => {
+      const ga = GALAXY_ANGLES[id];
+      // Vector from camera to galaxy center projected onto horizontal plane
+      const center = id === 'sentence' ? SENTENCE_CENTER : id === 'career' ? CAREER_OFFSET : CLAUDE_CENTER;
+      const camX = Math.sin(camState.theta);
+      const camZ = Math.cos(camState.theta);
+      const toX = center.x, toZ = center.z;
+      // Angular difference between camera look direction and galaxy direction
+      const gTheta = Math.atan2(toX, toZ);
+      let diff = ((camState.theta % (Math.PI*2)) - (gTheta % (Math.PI*2)));
+      while (diff >  Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      if (Math.abs(diff) < bestDist) { bestDist = Math.abs(diff); best = i; }
+    });
+    return best;
+  }
+
+  window._updateGalaxyCycleHint = function(ga) {
+    if (ga > 0.35) {
+      hint.classList.add('vis');
+      const near = nearestGalaxy(camState.theta);
+      dots.forEach((d, i) => d.classList.toggle('active', i === near));
+    } else {
+      hint.classList.remove('vis');
+    }
+  };
+})();
+
+// ─────────────────────────────────────────────────────────
+// TESSERACT — 3-D grid of all nodes across all galaxies
+// ─────────────────────────────────────────────────────────
+let tesseractOpen = false;
+let tesseractRAF = null;
+let tesseractScene = null, tesseractCam = null, tesseractRenderer = null;
+let tesseractTheta = 0.4, tesseractPhi = Math.PI * 0.32;
+let tesseractDrag = false, tesseractLastX = 0, tesseractLastY = 0;
+let tesseractHovered = null;
+const tesseractNodeObjs = [];  // { mesh, hitMesh, era, galaxy }
+
+function buildTesseractScene() {
+  const cvs = document.getElementById('tesseract-canvas');
+  cvs.width  = window.innerWidth;
+  cvs.height = window.innerHeight;
+
+  tesseractRenderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, alpha: true });
+  tesseractRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  tesseractRenderer.setSize(window.innerWidth, window.innerHeight);
+  tesseractRenderer.setClearColor(0x000000, 0);
+
+  tesseractScene = new THREE.Scene();
+  tesseractScene.fog = new THREE.FogExp2(0x000000, 0.0035);
+
+  tesseractCam = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 800);
+
+  // Lights
+  tesseractScene.add(new THREE.AmbientLight(0xffffff, 0.15));
+  const pl1 = new THREE.PointLight(0xdaa520, 8, 200); pl1.position.set(-20, 30, 20); tesseractScene.add(pl1);
+  const pl2 = new THREE.PointLight(0x4466ff, 6, 180); pl2.position.set(30, -20, -10); tesseractScene.add(pl2);
+  const pl3 = new THREE.PointLight(0xff8833, 5, 160); pl3.position.set(0, 0, 40); tesseractScene.add(pl3);
+
+  // Gather all eras with galaxy tag
+  const allNodes = [
+    ...ERAS.map(e          => ({ era: e, galaxy: 'career'   })),
+    ...PLATFORM_ERAS.map(e => ({ era: e, galaxy: 'sentence' })),
+    ...CLAUDE_ERAS.map(e   => ({ era: e, galaxy: 'claude'   })),
+    ...MANIFESTO_ERAS.map(e=> ({ era: e, galaxy: 'manifesto'})),
+  ];
+
+  const GALAXY_COLORS = {
+    career:   0xdaa520,
+    sentence: 0xffe066,
+    claude:   0x6699ff,
+    manifesto:0xff9944,
+  };
+
+  // Arrange into a 3D grid — cubed layout
+  // Determine grid dimensions
+  const total = allNodes.length;
+  const cols = Math.ceil(Math.cbrt(total * 1.4));
+  const rows = Math.ceil(total / (cols * cols)) + 1;
+  const spacing = 9.5;
+  const offsetX = -(cols - 1) * spacing * 0.5;
+  const offsetY = -(rows - 1) * spacing * 0.5;
+
+  tesseractNodeObjs.length = 0;
+
+  // Sort by galaxy for coherent grouping in grid
+  const sorted = [...allNodes].sort((a, b) => {
+    const order = { career: 0, sentence: 1, claude: 2, manifesto: 3 };
+    return (order[a.galaxy] || 0) - (order[b.galaxy] || 0);
+  });
+
+  sorted.forEach((node, idx) => {
+    const col = idx % cols;
+    const depth = Math.floor(idx / cols) % cols;
+    const row = Math.floor(idx / (cols * cols));
+
+    const x = offsetX + col   * spacing;
+    const y = offsetY + row   * spacing;
+    const z = -(depth * spacing * 0.85);
+
+    const col3 = GALAXY_COLORS[node.galaxy] || 0xffffff;
+    const r = 0.45;
+
+    const geo = new THREE.SphereGeometry(r, 14, 14);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: col3, emissive: col3, emissiveIntensity: 1.4,
+      metalness: 0.1, roughness: 0.1, clearcoat: 1.0,
+      transparent: true, opacity: 0.0,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    mesh.userData = { node, idx };
+    tesseractScene.add(mesh);
+
+    // Glow
+    const glowSz = 128;
+    const gc = document.createElement('canvas'); gc.width = glowSz; gc.height = glowSz;
+    const gctx = gc.getContext('2d');
+    const gr = (col3>>16)&255, gg = (col3>>8)&255, gb = col3&255;
+    const grad = gctx.createRadialGradient(glowSz/2,glowSz/2,0,glowSz/2,glowSz/2,glowSz/2);
+    grad.addColorStop(0, `rgba(${gr},${gg},${gb},0.55)`);
+    grad.addColorStop(0.5,`rgba(${gr},${gg},${gb},0.12)`);
+    grad.addColorStop(1, `rgba(${gr},${gg},${gb},0)`);
+    gctx.fillStyle = grad; gctx.fillRect(0,0,glowSz,glowSz);
+    const glowSpr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending
+    }));
+    glowSpr.scale.setScalar(r * 10);
+    glowSpr.position.set(x, y, z);
+    glowSpr.material.opacity = 0;
+    tesseractScene.add(glowSpr);
+
+    // Invisible hit proxy
+    const hitGeo = new THREE.SphereGeometry(r * 3, 6, 6);
+    const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    hitMesh.position.set(x, y, z);
+    hitMesh.userData = { node, idx };
+    tesseractScene.add(hitMesh);
+
+    tesseractNodeObjs.push({ mesh, hitMesh, glow: glowSpr, node, galaxy: node.galaxy });
+  });
+
+  // Draw faint grid skeleton lines connecting adjacent nodes — tesseract lattice
+  const LINE_COLOR = 0x2a2050;
+  const lineMat = () => new THREE.LineBasicMaterial({ color: LINE_COLOR, transparent: true, opacity: 0.18, depthWrite: false });
+
+  sorted.forEach((_, idx) => {
+    const col  = idx % cols;
+    const depth= Math.floor(idx / cols) % cols;
+    const row  = Math.floor(idx / (cols * cols));
+    const x = offsetX + col   * spacing;
+    const y = offsetY + row   * spacing;
+    const z = -(depth * spacing * 0.85);
+
+    const nextCol  = idx + 1;
+    const nextRow  = idx + cols;
+    const nextDepth= idx + cols * cols;
+
+    [[nextCol, col < cols-1], [nextRow, true], [nextDepth, true]].forEach(([nIdx, cond]) => {
+      if (!cond || nIdx >= sorted.length) return;
+      const nc = nIdx % cols;
+      const nd = Math.floor(nIdx / cols) % cols;
+      const nr = Math.floor(nIdx / (cols * cols));
+      const nx = offsetX + nc * spacing;
+      const ny = offsetY + nr * spacing;
+      const nz = -(nd * spacing * 0.85);
+      const pts = [new THREE.Vector3(x,y,z), new THREE.Vector3(nx,ny,nz)];
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat());
+      tesseractScene.add(line);
+    });
+  });
+
+  // Central axis lines for depth
+  const axPts = [new THREE.Vector3(0, offsetY - 5, 0), new THREE.Vector3(0, -offsetY + 5, 0)];
+  const axLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(axPts),
+    new THREE.LineBasicMaterial({ color: 0x4433aa, transparent: true, opacity: 0.12 }));
+  tesseractScene.add(axLine);
+
+  // Update count display
+  document.getElementById('tesseract-count').textContent =
+    sorted.length + ' nodes  ·  4 galaxies  ·  drag to rotate  ·  click to focus';
+
+  // Staggered fade-in of nodes
+  let delay = 0;
+  tesseractNodeObjs.forEach(({ mesh, glow }, i) => {
+    setTimeout(() => {
+      const t2 = { v: 0 };
+      (function fadeStep() {
+        t2.v = Math.min(t2.v + 0.06, 1);
+        if (mesh.material) mesh.material.opacity = t2.v * 0.92;
+        if (glow.material) glow.material.opacity = t2.v * 0.45;
+        if (t2.v < 1) requestAnimationFrame(fadeStep);
+      })();
+    }, i * 18);
+  });
+}
+
+function applyTesseractCam() {
+  if (!tesseractCam) return;
+  const r = 95;
+  tesseractCam.position.set(
+    r * Math.sin(tesseractPhi) * Math.sin(tesseractTheta),
+    r * Math.cos(tesseractPhi),
+    r * Math.sin(tesseractPhi) * Math.cos(tesseractTheta)
+  );
+  tesseractCam.lookAt(0, 0, 0);
+}
+
+let tesseractAutoTheta = 0;
+
+function animateTesseract(ts) {
+  if (!tesseractOpen) return;
+  tesseractRAF = requestAnimationFrame(animateTesseract);
+
+  // Gentle auto-rotation when not dragging
+  if (!tesseractDrag) {
+    tesseractAutoTheta += 0.0006;
+    tesseractTheta += (tesseractAutoTheta - tesseractTheta) * 0.01;
+  }
+
+  applyTesseractCam();
+  if (tesseractRenderer && tesseractScene && tesseractCam)
+    tesseractRenderer.render(tesseractScene, tesseractCam);
+}
+
+window.openTesseract = function() {
+  if (tesseractOpen) return;
+  tesseractOpen = true;
+
+  const overlay = document.getElementById('tesseract-overlay');
+  overlay.style.display = 'block';
+  requestAnimationFrame(() => overlay.classList.add('on'));
+
+  if (!tesseractRenderer) {
+    buildTesseractScene();
+  } else {
+    // Resize canvas if window changed
+    const cvs = document.getElementById('tesseract-canvas');
+    cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+    tesseractRenderer.setSize(window.innerWidth, window.innerHeight);
+    tesseractCam.aspect = window.innerWidth / window.innerHeight;
+    tesseractCam.updateProjectionMatrix();
+  }
+
+  tesseractAutoTheta = tesseractTheta;
+  animateTesseract();
+};
+
+window.closeTesseract = function() {
+  if (!tesseractOpen) return;
+  tesseractOpen = false;
+  const overlay = document.getElementById('tesseract-overlay');
+  overlay.classList.remove('on');
+  setTimeout(() => { overlay.style.display = 'none'; }, 520);
+  if (tesseractRAF) { cancelAnimationFrame(tesseractRAF); tesseractRAF = null; }
+};
+
+// Tesseract mouse interaction
+(function() {
+  const overlay = document.getElementById('tesseract-overlay');
+  const tooltip = document.getElementById('tesseract-tooltip');
+  const ttEra   = document.getElementById('tesseract-tt-era');
+  const ttTitle = document.getElementById('tesseract-tt-title');
+  const ttDomain= document.getElementById('tesseract-tt-domain');
+  let pdX = 0, pdY = 0, pdDragged = false;
+  const mouse2 = new THREE.Vector2();
+  const rc2 = new THREE.Raycaster();
+
+  overlay.addEventListener('pointerdown', e => {
+    if (e.target === document.getElementById('tesseract-close')) return;
+    tesseractDrag = true;
+    pdX = e.clientX; pdY = e.clientY; pdDragged = false;
+    tesseractLastX = e.clientX; tesseractLastY = e.clientY;
+  });
+
+  overlay.addEventListener('pointermove', e => {
+    if (tesseractDrag) {
+      const dx = e.clientX - tesseractLastX;
+      const dy = e.clientY - tesseractLastY;
+      if (Math.abs(e.clientX - pdX) > 4 || Math.abs(e.clientY - pdY) > 4) pdDragged = true;
+      tesseractTheta  -= dx * 0.006;
+      tesseractPhi     = Math.max(0.08, Math.min(Math.PI * 0.46, tesseractPhi + dy * 0.006));
+      tesseractAutoTheta = tesseractTheta;
+      tesseractLastX = e.clientX; tesseractLastY = e.clientY;
+    } else {
+      // Hover detection
+      if (!tesseractCam || !tesseractScene) return;
+      const cvs = document.getElementById('tesseract-canvas');
+      mouse2.x = (e.clientX / cvs.clientWidth)  * 2 - 1;
+      mouse2.y = -((e.clientY / cvs.clientHeight) * 2 - 1);
+      rc2.setFromCamera(mouse2, tesseractCam);
+      const hitMeshes = tesseractNodeObjs.map(o => o.hitMesh);
+      const hits = rc2.intersectObjects(hitMeshes);
+      if (hits.length) {
+        const obj = tesseractNodeObjs.find(o => o.hitMesh === hits[0].object);
+        if (obj) {
+          const era = obj.node.era;
+          ttEra.textContent   = obj.galaxy.toUpperCase() + '  ·  ' + era.era;
+          ttTitle.textContent = era.title;
+          ttDomain.textContent= era.domain;
+          // Color title by galaxy
+          const colors = { career:'#daa520', sentence:'#ffe066', claude:'#6699ff', manifesto:'#ff9944' };
+          ttTitle.style.color = colors[obj.galaxy] || '#f5ecd5';
+          let tx = e.clientX + 18, ty = e.clientY - 10;
+          if (tx + 230 > window.innerWidth)  tx = e.clientX - 230;
+          if (ty + 80  > window.innerHeight) ty = e.clientY - 80;
+          tooltip.style.transform = `translate(${tx}px,${ty}px)`;
+          tooltip.classList.add('vis');
+          overlay.style.cursor = 'pointer';
+          tesseractHovered = obj;
+        }
+      } else {
+        tooltip.classList.remove('vis');
+        overlay.style.cursor = 'default';
+        tesseractHovered = null;
+      }
+    }
+  });
+
+  overlay.addEventListener('pointerup', e => {
+    tesseractDrag = false;
+    if (!pdDragged && tesseractHovered) {
+      // Click: close tesseract and focus the era in the main scene
+      const era = tesseractHovered.node.era;
+      window.closeTesseract();
+      setTimeout(() => { focusEra(era); }, 300);
+    }
+  });
+
+  overlay.addEventListener('wheel', e => {
+    if (!tesseractCam) return;
+    // Zoom tesseract camera
+    const newR = Math.max(30, Math.min(180,
+      Math.sqrt(
+        tesseractCam.position.x**2 + tesseractCam.position.y**2 + tesseractCam.position.z**2
+      ) + e.deltaY * 0.08
+    ));
+    // Store as radius offset — apply in next frame via phi/theta
+    tesseractPhi = tesseractPhi; // keep angle, just adjust the constant r in applyTesseractCam
+    // Re-implement with mutable radius
+    window._tesseractR = newR;
+  }, { passive: true });
+})();
+
+// Patch applyTesseractCam to use mutable radius
+window._tesseractR = 95;
+applyTesseractCam = function() {
+  if (!tesseractCam) return;
+  const r = window._tesseractR || 95;
+  tesseractCam.position.set(
+    r * Math.sin(tesseractPhi) * Math.sin(tesseractTheta),
+    r * Math.cos(tesseractPhi),
+    r * Math.sin(tesseractPhi) * Math.cos(tesseractTheta)
+  );
+  tesseractCam.lookAt(0, 0, 0);
+};
+</script>
+
 <div id="ss-filter" style="
   position:fixed; bottom:72px; left:50%; transform:translateX(-50%);
   display:none; gap:2px; z-index:100;
@@ -5026,13 +5634,7 @@ window.addEventListener('resize', () => {
     <p class="mf-p">Two case studies carry the proof: GNC reclaimed ~$500M post-bankruptcy in twelve weeks. BNY Mellon shipped Wove — an industry-first financial advisory platform — across three Agile tracks simultaneously. Neither used AI. Both were built by one person who did not ask for the scope and received it anyway.</p>
     <div class="mf-cta">
       <div class="mf-cta-lbl">Let&rsquo;s work</div>
-      <a class="mf-link" href="mailto:zack@reasonably.cc">zack@reasonably.cc</a>
+      <a class="mf-link" href="/cdn-cgi/l/email-protection#bbc1dad8d0fbc9dedac8d4d5dad9d7c295d8d8"><span class="__cf_email__" data-cfemail="5b213a38301b293e3a2834353a393722753838">[email&#160;protected]</span></a>
       <a class="mf-link" href="https://linkedin.com/in/zackgort" target="_blank" rel="noopener">linkedin.com/in/zackgort</a>
       <a class="mf-link" href="https://intoview.pro/cv" target="_blank" rel="noopener">intoview.pro/cv &nbsp;·&nbsp; full case studies</a>
-      <a class="mf-link" href="https://wolfie.love" target="_blank" rel="noopener">wolfie.love &nbsp;·&nbsp; the origin</a>
-    </div>
-  </div>
-</div>
-
-</body>
-</html>
+      <a class="mf-link" href="https
