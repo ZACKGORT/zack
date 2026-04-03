@@ -987,6 +987,59 @@ body.light .toast-title{color:#000;}
 body.light .toast-role{color:rgba(0,0,0,0.40);}
 #tooltip{display:none;}
 
+
+/* Tesseract 2D Grid Overlay (right-click toggle) */
+#tesseract-grid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 961;
+  background: rgba(2,1,12,0.95);
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: all;
+}
+#tesseract-grid-overlay.on { opacity: 1; display: flex; }
+#tesseract-grid-inner {
+  margin: auto;
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+#tesseract-grid-close {
+  position: fixed;
+  top: 28px;
+  right: 28px;
+  z-index: 962;
+  background: none;
+  border: 1px solid rgba(218,165,32,0.20);
+  color: rgba(218,165,32,0.45);
+  width: 30px;
+  height: 30px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Mono', monospace;
+  transition: all 0.18s;
+}
+#tesseract-grid-close:hover { color: #f5ecd5; border-color: rgba(218,165,32,0.65); }
+.tess-grid-card {
+  background: rgba(5,3,10,0.94);
+  border: 1px solid rgba(218,165,32,0.12);
+  border-radius: 5px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tess-grid-card:hover { border-color: rgba(218,165,32,0.40); background: rgba(10,6,20,0.97); }
+.tess-grid-era { font-family: 'DM Mono',monospace; font-size: 7px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(218,165,32,0.40); margin-bottom: 4px; }
+.tess-grid-title { font-family: 'Crimson Text',serif; font-size: 14px; color: #f5ecd5; line-height: 1.2; }
+.tess-grid-domain { font-family: 'DM Mono',monospace; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(218,165,32,0.28); margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -3081,6 +3134,7 @@ function makeStarCore(color, alpha) {
 
 // galaxyAlpha: 0 = close (orrery), 1 = far (galaxy overview)
 let galaxyAlpha = 1;  // start in galaxy view
+var clusterDimAlpha = 1; // var so it's hoisted — no TDZ risk
 const GALAXY_ENTER_RADIUS = 80;   // below this, galaxy is fully faded
 const GALAXY_FULL_RADIUS  = 190;  // above this, galaxy is fully visible
 
@@ -3088,6 +3142,8 @@ const GALAXY_FULL_RADIUS  = 190;  // above this, galaxy is fully visible
 // SCENE BUILDING
 // ─────────────────────────────────────────────────────────
 const nodeObjects = [], allLines = [], allLabels = [], glowSprites = [];
+const nodeObjMap = new Map();
+const liveConnections = []; // { line, eraA, eraB } — updated each frame during morph // era.id → { mesh, hitMesh, era, gi }
 const moonSystems = [];
 const caseStudyMoons = []; // ringed Saturn moons for case studies
 
@@ -3400,93 +3456,224 @@ const galaxyLayout = {
   claude:   'spiral',
 };
 
-// Compute flat orrery position for any era in its galaxy
+// ─────────────────────────────────────────────────────────────
+// LAYOUT POSITION COMPUTERS
+// Each era gets _spiralPos, _flatPos, _gridPos, _listPos
+// ─────────────────────────────────────────────────────────────
+
 function flatOrreryPos(era, center) {
   const list = activeList(era);
   const idx  = list.findIndex(e => e.id === era.id);
   const n    = list.length;
   const angle = (idx / n) * Math.PI * 2;
   const tier  = era.solarSystem;
-  // tier-based radius: pipeline=9, memory=15, permission=21, experimental=27
-  // for career/sentence: uniform at 18
   const tierR = { pipeline: 9, memory: 15, permission: 21, experimental: 27 };
   const r = (tier && tierR[tier]) ? tierR[tier] : 18 + (idx % 3) * 4;
   const y = (idx % 2 === 0 ? 0.8 : -0.8);
+  return new THREE.Vector3(center.x + Math.cos(angle) * r, y, center.z + Math.sin(angle) * r);
+}
+
+function gridPos(era, center) {
+  // 2D grid in the XZ plane, centered on galaxy center
+  // Nodes arrange into rows/cols; flat on Y=0
+  const list = activeList(era);
+  const idx  = list.findIndex(e => e.id === era.id);
+  const n    = list.length;
+  const cols = Math.ceil(Math.sqrt(n * 1.6));  // wider than tall
+  const rows = Math.ceil(n / cols);
+  const col  = idx % cols;
+  const row  = Math.floor(idx / cols);
+  const cellW = 9.0, cellD = 7.0;
+  const totalW = (cols - 1) * cellW;
+  const totalD = (rows - 1) * cellD;
   return new THREE.Vector3(
-    center.x + Math.cos(angle) * r,
-    y,
-    center.z + Math.sin(angle) * r
+    center.x + col * cellW - totalW / 2,
+    row * 0.4 - (rows - 1) * 0.2,   // very slight Y stagger for depth
+    center.z + row * cellD - totalD / 2
   );
 }
 
-// Layout morph state — per galaxy, 0=spiral 1=flat
-const layoutMorphT = { career: 0, sentence: 0, claude: 0 };
-const layoutMorphing = { career: false, sentence: false, claude: false };
-const layoutMorphTarget = { career: 0, sentence: 0, claude: 0 };
+function listPos(era, center) {
+  // Vertical list — all nodes at same XZ, evenly spaced by Y
+  const list = activeList(era);
+  const idx  = list.findIndex(e => e.id === era.id);
+  const n    = list.length;
+  const spanY = Math.min(n * 2.2, 36);
+  const y = (idx / Math.max(n - 1, 1)) * spanY - spanY / 2;
+  // Slight X offset alternates L/R for readability
+  const xOff = (idx % 2 === 0 ? 1.5 : -1.5);
+  return new THREE.Vector3(center.x + xOff, y, center.z);
+}
 
-function setGalaxyLayoutMode(galaxyId, mode) {
-  const target = mode === 'flat' ? 1 : 0;
-  if (Math.abs(layoutMorphTarget[galaxyId] - target) < 0.01) return;
-  layoutMorphTarget[galaxyId] = target;
-  layoutMorphing[galaxyId] = true;
-  galaxyLayout[galaxyId] = mode;
-  // Update HUD toggle state
-  const toggleEls = document.querySelectorAll('.layout-toggle[data-galaxy="' + galaxyId + '"]');
-  if (!toggleEls) return;
-  toggleEls.forEach(btn => {
-    btn.querySelectorAll('button').forEach(b => {
-      b.classList.toggle('active', b.dataset.mode === mode);
+// Assign all four layout positions to every era after scene builds
+// Register a connection line for live position updates during layout morph
+function registerConnection(line, eraA, eraB) {
+  liveConnections.push({ line, eraA, eraB });
+}
+
+// Update all registered connection geometries to current _pos values
+function updateConnectionGeometries() {
+  liveConnections.forEach(({ line, eraA, eraB }) => {
+    if (!line || !line.geometry || !eraA || !eraB) return;
+    const p1 = eraA._pos, p2 = eraB._pos;
+    const mid = p1.clone().add(p2).multiplyScalar(0.5);
+    mid.y += 0.4;
+    const pts = new THREE.QuadraticBezierCurve3(p1, mid, p2).getPoints(16);
+    const posArr = line.geometry.attributes.position;
+    if (posArr && posArr.count === pts.length) {
+      pts.forEach((p, i) => { posArr.setXYZ(i, p.x, p.y, p.z); });
+      posArr.needsUpdate = true;
+      line.geometry.computeBoundingSphere();
+    }
+  });
+}
+
+// Returns true if era belongs to the currently focused galaxy (or any galaxy if not focused)
+function isInActiveGalaxy(era) {
+  if (!isFocused || !focusedEra) return true;
+  return activeList(focusedEra).includes(era);
+}
+
+function computeAllLayoutPositions() {
+  // Build fast lookup map once after all scenes are constructed
+  nodeObjMap.clear();
+  nodeObjects.forEach((obj, i) => {
+    if (obj.era) nodeObjMap.set(obj.era.id, { ...obj, gi: i });
+  });
+
+  const defs = [
+    { list: ERAS,          center: CAREER_OFFSET   },
+    { list: PLATFORM_ERAS, center: SENTENCE_CENTER },
+    { list: CLAUDE_ERAS,   center: CLAUDE_CENTER   },
+    { list: MANIFESTO_ERAS,center: new THREE.Vector3(0,0,0) },
+  ];
+  defs.forEach(({ list, center }) => {
+    list.forEach(era => {
+      era._flatPos = era._flatPos || flatOrreryPos(era, center);
+      era._gridPos = gridPos(era, center);
+      era._listPos = listPos(era, center);
     });
   });
+}
+
+// Layout morph — stores a Vector3 target per era, lerps _pos toward it
+const layoutMorphState = {
+  career:   { mode: 'spiral', morphing: false },
+  sentence: { mode: 'spiral', morphing: false },
+  claude:   { mode: 'spiral', morphing: false },
+};
+
+// Target positions per era (updated when mode changes)
+const layoutTargets = new Map(); // era.id → THREE.Vector3
+
+function getLayoutTarget(era, mode, center) {
+  switch (mode) {
+    case 'orrery': return era._flatPos || flatOrreryPos(era, center);
+    case 'grid':   return era._gridPos || gridPos(era, center);
+    case 'list':   return era._listPos || listPos(era, center);
+    default:       return era._spiralPos;
+  }
+}
+
+function setGalaxyLayoutMode(galaxyId, mode) {
+  const state = layoutMorphState[galaxyId];
+  if (state.mode === mode) return;
+  state.mode = mode;
+  state.morphing = true;
+
+  // Store new targets
+  let list, center;
+  if (galaxyId === 'career')   { list = ERAS;          center = CAREER_OFFSET;   }
+  if (galaxyId === 'sentence') { list = PLATFORM_ERAS;  center = SENTENCE_CENTER; }
+  if (galaxyId === 'claude')   { list = CLAUDE_ERAS;    center = CLAUDE_CENTER;   }
+  if (!list) return;
+
+  list.forEach(era => {
+    layoutTargets.set(era.id, getLayoutTarget(era, mode, center).clone());
+  });
+
+  // Update toggle active state
+  const toggleEls = document.querySelectorAll('.layout-toggle[data-galaxy="' + galaxyId + '"]');
+  if (toggleEls) toggleEls.forEach(btn => {
+    btn.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  });
+  
+  // Update line visibility for this galaxy
+  updateLineVisibility(galaxyId);
+
+  // Auto-swoop back to node-focused view when returning to spiral/orrery
+  if ((mode === 'spiral' || mode === 'orrery') && typeof focusedEra !== 'undefined' && focusedEra) {
+    if (typeof eraPreset === 'function' && typeof swoopTo === 'function') {
+      const p = eraPreset(focusedEra);
+      swoopTo(p.phi, p.theta, p.radius, p.pivot);
+      camTarget.phi = p.phi; camTarget.theta = p.theta; camTarget.radius = p.radius;
+      scenePivotTgt.copy(p.pivot);
+    }
+  }
+  // Auto-swoop camera for grid/list so all nodes fit in view
+  if ((mode === 'grid' || mode === 'list') && typeof eraPreset !== 'undefined') {
+    const galaxyCenter = center.clone();
+    const n = list.length;
+    let sweepRadius, sweepPhi, sweepTheta;
+    if (mode === 'grid') {
+      const cols = Math.ceil(Math.sqrt(n * 1.6));
+      sweepRadius = cols * 6.5;
+      sweepPhi   = Math.PI * 0.42;  // bird's eye
+      sweepTheta = Math.atan2(galaxyCenter.z, galaxyCenter.x) + Math.PI;
+    } else {
+      sweepRadius = 22;
+      sweepPhi   = Math.PI * 0.20;  // nearly equatorial — list reads left-right
+      sweepTheta = Math.atan2(galaxyCenter.z, galaxyCenter.x) + Math.PI * 0.75;
+    }
+    if (typeof swoopTo === 'function') {
+      swoopTo(sweepPhi, sweepTheta, sweepRadius, galaxyCenter);
+      camTarget.phi = sweepPhi; camTarget.theta = sweepTheta; camTarget.radius = sweepRadius;
+      scenePivotTgt.copy(galaxyCenter);
+    }
+  }
 }
 
 function tickLayoutMorph() {
+  const LERP = isMobileDevice() ? 0.12 : 0.075;
   ['career', 'sentence', 'claude'].forEach(gid => {
-    if (!layoutMorphing[gid]) return;
-    const prev = layoutMorphT[gid];
-    const target = layoutMorphTarget[gid];
-    layoutMorphT[gid] += (target - prev) * 0.07;
-    if (Math.abs(layoutMorphT[gid] - target) < 0.002) {
-      layoutMorphT[gid] = target;
-      layoutMorphing[gid] = false;
-    }
+    const state = layoutMorphState[gid];
+    if (!state.morphing) return;
 
-    const t = layoutMorphT[gid]; // 0=spiral, 1=flat
-    const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
-
-    // Get the list and center for this galaxy
-    let list, center;
-    if (gid === 'career')   { list = ERAS;          center = CAREER_OFFSET;   }
-    if (gid === 'sentence') { list = PLATFORM_ERAS;  center = SENTENCE_CENTER; }
-    if (gid === 'claude')   { list = CLAUDE_ERAS;    center = CLAUDE_CENTER;   }
+    let list;
+    if (gid === 'career')   list = ERAS;
+    if (gid === 'sentence') list = PLATFORM_ERAS;
+    if (gid === 'claude')   list = CLAUDE_ERAS;
     if (!list) return;
 
-    // Move all nodes + their accessories
-    list.forEach((era) => {
-      const flatPos   = era._flatPos || flatOrreryPos(era, center);
-      const spiralPos = era._spiralPos;
-      const newPos    = new THREE.Vector3().lerpVectors(spiralPos, flatPos, ease);
-      era._pos.copy(newPos);
+    let stillMoving = false;
+    list.forEach(era => {
+      const target = layoutTargets.get(era.id);
+      if (!target) return;
+      const d = target.distanceTo(era._pos);
+      if (d > 0.01) {
+        era._pos.lerp(target, LERP);
+        stillMoving = true;
+      } else {
+        era._pos.copy(target);
+      }
 
-      // Find the mesh for this era and update it
-      const obj = nodeObjects.find(o => o.era && o.era.id === era.id);
+      const obj = nodeObjMap.get(era.id);
       if (!obj || !obj.mesh) return;
-      obj.mesh.position.copy(newPos);
-      if (obj.hitMesh) obj.hitMesh.position.copy(newPos);
-
-      // Update glow sprite
-      const gi = nodeObjects.indexOf(obj);
-      if (gi >= 0 && gi < glowSprites.length && glowSprites[gi] && glowSprites[gi].material) glowSprites[gi].position.copy(newPos);
-
-      // Update label sprites (2 per era in allLabels)
-      const labelBase = nodeObjects.indexOf(obj) * 2;
+      obj.mesh.position.copy(era._pos);
+      if (obj.hitMesh) obj.hitMesh.position.copy(era._pos);
+      const gi = obj.gi !== undefined ? obj.gi : nodeObjects.indexOf(obj);
+      if (gi >= 0 && gi < glowSprites.length && glowSprites[gi]) glowSprites[gi].position.copy(era._pos);
+      const labelBase = gi * 2;
       if (allLabels[labelBase] && allLabels[labelBase].spr) {
-        allLabels[labelBase].spr.position.set(newPos.x + 0.6, newPos.y + 0.5, newPos.z);
+        allLabels[labelBase].spr.position.set(era._pos.x + 0.6, era._pos.y + 0.5, era._pos.z);
       }
     });
-  });
-}
 
+    if (!stillMoving) state.morphing = false;
+  });
+  // Update connection line geometries to match new node positions
+  updateConnectionGeometries();
+}
 
 // ─────────────────────────────────────────────────────────────
 // WIKI-STYLE TILTED ELLIPSE ORRERY LAYOUT
@@ -3533,7 +3720,7 @@ function ellipsePos(center, ellipses, tier, angleFrac) {
 }
 
 // Helper: draw a tilted ellipse ring
-function drawGalaxyEllipse(center, ellipses, tier, scene, allLines) {
+function drawGalaxyEllipse(center, ellipses, tier, scene, allLines, galaxyId) {
   const e = ellipses[tier]; if (!e) return;
   const pts = [];
   for (let i = 0; i <= 128; i++) {
@@ -3548,12 +3735,12 @@ function drawGalaxyEllipse(center, ellipses, tier, scene, allLines) {
   const mat = new THREE.LineBasicMaterial({ color: e.color, transparent: true, opacity: 0.14, depthWrite: false });
   const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
   scene.add(line);
-  allLines.push({ line, darkOp: 0.14, lightOp: 0.35, darkColor: e.color, lightColor: 0x000000 });
+  allLines.push({ line, darkOp: 0.14, lightOp: 0.35, darkColor: e.color, lightColor: 0x000000, galaxy: galaxyId || null });
   return line;
 }
 
 // Helper: tangent tick mark at a node position (wiki's tangential accent line)
-function makeTangentTick(center, ellipses, tier, angleFrac, color, scene, allLines) {
+function makeTangentTick(center, ellipses, tier, angleFrac, color, scene, allLines, galaxyId) {
   const e = ellipses[tier]; if (!e) return;
   const da = 0.018;
   function eP(af) {
@@ -3574,7 +3761,7 @@ function makeTangentTick(center, ellipses, tier, angleFrac, color, scene, allLin
     ]), mat
   );
   scene.add(tick);
-  allLines.push({ line: tick, darkOp: 0.55, lightOp: 0.85, darkColor: color, lightColor: 0x000000 });
+  allLines.push({ line: tick, darkOp: 0.55, lightOp: 0.85, darkColor: color, lightColor: 0x000000, galaxy: galaxyId || null });
 }
 
 function buildScene() {
@@ -3588,11 +3775,11 @@ function buildScene() {
   const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
     new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.04 }));
   scene.add(spine);
-  allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0xdaa520, lightColor: 0x000000 });
+  allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'career' });
 
   // ── Ellipse rings (visible when in orrery mode) ─────────────
   Object.keys(CAREER_ELLIPSES).forEach(tier => {
-    drawGalaxyEllipse(CAREER_OFFSET, CAREER_ELLIPSES, tier, scene, allLines);
+    drawGalaxyEllipse(CAREER_OFFSET, CAREER_ELLIPSES, tier, scene, allLines, 'career');
   });
   // Ring labels at 0.88 angle
   Object.entries(CAREER_ELLIPSES).forEach(([tier, e]) => {
@@ -3619,7 +3806,7 @@ function buildScene() {
     const spokeMat = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.06 });
     const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]), spokeMat);
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.15, darkColor: era.color, lightColor: 0x000000 });
+    allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.15, darkColor: era.color, lightColor: 0x000000, galaxy: 'career' });
 
     const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
     const mat = new THREE.MeshPhysicalMaterial({
@@ -3656,11 +3843,12 @@ function buildScene() {
   for (let i = 0; i < ERAS.length - 1; i++) {
     const a = ERAS[i], b = ERAS[i+1];
     const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
-    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(24);
+    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
     const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 }));
     scene.add(conn);
-    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000 });
+    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'career' });
+    registerConnection(conn, a, b);
   }
 }
 buildScene();
@@ -3675,16 +3863,16 @@ function buildPlatformScene() {
   const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
     new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.10 }));
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.10, lightOp: 0.25, darkColor: 0xffe066, lightColor: 0x000000 });
+  allLines.push({ line: tube, darkOp: 0.10, lightOp: 0.25, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
 
   const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
     new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.04 }));
   scene.add(inner);
-  allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xffd700, lightColor: 0x000000 });
+  allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xffd700, lightColor: 0x000000, galaxy: 'sentence' });
 
   // Ellipse rings for orrery mode
   Object.keys(SENTENCE_ELLIPSES).forEach(tier => {
-    drawGalaxyEllipse(SENTENCE_CENTER, SENTENCE_ELLIPSES, tier, scene, allLines);
+    drawGalaxyEllipse(SENTENCE_CENTER, SENTENCE_ELLIPSES, tier, scene, allLines, 'sentence');
   });
   Object.entries(SENTENCE_ELLIPSES).forEach(([tier, e]) => {
     const a = 0.88 * Math.PI * 2;
@@ -3708,7 +3896,7 @@ function buildPlatformScene() {
       new THREE.BufferGeometry().setFromPoints([center, pos.clone()]),
       new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000 });
+    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000, galaxy: 'sentence' });
 
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(nodeSize, 16, 16),
@@ -3749,11 +3937,12 @@ function buildPlatformScene() {
     const a = ERA_BY_ID[fromId], b = ERA_BY_ID[toId];
     if (!a || !b) return;
     const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 2.2;
-    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(20);
+    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.20 }));
     scene.add(line);
-    allLines.push({ line, darkOp: 0.20, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000 });
+    allLines.push({ line, darkOp: 0.20, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000, galaxy: 'sentence' });
+    registerConnection(line, a, b);
   });
 }
 buildPlatformScene();
@@ -3769,7 +3958,7 @@ function buildManifestoScene() {
   const tubeMat = new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.09 });
   const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(100)), tubeMat);
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.09, lightOp: 0.20, darkColor: 0xdaa520, lightColor: 0x000000 });
+  allLines.push({ line: tube, darkOp: 0.09, lightOp: 0.20, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'claude' });
 
   MANIFESTO_ERAS.forEach((era) => {
     const pos = era._spiralPos;
@@ -3781,7 +3970,7 @@ function buildManifestoScene() {
       spokeMat
     );
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000 });
+    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000, galaxy: 'claude' });
 
     const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
     const mat = new THREE.MeshPhysicalMaterial({
@@ -3824,7 +4013,7 @@ function buildManifestoScene() {
       new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 })
     );
     scene.add(conn);
-    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000 });
+    allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000, galaxy: 'claude' });
   }
 }
 buildManifestoScene();
@@ -3841,11 +4030,11 @@ function buildClaudeScene() {
   const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(200)),
     new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.08 }));
   scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x88aaff, lightColor: 0x000000 });
+  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x88aaff, lightColor: 0x000000, galaxy: 'claude' });
 
   // Ellipse rings for orrery mode
   Object.keys(CLAUDE_ELLIPSES).forEach(tier => {
-    drawGalaxyEllipse(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, scene, allLines);
+    drawGalaxyEllipse(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, scene, allLines, 'claude');
   });
   Object.entries(CLAUDE_ELLIPSES).forEach(([tier, e]) => {
     const a = 0.88 * Math.PI * 2;
@@ -3872,7 +4061,7 @@ function buildClaudeScene() {
       new THREE.BufferGeometry().setFromPoints([CLAUDE_CENTER.clone(), pos.clone()]),
       new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.04 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.04, lightOp: 0.14, darkColor: color, lightColor: 0x000000 });
+    allLines.push({ line: spoke, darkOp: 0.04, lightOp: 0.14, darkColor: color, lightColor: 0x000000, galaxy: 'claude' });
 
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(nodeSize, 16, 16),
@@ -3911,7 +4100,8 @@ function buildClaudeScene() {
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
         new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.12 }));
       scene.add(line);
-      allLines.push({ line, darkOp: 0.12, lightOp: 0.24, darkColor: a.color, lightColor: 0x000000 });
+      allLines.push({ line, darkOp: 0.12, lightOp: 0.24, darkColor: a.color, lightColor: 0x000000, galaxy: 'claude' });
+      registerConnection(line, a, b);
     }
   });
 }
@@ -4443,8 +4633,12 @@ function updateGalaxyAlpha() {
   }
 
   // Galaxy cluster planets fade in as galaxy alpha increases
-  // Cluster objects: fully invisible in orrery view (ga < 0.25), full above 0.70
-  const gaCluster = Math.max(0, Math.min(1, (ga - 0.25) / 0.45));
+  // Cluster objects: fade out when zoomed in (ga < 0.25) OR when focused in an orrery
+  // isFocused means camera is at a node — cluster chrome should be invisible
+  // Smoothly dim cluster objects when focused inside an orrery
+  const clusterDimTarget = isFocused ? 0 : 1;
+  clusterDimAlpha += (clusterDimTarget - clusterDimAlpha) * 0.06;
+  const gaCluster = Math.max(0, Math.min(1, (ga - 0.25) / 0.45)) * clusterDimAlpha;
   const pulseFire = 0.85 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 0.9 : 0) * 0.15;
   if (galaxyClusterObjects && galaxyClusterObjects.length) galaxyClusterObjects.forEach(({ cl, mesh, atm, glow, ring, ring2, mOrbitLine, label }) => {
     mesh.material.opacity  += (gaCluster * 0.95              - mesh.material.opacity)  * lk;
@@ -4659,6 +4853,7 @@ function updateLayoutToggleBar(era) {
   if (era.id.startsWith('cc-')) gid = 'claude';
   else if (era.id.startsWith('p-')) gid = 'sentence';
   else if (!era.id.startsWith('m-')) gid = 'career';
+  // mode check handled by toggle button states
   if (!gid) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   const tog = document.querySelector('.layout-toggle[data-galaxy="' + gid + '"]');
@@ -5078,6 +5273,9 @@ function focusEra(era, navDir) {
   closeGridView();
   galaxyMode = false;
   
+  // Reset black hole focus state when focusing on an era
+  isBlackHoleFocused = false;
+  
   // Switch orrery mode if needed
   // No orrery mode switching — all nodes coexist
   isFocused = true; focusedEra = era;
@@ -5096,7 +5294,7 @@ function focusEra(era, navDir) {
   activeNodeNebulaIdx = ERAS.findIndex(e => e.id === era.id);
 
   openPanel(era);
-  highlightConnections(era);
+  highlightConnections(era); updateLineVisibility(getGalaxyFromEra(era));
   updateLayoutToggleBar(era);
 }
 
@@ -5128,7 +5326,86 @@ function resetHighlights() {
     obj.mesh.material.emissiveIntensity = obj.mesh.userData.origEI;
   });
   allLines.forEach(({ line, darkOp, lightOp }) => { if (line && line.material) line.material.opacity = isLight ? lightOp : darkOp; });
+  updateLineVisibility(null);
 }
+
+// Update line visibility based on focused galaxy
+function updateLineVisibility(focusedGalaxy) {
+  // If no galaxy is focused, show all lines
+  if (!focusedGalaxy) {
+    allLines.forEach(({ line, darkOp, lightOp }) => {
+      if (line && line.material) {
+        line.material.opacity = isLight ? lightOp : darkOp;
+        line.visible = true;
+      }
+    });
+    return;
+  }
+  
+  // Get the current mode for the focused galaxy
+  const mode = layoutMorphState[focusedGalaxy]?.mode || 'spiral';
+  
+  allLines.forEach(({ line, darkOp, lightOp, galaxy }) => {
+    if (!line || !line.material) return;
+    
+    // Lines without galaxy association are always visible
+    // Lines belonging to the focused galaxy are visible
+    // Lines from other galaxies are dimmed/hidden
+    if (!galaxy || galaxy === focusedGalaxy) {
+      line.material.opacity = isLight ? lightOp : darkOp;
+      line.visible = true;
+    } else {
+      // Dim lines from other galaxies
+      line.material.opacity = isLight ? lightOp * 0.15 : darkOp * 0.15;
+      line.visible = true;
+    }
+  });
+}
+
+// Get galaxy ID from era
+function getGalaxyFromEra(era) {
+  if (!era) return null;
+  if (ERAS.includes(era)) return 'career';
+  if (PLATFORM_ERAS.includes(era)) return 'sentence';
+  if (CLAUDE_ERAS.includes(era)) return 'claude';
+  return null;
+}
+
+
+
+// Focus on the black hole at the center of the galaxy
+function focusBlackHole() {
+  closeGridView();
+  galaxyMode = false;
+  
+  // Set focus state for black hole
+  isFocused = true;
+  focusedEra = null; // No era, we're focused on the black hole itself
+  isBlackHoleFocused = true;
+  
+  // Camera positioned to view the black hole from an angle
+  const isMobile = window.innerWidth <= 768;
+  const phi = isMobile ? Math.PI * 0.25 : Math.PI * 0.22;
+  const theta = Math.PI * 0.5;
+  const radius = isMobile ? 65 : 55;
+  const pivot = new THREE.Vector3(0, 0, 0);
+  
+  scenePivotTgt.copy(pivot);
+  swoopTo(phi, theta, radius, pivot);
+  
+  camTarget.phi = phi;
+  camTarget.theta = theta;
+  camTarget.radius = radius;
+  
+  // Show black hole group
+  bhGroup.visible = true;
+  
+  // Update UI
+  updateLayoutToggleBar(null);
+}
+
+// Variable to track if black hole is focused
+let isBlackHoleFocused = false;
 
 // Moon image ghost — disabled
 function showMoonGhost() { /* no-op */ }
@@ -5213,7 +5490,7 @@ function checkHover(clientX, clientY) {
       return;
     }
 
-    const nodeObj = nodeObjects.find(o => o.mesh === hit || o.hitMesh === hit);
+    const nodeObj = nodeObjects.find(o => (o.mesh === hit || o.hitMesh === hit) && isInActiveGalaxy(o.era));
     const e = nodeObj ? nodeObj.era : null;
 
     if (e && hoveredMesh !== hit) {
@@ -5299,6 +5576,10 @@ let pointerDownX = 0, pointerDownY = 0;
 let _lastCX = 0, _lastCY = 0;
 const isMobileDevice = () => window.innerWidth <= 768;
 
+// Mobile momentum tracking
+let mobileVelX = 0, mobileVelY = 0;
+let mobileMomentumActive = false;
+
 cvs.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
   isDragging = false; drag = false;
@@ -5316,7 +5597,8 @@ cvs.addEventListener('pointermove', e => {
 
   if (e.buttons && e.button !== 2) {
     const dx = e.clientX - pointerDownX, dy = e.clientY - pointerDownY;
-    const dragThreshold = isMobileDevice() ? 4 : 4;
+    // Higher threshold for mobile to distinguish tap from drag
+    const dragThreshold = isMobileDevice() ? 8 : 4;
     if (!drag && Math.sqrt(dx*dx + dy*dy) > dragThreshold) {
       drag = true;
       if (swoop.active) {
@@ -5336,7 +5618,8 @@ cvs.addEventListener('pointermove', e => {
       isDragging = true;
       if (isMobileDevice()) {
         // Mobile: write directly to camState AND camTarget — no lerp lag
-        const sens = 0.007;
+        // Higher sensitivity for better touch response
+        const sens = 0.008;
         const dTheta = -(e.clientX - lastDragX) * sens;
         const dPhi   =  (e.clientY - lastDragY) * sens;
         camState.theta  += dTheta;
@@ -5344,6 +5627,10 @@ cvs.addEventListener('pointermove', e => {
         const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
         camState.phi  = newPhi;
         camTarget.phi = newPhi;
+        
+        // Track velocity for momentum on touch end
+        mobileVelX = (e.clientX - lastDragX) * 0.5;
+        mobileVelY = (e.clientY - lastDragY) * 0.5;
       } else {
         const sensitivity = 0.005;
         camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
@@ -5362,7 +5649,18 @@ cvs.addEventListener('pointerup', e => {
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   const dist = Math.sqrt(dx * dx + dy * dy);
+  
+  // Store drag state before resetting - if we dragged, don't process as click
+  const wasDragging = drag;
   drag = false; // always reset drag flag
+
+  // Apply momentum on mobile after drag
+  if (isMobileDevice() && wasDragging) {
+    // Only apply momentum if velocity is significant
+    if (Math.abs(mobileVelX) > 0.5 || Math.abs(mobileVelY) > 0.5) {
+      mobileMomentumActive = true;
+    }
+  }
 
   if (isMobileDevice()) {
     // ── MOBILE: swipe-to-navigate only when focused on a node ──
@@ -5381,15 +5679,26 @@ cvs.addEventListener('pointerup', e => {
     }
 
     // Short tap: open panel for current focused node, or jump to tapped node
-    if (dist < 16) {
-      // Black hole tap → Tesseract
-      if (galaxyAlpha > 0.15) {
-        raycaster.setFromCamera(mouse, cam);
-        const bhHitMesh = bhGroup.userData.bhHit;
-        if (bhHitMesh) {
-          const bhHits = raycaster.intersectObject(bhHitMesh);
-          if (bhHits.length) { window.openTesseract(); return; }
+    // Only process as tap if we didn't drag significantly
+    if (dist < 16 && !wasDragging) {
+      // Black hole tap → focus first, then click opens tesseract (check regardless of galaxyAlpha)
+      raycaster.setFromCamera(mouse, cam);
+      const bhHitMesh = bhGroup.userData.bhHit;
+      if (bhHitMesh) {
+        const bhHits = raycaster.intersectObject(bhHitMesh);
+        if (bhHits.length) {
+          // If already focused on black hole, open tesseract
+          if (isBlackHoleFocused) {
+            window.openTesseract();
+          } else {
+            focusBlackHole();
+          }
+          return;
         }
+      }
+      // Reset black hole focus if clicking elsewhere
+      if (isBlackHoleFocused) {
+        isBlackHoleFocused = false;
       }
       if (handleStarClick && handleStarClick(mouse)) return;
       // Galaxy cluster click
@@ -5423,7 +5732,7 @@ cvs.addEventListener('pointerup', e => {
         const hit = hits[0].object;
         // Case study moon tap?
         if (hit.userData.isCaseStudy) { openCaseStudy(hit.userData.caseStudy); return; }
-        const nodeObj = nodeObjects.find(o => o.mesh === hit || o.hitMesh === hit);
+        const nodeObj = nodeObjects.find(o => (o.mesh === hit || o.hitMesh === hit) && isInActiveGalaxy(o.era));
         if (nodeObj) {
           if (focusedEra && nodeObj.era.id === focusedEra.id) {
             openPanel(focusedEra);
@@ -5444,17 +5753,30 @@ cvs.addEventListener('pointerup', e => {
   }
 
   // ── DESKTOP: existing behavior ──
-  if (!drag) {
-    if (galaxyAlpha > 0.15) {
-      raycaster.setFromCamera(mouse, cam);
-
-      // Black hole click → Tesseract
-      const bhHitMesh = bhGroup.userData.bhHit;
-      if (bhHitMesh) {
-        const bhHits = raycaster.intersectObject(bhHitMesh);
-        if (bhHits.length) { window.openTesseract(); return; }
+  // Only process click if we didn't drag
+  if (!wasDragging) {
+    // Black hole click → focus first, then click opens tesseract (check regardless of galaxyAlpha)
+    raycaster.setFromCamera(mouse, cam);
+    const bhHitMesh = bhGroup.userData.bhHit;
+    if (bhHitMesh) {
+      const bhHits = raycaster.intersectObject(bhHitMesh);
+      if (bhHits.length) {
+        // If already focused on black hole, open tesseract
+        if (isBlackHoleFocused) {
+          window.openTesseract();
+        } else {
+          focusBlackHole();
+        }
+        return;
       }
+    }
+    
+    // Reset black hole focus if clicking elsewhere
+    if (isBlackHoleFocused) {
+      isBlackHoleFocused = false;
+    }
 
+    if (galaxyAlpha > 0.15) {
       // Galaxy cluster click → swoop into that galaxy
       const clMeshes = galaxyClusterObjects.map(o => o.mesh);
       const clHits = raycaster.intersectObjects(clMeshes);
@@ -5484,7 +5806,7 @@ cvs.addEventListener('pointerup', e => {
       const hit = hits[0].object;
       // Case study moon click?
       if (hit.userData.isCaseStudy) { openCaseStudy(hit.userData.caseStudy); return; }
-      const nodeObj = nodeObjects.find(o => o.mesh === hit || o.hitMesh === hit);
+      const nodeObj = nodeObjects.find(o => (o.mesh === hit || o.hitMesh === hit) && isInActiveGalaxy(o.era));
       if (nodeObj) focusEra(nodeObj.era);
     } else if (isFocused) {
       if (galaxyAlpha > 0.15) {
@@ -5507,6 +5829,7 @@ cvs.addEventListener('pointerup', e => {
           if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
         }
       } else {
+        // When focused on a node, clicking outside should just close panel, not exit focus
         document.getElementById('ghost').classList.remove('on');
         document.getElementById('msheet').classList.remove('on');
         hideSentGhost();
@@ -5619,6 +5942,8 @@ document.addEventListener('keydown', e => {
 let tocVisible = false;
 
 // Mobile: scale up hit proxies for finger-friendly tap targets
+computeAllLayoutPositions();
+
 if (isMobileDevice()) {
   nodeObjects.forEach(({ hitMesh }) => { if (hitMesh) hitMesh.scale.setScalar(1.8); });
 }
@@ -5980,6 +6305,25 @@ function animate(ts) {
     tickSwoop(dt);
     // Suppress auto-orbit and user drag during swoop
   } else {
+    // Mobile momentum decay
+    if (mobileMomentumActive && isMobileDevice()) {
+      const sens = 0.008;
+      camTarget.theta -= mobileVelX * sens;
+      const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + mobileVelY * sens));
+      camTarget.phi = newPhi;
+      
+      // Decay velocity
+      mobileVelX *= 0.92;
+      mobileVelY *= 0.92;
+      
+      // Stop momentum when velocity is very low
+      if (Math.abs(mobileVelX) < 0.1 && Math.abs(mobileVelY) < 0.1) {
+        mobileMomentumActive = false;
+        mobileVelX = 0;
+        mobileVelY = 0;
+      }
+    }
+    
     // On mobile during active drag: camState is already set directly in pointermove — skip lerp
     if (!isMobileDevice() || !drag) {
       const lerpK = isMobileDevice() ? 0.14 : 0.08;
@@ -5989,8 +6333,8 @@ function animate(ts) {
     }
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
-    // Auto-orbit: never run on mobile while drag is active
-    if (!isFocused && !isDragging && !drag && !orbitPaused) {
+    // Auto-orbit: never run on mobile while drag is active or momentum is running
+    if (!isFocused && !isDragging && !drag && !orbitPaused && !mobileMomentumActive) {
       // Galaxy view: slower, more cinematic orbit around the ring
       const orbitSpeed = galaxyAlpha > 0.5 ? 0.008 : 0.015;
       camTarget.theta += dt * orbitSpeed;
@@ -6114,6 +6458,13 @@ window.addEventListener('resize', () => {
   </div>
   <div id="tesseract-count"></div>
 </div>
+
+<!-- Tesseract 2D Grid Overlay -->
+<div id="tesseract-grid-overlay">
+  <div id="tesseract-grid-close" onclick="closeTesseractGrid()">✕</div>
+  <div id="tesseract-grid-inner"></div>
+</div>
+
 
 <script>
 // ─────────────────────────────────────────────────────────
@@ -6609,6 +6960,62 @@ window.closeTesseract = function() {
   if (tesseractRAF) { cancelAnimationFrame(tesseractRAF); tesseractRAF = null; }
 };
 
+// Tesseract 2D Grid (right-click toggle)
+let tesseractGridVisible = false;
+
+function openTesseractGrid() {
+  const overlay = document.getElementById('tesseract-grid-overlay');
+  const inner = document.getElementById('tesseract-grid-inner');
+  
+  // Build grid content
+  const allNodes = [
+    ...ERAS.map(e => ({ era: e, galaxy: 'career', color: '#daa520' })),
+    ...PLATFORM_ERAS.map(e => ({ era: e, galaxy: 'sentence', color: '#ffe066' })),
+    ...CLAUDE_ERAS.map(e => ({ era: e, galaxy: 'claude', color: '#6699ff' })),
+    ...MANIFESTO_ERAS.map(e => ({ era: e, galaxy: 'manifesto', color: '#ff9944' })),
+  ];
+  
+  // Calculate grid dimensions
+  const total = allNodes.length;
+  const cols = Math.ceil(Math.sqrt(total * 1.4));
+  const rows = Math.ceil(total / cols);
+  
+  inner.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  inner.innerHTML = '';
+  
+  allNodes.forEach(node => {
+    const card = document.createElement('div');
+    card.className = 'tess-grid-card';
+    card.style.borderLeftColor = node.color;
+    card.style.borderLeftWidth = '2px';
+    card.innerHTML = `
+      <div class="tess-grid-era">${node.galaxy.toUpperCase()} · ${node.era.era || ''}</div>
+      <div class="tess-grid-title" style="color: ${node.color}">${node.era.title}</div>
+      <div class="tess-grid-domain">${node.era.domain || ''}</div>
+    `;
+    card.onclick = () => {
+      closeTesseractGrid();
+      closeTesseract();
+      setTimeout(() => focusEra(node.era), 300);
+    };
+    inner.appendChild(card);
+  });
+  
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('on'));
+  tesseractGridVisible = true;
+}
+
+function closeTesseractGrid() {
+  const overlay = document.getElementById('tesseract-grid-overlay');
+  overlay.classList.remove('on');
+  setTimeout(() => { overlay.style.display = 'none'; }, 320);
+  tesseractGridVisible = false;
+}
+
+window.closeTesseractGrid = closeTesseractGrid;
+
+
 // Tesseract mouse interaction
 (function() {
   const overlay = document.getElementById('tesseract-overlay');
@@ -6681,6 +7088,17 @@ window.closeTesseract = function() {
     }
   });
 
+
+  // Right-click to toggle 2D grid view
+  overlay.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (tesseractGridVisible) {
+      closeTesseractGrid();
+    } else {
+      openTesseractGrid();
+    }
+  });
+
   overlay.addEventListener('wheel', e => {
     if (!tesseractCam) return;
     // Zoom tesseract camera
@@ -6723,6 +7141,7 @@ applyTesseractCam = function() {
 </div>
 
 <!-- ═══ GALAXY LAYOUT TOGGLE ═══ -->
+<!-- ═══ GALAXY LAYOUT TOGGLE — 4 modes per galaxy ═══ -->
 <div id="layout-toggle-bar" style="
   position:fixed; bottom:72px; right:28px; z-index:100;
   display:none; flex-direction:column; gap:4px;
@@ -6732,21 +7151,27 @@ applyTesseractCam = function() {
     <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:3px;text-align:right">Career</div>
     <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(218,165,32,0.14);border-radius:4px;overflow:hidden">
       <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('career','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('career','flat')">ORRERY</button>
+      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('career','orrery')">ORBIT</button>
+      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('career','grid')">GRID</button>
+      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('career','list')">LIST</button>
     </div>
   </div>
   <div class="layout-toggle" data-galaxy="sentence" style="display:none">
     <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,224,102,0.38);margin-bottom:3px;text-align:right">Sentence Primitive</div>
     <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(255,224,102,0.14);border-radius:4px;overflow:hidden">
-      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('sentence','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('sentence','flat')">ORRERY</button>
+      <button class="hud-btn active" data-mode="spiral"  onclick="setGalaxyLayoutMode('sentence','spiral')">SPIRAL</button>
+      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('sentence','orrery')">ORBIT</button>
+      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('sentence','grid')">GRID</button>
+      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('sentence','list')">LIST</button>
     </div>
   </div>
   <div class="layout-toggle" data-galaxy="claude" style="display:none">
     <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(102,153,255,0.38);margin-bottom:3px;text-align:right">Claude Code</div>
     <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(102,153,255,0.14);border-radius:4px;overflow:hidden">
-      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('claude','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('claude','flat')">ORRERY</button>
+      <button class="hud-btn active" data-mode="spiral"  onclick="setGalaxyLayoutMode('claude','spiral')">SPIRAL</button>
+      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('claude','orrery')">ORBIT</button>
+      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('claude','grid')">GRID</button>
+      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('claude','list')">LIST</button>
     </div>
   </div>
 </div>
