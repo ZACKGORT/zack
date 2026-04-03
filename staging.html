@@ -5131,12 +5131,11 @@ cvs.addEventListener('pointermove', e => {
   const rect = cvs.getBoundingClientRect();
   mouse.x = (e.clientX - rect.left) / rect.width * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-  _lastCX = e.clientX; _lastCY = e.clientY;
-  posTooltip(e.clientX, e.clientY);
 
   if (e.buttons && e.button !== 2) {
     const dx = e.clientX - pointerDownX, dy = e.clientY - pointerDownY;
-    const dragThreshold = isMobileDevice() ? 12 : 4; // slightly more resistant on mobile
+    // Desktop: 4px threshold. Mobile: 10px — needs deliberate drag to orbit
+    const dragThreshold = isMobileDevice() ? 10 : 4;
     if (!drag && Math.sqrt(dx*dx + dy*dy) > dragThreshold) {
       drag = true;
       if (swoop.active) {
@@ -5148,13 +5147,18 @@ cvs.addEventListener('pointermove', e => {
     }
     if (drag) {
       isDragging = true;
-      const sensitivity = isMobileDevice() ? 0.004 : 0.005;
+      const sensitivity = isMobileDevice() ? 0.005 : 0.005;
       camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
       camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + (e.clientY - lastDragY) * sensitivity));
     }
     lastDragX = e.clientX; lastDragY = e.clientY;
   } else {
-    if (e.pointerType === 'mouse') checkHover(e.clientX, e.clientY);
+    // Desktop hover only
+    if (e.pointerType === 'mouse') {
+      _lastCX = e.clientX; _lastCY = e.clientY;
+      posTooltip(e.clientX, e.clientY);
+      checkHover(e.clientX, e.clientY);
+    }
   }
 });
 
@@ -5166,64 +5170,15 @@ cvs.addEventListener('pointerup', e => {
   const dist = Math.sqrt(dx * dx + dy * dy);
 
   if (isMobileDevice()) {
-    // ── MOBILE: swipe-to-navigate tour ──
-    const SWIPE_THRESHOLD = 48;   // px — minimum horizontal swipe distance
-    const AXIS_RATIO = 1.4;       // horizontal must dominate vertical by this factor
-
-    if (dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
-      // Horizontal swipe detected
-      if (dx < 0) {
-        // Swipe LEFT → next node
-        navNext();
-      } else {
-        // Swipe RIGHT → prev node
-        navPrev();
-      }
-      return;
-    }
-
-    // Short tap: open panel for current focused node, or jump to tapped node
-    if (dist < 16) {
-      // Black hole tap → Tesseract
-      if (galaxyAlpha > 0.15) {
-        raycaster.setFromCamera(mouse, cam);
-        const bhHitMesh = bhGroup.userData.bhHit;
-        if (bhHitMesh) {
-          const bhHits = raycaster.intersectObject(bhHitMesh);
-          if (bhHits.length) { window.openTesseract(); return; }
-        }
-      }
-      if (handleStarClick && handleStarClick(mouse)) return;
-      // Galaxy cluster click
-      if (galaxyAlpha > 0.15) {
-        raycaster.setFromCamera(mouse, cam);
-        const clMeshes = galaxyClusterObjects.map(o => o.mesh);
-        const clHits = raycaster.intersectObjects(clMeshes);
-        if (clHits.length) {
-          const cl = clHits[0].object.userData.galaxyCluster;
-          if (cl) {
-            tooltip.classList.remove('vis');
-            let targetEra;
-            if (cl.id === 'sentence') { targetEra = PLATFORM_ERAS[0]; }
-            else if (cl.id === 'career') { targetEra = ERAS[0]; }
-            else { targetEra = CLAUDE_ERAS[0]; }
-            isFocused = true; focusedEra = targetEra;
-            const preset = eraPreset(targetEra);
-            scenePivotTgt.copy(preset.pivot);
-            swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-            camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
-            setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
-            return;
-          }
-        }
-      }
-      if (handleStarClick && handleStarClick(mouse)) return;
+    // ── MOBILE TAP: dist < 22px = tap, else = drag (orbit already happened) ──
+    if (dist < 22) {
+      // Black hole / galaxy cluster tap
       if (handleGalaxyClick(mouse)) return;
+      if (handleStarClick && handleStarClick(mouse)) return;
       raycaster.setFromCamera(mouse, cam);
       const hits = raycaster.intersectObjects(getAllHittable());
       if (hits.length) {
         const hit = hits[0].object;
-        // Case study moon tap?
         if (hit.userData.isCaseStudy) { openCaseStudy(hit.userData.caseStudy); return; }
         const nodeObj = nodeObjects.find(o => o.mesh === hit || o.hitMesh === hit);
         if (nodeObj) {
@@ -5232,8 +5187,11 @@ cvs.addEventListener('pointerup', e => {
           } else {
             focusEra(nodeObj.era);
           }
+          return;
         }
-      } else if (focusedEra) {
+      }
+      // Tap on empty space
+      if (focusedEra) {
         const sheet = document.getElementById('msheet');
         if (sheet.classList.contains('on')) {
           document.getElementById('msheet').classList.remove('on');
@@ -5399,6 +5357,13 @@ document.addEventListener('keydown', e => {
 // TABLE OF CONTENTS
 // ─────────────────────────────────────────────────────────
 let tocVisible = false;
+
+// ── Mobile: scale up all hit proxies for finger-friendly tap targets ──────
+if (isMobileDevice()) {
+  nodeObjects.forEach(({ hitMesh }) => {
+    if (hitMesh) hitMesh.scale.setScalar(1.8);
+  });
+}
 
 function buildTOC() {
   const list = document.getElementById('toc-list');
@@ -5802,7 +5767,7 @@ function animate(ts) {
   // Scale fog with camera distance so overview shows all galaxies clearly
   const fogTarget = Math.max(0.0008, 0.006 - camState.radius * 0.000018);
   scene.fog.density += (fogTarget - scene.fog.density) * 0.05;
-  if (tooltip.classList.contains("vis")) posTooltip(_lastCX || 0, _lastCY || 0);
+  if (!isMobileDevice() && tooltip.classList.contains("vis")) posTooltip(_lastCX || 0, _lastCY || 0);
   applyCam();
   renderer.render(scene, cam);
   isDragging = false;
