@@ -268,6 +268,35 @@ body.light .gcbody{color:rgba(0,0,0,0.80);}
 .gcclose{background:none;border:1px solid rgba(218,165,32,0.16);color:rgba(218,165,32,0.38);width:22px;height:22px;border-radius:2px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;transition:all 0.2s;pointer-events:all;}
 .gcclose:hover{color:#f5ecd5;border-color:rgba(218,165,32,0.55);}
 
+/* EXPAND / COLLAPSE toggle in ghost panel */
+.gcexpand{
+  background:none;border:1px solid rgba(218,165,32,0.16);
+  color:rgba(218,165,32,0.38);width:22px;height:22px;border-radius:2px;
+  cursor:pointer;font-size:9px;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'DM Mono',monospace;transition:all 0.2s;pointer-events:all;
+  letter-spacing:0;
+}
+.gcexpand:hover{color:#f5ecd5;border-color:rgba(218,165,32,0.55);}
+body.light .gcexpand{border-color:rgba(0,0,0,0.14);color:rgba(0,0,0,0.45);}
+body.light .gcexpand:hover{color:#000;}
+
+/* Compact ghost: hide the scrollable content area */
+#ghost.compact .gcscroll > *:not(.gchead){
+  display:none !important;
+}
+#ghost.compact{
+  width:300px;
+}
+#ghost.compact .gcscroll{
+  max-height:none;
+  overflow:hidden;
+}
+/* Smooth height transitions for expand/collapse */
+#ghost .gcscroll{
+  transition:max-height 0.28s cubic-bezier(0.22,1,0.36,1);
+}
+
 body.light .gc{background:#fff;border-color:rgba(0,0,0,0.10);}
 body.light .gchead,body.light .gcbody,body.light .gcft{border-color:rgba(0,0,0,0.08);}
 body.light .gcera{color:rgba(0,0,0,0.42);}
@@ -923,6 +952,7 @@ body.light #mf-close:hover{color:#000;}
   <button class="hud-btn" data-view="arc">TIMELINE</button>
   <button class="hud-btn" data-view="grid">GRID</button>
   <button class="hud-btn" data-view="overview">GALAXY</button>
+  <button class="hud-btn" id="tesseract-pill-btn" onclick="window.openTesseract()">dab.cx</button>
   <div class="hud-sep"></div>
   <button class="hud-btn" id="theme-toggle-hud">DARK</button>
 </div>
@@ -957,6 +987,7 @@ body.light #mf-close:hover{color:#000;}
       <div class="gchead-nav">
         <button class="gcnav-btn" id="gc-prev" title="Previous">&#8592;</button>
         <button class="gcnav-btn" id="gc-next" title="Next">&#8594;</button>
+        <button class="gcexpand" id="gc-expand" title="Expand / collapse" onclick="toggleGhostSize()">&#9633;</button>
         <button class="gcclose" onclick="closePanel()">✕</button>
       </div>
     </div>
@@ -1031,7 +1062,7 @@ body.light #mf-close:hover{color:#000;}
 const ERAS = [
   // ── ERA 0: ORIGIN ──────────────────────────────────────────
   {
-    id: 'origin',
+    id: 'origin', tier: 'inner', angle: 0.02,
     year: '2003',
     title: 'Miller Designworks',
     role: 'Junior Designer · Suburban Philadelphia',
@@ -1059,7 +1090,7 @@ const ERAS = [
 
   // ── ERA 1: TURN5 ────────────────────────────────────────────
   {
-    id: 'turn5',
+    id: 'turn5', tier: 'inner', angle: 0.18,
     year: '2007',
     title: 'Turn5 Inc.',
     role: 'Designer · Product Photographer · E-commerce Startup',
@@ -1091,7 +1122,7 @@ const ERAS = [
 
   // ── ERA 2: PHILLY STARTUP & AGENCY ──────────────────────────
   {
-    id: 'leadnomics',
+    id: 'leadnomics', tier: 'inner', angle: 0.35,
     year: '2011',
     title: 'Leadnomics',
     role: 'Conversion Designer · Lead Generation Startup',
@@ -1121,7 +1152,7 @@ const ERAS = [
   },
 
   {
-    id: '160over90',
+    id: '160over90', tier: 'inner', angle: 0.52,
     year: '2014',
     title: 'One Sixty Over Ninety',
     role: 'Interaction Designer · Full-Service Agency',
@@ -1151,7 +1182,7 @@ const ERAS = [
   },
 
   {
-    id: 'o3world',
+    id: 'o3world', tier: 'inner', angle: 0.68,
     year: '2016',
     title: 'O3 World',
     role: 'UX Designer · Digital Product',
@@ -1178,7 +1209,7 @@ const ERAS = [
   },
 
   {
-    id: 'workarea',
+    id: 'workarea', tier: 'inner', angle: 0.84,
     year: '2017',
     title: 'Workarea',
     role: 'Senior UX Designer · SaaS E-commerce',
@@ -1207,7 +1238,7 @@ const ERAS = [
 
   // ── ERA 3: NEW YORK ──────────────────────────────────────────
   {
-    id: 'flightpath',
+    id: 'flightpath', tier: 'mid', angle: 0.04,
     year: '2018',
     title: 'FlightPath',
     role: 'Senior UX Designer · Digital Design Agency',
@@ -1236,7 +1267,7 @@ const ERAS = [
   },
 
   {
-    id: 'livearea',
+    id: 'livearea', tier: 'mid', angle: 0.15,
     year: '2019',
     title: 'Livearea (PFSWeb)',
     role: 'Manager, UX · Salesforce Commerce Cloud',
@@ -1267,7 +1298,7 @@ const ERAS = [
   },
 
   {
-    id: 'huge2021',
+    id: 'huge2021', tier: 'mid', angle: 0.26,
     year: '2021a',
     title: 'HUGE Inc.',
     role: 'Senior UX Designer · Lifestyle E-commerce',
@@ -1294,7 +1325,7 @@ const ERAS = [
   },
 
   {
-    id: 'elva',
+    id: 'elva', tier: 'mid', angle: 0.37,
     year: '2021b',
     title: 'Elva Design Group',
     role: 'Senior UX Designer · Shopify E-commerce (GNC)',
@@ -1329,7 +1360,7 @@ const ERAS = [
   },
 
   {
-    id: 'codeandtheory',
+    id: 'codeandtheory', tier: 'mid', angle: 0.52,
     year: '2021c',
     title: 'Code & Theory',
     role: 'Senior Interaction Designer → DRI · TikTok For Business',
@@ -1358,7 +1389,7 @@ const ERAS = [
   },
 
   {
-    id: 'publicis',
+    id: 'publicis', tier: 'mid', angle: 0.68,
     year: '2022',
     title: 'Publicis Sapient',
     role: 'Senior UX Designer · Interim Product Owner · BNY Mellon',
@@ -1394,7 +1425,7 @@ const ERAS = [
 
   // ── ERA 4: CONTRACT & PIVOT ──────────────────────────────────
   {
-    id: 'ic2023',
+    id: 'ic2023', tier: 'outer', angle: 0.1,
     year: '2023',
     title: 'Independent Contractor',
     role: 'SR UX · Development · Remote',
@@ -1427,7 +1458,7 @@ const ERAS = [
 
   // ── ERA 5: WOLFGANG & CO. ────────────────────────────────────
   {
-    id: 'wolfco',
+    id: 'wolfco', tier: 'outer', angle: 0.42,
     year: 'W&Co',
     title: 'Wolfgang & Co.',
     role: 'Founder · Thinker & Maker',
@@ -1460,7 +1491,7 @@ const ERAS = [
 
   // ── ERA 6: NOW ───────────────────────────────────────────────
   {
-    id: 'seek',
+    id: 'seek', tier: 'outer', angle: 0.74,
     year: '2026',
     title: 'Open to Work',
     role: 'Senior / Principal UX · Remote · Full-time',
@@ -1853,7 +1884,7 @@ const CLAUDE_ERAS = [
     title:'The Query Engine',
     role:'Where Prompts Become Plans',
     era:'Statement', domain:'statement',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.000, url:null,
     body:'Every prompt enters through the Query Engine. It classifies intent, assembles context, and applies an assertiveness counterweight before any action is taken. This is the core pipeline that transforms natural language into executable operations.',
     sentences:['Every prompt enters through the Query Engine.',
       'It classifies intent, assembles context, and applies an assertiveness counterweight.',
@@ -1869,7 +1900,7 @@ const CLAUDE_ERAS = [
     title:'Intent Classification',
     role:'First Classification Stage',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.143, url:null,
     body:'The YOLO Classifier rapidly determines what kind of request this is: a file operation, a code change, a question, or something else. It routes the prompt to appropriate handlers before any heavy processing begins.',
     sentences:[''],
     moons:[],
@@ -1880,7 +1911,7 @@ const CLAUDE_ERAS = [
     title:'Context Assembly',
     role:'Building the Prompt Window',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.286, url:null,
     body:'Gathers relevant files, conversation history, and system state into the prompt window. Uses a sophisticated file walker to identify what context matters for this specific request.',
     sentences:[''],
     moons:[],
@@ -1891,7 +1922,7 @@ const CLAUDE_ERAS = [
     title:'Assertiveness Counterweight',
     role:'Safety Through Resistance',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.429, url:null,
     body:'A deliberate friction mechanism that reduces model confidence when appropriate. When Claude asks clarifying questions instead of guessing, this component is working as designed.',
     sentences:[''],
     moons:[],
@@ -1902,7 +1933,7 @@ const CLAUDE_ERAS = [
     title:'YOLO Classifier',
     role:'ML-Based Permission Decisions',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.571, url:null,
     body:'Named after the computer vision architecture, the YOLO Classifier makes permission and routing decisions in a single forward pass. Speed and flexibility versus explainability.',
     sentences:[''],
     moons:[],
@@ -1913,7 +1944,7 @@ const CLAUDE_ERAS = [
     title:'Tool Router',
     role:'Dispatching to Capabilities',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.714, url:null,
     body:'Maps classified intents to available tools: file operations, shell commands, web requests, and more. Handles tool selection, argument validation, and result formatting.',
     sentences:[''],
     moons:[{label:'File Operations',desc:''},
@@ -1928,7 +1959,7 @@ const CLAUDE_ERAS = [
     title:'Prompt Cache',
     role:'Response Optimization',
     era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', url:null,
+    solarSystem:'pipeline', tier:'inner', angle:0.857, url:null,
     body:'Caches frequently-used prompt patterns and responses. Reduces latency for common operations by skipping full context assembly when possible.',
     sentences:[''],
     moons:[],
@@ -1939,7 +1970,7 @@ const CLAUDE_ERAS = [
     title:'MEMORY.md Indexing',
     role:'Persistent Knowledge Store',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.000, url:null,
     body:'A structured markdown file that serves as long-term memory for a project. Contains architectural decisions, patterns to follow, and key information that persists across sessions.',
     sentences:[''],
     moons:[{label:'Skeptical Memory',desc:''}],
@@ -1950,7 +1981,7 @@ const CLAUDE_ERAS = [
     title:'Skeptical Memory Architecture',
     role:'Trust But Verify',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.125, url:null,
     body:'Memory entries are tagged with confidence levels and source attribution. The system maintains skepticism about its own memories, allowing for correction when new information contradicts stored assumptions.',
     sentences:[''],
     moons:[],
@@ -1961,7 +1992,7 @@ const CLAUDE_ERAS = [
     title:'Context Window Management',
     role:'Fitting the Infinite',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.250, url:null,
     body:'Dynamically manages what fits in the 200K token context window. Older conversation turns, less relevant files, and low-priority context get compressed or dropped as needed.',
     sentences:[''],
     moons:[{label:'Compression Engine',desc:''},
@@ -1974,7 +2005,7 @@ const CLAUDE_ERAS = [
     title:'Intelligent File Walker',
     role:'Discovering Relevant Context',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.375, url:null,
     body:'Traverses project directories to find files relevant to the current task. Uses heuristics, .gitignore patterns, and semantic matching to identify what matters without reading everything.',
     sentences:[''],
     moons:[],
@@ -1985,7 +2016,7 @@ const CLAUDE_ERAS = [
     title:'Command History',
     role:'Learning From Past Actions',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.500, url:null,
     body:'Stores previous commands and their outcomes. Provides context for similar operations and helps avoid repeating failed approaches. The foundation for learning within a session.',
     sentences:[''],
     moons:[],
@@ -1996,7 +2027,7 @@ const CLAUDE_ERAS = [
     title:'Session State',
     role:'Ephemeral Working Memory',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.625, url:null,
     body:'Tracks the current state of the working session: files modified, commands run, errors encountered. This state is what enables "continue what you were doing" behavior.',
     sentences:[''],
     moons:[{label:'File Delta',desc:''},
@@ -2009,7 +2040,7 @@ const CLAUDE_ERAS = [
     title:'Localized Context Reset',
     role:'Controlled Amnesia',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.750, url:null,
     body:'When context becomes contaminated with incorrect assumptions, this mechanism allows selective reset. The system can forget specific pieces while retaining others.',
     sentences:[''],
     moons:[],
@@ -2020,7 +2051,7 @@ const CLAUDE_ERAS = [
     title:'Compact Mode',
     role:'Token-Efficient Operation',
     era:'Context', domain:'context',
-    solarSystem:'memory', url:null,
+    solarSystem:'memory', tier:'mid', angle:0.875, url:null,
     body:'Aggressively compresses context to minimize token usage. Trades detail for efficiency, enabling operation in token-constrained environments or on large codebases.',
     sentences:[''],
     moons:[{label:'Compression Algorithm',desc:''},
@@ -2033,7 +2064,7 @@ const CLAUDE_ERAS = [
     title:'Permission System',
     role:'Explicit User Consent',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.000, url:null,
     body:'Requires explicit approval for sensitive operations: file modifications beyond certain scopes, shell commands with side effects, network requests. The friction is intentional and safety-oriented.',
     sentences:[''],
     moons:[{label:'Sandbox Boundaries',desc:''}],
@@ -2044,7 +2075,7 @@ const CLAUDE_ERAS = [
     title:'Confirmation Dialogs',
     role:'Destructive Action Guard',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.167, url:null,
     body:'Before executing potentially destructive operations, Claude presents a confirmation with details of what will happen. This is the "are you sure?" that prevents irreversible mistakes.',
     sentences:[''],
     moons:[],
@@ -2055,7 +2086,7 @@ const CLAUDE_ERAS = [
     title:'Ambiguity Detection',
     role:'When Claude Asks Questions',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.333, url:null,
     body:'Identifies when a request could be interpreted multiple ways. Instead of guessing, Claude asks clarifying questions. This is the assertiveness counterweight in action — a feature, not a bug.',
     sentences:[''],
     moons:[{label:'Confidence Threshold',desc:''},
@@ -2068,7 +2099,7 @@ const CLAUDE_ERAS = [
     title:'Sandbox Boundaries',
     role:'Containment Policy',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.500, url:null,
     body:'Defines what Claude can and cannot access. The working directory, allowed file extensions, permitted shell commands — all constrained by sandbox configuration. The tools are real; the scope is bounded.',
     sentences:[''],
     moons:[{label:'Escape Detection',desc:''},
@@ -2081,7 +2112,7 @@ const CLAUDE_ERAS = [
     title:'Rate Limiting',
     role:'Preventing Runaway Actions',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.667, url:null,
     body:'Limits the frequency and volume of operations. Prevents accidental infinite loops, excessive API calls, and runaway file operations from causing damage.',
     sentences:[''],
     moons:[{label:'Loop Detection',desc:''},
@@ -2094,7 +2125,7 @@ const CLAUDE_ERAS = [
     title:'Rollback Checkpoints',
     role:'Undo Capability',
     era:'Friction', domain:'friction',
-    solarSystem:'permission', url:null,
+    solarSystem:'permission', tier:'outer', angle:0.833, url:null,
     body:'Creates restore points before significant changes. Enables recovery from mistakes by tracking file states and command sequences that can be reversed.',
     sentences:[''],
     moons:[{label:'State Snapshot',desc:''},
@@ -2107,7 +2138,7 @@ const CLAUDE_ERAS = [
     title:'autoDream Consolidation',
     role:'Background Memory Processing',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.000, url:null,
     body:'During idle time, Claude processes accumulated context and consolidates insights into MEMORY.md. Four phases: Orient, Gather, Consolidate, Prune. Memory work that happens while you\'re not looking.',
     sentences:[''],
     moons:[{label:'Orient Phase',desc:''},
@@ -2120,7 +2151,7 @@ const CLAUDE_ERAS = [
     title:'KAIROS Daemon Mode',
     role:'Always-On Proactive Assistant',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.143, url:null,
     body:'An experimental always-on mode where Claude proactively monitors and suggests improvements. Currently internal-only at Anthropic. Represents a future of continuous AI assistance.',
     sentences:[''],
     moons:[],
@@ -2131,7 +2162,7 @@ const CLAUDE_ERAS = [
     title:'ULTRAPLAN Sessions',
     role:'Extended Planning Mode',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.286, url:null,
     body:'30-minute remote planning sessions where Claude develops comprehensive plans for complex tasks. Extended thinking time for problems that need more than immediate reaction.',
     sentences:[''],
     moons:[],
@@ -2142,7 +2173,7 @@ const CLAUDE_ERAS = [
     title:'Undercover Mode',
     role:'Hidden AI Attribution',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.429, url:null,
     body:'When Anthropic employees use Claude Code on open-source repos, this mode hides AI attribution. The contributions appear human-made — a glimpse into how AI-human collaboration might evolve.',
     sentences:[''],
     moons:[],
@@ -2153,7 +2184,7 @@ const CLAUDE_ERAS = [
     title:'BUDDY Companion',
     role:'Tamagotchi-Style Terminal Pet',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.571, url:null,
     body:'A hidden internal feature: a Tamagotchi-style companion that lives in the terminal. Nurtured by good interactions. A humanizing layer on top of the orchestration system.',
     sentences:[''],
     moons:[{label:'Session Nurturing',desc:''},
@@ -2166,7 +2197,7 @@ const CLAUDE_ERAS = [
     title:'Feature Flags & Codenames',
     role:'Internal Experiment Control',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.714, url:null,
     body:'Tengu, Capybara, and other internal codenames control experimental features. Feature flags enable gradual rollout and A/B testing of new capabilities.',
     sentences:[''],
     moons:[{label:'Tengu',desc:''},
@@ -2179,7 +2210,7 @@ const CLAUDE_ERAS = [
     title:'Into The Void',
     role:'Why This Map Exists',
     era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', url:null,
+    solarSystem:'experimental', tier:'outer2', angle:0.857, url:null,
     body:'The source code leaked. This is what was inside. Not a vulnerability — a philosophy. The YOLO classifier, the assertiveness counterweight, the skeptical memory architecture — these are design decisions, now visible. Claude Code was dogfooding its own principles at production scale, and it shows. For users, legibility is the gift: clear prompts bypass friction by design. Specific context reduces ambiguity triggers by design. The permission system is reasoned, not arbitrary. You can work with a system you understand. That is what this map is for.',
     sentences:[''],
     moons:[],
@@ -2253,7 +2284,7 @@ const CASE_STUDY_DATA = { gnc: { slides: GNC_SLIDES, color: 0xc8704a, hex: '#c87
 // ─────────────────────────────────────────────────────────
 const PLATFORM_ERAS = [
   {
-    id: 'p-origin',
+    id: 'p-origin', tier: 'inner', angle: 0.08,
     year: '∅',
     title: 'The Sentence',
     role: 'Origin · Impetus · Thesis',
@@ -2282,7 +2313,7 @@ const PLATFORM_ERAS = [
     color: 0xf5d020, hex: '#f5d020'
   },
   {
-    id: 'p-wolfie-love',
+    id: 'p-wolfie-love', tier: 'inner', angle: 0.35,
     year: '★',
     title: 'wolfie.love',
     role: 'Origin Platform · Sanctuary · Soul',
@@ -2313,7 +2344,7 @@ const PLATFORM_ERAS = [
     color: 0xffe066, hex: '#ffe066'
   },
   {
-    id: 'p-wolfie-life',
+    id: 'p-wolfie-life', tier: 'mid', angle: 0.12,
     year: 'wl',
     title: 'wolfie.life',
     role: 'Active Business Presence · Ecosystem Hub',
@@ -2341,7 +2372,7 @@ const PLATFORM_ERAS = [
     color: 0x00e5cc, hex: '#00e5cc'
   },
   {
-    id: 'p-intoview',
+    id: 'p-intoview', tier: 'mid', angle: 0.38,
     year: 'iv',
     title: 'intoview.pro',
     role: 'Professional Presence · Case Study Engine',
@@ -2371,7 +2402,7 @@ const PLATFORM_ERAS = [
     color: 0x4db8ff, hex: '#4db8ff'
   },
   {
-    id: 'p-emdash',
+    id: 'p-emdash', tier: 'mid', angle: 0.62,
     year: '—',
     title: 'emdash.click',
     role: 'Editorial Surface · Pause Made Visible',
@@ -2396,7 +2427,7 @@ const PLATFORM_ERAS = [
     color: 0xb388ff, hex: '#b388ff'
   },
   {
-    id: 'p-rsp',
+    id: 'p-rsp', tier: 'outer', angle: 0.08,
     year: 'RSP',
     title: 'reasonandresolution.com/rsp',
     role: 'Policy as Narrative · RSP 3.0',
@@ -2423,7 +2454,7 @@ const PLATFORM_ERAS = [
     color: 0x6699ff, hex: '#6699ff'
   },
   {
-    id: 'p-reasonandresolution',
+    id: 'p-reasonandresolution', tier: 'outer', angle: 0.35,
     year: 'R&R',
     title: 'reasonandresolution.com',
     role: 'Studio Presence · The Full Platform',
@@ -2449,7 +2480,7 @@ const PLATFORM_ERAS = [
     color: 0x8fff6e, hex: '#8fff6e'
   },
   {
-    id: 'p-ifimaybefrank',
+    id: 'p-ifimaybefrank', tier: 'outer', angle: 0.62,
     year: 'imf',
     title: 'ifimaybefrank.com',
     role: 'Writing Engine · Manifesto Manifest of Itself',
@@ -2479,7 +2510,7 @@ const PLATFORM_ERAS = [
     color: 0xff6ecf, hex: '#ff6ecf'
   },
   {
-    id: 'p-dab',
+    id: 'p-dab', tier: 'outer', angle: 0.88,
     year: 'dab',
     title: 'dab.cx',
     role: 'Design (for agentic) Architecture (& Human) Bridges.',
@@ -2532,9 +2563,10 @@ PLATFORM_ERAS.forEach((era, i) => {
 function isPlatformEra(era)  { return era && era.id.startsWith('p-'); }
 function isManifestoEraFn(era){ return era && era.id.startsWith('m-'); }
 function activeList(era) {
-  if (isClaudeEra && isClaudeEra(era)) return CLAUDE_ERAS;
-  if (isPlatformEra(era))  return PLATFORM_ERAS;
-  if (isManifestoEraFn(era)) return MANIFESTO_ERAS;
+  if (!era) return ERAS;
+  if (era.id.startsWith('cc-'))  return CLAUDE_ERAS;
+  if (era.id.startsWith('p-'))   return PLATFORM_ERAS;
+  if (era.id.startsWith('m-'))   return MANIFESTO_ERAS;
   return ERAS;
 }
 
@@ -2928,42 +2960,11 @@ function makeStarCore(color, alpha) {
   return new THREE.CanvasTexture(c);
 }
 
-const galaxyStars = []; // { layers: [sprite,...], pos, color, baseScale }
-
-(function buildGalaxyStars() {
-  const defs = [
-    { pos: SENTENCE_CENTER,            color: 0xffe066, baseScale: 8  },
-    { pos: CAREER_OFFSET,              color: 0xdaa520, baseScale: 10 },
-    { pos: CLAUDE_CENTER,              color: 0x6699ff, baseScale: 9  },
-    { pos: new THREE.Vector3(0, 0, 0), color: 0xff9944, baseScale: 12 },
-  ];
-
-  defs.forEach(def => {
-    // Three stacked layers: outer haze, mid bloom, tight core
-    const layers = [
-      { scMult: 3.2, opacity: 0.22, alpha: 0.18 },
-      { scMult: 1.6, opacity: 0.55, alpha: 0.55 },
-      { scMult: 0.7, opacity: 0.90, alpha: 1.00 },
-    ].map(({ scMult, opacity, alpha }) => {
-      const tex = makeStarCore(def.color, alpha);
-      const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: tex, transparent: true, depthWrite: false,
-        blending: THREE.AdditiveBlending
-      }));
-      spr.scale.setScalar(def.baseScale * scMult);
-      spr.position.copy(def.pos);
-      spr.material.opacity = opacity;
-      scene.add(spr);
-      return spr;
-    });
-
-    galaxyStars.push({ layers, pos: def.pos, color: def.color, baseScale: def.baseScale });
-  });
-})();
+// galaxyStars built by buildGalaxyStars() after scene construction
 
 // galaxyAlpha: 0 = close (orrery), 1 = far (galaxy overview)
 let galaxyAlpha = 0;
-const GALAXY_ENTER_RADIUS = 60;
+const GALAXY_ENTER_RADIUS = 50;
 const GALAXY_FULL_RADIUS  = 160;
 
 // ─────────────────────────────────────────────────────────
@@ -3224,6 +3225,7 @@ function buildMoons(era, parentPos, parentSize) {
 
 function tickMoons(elapsed) {
   moonSystems.forEach(sys => {
+    if (!sys || !sys.moons) return;
     const pos = sys.parentEra._pos;
     sys.moons.forEach(m => {
       const angle = m.baseAngle + elapsed * m.speed;
@@ -3268,71 +3270,278 @@ function buildSpiralTube() {
   allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xb87333, lightColor: 0x000000 });
 }
 
+
+// ─────────────────────────────────────────────────────────
+// PER-GALAXY LAYOUT STATE
+// Each galaxy can be in 'spiral' or 'flat' mode.
+// flat  = equal-radius radial orrery around the star
+// spiral = time-ordered spiral
+// ─────────────────────────────────────────────────────────
+const galaxyLayout = {
+  career:   'spiral',
+  sentence: 'spiral',
+  claude:   'spiral',
+};
+
+// Compute flat orrery position for any era in its galaxy
+function flatOrreryPos(era, center) {
+  const list = activeList(era);
+  const idx  = list.findIndex(e => e.id === era.id);
+  const n    = list.length;
+  const angle = (idx / n) * Math.PI * 2;
+  const tier  = era.solarSystem;
+  // tier-based radius: pipeline=9, memory=15, permission=21, experimental=27
+  // for career/sentence: uniform at 18
+  const tierR = { pipeline: 9, memory: 15, permission: 21, experimental: 27 };
+  const r = (tier && tierR[tier]) ? tierR[tier] : 18 + (idx % 3) * 4;
+  const y = (idx % 2 === 0 ? 0.8 : -0.8);
+  return new THREE.Vector3(
+    center.x + Math.cos(angle) * r,
+    y,
+    center.z + Math.sin(angle) * r
+  );
+}
+
+// Layout morph state — per galaxy, 0=spiral 1=flat
+const layoutMorphT = { career: 0, sentence: 0, claude: 0 };
+const layoutMorphing = { career: false, sentence: false, claude: false };
+const layoutMorphTarget = { career: 0, sentence: 0, claude: 0 };
+
+function setGalaxyLayoutMode(galaxyId, mode) {
+  const target = mode === 'flat' ? 1 : 0;
+  if (Math.abs(layoutMorphTarget[galaxyId] - target) < 0.01) return;
+  layoutMorphTarget[galaxyId] = target;
+  layoutMorphing[galaxyId] = true;
+  galaxyLayout[galaxyId] = mode;
+  // Update HUD toggle state
+  const toggleEls = document.querySelectorAll('.layout-toggle[data-galaxy="' + galaxyId + '"]');
+  if (!toggleEls) return;
+  toggleEls.forEach(btn => {
+    btn.querySelectorAll('button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+  });
+}
+
+function tickLayoutMorph() {
+  ['career', 'sentence', 'claude'].forEach(gid => {
+    if (!layoutMorphing[gid]) return;
+    const prev = layoutMorphT[gid];
+    const target = layoutMorphTarget[gid];
+    layoutMorphT[gid] += (target - prev) * 0.07;
+    if (Math.abs(layoutMorphT[gid] - target) < 0.002) {
+      layoutMorphT[gid] = target;
+      layoutMorphing[gid] = false;
+    }
+
+    const t = layoutMorphT[gid]; // 0=spiral, 1=flat
+    const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+
+    // Get the list and center for this galaxy
+    let list, center;
+    if (gid === 'career')   { list = ERAS;          center = CAREER_OFFSET;   }
+    if (gid === 'sentence') { list = PLATFORM_ERAS;  center = SENTENCE_CENTER; }
+    if (gid === 'claude')   { list = CLAUDE_ERAS;    center = CLAUDE_CENTER;   }
+    if (!list) return;
+
+    // Move all nodes + their accessories
+    list.forEach((era) => {
+      const flatPos   = era._flatPos || flatOrreryPos(era, center);
+      const spiralPos = era._spiralPos;
+      const newPos    = new THREE.Vector3().lerpVectors(spiralPos, flatPos, ease);
+      era._pos.copy(newPos);
+
+      // Find the mesh for this era and update it
+      const obj = nodeObjects.find(o => o.era && o.era.id === era.id);
+      if (!obj || !obj.mesh) return;
+      obj.mesh.position.copy(newPos);
+      if (obj.hitMesh) obj.hitMesh.position.copy(newPos);
+
+      // Update glow sprite
+      const gi = nodeObjects.indexOf(obj);
+      if (gi >= 0 && gi < glowSprites.length && glowSprites[gi] && glowSprites[gi].material) glowSprites[gi].position.copy(newPos);
+
+      // Update label sprites (2 per era in allLabels)
+      const labelBase = nodeObjects.indexOf(obj) * 2;
+      if (allLabels[labelBase] && allLabels[labelBase].spr) {
+        allLabels[labelBase].spr.position.set(newPos.x + 0.6, newPos.y + 0.5, newPos.z);
+      }
+    });
+  });
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// WIKI-STYLE TILTED ELLIPSE ORRERY LAYOUT
+// Each galaxy has concentric tilted ellipse rings.
+// Nodes sit ON the rings. Central star at galaxy origin.
+// ─────────────────────────────────────────────────────────────
+
+const TILT = 16 * Math.PI / 180;  // 16° tilt — matches wiki
+
+// Per-galaxy ellipse ring radii (rx = wide axis, rz = narrow axis)
+const CAREER_ELLIPSES = {
+  inner:  { rx: 12, rz: 7,  color: 0xdaa520, label: 'Philadelphia  2003–2018', y: 0.05 },
+  mid:    { rx: 22, rz: 13, color: 0xf0b830, label: 'New York  2019–2023',     y: 0.22 },
+  outer:  { rx: 30, rz: 18, color: 0xffe066, label: 'Independent  2023–',      y: 0.44 },
+};
+
+const SENTENCE_ELLIPSES = {
+  inner:  { rx: 10, rz: 6,  color: 0xffe566, label: 'The Origin',        y: 0.04 },
+  mid:    { rx: 18, rz: 11, color: 0xffd700, label: 'The Platform',       y: 0.20 },
+  outer:  { rx: 26, rz: 15, color: 0xffbb33, label: 'The Method',         y: 0.38 },
+};
+
+const CLAUDE_ELLIPSES = {
+  inner:  { rx: 9,  rz: 5,  color: 0x4db8ff, label: 'Pipeline',      y: 0.05 },
+  mid:    { rx: 16, rz: 9,  color: 0x8fff6e, label: 'Memory & State', y: 0.20 },
+  outer:  { rx: 23, rz: 13, color: 0xff8866, label: 'Permission',     y: 0.38 },
+  outer2: { rx: 30, rz: 17, color: 0xb388ff, label: 'Experimental',   y: 0.58 },
+};
+
+// Compute ellipse position for a node within a galaxy
+// center = galaxy world-space center, ellipses = per-galaxy ellipse table
+function ellipsePos(center, ellipses, tier, angleFrac) {
+  if (tier === 'center') return center.clone();
+  const e = ellipses[tier];
+  if (!e) return center.clone();
+  const a = (angleFrac || 0) * Math.PI * 2;
+  const lx = e.rx * Math.cos(a);
+  const lz = e.rz * Math.sin(a);
+  return new THREE.Vector3(
+    center.x + lx * Math.cos(TILT) - lz * Math.sin(TILT),
+    e.y || 0,
+    center.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
+  );
+}
+
+// Helper: draw a tilted ellipse ring
+function drawGalaxyEllipse(center, ellipses, tier, scene, allLines) {
+  const e = ellipses[tier]; if (!e) return;
+  const pts = [];
+  for (let i = 0; i <= 128; i++) {
+    const a = i / 128 * Math.PI * 2;
+    const lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
+    pts.push(new THREE.Vector3(
+      center.x + lx * Math.cos(TILT) - lz * Math.sin(TILT),
+      e.y || 0,
+      center.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
+    ));
+  }
+  const mat = new THREE.LineBasicMaterial({ color: e.color, transparent: true, opacity: 0.14, depthWrite: false });
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+  scene.add(line);
+  allLines.push({ line, darkOp: 0.14, lightOp: 0.35, darkColor: e.color, lightColor: 0x000000 });
+  return line;
+}
+
+// Helper: tangent tick mark at a node position (wiki's tangential accent line)
+function makeTangentTick(center, ellipses, tier, angleFrac, color, scene, allLines) {
+  const e = ellipses[tier]; if (!e) return;
+  const da = 0.018;
+  function eP(af) {
+    const a = af * Math.PI * 2, lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
+    return new THREE.Vector3(
+      center.x + lx * Math.cos(TILT) - lz * Math.sin(TILT), e.y || 0,
+      center.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
+    );
+  }
+  const pos = eP(angleFrac);
+  const tang = eP(angleFrac + da).sub(eP(angleFrac - da)).normalize();
+  const tL = 0.28;
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55, depthWrite: false });
+  const tick = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      pos.clone().addScaledVector(tang, -tL),
+      pos.clone().addScaledVector(tang,  tL)
+    ]), mat
+  );
+  scene.add(tick);
+  allLines.push({ line: tick, darkOp: 0.55, lightOp: 0.85, darkColor: color, lightColor: 0x000000 });
+}
+
 function buildScene() {
   buildSpiralTube();
 
-  const spinePts = [new THREE.Vector3(CAREER_OFFSET.x, -14, CAREER_OFFSET.z), new THREE.Vector3(CAREER_OFFSET.x, 14, CAREER_OFFSET.z)];
-  const spineMat = new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.04 });
-  const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts), spineMat);
+  // ── Spine axis ──────────────────────────────────────────────
+  const spinePts = [
+    new THREE.Vector3(CAREER_OFFSET.x, -14, CAREER_OFFSET.z),
+    new THREE.Vector3(CAREER_OFFSET.x,  14, CAREER_OFFSET.z),
+  ];
+  const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
+    new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.04 }));
   scene.add(spine);
   allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0xdaa520, lightColor: 0x000000 });
 
-  ERAS.forEach((era, i) => {
-    const pos = era._spiralPos;
-    const nodeSize = era.id === 'now' ? 0.30 : 0.16 + era._t * 0.08;
+  // ── Ellipse rings (visible when in orrery mode) ─────────────
+  Object.keys(CAREER_ELLIPSES).forEach(tier => {
+    drawGalaxyEllipse(CAREER_OFFSET, CAREER_ELLIPSES, tier, scene, allLines);
+  });
+  // Ring labels at 0.88 angle
+  Object.entries(CAREER_ELLIPSES).forEach(([tier, e]) => {
+    const a = 0.88 * Math.PI * 2;
+    const lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
+    const lp = new THREE.Vector3(
+      CAREER_OFFSET.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4,
+      (e.y || 0) + 0.1,
+      CAREER_OFFSET.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
+    );
+    addLabel(e.label, lp, 'rgba(' + [(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',') + ',0.30)', 5.8);
+  });
 
-    // Spoke
+  ERAS.forEach((era) => {
+    // Compute and store flat orrery position — separate from spiral
+    era._flatPos = ellipsePos(CAREER_OFFSET, CAREER_ELLIPSES, era.tier || 'inner', era.angle || era._t);
+
+    const pos = era._spiralPos;   // use original helix — untouched
+    era._pos.copy(pos);
+    const nodeSize = era.id === 'seek' ? 0.28 : 0.16 + era._t * 0.08;
+
+    // Spoke from axis to node
     const spokeY = new THREE.Vector3(CAREER_OFFSET.x, pos.y, CAREER_OFFSET.z);
     const spokeMat = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.06 });
     const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]), spokeMat);
     scene.add(spoke);
     allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.15, darkColor: era.color, lightColor: 0x000000 });
 
-    // Planet node
     const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
     const mat = new THREE.MeshPhysicalMaterial({
       color: era.color, emissive: era.color,
-      emissiveIntensity: era.id === 'now' ? 2.4 : 1.3,
+      emissiveIntensity: era.id === 'seek' ? 2.4 : 1.3,
       metalness: 0.3, roughness: 0.08, clearcoat: 1.0,
       transparent: true, opacity: 0.92
     });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(pos);
-    mesh.userData = { era, origColor: era.color, origEI: era.id === 'now' ? 2.4 : 1.3, isMoon: false };
+    mesh.userData = { era, origColor: era.color, origEI: era.id === 'seek' ? 2.4 : 1.3, isMoon: false };
     scene.add(mesh);
-    // Invisible large hit proxy for touch accuracy
+
     const hitGeo = new THREE.SphereGeometry(nodeSize * 3.5, 8, 8);
-    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    const hitMesh = new THREE.Mesh(hitGeo,
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true };
     scene.add(hitMesh);
     nodeObjects.push({ mesh, hitMesh, era });
 
-    // Glow sprite on planet
     const gs = makeGlowSprite(era.color, nodeSize);
-    gs.position.copy(pos);
-    gs.material.opacity = 0.65;
-    scene.add(gs);
-    glowSprites.push(gs);
+    gs.position.copy(pos); gs.material.opacity = 0.65;
+    scene.add(gs); glowSprites.push(gs);
 
-    // Label
     const shortTitle = era.title.length > 28 ? era.title.slice(0, 26) + '…' : era.title;
     addLabel(shortTitle, pos, era.hex + 'bb', 6.5);
     addLabel(era.year, new THREE.Vector3(CAREER_OFFSET.x - 0.8, pos.y, CAREER_OFFSET.z), 'rgba(218,165,32,0.35)', 5.5);
 
-    // Build orbiting moons
     buildMoons(era, pos, nodeSize);
     if (era.caseStudy) buildCaseStudyMoon(era, pos, nodeSize);
   });
 
-  // Connection lines between eras
   for (let i = 0; i < ERAS.length - 1; i++) {
     const a = ERAS[i], b = ERAS[i+1];
     const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
     const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(24);
-    const connMat = new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 });
-    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), connMat);
+    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.22 }));
     scene.add(conn);
     allLines.push({ line: conn, darkOp: 0.22, lightOp: 0.35, darkColor: 0xdaa520, lightColor: 0x000000 });
   }
@@ -3346,104 +3555,89 @@ function buildPlatformScene() {
   const pts = PLATFORM_ERAS.map(e => e._spiralPos.clone());
   const curve = new THREE.CatmullRomCurve3(pts);
   const tubePts = curve.getPoints(140);
-  const tubeMat = new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.10 });
-  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts), tubeMat);
+  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.10 }));
   scene.add(tube);
   allLines.push({ line: tube, darkOp: 0.10, lightOp: 0.25, darkColor: 0xffe066, lightColor: 0x000000 });
 
-  const innerMat = new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.04 });
-  const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts), innerMat);
+  const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.04 }));
   scene.add(inner);
   allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xffd700, lightColor: 0x000000 });
 
-  // Central axis line (same as career — origin spine)
-  const axisTop = new THREE.Vector3(0, 14, 0);
-  const axisBot = new THREE.Vector3(0, -14, 0);
-  const axisMat = new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.04 });
-  const axis = new THREE.Line(new THREE.BufferGeometry().setFromPoints([axisBot, axisTop]), axisMat);
-  scene.add(axis);
-  allLines.push({ line: axis, darkOp: 0.04, lightOp: 0.08, darkColor: 0xffe066, lightColor: 0x000000 });
+  // Ellipse rings for orrery mode
+  Object.keys(SENTENCE_ELLIPSES).forEach(tier => {
+    drawGalaxyEllipse(SENTENCE_CENTER, SENTENCE_ELLIPSES, tier, scene, allLines);
+  });
+  Object.entries(SENTENCE_ELLIPSES).forEach(([tier, e]) => {
+    const a = 0.88 * Math.PI * 2;
+    const lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
+    const lp = new THREE.Vector3(
+      SENTENCE_CENTER.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4, (e.y||0) + 0.1,
+      SENTENCE_CENTER.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
+    );
+    addLabel(e.label, lp, 'rgba(' + [(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',') + ',0.30)', 5.8);
+  });
 
   PLATFORM_ERAS.forEach((era) => {
+    era._flatPos = ellipsePos(SENTENCE_CENTER, SENTENCE_ELLIPSES, era.tier || 'mid', era.angle || era._t);
+
     const pos = era._spiralPos;
+    era._pos.copy(pos);
     const nodeSize = 0.16 + era._t * 0.09;
 
-    // Spoke to spiral center (origin) — same as career spokes
     const center = new THREE.Vector3(SENTENCE_CENTER.x, pos.y, SENTENCE_CENTER.z);
-    const spokeMat = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 });
-    const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([center, pos.clone()]), spokeMat);
+    const spoke = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([center, pos.clone()]),
+      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 }));
     scene.add(spoke);
     allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000 });
 
-    // Planet node
-    const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: era.color, emissive: era.color, emissiveIntensity: 1.5,
-      metalness: 0.3, roughness: 0.08, clearcoat: 1.0,
-      transparent: true, opacity: 0.92
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize, 16, 16),
+      new THREE.MeshPhysicalMaterial({
+        color: era.color, emissive: era.color, emissiveIntensity: 1.5,
+        metalness: 0.3, roughness: 0.08, clearcoat: 1.0, transparent: true, opacity: 0.92
+      })
+    );
     mesh.position.copy(pos);
     mesh.userData = { era, origColor: era.color, origEI: 1.5, isMoon: false, isPlatform: true };
     scene.add(mesh);
 
-    const hitGeo = new THREE.SphereGeometry(nodeSize * 3.5, 8, 8);
-    const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
-    const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+    const hitMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isPlatform: true };
     scene.add(hitMesh);
     nodeObjects.push({ mesh, hitMesh, era, isPlatform: true });
 
     const gs = makeGlowSprite(era.color, nodeSize);
-    gs.position.copy(pos);
-    gs.material.opacity = 0.65;
-    scene.add(gs);
-    glowSprites.push(gs);
+    gs.position.copy(pos); gs.material.opacity = 0.65;
+    scene.add(gs); glowSprites.push(gs);
 
-    const shortTitle = era.title.length > 28 ? era.title.slice(0, 26) + '…' : era.title;
-    addLabel(shortTitle, pos, era.hex + 'bb', 6.5);
-    addLabel(era.year, new THREE.Vector3(-0.8, pos.y, 0), 'rgba(255,224,102,0.30)', 5.5);
-
+    addLabel(era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title, pos, era.hex + 'bb', 6.5);
+    addLabel(era.year, new THREE.Vector3(SENTENCE_CENTER.x - 0.8, pos.y, SENTENCE_CENTER.z), 'rgba(255,224,102,0.30)', 5.5);
     buildMoons(era, pos, nodeSize);
   });
 
-  // Connections between platform eras
-  for (let i = 0; i < PLATFORM_ERAS.length - 1; i++) {
-    const a = PLATFORM_ERAS[i], b = PLATFORM_ERAS[i+1];
-    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
-    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(20);
-    const connMat = new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.20 });
-    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), connMat);
-    scene.add(conn);
-    allLines.push({ line: conn, darkOp: 0.20, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000 });
-  }
-  // Sentence Primitive: directed arcs showing conceptual lineage
+  // Directed arcs
   const sentArcPairs = [
-    ['p-origin',              'p-wolfie-love'],
-    ['p-wolfie-love',         'p-ifimaybefrank'],
-    ['p-wolfie-love',         'p-wolfie-life'],
-    ['p-wolfie-love',         'p-emdash'],
-    ['p-ifimaybefrank',       'p-reasonandresolution'],
-    ['p-reasonandresolution', 'p-rsp'],
-    ['p-wolfie-life',         'p-intoview'],
-    ['p-intoview',            'p-dab'],
-    ['p-reasonandresolution', 'p-dab'],
+    ['p-origin','p-wolfie-love'],['p-wolfie-love','p-ifimaybefrank'],
+    ['p-wolfie-love','p-wolfie-life'],['p-wolfie-love','p-emdash'],
+    ['p-ifimaybefrank','p-reasonandresolution'],['p-reasonandresolution','p-rsp'],
+    ['p-wolfie-life','p-intoview'],['p-intoview','p-dab'],['p-reasonandresolution','p-dab'],
   ];
   sentArcPairs.forEach(([fromId, toId]) => {
     const a = ERA_BY_ID[fromId], b = ERA_BY_ID[toId];
     if (!a || !b) return;
-    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5);
-    mid.y += 2.5;
+    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 2.2;
     const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(20);
-    const arcLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.18, depthWrite: false })
-    );
-    scene.add(arcLine);
-    allLines.push({ line: arcLine, darkOp: 0.18, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000 });
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.20 }));
+    scene.add(line);
+    allLines.push({ line, darkOp: 0.20, lightOp: 0.32, darkColor: 0xffe066, lightColor: 0x000000 });
   });
-
 }
 buildPlatformScene();
 
@@ -3523,67 +3717,59 @@ buildManifestoScene();
 // pipeline (inner) → memory (mid) → permission (outer) → experimental (outermost)
 // ─────────────────────────────────────────────────────────
 function buildClaudeScene() {
-  const domainColor = {
-    statement: 0xffe066, orchestration: 0x4db8ff,
-    context: 0x8fff6e, friction: 0xff8866, autonomous: 0xb388ff
-  };
+  // CLAUDE_ERAS already have ellipse-based _spiralPos from their init
+  // Draw spiral tube through them
+  const pts = CLAUDE_ERAS.map(e => e._spiralPos.clone());
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(200)),
+    new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.08 }));
+  scene.add(tube);
+  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x88aaff, lightColor: 0x000000 });
 
-  // Draw concentric ring lines for each tier
-  const ringR = [8, 14, 20, 26];
-  const ringCols = [0x4db8ff, 0x8fff6e, 0xff8866, 0xb388ff];
-  ringR.forEach((r, i) => {
-    const pts = [];
-    for (let k = 0; k <= 80; k++) {
-      const a = (k/80) * Math.PI * 2;
-      pts.push(new THREE.Vector3(
-        CLAUDE_CENTER.x + Math.cos(a) * r, 0,
-        CLAUDE_CENTER.z + Math.sin(a) * r
-      ));
-    }
-    const line = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color: ringCols[i], transparent: true, opacity: 0.07, depthWrite: false })
+  // Ellipse rings for orrery mode
+  Object.keys(CLAUDE_ELLIPSES).forEach(tier => {
+    drawGalaxyEllipse(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, scene, allLines);
+  });
+  Object.entries(CLAUDE_ELLIPSES).forEach(([tier, e]) => {
+    const a = 0.88 * Math.PI * 2;
+    const lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
+    const lp = new THREE.Vector3(
+      CLAUDE_CENTER.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4, (e.y||0) + 0.1,
+      CLAUDE_CENTER.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
     );
-    scene.add(line);
-    allLines.push({ line, darkOp: 0.07, lightOp: 0.18, darkColor: ringCols[i], lightColor: 0x000000 });
+    addLabel(e.label, lp, 'rgba(' + [(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',') + ',0.30)', 5.8);
   });
 
-  // Central axis
-  const axPts = [
-    new THREE.Vector3(CLAUDE_CENTER.x, -4, CLAUDE_CENTER.z),
-    new THREE.Vector3(CLAUDE_CENTER.x,  4, CLAUDE_CENTER.z)
-  ];
-  const axLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(axPts),
-    new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.06 }));
-  scene.add(axLine);
-  allLines.push({ line: axLine, darkOp: 0.06, lightOp: 0.12, darkColor: 0x6699ff, lightColor: 0x000000 });
-
   CLAUDE_ERAS.forEach((era) => {
+    const tier = era.tier || { pipeline:'inner', memory:'mid', permission:'outer', experimental:'outer2' }[era.solarSystem] || 'inner';
+    era._flatPos = ellipsePos(CLAUDE_CENTER, CLAUDE_ELLIPSES, tier, era.angle || era._t);
+
     const pos = era._spiralPos;
-    const nodeSize = 0.16 + era._t * 0.07;
+    era._pos.copy(pos);
+    const nodeSize = 0.13 + era._t * 0.06;
 
-    // Spoke to ring center
-    const center = new THREE.Vector3(CLAUDE_CENTER.x, pos.y, CLAUDE_CENTER.z);
+    const ellipseData = CLAUDE_ELLIPSES[tier];
+    const color = ellipseData ? ellipseData.color : era.color;
+
     const spoke = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([center, pos.clone()]),
-      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.07 })
-    );
+      new THREE.BufferGeometry().setFromPoints([CLAUDE_CENTER.clone(), pos.clone()]),
+      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.04 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.07, lightOp: 0.16, darkColor: era.color, lightColor: 0x000000 });
+    allLines.push({ line: spoke, darkOp: 0.04, lightOp: 0.14, darkColor: color, lightColor: 0x000000 });
 
-    const geo = new THREE.SphereGeometry(nodeSize, 16, 16);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: era.color, emissive: era.color, emissiveIntensity: 1.5,
-      metalness: 0.3, roughness: 0.08, clearcoat: 1.0,
-      transparent: true, opacity: 0.92
-    });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize, 16, 16),
+      new THREE.MeshPhysicalMaterial({
+        color: era.color, emissive: era.color, emissiveIntensity: 1.5,
+        metalness: 0.2, roughness: 0.08, clearcoat: 1.0, transparent: true, opacity: 0.92
+      })
+    );
     mesh.position.copy(pos);
     mesh.userData = { era, origColor: era.color, origEI: 1.5, isMoon: false, isClaude: true };
     scene.add(mesh);
 
-    const hitGeo = new THREE.SphereGeometry(nodeSize * 3.5, 8, 8);
-    const hitMesh = new THREE.Mesh(hitGeo,
+    const hitMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize * 3.5, 8, 8),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isClaude: true };
@@ -3591,42 +3777,240 @@ function buildClaudeScene() {
     nodeObjects.push({ mesh, hitMesh, era, isClaude: true });
 
     const gs = makeGlowSprite(era.color, nodeSize);
-    gs.position.copy(pos);
-    gs.material.opacity = 0.55;
-    scene.add(gs);
-    glowSprites.push(gs);
+    gs.position.copy(pos); gs.material.opacity = 0.55;
+    scene.add(gs); glowSprites.push(gs);
 
-    addLabel(era.title.length > 26 ? era.title.slice(0,24)+'…' : era.title,
-             pos, era.hex + 'bb', 6.5);
-    addLabel(era.year,
-             new THREE.Vector3(CLAUDE_CENTER.x - 0.8, pos.y, CLAUDE_CENTER.z),
-             'rgba(102,153,255,0.30)', 5.5);
-
+    addLabel(era.title.length > 26 ? era.title.slice(0,24)+'…' : era.title, pos, era.hex + 'bb', 6.5);
     buildMoons(era, pos, nodeSize);
   });
 
-  // Connect nodes within same tier ring
   const tierNodes = {};
-  CLAUDE_ERAS.forEach(e => {
-    if (!tierNodes[e.solarSystem]) tierNodes[e.solarSystem] = [];
-    tierNodes[e.solarSystem].push(e);
-  });
+  CLAUDE_ERAS.forEach(e => { if (!tierNodes[e.solarSystem]) tierNodes[e.solarSystem]=[]; tierNodes[e.solarSystem].push(e); });
   Object.values(tierNodes).forEach(group => {
-    for (let i = 0; i < group.length - 1; i++) {
+    for (let i = 0; i < group.length-1; i++) {
       const a = group[i], b = group[i+1];
-      const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5);
-      mid.y += 0.3;
+      const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.3;
       const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.14 })
-      );
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: a.color, transparent: true, opacity: 0.12 }));
       scene.add(line);
-      allLines.push({ line, darkOp: 0.14, lightOp: 0.28, darkColor: a.color, lightColor: 0x000000 });
+      allLines.push({ line, darkOp: 0.12, lightOp: 0.24, darkColor: a.color, lightColor: 0x000000 });
     }
   });
 }
 buildClaudeScene();
+
+// ─────────────────────────────────────────────────────────
+// GALAXY STAR NODES — central light-emitting suns
+// One per galaxy. Large, bright, clickable (go to overview
+// of that galaxy). Each has its own PointLight.
+// ─────────────────────────────────────────────────────────
+const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
+
+(function buildGalaxyStars() {
+  // Galaxy overview panels — shown when a star is clicked
+  // These are the "title cards" for each galaxy.
+  // Each star is the sun of its solar system: it declares the galaxy's identity.
+  const STAR_PANELS = {
+    career: {
+      era: 'Career · 2003 — Present',
+      title: 'Twenty Years. One Thread.',
+      role: 'Philadelphia → New York → Independent · Wolfgang & Co.',
+      body: 'Every role in this timeline is an expression of a single capability: the ability to hold the full model in your head while making a pixel decision — and to know which one yields. Philadelphia gave the craft. New York gave the stakes. Independence gave the conviction. Three solar systems, one spiral, one thread.',
+      domain: 'career',
+      year: '2003',
+      url: null,
+      sentences: [
+        'Twenty years. One thread. No dropped stitches.',
+        'Philadelphia gave the craft. New York gave the stakes.',
+        'Independence gave the conviction.',
+        'The spiral is not a timeline. It is a proof.',
+      ],
+      moons: [
+        { label: 'Philadelphia 2003–2018', desc: 'Miller → Turn5 → Leadnomics → 160/90 → O3 → Workarea' },
+        { label: 'New York 2019–2023',     desc: 'FlightPath → Livearea → HUGE → Elva/GNC → Code & Theory → Publicis/BNY' },
+        { label: 'Independent 2023–',      desc: 'IC → Phenom → Wolfgang & Co. → dab.cx' },
+        { label: 'Two case studies',       desc: 'GNC ~$500M recovery · BNY Mellon Wove · both shipped' },
+      ],
+      color: 0xffd060, hex: '#ffd060',
+    },
+    sentence: {
+      era: 'Wolfgang & Co. · Platform Ecosystem',
+      title: 'The Sentence as the Primitive.',
+      role: 'wolfie.love → ifimaybefrank → reasonably.cc → intoview.pro → dab.cx',
+      body: 'Every platform in this system is an expression of a single conviction: the sentence is the irreducible unit of thought. Not the page. Not the flow. Not the interface. The sentence. wolfie.love established the engine. ifimaybefrank proved it. reasonably.cc extended it. intoview.pro applied it professionally. dab.cx named the method.',
+      domain: 'platform',
+      year: '★',
+      url: 'https://wolfie.love',
+      sentences: [
+        'The sentence is the irreducible unit of thought.',
+        'Not the page. Not the flow. Not the interface.',
+        'wolfie.love established the engine.',
+        'ifimaybefrank proved the thesis by existing.',
+        'dab.cx named the method.',
+      ],
+      moons: [
+        { label: 'wolfie.love',         desc: 'The origin. Memorial for Wolfgang. Built from scratch.' },
+        { label: 'ifimaybefrank.com',   desc: 'Writing engine. Sentence-as-primitive manifesto.' },
+        { label: 'reasonably.cc',       desc: 'Thinking tool. Bracket annotation. Direct-stack nodes.' },
+        { label: 'intoview.pro',        desc: 'Professional presence. Case study engine.' },
+        { label: 'dab.cx',             desc: 'Design [for] agentic architecture, bridging [the human] client experience.' },
+      ],
+      color: 0xffe566, hex: '#ffe566',
+    },
+    claude: {
+      era: 'Claude Code · Architecture Map',
+      title: 'The Instrument Alongside the Work.',
+      role: 'Pipeline → Memory → Permission → Experimental',
+      body: 'This is a map of the tool that built this file. Claude Code is not a chatbot with file access — it is a system with a Query Engine, a Skeptical Memory Architecture, a Permission System, and an Experimental tier that dreams while you sleep. This galaxy was built using the instrument it describes.',
+      domain: 'system',
+      year: '◎',
+      url: null,
+      sentences: [
+        'This is a map of the tool that built this file.',
+        'The Query Engine classifies intent before acting.',
+        'Skeptical Memory Architecture — it doubts its own memories.',
+        'Four tiers: Pipeline → Memory → Permission → Experimental.',
+        'The instrument describes itself from the inside.',
+      ],
+      moons: [
+        { label: 'Core Pipeline',   desc: 'Query Engine · Intent Classification · Context Assembly · Tool Router' },
+        { label: 'Memory & State',  desc: 'MEMORY.md · Skeptical Architecture · Context Window · Compact Mode' },
+        { label: 'Permission',      desc: 'Sandbox · Confirmation Dialogs · Ambiguity Detection · Rate Limiting' },
+        { label: 'Experimental',    desc: 'autoDream · KAIROS · ULTRAPLAN · Undercover Mode · BUDDY' },
+      ],
+      color: 0x88aaff, hex: '#88aaff',
+    },
+  };
+
+  const starDefs = [
+    {
+      galaxyId: 'career',
+      center: CAREER_OFFSET,
+      color: 0xffd060, lightColor: 0xfff4cc,
+      size: 1.8, intensity: 12, distance: 85,
+    },
+    {
+      galaxyId: 'sentence',
+      center: SENTENCE_CENTER,
+      color: 0xffe566, lightColor: 0xfff8dd,
+      size: 1.5, intensity: 10, distance: 75,
+    },
+    {
+      galaxyId: 'claude',
+      center: CLAUDE_CENTER,
+      color: 0x88aaff, lightColor: 0xccdeff,
+      size: 1.5, intensity: 10, distance: 75,
+    },
+  ];
+
+  starDefs.forEach(def => {
+    const pos = def.center;
+    const panel = STAR_PANELS[def.galaxyId];
+    const cr = (def.color >> 16) & 255;
+    const cg = (def.color >> 8)  & 255;
+    const cb =  def.color        & 255;
+
+    // ── Star sphere ────────────────────────────────────────
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(def.size, 32, 32),
+      new THREE.MeshPhysicalMaterial({
+        color: def.color, emissive: def.color,
+        emissiveIntensity: 5.0, metalness: 0,
+        roughness: 0.02, clearcoat: 1.0,
+        transparent: false, opacity: 1.0,
+      })
+    );
+    mesh.position.copy(pos);
+    mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
+    scene.add(mesh);
+
+    // ── Hit proxy ──────────────────────────────────────────
+    const hitMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(def.size * 4, 8, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    hitMesh.position.copy(pos);
+    hitMesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, panel };
+    scene.add(hitMesh);
+
+    // ── Three stacked glow layers (wiki pattern) ───────────
+    // Outer haze → mid bloom → tight core — creates depth of luminosity
+    const glowLayers = [
+      { scMult: 18, opacity: 0.22 },   // outer diffuse haze
+      { scMult: 9,  opacity: 0.55 },   // mid bloom
+      { scMult: 4,  opacity: 0.85 },   // tight core
+    ].map(({ scMult, opacity }) => {
+      const gs = makeGlowSprite(def.color, def.size);
+      gs.scale.setScalar(def.size * scMult);
+      gs.position.copy(pos);
+      gs.material.opacity = opacity;
+      scene.add(gs);
+      return gs;
+    });
+
+    // White hot inner core
+    const coreGlow = makeGlowSprite(0xffffff, def.size);
+    coreGlow.scale.setScalar(def.size * 2.5);
+    coreGlow.position.copy(pos);
+    coreGlow.material.opacity = 0.70;
+    scene.add(coreGlow);
+
+    // ── Point light ────────────────────────────────────────
+    const light = new THREE.PointLight(def.lightColor, def.intensity, def.distance, 1.5);
+    light.position.copy(pos);
+    light.userData._baseIntensity = def.intensity;
+    scene.add(light);
+
+    // ── Title card label — two-line, prominent ─────────────
+    // Line 1: category name (large serif italic)
+    // Line 2: sub-role (small mono caps)
+    const lc = document.createElement('canvas');
+    lc.width = 768; lc.height = 96;
+    const lctx = lc.getContext('2d');
+    lctx.fillStyle = `rgba(${cr},${cg},${cb},0.96)`;
+    lctx.font = 'italic 600 34px "Crimson Text", serif';
+    lctx.fillText(panel.title.length > 32 ? panel.title.slice(0,30) + '…' : panel.title, 12, 44);
+    lctx.fillStyle = `rgba(${cr},${cg},${cb},0.42)`;
+    lctx.font = '300 14px "DM Mono", monospace';
+    lctx.fillText(panel.era.toUpperCase(), 12, 72);
+    const lbl = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(lc), transparent: true, depthWrite: false
+    }));
+    lbl.scale.set(22, 2.8, 1);
+    lbl.position.set(pos.x, pos.y + def.size * 3.6, pos.z);
+    lbl.material.opacity = 0.90;
+    scene.add(lbl);
+
+    galaxyStars.push({ mesh, hitMesh, glowLayers, coreGlow, light, lbl, def, panel });
+  });
+})();
+
+// ── Galaxy star spokes — thin lines from star to each node ────────────────
+// Exactly the wiki pattern: the sun emits spokes outward to all orbiting nodes.
+(function buildGalaxySpokes() {
+  const spokeDefs = [
+    { starCenter: CAREER_OFFSET,   list: ERAS,          color: 0xffd060, op: 0.035 },
+    { starCenter: SENTENCE_CENTER, list: PLATFORM_ERAS, color: 0xffe566, op: 0.040 },
+    { starCenter: CLAUDE_CENTER,   list: CLAUDE_ERAS,   color: 0x88aaff, op: 0.030 },
+  ];
+  spokeDefs.forEach(({ starCenter, list, color, op }) => {
+    list.forEach(era => {
+      if (!era._spiralPos) return;
+      const spokeMat = new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: op, depthWrite: false
+      });
+      const spoke = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([starCenter.clone(), era._spiralPos.clone()]),
+        spokeMat
+      );
+      scene.add(spoke);
+      allLines.push({ line: spoke, darkOp: op, lightOp: op * 4, darkColor: color, lightColor: 0x000000 });
+    });
+  });
+})();
+
+
 
 
 // Initially hide platform nodes — career orrery is default
@@ -3640,7 +4024,7 @@ function refreshOrreryVisibility() { /* removed — all nodes always visible */ 
 const GALAXY_RADIUS_DEFAULT = 270;
 
 
-const ORRERY_RADIUS_MIN     = 2;
+const ORRERY_RADIUS_MIN     = 1;   // allow very close zoom
 const ORRERY_RADIUS_MAX     = 340;
 const ZOOM_STEP_GALAXY      = 22;
 const ZOOM_STEP_ORRERY      = 12;
@@ -3660,14 +4044,13 @@ scene.add(bhGroup);
 bhGroup.visible = false;
 
 (function buildBlackHole() {
-  const R = 5.0; // event horizon radius
-
-  // ── Event horizon — deep dark sphere ────────────────────
+  // ── Event horizon sphere ──────────────────────────────
   const bhMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(R, 48, 48),
+    new THREE.SphereGeometry(7.5, 48, 48),
     new THREE.MeshPhysicalMaterial({
-      color: 0x020105, emissive: 0x000000, emissiveIntensity: 0,
-      metalness: 0, roughness: 1, transparent: true, opacity: 0
+      color: 0x000000, emissive: 0x04010e,
+      emissiveIntensity: 1.0, metalness: 1.0, roughness: 0.0,
+      clearcoat: 1.0
     })
   );
   bhMesh.userData = { isBlackHole: true };
@@ -3675,7 +4058,7 @@ bhGroup.visible = false;
 
   // Hit proxy — larger for easy clicking
   const bhHit = new THREE.Mesh(
-    new THREE.SphereGeometry(R * 2.5, 10, 10),
+    new THREE.SphereGeometry(12, 10, 10),
     new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
   );
   bhHit.userData = { isBlackHole: true };
@@ -3683,98 +4066,102 @@ bhGroup.visible = false;
   bhGroup.userData.bhMesh = bhMesh;
   bhGroup.userData.bhHit  = bhHit;
 
-  // ── Inner corona — hot white-orange shell ───────────────
-  const coronaAtm = new THREE.Mesh(
-    new THREE.SphereGeometry(R * 1.35, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0,
-      side: THREE.BackSide, depthWrite: false })
+  // ── Accretion disk ─────────────────────────────────────
+  const dc = document.createElement('canvas');
+  dc.width = 512; dc.height = 64;
+  const dctx = dc.getContext('2d');
+  const dg = dctx.createLinearGradient(0, 0, 512, 0);
+  dg.addColorStop(0,    'rgba(255,255,220,0.96)');
+  dg.addColorStop(0.06, 'rgba(255,200,60,0.90)');
+  dg.addColorStop(0.22, 'rgba(255,100,15,0.70)');
+  dg.addColorStop(0.50, 'rgba(180,28,5,0.35)');
+  dg.addColorStop(0.78, 'rgba(70,5,15,0.10)');
+  dg.addColorStop(1,    'rgba(10,1,4,0)');
+  dctx.fillStyle = dg;
+  dctx.fillRect(0, 0, 512, 64);
+
+  const disk = new THREE.Mesh(
+    new THREE.RingGeometry(8.4, 38, 80, 6),
+    new THREE.MeshBasicMaterial({
+      map: new THREE.CanvasTexture(dc),
+      side: THREE.DoubleSide, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    })
   );
-  bhGroup.add(coronaAtm);
-  bhGroup.userData.coronaAtm = coronaAtm;
+  disk.rotation.x = Math.PI * 0.18;
+  disk.rotation.z = Math.PI * 0.06;
+  bhGroup.add(disk);
+  bhGroup.userData.disk = disk;
 
-  // ── Mid glow — orange halo ──────────────────────────────
-  const midAtm = new THREE.Mesh(
-    new THREE.SphereGeometry(R * 2.4, 24, 24),
-    new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0,
-      side: THREE.BackSide, depthWrite: false })
+  // ── Inner hot halo ─────────────────────────────────────
+  const halo = new THREE.Mesh(
+    new THREE.RingGeometry(7.6, 10.2, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0xffbb33, side: THREE.DoubleSide,
+      transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    })
   );
-  bhGroup.add(midAtm);
-  bhGroup.userData.midAtm = midAtm;
+  halo.rotation.x = disk.rotation.x;
+  halo.rotation.z = disk.rotation.z;
+  bhGroup.add(halo);
+  bhGroup.userData.halo = halo;
 
-  // ── Outer lensing halo — large diffuse ─────────────────
-  const lensAtm = new THREE.Mesh(
-    new THREE.SphereGeometry(R * 4.5, 20, 20),
-    new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0,
-      side: THREE.BackSide, depthWrite: false })
+  // ── Photon sphere / gravitational lensing rings ────────
+  const lensRadii  = [8.1, 9.0, 10.6, 14.2, 20.5];
+  const lensBaseOp = [0.55, 0.28, 0.12, 0.055, 0.022];
+  bhGroup.userData.lensRings = [];
+  lensRadii.forEach((r, i) => {
+    const pts = [];
+    for (let k = 0; k <= 96; k++) {
+      const a = (k / 96) * Math.PI * 2;
+      pts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+    }
+    const lr = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({
+        color: i < 2 ? 0xffeecc : 0x9999ff,
+        transparent: true, opacity: 0,
+        depthWrite: false, blending: THREE.AdditiveBlending
+      })
+    );
+    bhGroup.add(lr);
+    bhGroup.userData.lensRings.push({ line: lr, baseOp: lensBaseOp[i] });
+  });
+
+  // ── Atmosphere glow ────────────────────────────────────
+  const mkGlow = (color, scale, opacity) => {
+    const g = makeGlowSprite(color, 7.5);
+    g.scale.setScalar(scale);
+    g.material.opacity = 0;
+    g.material.blending = THREE.AdditiveBlending;
+    bhGroup.add(g);
+    return g;
+  };
+  bhGroup.userData.glow1 = mkGlow(0x180860, 55, 0);  // deep indigo
+  bhGroup.userData.glow2 = mkGlow(0x3515b0, 28, 0);   // violet
+  bhGroup.userData.glow3 = mkGlow(0xff6010, 18, 0);   // disk warmth
+
+  // ── Relativistic jets ──────────────────────────────────
+  const mkJet = (y0, y1, ox) => new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(ox,  y0, 0),
+      new THREE.Vector3(ox * 2.5, y1, 0)
+    ]),
+    new THREE.LineBasicMaterial({
+      color: 0x6644ee, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    })
   );
-  bhGroup.add(lensAtm);
-  bhGroup.userData.lensAtm = lensAtm;
+  bhGroup.userData.jets = [
+    mkJet( 7.6,  88,  0),
+    mkJet(-7.6, -88,  0),
+    mkJet( 7.6,  88,  0.8),
+    mkJet(-7.6, -88, -0.8),
+  ];
+  bhGroup.userData.jets.forEach(j => bhGroup.add(j));
 
-  // ── Photon ring — tight bright white ring ───────────────
-  const photonRing = new THREE.Mesh(
-    new THREE.RingGeometry(R * 1.05, R * 1.45, 80),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide,
-      transparent: true, opacity: 0, depthWrite: false })
-  );
-  photonRing.rotation.x = Math.PI * 0.5;
-  bhGroup.add(photonRing);
-  bhGroup.userData.photonRing = photonRing;
-
-  // ── Accretion disk — orange/fire, tilted ────────────────
-  const accRing = new THREE.Mesh(
-    new THREE.RingGeometry(R * 1.5, R * 4.2, 80),
-    new THREE.MeshBasicMaterial({ color: 0xff6600, side: THREE.DoubleSide,
-      transparent: true, opacity: 0, depthWrite: false })
-  );
-  accRing.rotation.x = Math.PI * 0.44;
-  accRing.rotation.y = Math.PI * 0.08;
-  bhGroup.add(accRing);
-  bhGroup.userData.disk = accRing; // keep 'disk' key for tick compat
-
-  // ── Outer accretion haze ────────────────────────────────
-  const accRing2 = new THREE.Mesh(
-    new THREE.RingGeometry(R * 4.2, R * 7.5, 80),
-    new THREE.MeshBasicMaterial({ color: 0xff3300, side: THREE.DoubleSide,
-      transparent: true, opacity: 0, depthWrite: false })
-  );
-  accRing2.rotation.x = accRing.rotation.x;
-  accRing2.rotation.y = accRing.rotation.y;
-  bhGroup.add(accRing2);
-  bhGroup.userData.accRing2 = accRing2;
-
-  // ── Primary glow — massive orange bloom ─────────────────
-  const hubGlow = makeGlowSprite(0xff8822, R);
-  hubGlow.scale.setScalar(R * 22);
-  hubGlow.material.opacity = 0;
-  bhGroup.add(hubGlow);
-  bhGroup.userData.glow1 = hubGlow;
-
-  // ── Core glow — tight hot-white ─────────────────────────
-  const coreGlow = makeGlowSprite(0xffeecc, R);
-  coreGlow.scale.setScalar(R * 8);
-  coreGlow.material.opacity = 0;
-  bhGroup.add(coreGlow);
-  bhGroup.userData.glow2 = coreGlow;
-
-  // ── Label ───────────────────────────────────────────────
-  const lc = document.createElement('canvas'); lc.width = 512; lc.height = 128;
-  const lctx = lc.getContext('2d');
-  lctx.fillStyle = 'rgba(255,160,60,0.92)';
-  lctx.font = 'italic 600 28px "Crimson Text", serif';
-  lctx.fillText('Thinker & Maker', 12, 48);
-  lctx.fillStyle = 'rgba(255,160,60,0.50)';
-  lctx.font = '300 13px "DM Mono", monospace';
-  lctx.fillText('THREE GALAXIES  ·  CLICK TO OPEN TESSERACT', 12, 76);
-  const lbl = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: new THREE.CanvasTexture(lc), transparent: true, depthWrite: false
-  }));
-  lbl.scale.set(30, 7.5, 1);
-  lbl.position.set(0, R * 5.5, 0);
-  lbl.material.opacity = 0;
-  bhGroup.add(lbl);
-  bhGroup.userData.label = lbl;
-
-  // ── Orbital path rings (fixed in scene) ─────────────────
+  // ── Orbital path rings (fixed in scene — NOT in galaxyGroup) ─
   const mkOrbit = (r, col) => {
     const pts = [];
     for (let k = 0; k <= 128; k++) {
@@ -3785,79 +4172,94 @@ bhGroup.visible = false;
       new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0, depthWrite: false })
     );
-    scene.add(line);
+    scene.add(line);  // fixed — does not rotate with galaxyGroup
     return line;
   };
-  bhGroup.userData.orbitSentence = mkOrbit(111, 0xffe066);
-  bhGroup.userData.orbitCareer   = mkOrbit(160, 0xdaa520);
-  bhGroup.userData.orbitClaude   = mkOrbit(229, 0x6699ff);
+  bhGroup.userData.orbitCareer   = mkOrbit(112, 0xdaa520);
+  bhGroup.userData.orbitPlatform = mkOrbit(158, 0xffe066);
+
+  // ── Label ──────────────────────────────────────────────
+  const lc = document.createElement('canvas'); lc.width = 512; lc.height = 96;
+  const lctx = lc.getContext('2d');
+  lctx.fillStyle = 'rgba(218,165,32,0.90)';
+  lctx.font = 'italic 600 30px "Crimson Text", serif';
+  lctx.fillText('Thinker & Maker', 10, 44);
+  lctx.fillStyle = 'rgba(218,165,32,0.36)';
+  lctx.font = '300 11px "DM Mono", monospace';
+  lctx.fillText('CLICK  ·  MANIFESTO', 10, 68);
+  const lbl = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(lc), transparent: true, depthWrite: false
+  }));
+  lbl.scale.set(28, 5.2, 1);
+  lbl.position.set(-13, 12, 0);
+  lbl.material.opacity = 0;
+  bhGroup.add(lbl);
+  bhGroup.userData.label = lbl;
 })();
 
-// tickBlackHole — ga = 0..1 driven by camera radius
+// Tick — called every frame with current galaxyAlpha
 function tickBlackHole(elapsed, ga) {
-  if (ga < 0.005) {
+  if (ga < 0.01) {
     bhGroup.visible = false;
-    const bhu = bhGroup.userData;
-    if (bhu.orbitSentence) bhu.orbitSentence.material.opacity = 0;
-    if (bhu.orbitCareer)   bhu.orbitCareer.material.opacity   = 0;
-    if (bhu.orbitClaude)   bhu.orbitClaude.material.opacity   = 0;
+    if (bhGroup.userData.orbitCareer)   bhGroup.userData.orbitCareer.material.opacity   = 0;
+    if (bhGroup.userData.orbitPlatform) bhGroup.userData.orbitPlatform.material.opacity = 0;
     return;
   }
   bhGroup.visible = true;
   const bh = bhGroup.userData;
-  const lk = 0.08;
-  const pulseFire = 0.85 + Math.sin(elapsed * 1.2) * 0.15;
-  const hDim = 1.0; // no focus dimming for BH itself
+  const lk = 0.05;
 
-  // Event horizon
-  bh.bhMesh.material.opacity += (ga * 0.97 - bh.bhMesh.material.opacity) * lk;
+  // Disk rotation + fade
+  bh.disk.rotation.z += 0.0022;
+  bh.disk.material.opacity += (ga * 0.80 - bh.disk.material.opacity) * lk;
 
-  // Corona — hot white-orange
-  if (bh.coronaAtm) bh.coronaAtm.material.opacity += (ga * 0.55 - bh.coronaAtm.material.opacity) * lk;
+  // Halo pulse
+  bh.halo.rotation.z = bh.disk.rotation.z * 1.35;
+  bh.halo.material.opacity += (ga * (0.36 + Math.sin(elapsed * 1.3) * 0.10) - bh.halo.material.opacity) * 0.07;
 
-  // Mid orange halo
-  if (bh.midAtm) bh.midAtm.material.opacity += (ga * 0.38 * pulseFire - bh.midAtm.material.opacity) * lk;
+  // Lensing rings
+  bh.lensRings.forEach((lr, i) => {
+    const t = ga * lr.baseOp * (0.88 + Math.sin(elapsed * 0.32 + i * 1.1) * 0.12);
+    lr.line.material.opacity += (t - lr.line.material.opacity) * lk;
+  });
 
-  // Outer lensing
-  if (bh.lensAtm) bh.lensAtm.material.opacity += (ga * 0.18 - bh.lensAtm.material.opacity) * lk;
+  // Glows
+  bh.glow1.material.opacity += (ga * (0.28 + Math.sin(elapsed * 0.22) * 0.04) - bh.glow1.material.opacity) * lk;
+  bh.glow2.material.opacity += (ga * (0.50 + Math.sin(elapsed * 0.40) * 0.06) - bh.glow2.material.opacity) * lk;
+  bh.glow3.material.opacity += (ga * (0.30 + Math.sin(elapsed * 1.05) * 0.08) - bh.glow3.material.opacity) * lk;
 
-  // Photon ring — pulses with fire
-  if (bh.photonRing) bh.photonRing.material.opacity += (ga * 0.90 * pulseFire - bh.photonRing.material.opacity) * lk;
-
-  // Accretion disk — rotates + pulses
-  if (bh.disk) {
-    bh.disk.rotation.z += 0.003;
-    bh.disk.material.opacity += (ga * 0.70 * pulseFire - bh.disk.material.opacity) * lk;
-  }
-  if (bh.accRing2) {
-    bh.accRing2.material.opacity += (ga * 0.30 - bh.accRing2.material.opacity) * lk;
-  }
-
-  // Glow sprites
-  if (bh.glow1) bh.glow1.material.opacity += ((isLight ? 0 : ga * 0.95 * pulseFire) - bh.glow1.material.opacity) * lk;
-  if (bh.glow2) bh.glow2.material.opacity += ((isLight ? 0 : ga * 1.4) - bh.glow2.material.opacity) * lk;
-
-  // Label
-  if (bh.label) bh.label.material.opacity += (ga - bh.label.material.opacity) * lk;
+  // Jets
+  const jt  = ga * (0.17 + Math.sin(elapsed * 1.75) * 0.06);
+  const jt2 = ga * (0.07 + Math.sin(elapsed * 1.30) * 0.03);
+  bh.jets[0].material.opacity += (jt  - bh.jets[0].material.opacity) * 0.04;
+  bh.jets[1].material.opacity += (jt  - bh.jets[1].material.opacity) * 0.04;
+  bh.jets[2].material.opacity += (jt2 - bh.jets[2].material.opacity) * 0.04;
+  bh.jets[3].material.opacity += (jt2 - bh.jets[3].material.opacity) * 0.04;
 
   // Orbital path rings
-  if (bh.orbitSentence) bh.orbitSentence.material.opacity += (ga * 0.09 - bh.orbitSentence.material.opacity) * lk;
-  if (bh.orbitCareer)   bh.orbitCareer.material.opacity   += (ga * 0.10 - bh.orbitCareer.material.opacity)   * lk;
-  if (bh.orbitClaude)   bh.orbitClaude.material.opacity   += (ga * 0.07 - bh.orbitClaude.material.opacity)   * lk;
+  bh.orbitCareer.material.opacity   += (ga * 0.10 - bh.orbitCareer.material.opacity)   * lk;
+  bh.orbitPlatform.material.opacity += (ga * 0.08 - bh.orbitPlatform.material.opacity) * lk;
+
+  // Label
+  bh.label.material.opacity += (ga * 0.88 - bh.label.material.opacity) * lk;
+
+  // Cluster objects slowly orbit the BH (handled by tickGalaxyMoons)
 }
 
 // openManifesto / closeManifesto
 window.openManifesto = function() {
   // Manifesto is now the black hole orrery — enter it directly
+  // (No #manifesto overlay element)
   if (typeof switchLayer !== 'undefined') {
     focusEra(MANIFESTO_ERAS[0]);
   }
 };
 window.closeManifesto = function() {
-  document.getElementById('manifesto').classList.remove('on');
+  const mfEl = document.getElementById('manifesto');
+  if (mfEl) mfEl.classList.remove('on');
 };
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.getElementById('manifesto').classList.contains('on')) {
+  if (e.key === 'Escape' && document.getElementById('manifesto') && document.getElementById('manifesto').classList.contains('on')) {
     window.closeManifesto();
   }
 });
@@ -3880,9 +4282,22 @@ function updateGalaxyAlpha() {
   const target = Math.min(1, Math.max(0,
     (r - GALAXY_ENTER_RADIUS) / (GALAXY_FULL_RADIUS - GALAXY_ENTER_RADIUS)
   ));
+  const prevGa = galaxyAlpha;
   galaxyAlpha += (target - galaxyAlpha) * 0.06;
   if (galaxyAlpha < 0.001) galaxyAlpha = 0;
   if (galaxyAlpha > 0.999) galaxyAlpha = 1;
+
+  // Close panel once as galaxy fades in past threshold
+  if (prevGa < 0.25 && galaxyAlpha >= 0.25 && isFocused) {
+    closePanel();
+    isFocused = false;
+    focusedEra = null;
+    activeNodeNebulaIdx = -1;
+    resetHighlights();
+    hideSentGhost();
+    if (window._updateSSFilter) window._updateSSFilter(null);
+    if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
+  }
 
   const ga = galaxyAlpha;
   const oa = 1 - ga; // orrery alpha (inverse)
@@ -3912,7 +4327,7 @@ function updateGalaxyAlpha() {
 
   // Galaxy cluster planets fade in as galaxy alpha increases
   const pulseFire = 0.85 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 0.9 : 0) * 0.15;
-  galaxyClusterObjects.forEach(({ cl, mesh, atm, glow, ring, ring2, mOrbitLine, label }) => {
+  if (galaxyClusterObjects && galaxyClusterObjects.length) galaxyClusterObjects.forEach(({ cl, mesh, atm, glow, ring, ring2, mOrbitLine, label }) => {
     mesh.material.opacity  += (ga * 0.95              - mesh.material.opacity)  * lk;
     atm.material.opacity   += (ga * 0.28 * pulseFire  - atm.material.opacity)   * lk;
     glow.material.opacity  += ((isLight ? 0 : ga * 0.88 * pulseFire) - glow.material.opacity) * lk;
@@ -3925,32 +4340,17 @@ function updateGalaxyAlpha() {
   // Moon dots — fade in with galaxy, orbit their cluster planet
   const moonTargetOp = isLight ? 0 : ga * 0.90;
   const moonGlowTarget = isLight ? 0 : ga * 0.55;
-  galaxyMoonDots.forEach(m => {
+  if (galaxyMoonDots) galaxyMoonDots.forEach(m => {
     if (m.mesh && m.mesh.material) m.mesh.material.opacity  += (moonTargetOp   - m.mesh.material.opacity)  * lk;
     if (m.glow && m.glow.material) m.glow.material.opacity  += (moonGlowTarget - m.glow.material.opacity)  * lk;
   });
 
   // Inter-cluster arcs
-  galaxyArcs.forEach(({ line }) => {
+  if (galaxyArcs) galaxyArcs.forEach(({ line }) => {
     if (line && line.material) line.material.opacity += (ga * 0.28 - line.material.opacity) * lk;
   });
 
   // Galaxy center stars — small fixed point, slightly larger as camera pulls back
-  const camR = camState.radius;
-  // Gentle scale: 0.5 at close range, 1.0 at galaxy zoom — stars are distant suns
-  const starScale = Math.max(0.4, Math.min(1.0, camR / 200));
-  const starPulse = 0.92 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 1.6 : 0) * 0.08;
-  galaxyStars.forEach(({ layers, baseScale }) => {
-    layers.forEach((spr, i) => {
-      if (!spr || !spr.material) return;
-      const baseOpacities = [0.18, 0.50, 0.88];
-      const targetOp = isLight ? 0 : baseOpacities[i] * starPulse;
-      spr.material.opacity += (targetOp - spr.material.opacity) * lk;
-      const scMults = [2.8, 1.4, 0.55];
-      spr.scale.setScalar(baseScale * scMults[i] * starScale);
-    });
-  });
-
   // Update galaxy cycle hint dots
   if (window._updateGalaxyCycleHint) window._updateGalaxyCycleHint(ga);
 }
@@ -4133,6 +4533,83 @@ function switchView(view) {
 
 document.querySelectorAll('.hud-btn[data-view]').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
 // ─── NAVIGATION ─────────────────────────────────────────
+// Show the correct galaxy layout toggle when focused
+function updateLayoutToggleBar(era) {
+  const bar = document.getElementById('layout-toggle-bar');
+  if (!bar) return;
+  document.querySelectorAll('.layout-toggle').forEach(el => el.style.display = 'none');
+  if (!era) { bar.style.display = 'none'; return; }
+  let gid;
+  if (era.id.startsWith('cc-')) gid = 'claude';
+  else if (era.id.startsWith('p-')) gid = 'sentence';
+  else if (!era.id.startsWith('m-')) gid = 'career';
+  if (!gid) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const tog = document.querySelector('.layout-toggle[data-galaxy="' + gid + '"]');
+  if (tog) tog.style.display = 'block';
+}
+
+// Star hover detection — added before regular node raycast
+function checkStarHover(mouseVec) {
+  if (!galaxyStars.length) return false;
+  raycaster.setFromCamera(mouseVec, cam);
+  const starMeshes = galaxyStars.flatMap(s => [s.mesh, s.hitMesh]);
+  const hits = raycaster.intersectObjects(starMeshes);
+  if (!hits.length) return false;
+  const star = galaxyStars.find(s => s.mesh === hits[0].object || s.hitMesh === hits[0].object);
+  if (!star) return false;
+  const starPanel = star.panel || {};
+  document.getElementById('tt-era').textContent = starPanel.era || 'Galaxy Center';
+  document.getElementById('tt-title').textContent = starPanel.title || 'Galaxy Star';
+  document.getElementById('tt-title').style.color = star.def.hex || '#ffd060';
+  document.getElementById('tt-role').textContent = 'Click to enter this galaxy';
+  tooltip.classList.add('vis');
+  document.body.style.cursor = 'pointer';
+  return true;
+}
+
+function handleStarClick(mouseVec) {
+  if (!galaxyStars.length) return false;
+  raycaster.setFromCamera(mouseVec, cam);
+  const starMeshes = galaxyStars.flatMap(s => [s.mesh, s.hitMesh]);
+  const hits = raycaster.intersectObjects(starMeshes);
+  if (!hits.length) return false;
+  const star = galaxyStars.find(s => s.mesh === hits[0].object || s.hitMesh === hits[0].object);
+  if (!star) return false;
+
+  // Swoop to a view that frames the whole galaxy
+  const p = star.def.center;
+  const angle = Math.atan2(p.z, p.x);
+  const theta = angle + Math.PI * 0.55;
+  const phi   = Math.PI * 0.28;
+  const radius = 42;
+  const pivot  = p.clone();
+  swoopTo(phi, theta, radius, pivot);
+  camTarget.phi = phi; camTarget.theta = theta; camTarget.radius = radius;
+  scenePivotTgt.copy(pivot);
+
+  // Open the galaxy title-card panel directly
+  // Build a synthetic era from the star panel data
+  if (star.panel) {
+    const syntheticEra = {
+      ...star.panel,
+      id: star.def.galaxyId + '-star',
+      _t: 0, _pos: p.clone(),
+      _spiralPos: p.clone(), _arcPos: p.clone(),
+      color: star.def.color, hex: star.def.hex || '#ffd060',
+      images: [],
+    };
+    isFocused = true; focusedEra = syntheticEra;
+    activeNodeNebulaIdx = -1;
+    setTimeout(() => {
+      openPanel(syntheticEra);
+      updateLayoutToggleBar(syntheticEra);
+      highlightConnections(syntheticEra);
+    }, 300);
+  }
+  return true;
+}
+
 function navPrev() {
   if (!focusedEra) { focusEra(ERAS[0]); return; }
   const list = activeList(focusedEra);
@@ -4277,20 +4754,21 @@ function buildIframeHero(era) {
 function openPanel(era) {
   const _list = activeList(era);
   const idx = _list.findIndex(e => e.id === era.id);
-  document.getElementById('gc-era').textContent = era.era;
+  document.getElementById('gc-era').textContent = era.era || era.domain || '';
   document.getElementById('gc-title').textContent = era.title;
   document.getElementById('gc-role').textContent = era.role;
   document.getElementById('gc-body').textContent = era.body;
   document.getElementById('gc-tag').textContent = era.domain;
 
-  document.getElementById('gc-prev').disabled = idx === 0;
-  document.getElementById('gc-next').disabled = idx === _list.length - 1;
+  document.getElementById('gc-prev').disabled = idx <= 0;
+  document.getElementById('gc-next').disabled = idx >= _list.length - 1;
 
   buildIframeHero(era);
   buildImageStrip(era, 'ms-images');
   buildMoonPills(era);
 
   document.getElementById('ghost').classList.add('on');
+  applyGhostSize();
 
   document.getElementById('ms-era').textContent = era.era;
   document.getElementById('ms-title').textContent = era.title;
@@ -4311,6 +4789,27 @@ window.closePanel = function () {
   document.getElementById('msheet').classList.remove('on');
   document.body.classList.remove('panel-open');
   hideSentGhost();
+};
+
+// ── Ghost panel size: compact vs expanded ────────────────
+// Default: compact. Remembered across node cycles.
+let ghostSizeExpanded = false;
+
+function applyGhostSize() {
+  const ghost = document.getElementById('ghost');
+  const btn   = document.getElementById('gc-expand');
+  if (ghostSizeExpanded) {
+    ghost.classList.remove('compact');
+    if (btn) { btn.innerHTML = '&#9633;'; btn.title = 'Collapse'; }
+  } else {
+    ghost.classList.add('compact');
+    if (btn) { btn.innerHTML = '&#8599;'; btn.title = 'Expand'; }
+  }
+}
+
+window.toggleGhostSize = function() {
+  ghostSizeExpanded = !ghostSizeExpanded;
+  applyGhostSize();
 };
 
 // ── CASE STUDY PANEL ─────────────────────────────────────
@@ -4428,10 +4927,10 @@ function eraPreset(era) {
   const isMobile = window.innerWidth <= 768;
 
   // Use each spiral's own center for nodeR and approach angle.
-  const center = isManifestoEraFn(era)   ? new THREE.Vector3(0, 0, 0)
-               : (isClaudeEra && isClaudeEra(era)) ? CLAUDE_CENTER.clone()
-               : isPlatformEra(era)     ? SENTENCE_CENTER.clone()
-               :                          CAREER_OFFSET.clone();
+  const center = era.id.startsWith('m-') ? new THREE.Vector3(0, 0, 0)
+               : era.id.startsWith('cc-')          ? CLAUDE_CENTER.clone()
+               : era.id.startsWith('p-')           ? SENTENCE_CENTER.clone()
+               :                                     CAREER_OFFSET.clone();
 
   const relX = pos.x - center.x;
   const relZ = pos.z - center.z;
@@ -4471,20 +4970,28 @@ function focusEra(era) {
 
   openPanel(era);
   highlightConnections(era);
+  updateLayoutToggleBar(era);
 }
 
 function highlightConnections(era) {
   const list = activeList(era);
-  const idx = list.findIndex(e => e.id === era.id);
-  nodeObjects.forEach((obj, i) => {
+  const idx  = list.findIndex(e => e.id === era.id);
+  nodeObjects.forEach((obj) => {
     if (!obj || !obj.mesh || !obj.mesh.material) return;
-    const listIdx = list.findIndex(e => e.id === obj.era.id);
-    const near = listIdx >= 0 && Math.abs(listIdx - idx) <= 2;
-    const otherOrrery = listIdx < 0;
-    obj.mesh.material.opacity = near ? 0.96 : otherOrrery ? 0.40 : 0.18;
-    obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.1;
+    const sameList = activeList(obj.era) === list;
+    if (!sameList) {
+      obj.mesh.material.opacity = 0.22;
+      obj.mesh.material.emissiveIntensity = 0.06;
+      return;
+    }
+    const li = list.findIndex(e => e.id === obj.era.id);
+    const near = li >= 0 && Math.abs(li - idx) <= 2;
+    obj.mesh.material.opacity = near ? 0.96 : 0.12;
+    obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.06;
   });
-  allLines.forEach(({ line, darkOp }) => { if (line && line.material) line.material.opacity = darkOp * 0.3; });
+  allLines.forEach(({ line, darkOp }) => {
+    if (line && line.material) line.material.opacity = darkOp * 0.3;
+  });
 }
 
 function resetHighlights() {
@@ -4517,6 +5024,7 @@ function getAllHittable() {
 }
 
 function checkHover(clientX, clientY) {
+  if (checkStarHover && checkStarHover(mouse)) return;
   // Galaxy cluster hover (radius-driven, not layer-driven)
   if (galaxyAlpha > 0.15) {
     raycaster.setFromCamera(mouse, cam);
@@ -4610,29 +5118,57 @@ function checkHover(clientX, clientY) {
   }
 }
 
+// Magnetic tooltip position — lerps toward the hovered node's screen position
+let _ttX = 0, _ttY = 0;   // current smooth position
+let _ttTargX = 0, _ttTargY = 0;  // target (near node projection)
+
+function getNodeScreenPos(nodeObj) {
+  if (!nodeObj || !nodeObj.mesh) return null;
+  const v = nodeObj.mesh.position.clone().project(cam);
+  return {
+    x: (v.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-(v.y * 0.5) + 0.5) * window.innerHeight
+  };
+}
+
 function posTooltip(cx, cy) {
-  // Clamp so tooltip never overflows viewport edge
-  // On mobile (touch): appear above and to the left of the finger
   const isMobile = window.innerWidth <= 768;
   const ttEl = document.getElementById('tt-inner');
   const ttW = ttEl ? ttEl.offsetWidth || 220 : 220;
   const ttH = ttEl ? ttEl.offsetHeight || 80 : 80;
-  let x, y;
-  if (isMobile) {
-    // Left of and above the touch point
-    x = cx - ttW - 12;
-    y = cy - ttH - 12;
+
+  // Target: near the hovered node's 3D screen projection
+  if (hoveredNodeMesh && !isMobile) {
+    const nodeObj = nodeObjects.find(o => o.mesh === hoveredNodeMesh);
+    const scrPos = getNodeScreenPos(nodeObj);
+    if (scrPos) {
+      // Offset slightly right and up from node
+      _ttTargX = scrPos.x + 28;
+      _ttTargY = scrPos.y - ttH * 0.5;
+    } else {
+      _ttTargX = cx + 18;
+      _ttTargY = cy - 10;
+    }
+  } else if (isMobile) {
+    _ttTargX = cx - ttW - 12;
+    _ttTargY = cy - ttH - 12;
   } else {
-    x = cx + 18;
-    y = cy - 10;
+    _ttTargX = cx + 18;
+    _ttTargY = cy - 10;
   }
-  // Clamp within viewport
-  x = Math.max(8, Math.min(window.innerWidth  - ttW - 8, x));
-  y = Math.max(8, Math.min(window.innerHeight - ttH - 8, y));
+
+  // Lerp current position toward target (magnetic feel)
+  _ttX += (_ttTargX - _ttX) * 0.18;
+  _ttY += (_ttTargY - _ttY) * 0.18;
+
+  // Clamp
+  const x = Math.max(8, Math.min(window.innerWidth  - ttW - 8, _ttX));
+  const y = Math.max(8, Math.min(window.innerHeight - ttH - 8, _ttY));
   tooltip.style.transform = `translate(${x}px,${y}px)`;
 }
 
 let pointerDownX = 0, pointerDownY = 0;
+let _lastCX = 0, _lastCY = 0;
 const isMobileDevice = () => window.innerWidth <= 768;
 
 cvs.addEventListener('pointerdown', e => {
@@ -4647,6 +5183,7 @@ cvs.addEventListener('pointermove', e => {
   const rect = cvs.getBoundingClientRect();
   mouse.x = (e.clientX - rect.left) / rect.width * 2 - 1;
   mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  _lastCX = e.clientX; _lastCY = e.clientY;
   posTooltip(e.clientX, e.clientY);
 
   if (e.buttons && e.button !== 2) {
@@ -4708,6 +5245,7 @@ cvs.addEventListener('pointerup', e => {
           if (bhHits.length) { window.openTesseract(); return; }
         }
       }
+      if (handleStarClick && handleStarClick(mouse)) return;
       // Galaxy cluster click
       if (galaxyAlpha > 0.15) {
         raycaster.setFromCamera(mouse, cam);
@@ -4731,6 +5269,7 @@ cvs.addEventListener('pointerup', e => {
           }
         }
       }
+      if (handleStarClick && handleStarClick(mouse)) return;
       if (handleGalaxyClick(mouse)) return;
       raycaster.setFromCamera(mouse, cam);
       const hits = raycaster.intersectObjects(getAllHittable());
@@ -5022,6 +5561,7 @@ function applyTheme() {
   glowSprites.forEach(gs => { if (gs && gs.material) gs.visible = !isLight; });
   // Moon dots: black in light mode
   moonSystems.forEach(sys => {
+    if (!sys || !sys.moons) return;
     sys.moons.forEach(m => {
       if (isLight) {
         if (m.dot && m.dot.material) { m.dot.material.color.setHex(0x000000);
@@ -5036,6 +5576,7 @@ function applyTheme() {
   });
   // Redraw moon labels with correct color
   moonSystems.forEach(sys => {
+    if (!sys || !sys.moons) return;
     sys.moons.forEach(m => {
       const { canvas } = makeMoonLabelCanvas(m.moon.label, m.era.hex);
       m.spr.material.map.dispose();
@@ -5219,7 +5760,30 @@ function tickMorph() {
 let lastTime = 0, elapsed = 0;
 
 // Tick moon dots orbiting each galaxy cluster planet
+function tickGalaxyStars(elapsed) {
+  if (!galaxyStars || !galaxyStars.length) return;
+  galaxyStars.forEach(({ mesh, glowLayers, coreGlow, light, def }) => {
+    const pulse = 1 + Math.sin(elapsed * 0.6 + def.center.x * 0.1) * 0.06;
+    mesh.material.emissiveIntensity = 3.5 * pulse;
+    mesh.scale.setScalar(pulse);
+    // Three stacked glow layers — outer/mid/core at different rates
+    const layerTargets = [0.22, 0.55, 0.85];
+    if (glowLayers) glowLayers.forEach((gs, i) => {
+      if (gs && gs.material) {
+        const target = isLight ? 0 : layerTargets[i] * pulse;
+        gs.material.opacity += (target - gs.material.opacity) * 0.04;
+      }
+    });
+    if (coreGlow && coreGlow.material) {
+      const cTarget = isLight ? 0 : 0.70 * pulse;
+      coreGlow.material.opacity += (cTarget - coreGlow.material.opacity) * 0.04;
+    }
+    light.intensity = def.intensity * pulse * (isLight ? 0 : 1);
+  });
+}
+
 function tickGalaxyMoons(elapsed) {
+  if (!galaxyMoonDots || !galaxyMoonDots.length) return;
   galaxyMoonDots.forEach(m => {
     const angle = m.baseAngle + elapsed * m.speed;
     const ox = m.pos.x + Math.cos(angle) * m.orbitR;
@@ -5266,6 +5830,8 @@ function animate(ts) {
   tickMorph();
   tickMoons(elapsed);
   tickGalaxyMoons(elapsed);
+  tickGalaxyStars(elapsed);
+  tickLayoutMorph();
   tickCaseStudyMoons(elapsed);
   updateGalaxyAlpha();
   const bhA = Math.min(1, Math.max(0, (camState.radius - 50) / 100));
@@ -5288,6 +5854,7 @@ function animate(ts) {
   // Scale fog with camera distance so overview shows all galaxies clearly
   const fogTarget = Math.max(0.0008, 0.006 - camState.radius * 0.000018);
   scene.fog.density += (fogTarget - scene.fog.density) * 0.05;
+  if (tooltip.classList.contains("vis")) posTooltip(_lastCX || 0, _lastCY || 0);
   applyCam();
   renderer.render(scene, cam);
   isDragging = false;
@@ -5630,6 +6197,127 @@ function buildTesseractScene() {
   document.getElementById('tesseract-count').textContent =
     sorted.length + ' nodes  ·  4 galaxies  ·  drag to rotate  ·  click to focus';
 
+
+  // ── Interstellar / Shopify grid room ──────────────────────
+  // Floor, back wall, two side walls — infinite wireframe grid.
+  // Cooper in the tesseract. You are inside the system.
+  (function buildGridRoom() {
+    const GRID_COL   = 0x1a1440;     // deep indigo-blue
+    const GRID_ACCENT= 0x2a2060;     // slightly brighter for main lines
+    const GRID_STEPS = 32;           // lines per direction
+    const GRID_SIZE  = 280;          // total span
+    const GRID_STEP  = GRID_SIZE / GRID_STEPS;
+    const HALF       = GRID_SIZE / 2;
+
+    // Floor — XZ plane at y = offsetY - 4
+    const floorY = offsetY - 5;
+    const floorLines = [];
+    for (let i = 0; i <= GRID_STEPS; i++) {
+      const t = -HALF + i * GRID_STEP;
+      const isMain = i % 4 === 0;
+      const col = isMain ? GRID_ACCENT : GRID_COL;
+      const op  = isMain ? 0.22 : 0.09;
+      // Along X
+      floorLines.push({ pts: [new THREE.Vector3(-HALF, floorY, t), new THREE.Vector3(HALF, floorY, t)], col, op });
+      // Along Z
+      floorLines.push({ pts: [new THREE.Vector3(t, floorY, -HALF), new THREE.Vector3(t, floorY, HALF)], col, op });
+    }
+    floorLines.forEach(({ pts, col, op }) => {
+      const l = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+      );
+      tesseractScene.add(l);
+    });
+
+    // Back wall — XY plane at z = -HALF
+    const backZ = -HALF;
+    for (let i = 0; i <= GRID_STEPS; i++) {
+      const t = -HALF + i * GRID_STEP;
+      const isMain = i % 4 === 0;
+      const col = isMain ? GRID_ACCENT : GRID_COL;
+      const op  = isMain ? 0.18 : 0.07;
+      // Horizontal
+      tesseractScene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-HALF, t, backZ), new THREE.Vector3(HALF, t, backZ)]),
+        new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+      ));
+      // Vertical
+      tesseractScene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(t, -HALF, backZ), new THREE.Vector3(t, HALF, backZ)]),
+        new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+      ));
+    }
+
+    // Left wall — YZ plane at x = -HALF
+    // Right wall — YZ plane at x = +HALF
+    [-HALF, HALF].forEach(wx => {
+      for (let i = 0; i <= GRID_STEPS; i++) {
+        const t = -HALF + i * GRID_STEP;
+        const isMain = i % 4 === 0;
+        const col = isMain ? GRID_ACCENT : GRID_COL;
+        const op  = isMain ? 0.14 : 0.05;
+        // Horizontal lines on wall
+        tesseractScene.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wx, t, -HALF), new THREE.Vector3(wx, t, HALF * 0.5)]),
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+        ));
+        // Vertical lines on wall
+        tesseractScene.add(new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wx, -HALF, t), new THREE.Vector3(wx, HALF, t)]),
+          new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+        ));
+      }
+    });
+
+    // Ceiling grid — XZ at y = +HALF * 0.5
+    const ceilY = HALF * 0.5;
+    for (let i = 0; i <= GRID_STEPS; i++) {
+      const t = -HALF + i * GRID_STEP;
+      const isMain = i % 4 === 0;
+      const col = isMain ? GRID_ACCENT : GRID_COL;
+      const op  = isMain ? 0.10 : 0.04;
+      tesseractScene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-HALF, ceilY, t), new THREE.Vector3(HALF, ceilY, t)]),
+        new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+      ));
+      tesseractScene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(t, ceilY, -HALF), new THREE.Vector3(t, ceilY, HALF)]),
+        new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })
+      ));
+    }
+
+    // Vanishing-point perspective lines from floor corners to ceiling — structural pillars
+    const corners = [
+      [-HALF, -HALF], [-HALF, HALF * 0.4], [HALF, -HALF], [HALF, HALF * 0.4],
+      [0, -HALF], [0, HALF * 0.4], [-HALF * 0.5, -HALF], [HALF * 0.5, -HALF]
+    ];
+    corners.forEach(([cx, cz]) => {
+      tesseractScene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(cx, floorY, cz),
+          new THREE.Vector3(cx, ceilY, cz)
+        ]),
+        new THREE.LineBasicMaterial({ color: GRID_ACCENT, transparent: true, opacity: 0.12, depthWrite: false })
+      ));
+    });
+
+    // Stray spark points on the floor grid — white glints
+    const sparkGeo = new THREE.BufferGeometry();
+    const sparkPos = [];
+    for (let i = 0; i < 120; i++) {
+      sparkPos.push(
+        (Math.random() - 0.5) * GRID_SIZE,
+        floorY + 0.05,
+        (Math.random() - 0.5) * GRID_SIZE
+      );
+    }
+    sparkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sparkPos), 3));
+    tesseractScene.add(new THREE.Points(sparkGeo,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, transparent: true, opacity: 0.35, sizeAttenuation: true, depthWrite: false })
+    ));
+  })();
+
   // Staggered fade-in of nodes + their moon rings
   tesseractNodeObjs.forEach(({ mesh, glow, moonObjs }, i) => {
     setTimeout(() => {
@@ -5850,6 +6538,35 @@ applyTesseractCam = function() {
   <button class="hud-btn ss-btn" data-ss="philadelphia">PHILADELPHIA</button>
   <button class="hud-btn ss-btn" data-ss="nyc">NEW YORK</button>
   <button class="hud-btn ss-btn" data-ss="independent">INDEPENDENT</button>
+</div>
+
+<!-- ═══ GALAXY LAYOUT TOGGLE ═══ -->
+<div id="layout-toggle-bar" style="
+  position:fixed; bottom:72px; right:28px; z-index:100;
+  display:none; flex-direction:column; gap:4px;
+  align-items:flex-end;
+">
+  <div class="layout-toggle" data-galaxy="career" style="display:none">
+    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:3px;text-align:right">Career</div>
+    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(218,165,32,0.14);border-radius:4px;overflow:hidden">
+      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('career','spiral')">SPIRAL</button>
+      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('career','flat')">ORRERY</button>
+    </div>
+  </div>
+  <div class="layout-toggle" data-galaxy="sentence" style="display:none">
+    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,224,102,0.38);margin-bottom:3px;text-align:right">Sentence Primitive</div>
+    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(255,224,102,0.14);border-radius:4px;overflow:hidden">
+      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('sentence','spiral')">SPIRAL</button>
+      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('sentence','flat')">ORRERY</button>
+    </div>
+  </div>
+  <div class="layout-toggle" data-galaxy="claude" style="display:none">
+    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(102,153,255,0.38);margin-bottom:3px;text-align:right">Claude Code</div>
+    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(102,153,255,0.14);border-radius:4px;overflow:hidden">
+      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('claude','spiral')">SPIRAL</button>
+      <button class="hud-btn" data-mode="flat" onclick="setGalaxyLayoutMode('claude','flat')">ORRERY</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ CASE STUDY PANEL ═══ -->
