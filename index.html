@@ -2861,6 +2861,83 @@ const galaxyArcs = []; // [{ line }]
   });
 })();
 
+// ─────────────────────────────────────────────────────────
+// GALAXY CENTER STARS — bright diffraction-spike stars
+// One per galaxy center (+ manifesto black hole at origin).
+// Fade in/out with galaxyAlpha in updateGalaxyAlpha().
+// ─────────────────────────────────────────────────────────
+function makeStarSprite(color, sz) {
+  const s = 256;
+  const c = document.createElement('canvas'); c.width = s; c.height = s;
+  const ctx = c.getContext('2d');
+  const cx = s / 2, cy = s / 2;
+  const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+
+  // Radial core bloom
+  const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.48);
+  bloom.addColorStop(0,    `rgba(255,255,255,0.95)`);
+  bloom.addColorStop(0.04, `rgba(${r},${g},${b},0.88)`);
+  bloom.addColorStop(0.18, `rgba(${r},${g},${b},0.30)`);
+  bloom.addColorStop(0.50, `rgba(${r},${g},${b},0.07)`);
+  bloom.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+  ctx.fillStyle = bloom;
+  ctx.fillRect(0, 0, s, s);
+
+  // Diffraction spikes — 4 arms
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const spikes = 4;
+  for (let i = 0; i < spikes; i++) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate((i / spikes) * Math.PI);
+    const sp = ctx.createLinearGradient(0, 0, s * 0.48, 0);
+    sp.addColorStop(0,    `rgba(255,255,255,0.85)`);
+    sp.addColorStop(0.12, `rgba(${r},${g},${b},0.50)`);
+    sp.addColorStop(0.45, `rgba(${r},${g},${b},0.10)`);
+    sp.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = sp;
+    // Thin elongated triangle for the spike
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(s * 0.48,  s * 0.012);
+    ctx.lineTo(s * 0.48, -s * 0.012);
+    ctx.closePath();
+    ctx.fill();
+    // Mirror spike
+    ctx.scale(-1, 1);
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c),
+    transparent: true, depthWrite: false,
+    blending: THREE.AdditiveBlending
+  }));
+  spr.scale.setScalar(sz);
+  spr.material.opacity = 0;
+  return spr;
+}
+
+const galaxyStars = []; // { spr, pos } — ticked in updateGalaxyAlpha
+
+(function buildGalaxyStars() {
+  const defs = [
+    { pos: SENTENCE_CENTER, color: 0xffe066, size: 28, label: 'Sentence Primitive' },
+    { pos: CAREER_OFFSET,   color: 0xdaa520, size: 34, label: 'Career' },
+    { pos: CLAUDE_CENTER,   color: 0x6699ff, size: 30, label: 'Claude Code' },
+    { pos: new THREE.Vector3(0, 0, 0), color: 0xff9944, size: 42, label: 'Manifesto' },
+  ];
+  defs.forEach(def => {
+    const spr = makeStarSprite(def.color, def.size);
+    spr.position.copy(def.pos);
+    scene.add(spr);
+    galaxyStars.push({ spr, color: def.color });
+  });
+})();
+
 // galaxyAlpha: 0 = close (orrery), 1 = far (galaxy overview)
 let galaxyAlpha = 0;
 const GALAXY_ENTER_RADIUS = 60;
@@ -3833,6 +3910,15 @@ function updateGalaxyAlpha() {
   // Inter-cluster arcs
   galaxyArcs.forEach(({ line }) => {
     if (line && line.material) line.material.opacity += (ga * 0.28 - line.material.opacity) * lk;
+  });
+
+  // Galaxy center stars — pulse gently, bright at full galaxy alpha
+  const starPulse = 0.82 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 1.8 : 0) * 0.18;
+  galaxyStars.forEach(({ spr }) => {
+    if (spr && spr.material) {
+      const targetOp = isLight ? 0 : ga * starPulse;
+      spr.material.opacity += (targetOp - spr.material.opacity) * lk;
+    }
   });
 
   // Update galaxy cycle hint dots
@@ -5350,14 +5436,15 @@ function buildTesseractScene() {
     manifesto:0xff9944,
   };
 
-  // Arrange into a 3D grid — cubed layout
-  // Determine grid dimensions
+  // Arrange into a 3D grid — cubed layout, centered at world origin (0,0,0)
   const total = allNodes.length;
-  const cols = Math.ceil(Math.cbrt(total * 1.4));
-  const rows = Math.ceil(total / (cols * cols)) + 1;
+  const cols  = Math.ceil(Math.cbrt(total * 1.4));
+  const deps  = cols;
+  const rows  = Math.ceil(total / (cols * deps));
   const spacing = 9.5;
-  const offsetX = -(cols - 1) * spacing * 0.5;
-  const offsetY = -(rows - 1) * spacing * 0.5;
+  const offsetX =  -(cols - 1) * spacing * 0.5;
+  const offsetY =  -(rows - 1) * spacing * 0.5;
+  const offsetZ =   (deps - 1) * spacing * 0.85 * 0.5;
 
   tesseractNodeObjs.length = 0;
 
@@ -5372,13 +5459,13 @@ function buildTesseractScene() {
   window._tesseractMoonData = tesseractMoonData;
 
   sorted.forEach((node, idx) => {
-    const col = idx % cols;
-    const depth = Math.floor(idx / cols) % cols;
-    const row = Math.floor(idx / (cols * cols));
+    const col   = idx % cols;
+    const depth = Math.floor(idx / cols) % deps;
+    const row   = Math.floor(idx / (cols * deps));
 
     const x = offsetX + col   * spacing;
     const y = offsetY + row   * spacing;
-    const z = -(depth * spacing * 0.85);
+    const z = offsetZ - depth * spacing * 0.85;
 
     const col3 = GALAXY_COLORS[node.galaxy] || 0xffffff;
     const r = 0.45;
@@ -5488,24 +5575,24 @@ function buildTesseractScene() {
 
   sorted.forEach((_, idx) => {
     const col  = idx % cols;
-    const depth= Math.floor(idx / cols) % cols;
-    const row  = Math.floor(idx / (cols * cols));
+    const depth= Math.floor(idx / cols) % deps;
+    const row  = Math.floor(idx / (cols * deps));
     const x = offsetX + col   * spacing;
     const y = offsetY + row   * spacing;
-    const z = -(depth * spacing * 0.85);
+    const z = offsetZ - depth * spacing * 0.85;
 
     const nextCol  = idx + 1;
     const nextRow  = idx + cols;
-    const nextDepth= idx + cols * cols;
+    const nextDepth= idx + cols * deps;
 
     [[nextCol, col < cols-1], [nextRow, true], [nextDepth, true]].forEach(([nIdx, cond]) => {
       if (!cond || nIdx >= sorted.length) return;
       const nc = nIdx % cols;
-      const nd = Math.floor(nIdx / cols) % cols;
-      const nr = Math.floor(nIdx / (cols * cols));
+      const nd = Math.floor(nIdx / cols) % deps;
+      const nr = Math.floor(nIdx / (cols * deps));
       const nx = offsetX + nc * spacing;
       const ny = offsetY + nr * spacing;
-      const nz = -(nd * spacing * 0.85);
+      const nz = offsetZ - nd * spacing * 0.85;
       const pts = [new THREE.Vector3(x,y,z), new THREE.Vector3(nx,ny,nz)];
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat());
       tesseractScene.add(line);
