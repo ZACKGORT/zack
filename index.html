@@ -948,10 +948,10 @@ body.light #mf-close:hover{color:#000;}
 
 <!-- TOP-RIGHT HUD: views + theme -->
 <div id="hud">
-  <button class="hud-btn active" data-view="spiral">ORBIT</button>
+  <button class="hud-btn" data-view="spiral">ORBIT</button>
   <button class="hud-btn" data-view="arc">TIMELINE</button>
   <button class="hud-btn" data-view="grid">GRID</button>
-  <button class="hud-btn" data-view="overview">GALAXY</button>
+  <button class="hud-btn active" data-view="overview">GALAXY</button>
   <button class="hud-btn" id="tesseract-pill-btn" onclick="window.openTesseract()">dab.cx</button>
   <div class="hud-sep"></div>
   <button class="hud-btn" id="theme-toggle-hud">DARK</button>
@@ -2584,7 +2584,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, 0.0015); // reduced for multi-galaxy scene scale
 const cam = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 2000);
 
-let camState = { phi: Math.PI * 0.18, theta: Math.PI * 0.25, radius: 290 };
+let camState = { phi: Math.PI * 0.22, theta: Math.PI * 0.72, radius: 210 };
 let camTarget = { ...camState };
 // scenePivot initialised to CAREER_OFFSET after that constant is defined (post-spiralPos)
 const scenePivot = new THREE.Vector3();
@@ -2963,9 +2963,9 @@ function makeStarCore(color, alpha) {
 // galaxyStars built by buildGalaxyStars() after scene construction
 
 // galaxyAlpha: 0 = close (orrery), 1 = far (galaxy overview)
-let galaxyAlpha = 0;
-const GALAXY_ENTER_RADIUS = 50;
-const GALAXY_FULL_RADIUS  = 160;
+let galaxyAlpha = 1;  // start in galaxy view
+const GALAXY_ENTER_RADIUS = 80;   // below this, galaxy is fully faded
+const GALAXY_FULL_RADIUS  = 190;  // above this, galaxy is fully visible
 
 // ─────────────────────────────────────────────────────────
 // SCENE BUILDING
@@ -4299,7 +4299,7 @@ function updateGalaxyAlpha() {
     if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
   }
 
-  const ga = galaxyAlpha;
+  const ga = Math.pow(galaxyAlpha, 1.6); // steeper drop-off: galaxy fades fast as you zoom in
   const oa = 1 - ga; // orrery alpha (inverse)
   const lk = 0.08;
 
@@ -4501,7 +4501,7 @@ function hideSentGhost() {
 
 let currentView = 'spiral';
 let morphing = false, morphT = 0;
-let galaxyMode = false;  // true when user is in overview/galaxy view
+let galaxyMode = true;  // start in galaxy overview
 
 function switchView(view) {
   if (view === 'overview') {
@@ -5114,6 +5114,9 @@ function checkHover(clientX, clientY) {
       if (!hoveredNodeMesh.userData._baseScale) hoveredNodeMesh.userData._baseScale = 1;
       hoveredNodeMesh.scale.setScalar(1.55);
       if (nodeObj.hitMesh) nodeObj.hitMesh.scale.setScalar(1.55);
+      // Snap tooltip immediately to node's screen position (no lag drift from cursor)
+      const scrPos = getNodeScreenPos(nodeObj);
+      if (scrPos) { _ttX = scrPos.x + 28; _ttY = scrPos.y - 40; _ttTargX = _ttX; _ttTargY = _ttY; }
     }
 
     document.body.style.cursor = 'pointer';
@@ -5142,22 +5145,20 @@ function posTooltip(cx, cy) {
   const ttW = ttEl ? ttEl.offsetWidth || 220 : 220;
   const ttH = ttEl ? ttEl.offsetHeight || 80 : 80;
 
-  // Target: near the hovered node's 3D screen projection
+  // Always anchor to the hovered node's 3D screen projection
   if (hoveredNodeMesh && !isMobile) {
     const nodeObj = nodeObjects.find(o => o.mesh === hoveredNodeMesh);
     const scrPos = getNodeScreenPos(nodeObj);
     if (scrPos) {
-      // Offset slightly right and up from node
       _ttTargX = scrPos.x + 28;
       _ttTargY = scrPos.y - ttH * 0.5;
-    } else {
-      _ttTargX = cx + 18;
-      _ttTargY = cy - 10;
     }
+    // If no screen pos, keep last position (don't jump to cursor)
   } else if (isMobile) {
     _ttTargX = cx - ttW - 12;
     _ttTargY = cy - ttH - 12;
   } else {
+    // Non-node tooltips (galaxy star, black hole, cluster) — anchor near cursor
     _ttTargX = cx + 18;
     _ttTargY = cy - 10;
   }
@@ -5657,7 +5658,7 @@ function lerpBlobSets(setA, setB, t) {
 function drawMesh() {
   const w = bgCanvas.width, h = bgCanvas.height;
   bgCtx.clearRect(0, 0, w, h);
-  const ga = typeof galaxyAlpha !== 'undefined' ? galaxyAlpha : 0;
+  const ga = Math.pow(typeof galaxyAlpha !== 'undefined' ? galaxyAlpha : 0, 1.6);
   let baseSet = isLight ? BL : BD;
   // Blend toward active node nebula when focused (dark mode only)
   if (!isLight && activeNodeNebulaIdx >= 0 && ga < 0.1) {
