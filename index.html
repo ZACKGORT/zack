@@ -1178,8 +1178,7 @@ body.light .rhud-btn.active { color: #000; }
   <button class="rhud-btn" id="rhud-zoom-in"  title="Zoom in">+</button>
   <button class="rhud-btn" id="rhud-zoom-out" title="Zoom out">−</button>
   <div class="rhud-sep"></div>
-  <button class="rhud-btn active" id="rhud-spiral"   title="Spiral view">↺</button>
-  <button class="rhud-btn"        id="rhud-timeline" title="Timeline view">⇢</button>
+  <button class="rhud-btn" id="rhud-layout-toggle" title="Toggle spiral / timeline">↺</button>
 </div>
 
 <!-- hidden stubs so JS refs don't break -->
@@ -3750,8 +3749,7 @@ buildScene();
 // ─────────────────────────────────────────────────────────
 // PLATFORM SCENE — Wolfgang & Co. ecosystem spiral
 // ─────────────────────────────────────────────────────────
-function buildPlatformScene() {
-  // ── Spiral tube ─────────────────────────────────────────────
+function buildSentenceSpiral() {
   const pts = PLATFORM_ERAS.map(e => e._spiralPos.clone());
   const curve = new THREE.CatmullRomCurve3(pts);
   const tubePts = curve.getPoints(160);
@@ -3763,6 +3761,24 @@ function buildPlatformScene() {
     new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.04 }));
   scene.add(inner);
   allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0xffd700, lightColor: 0x000000, galaxy: 'sentence' });
+}
+
+function buildClaudeSpiral() {
+  const pts = CLAUDE_ERAS.map(e => e._spiralPos.clone());
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const tubePts = curve.getPoints(200);
+  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.08 }));
+  scene.add(tube);
+  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x6699ff, lightColor: 0x000000, galaxy: 'claude' });
+  const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
+    new THREE.LineBasicMaterial({ color: 0x4466cc, transparent: true, opacity: 0.04 }));
+  scene.add(inner);
+  allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0x4466cc, lightColor: 0x000000, galaxy: 'claude' });
+}
+
+function buildPlatformScene() {
+  buildSentenceSpiral();
 
   // ── Spine axis ──────────────────────────────────────────────
   const spinePts = [
@@ -3914,18 +3930,7 @@ buildManifestoScene();
 // pipeline (inner) → memory (mid) → permission (outer) → experimental (outermost)
 // ─────────────────────────────────────────────────────────
 function buildClaudeScene() {
-  // ── Spiral tube ─────────────────────────────────────────────
-  const pts = CLAUDE_ERAS.map(e => e._spiralPos.clone());
-  const curve = new THREE.CatmullRomCurve3(pts);
-  const tubePts = curve.getPoints(200);
-  const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
-    new THREE.LineBasicMaterial({ color: 0x6699ff, transparent: true, opacity: 0.08 }));
-  scene.add(tube);
-  allLines.push({ line: tube, darkOp: 0.08, lightOp: 0.20, darkColor: 0x6699ff, lightColor: 0x000000, galaxy: 'claude' });
-  const inner = new THREE.Line(new THREE.BufferGeometry().setFromPoints(tubePts),
-    new THREE.LineBasicMaterial({ color: 0x4466cc, transparent: true, opacity: 0.04 }));
-  scene.add(inner);
-  allLines.push({ line: inner, darkOp: 0.04, lightOp: 0.10, darkColor: 0x4466cc, lightColor: 0x000000, galaxy: 'claude' });
+  buildClaudeSpiral();
 
   // ── Spine axis ──────────────────────────────────────────────
   const spinePts = [
@@ -4716,6 +4721,7 @@ let morphing = false, morphT = 0;
 let galaxyMode = true;  // start in galaxy overview
 
 function switchView(view) {
+  if (window._syncLayoutToggle) setTimeout(window._syncLayoutToggle, 10);
   if (view === 'overview') {
     focusedStarGalaxyId = null; // reset star focus on overview
     // Overview = zoom out to see all three orreries around the black hole
