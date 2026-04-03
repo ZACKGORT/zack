@@ -2651,9 +2651,26 @@ applyCam();
 
 const ambLight = new THREE.AmbientLight(0xffffff, 0.12); scene.add(ambLight);
 const dLight = new THREE.DirectionalLight(0xffd070, 0.4); dLight.position.set(10, 30, 10); scene.add(dLight);
-const gold1 = new THREE.PointLight(0xdaa520, 5, 120); gold1.position.set(-15, 8, -15); scene.add(gold1);
-const gold2 = new THREE.PointLight(0xb87333, 4, 100); gold2.position.set(15, 8, 15); scene.add(gold2);
-const warmTop = new THREE.PointLight(0xffc060, 3, 80); warmTop.position.set(0, 20, 0); scene.add(warmTop);
+
+// ── Galaxy-center anchored point lights ──────────────────
+// Soft near-white source at each galaxy center.
+// Low intensity, large decay radius — reads as a distant sun
+// casting gentle light on nearby nodes without color-tinting.
+const starLights = [];
+[
+  { pos: CAREER_OFFSET,            intensity: 3.5, distance: 180 },
+  { pos: SENTENCE_CENTER,          intensity: 3.0, distance: 160 },
+  { pos: CLAUDE_CENTER,            intensity: 3.0, distance: 160 },
+  { pos: new THREE.Vector3(0,0,0), intensity: 4.0, distance: 220 },
+].forEach(({ pos, intensity, distance }) => {
+  const pl = new THREE.PointLight(0xfff8ee, intensity, distance, 1.8);
+  pl.position.copy(pos);
+  pl.userData._baseIntensity = intensity;
+  scene.add(pl);
+  starLights.push(pl);
+});
+
+const warmTop = new THREE.PointLight(0xffc060, 1.2, 80); warmTop.position.set(0, 20, 0); scene.add(warmTop);
 // Extra lights for galaxy view — placed near cluster positions
 const galaxyLight1 = new THREE.PointLight(0x6080ff, 6, 150); galaxyLight1.position.set(-40, 10, -15); scene.add(galaxyLight1);
 const galaxyLight2 = new THREE.PointLight(0xd070ff, 5, 130); galaxyLight2.position.set(45, 5, 10); scene.add(galaxyLight2);
@@ -2862,79 +2879,85 @@ const galaxyArcs = []; // [{ line }]
 })();
 
 // ─────────────────────────────────────────────────────────
-// GALAXY CENTER STARS — bright diffraction-spike stars
-// One per galaxy center (+ manifesto black hole at origin).
-// Fade in/out with galaxyAlpha in updateGalaxyAlpha().
+// GALAXY CENTER STARS
+// Bright stacked-glow point stars at each galaxy center.
+// Always visible (not gated by galaxyAlpha) — scale with
+// camera distance so they read at every zoom level.
 // ─────────────────────────────────────────────────────────
-function makeStarSprite(color, sz) {
-  const s = 256;
-  const c = document.createElement('canvas'); c.width = s; c.height = s;
-  const ctx = c.getContext('2d');
-  const cx = s / 2, cy = s / 2;
+function makeStarCore(color, alpha) {
+  const sz = 256, c = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d'), cx = sz / 2, cy = sz / 2;
   const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
 
-  // Radial core bloom
-  const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.48);
-  bloom.addColorStop(0,    `rgba(255,255,255,0.95)`);
-  bloom.addColorStop(0.04, `rgba(${r},${g},${b},0.88)`);
-  bloom.addColorStop(0.18, `rgba(${r},${g},${b},0.30)`);
-  bloom.addColorStop(0.50, `rgba(${r},${g},${b},0.07)`);
+  // Main radial bloom
+  const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz * 0.5);
+  bloom.addColorStop(0,    `rgba(255,255,255,${alpha})`);
+  bloom.addColorStop(0.06, `rgba(${r},${g},${b},${alpha * 0.9})`);
+  bloom.addColorStop(0.22, `rgba(${r},${g},${b},${alpha * 0.35})`);
+  bloom.addColorStop(0.55, `rgba(${r},${g},${b},${alpha * 0.08})`);
   bloom.addColorStop(1,    `rgba(${r},${g},${b},0)`);
   ctx.fillStyle = bloom;
-  ctx.fillRect(0, 0, s, s);
+  ctx.fillRect(0, 0, sz, sz);
 
-  // Diffraction spikes — 4 arms
+  // Four diffraction spikes — thin bright lines through center
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const spikes = 4;
-  for (let i = 0; i < spikes; i++) {
+  for (let i = 0; i < 4; i++) {
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.rotate((i / spikes) * Math.PI);
-    const sp = ctx.createLinearGradient(0, 0, s * 0.48, 0);
-    sp.addColorStop(0,    `rgba(255,255,255,0.85)`);
-    sp.addColorStop(0.12, `rgba(${r},${g},${b},0.50)`);
-    sp.addColorStop(0.45, `rgba(${r},${g},${b},0.10)`);
+    ctx.rotate(i * Math.PI * 0.25); // 0°, 45°, 90°, 135°
+    const sp = ctx.createLinearGradient(0, 0, sz * 0.5, 0);
+    sp.addColorStop(0,    `rgba(255,255,255,${alpha * 0.9})`);
+    sp.addColorStop(0.08, `rgba(${r},${g},${b},${alpha * 0.55})`);
+    sp.addColorStop(0.35, `rgba(${r},${g},${b},${alpha * 0.12})`);
     sp.addColorStop(1,    `rgba(${r},${g},${b},0)`);
     ctx.fillStyle = sp;
-    // Thin elongated triangle for the spike
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.lineTo(s * 0.48,  s * 0.012);
-    ctx.lineTo(s * 0.48, -s * 0.012);
+    ctx.lineTo(sz * 0.5,  sz * 0.009);
+    ctx.lineTo(sz * 0.5, -sz * 0.009);
     ctx.closePath();
     ctx.fill();
-    // Mirror spike
     ctx.scale(-1, 1);
     ctx.fill();
     ctx.restore();
   }
   ctx.restore();
 
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: new THREE.CanvasTexture(c),
-    transparent: true, depthWrite: false,
-    blending: THREE.AdditiveBlending
-  }));
-  spr.scale.setScalar(sz);
-  spr.material.opacity = 0;
-  return spr;
+  return new THREE.CanvasTexture(c);
 }
 
-const galaxyStars = []; // { spr, pos } — ticked in updateGalaxyAlpha
+const galaxyStars = []; // { layers: [sprite,...], pos, color, baseScale }
 
 (function buildGalaxyStars() {
   const defs = [
-    { pos: SENTENCE_CENTER, color: 0xffe066, size: 28, label: 'Sentence Primitive' },
-    { pos: CAREER_OFFSET,   color: 0xdaa520, size: 34, label: 'Career' },
-    { pos: CLAUDE_CENTER,   color: 0x6699ff, size: 30, label: 'Claude Code' },
-    { pos: new THREE.Vector3(0, 0, 0), color: 0xff9944, size: 42, label: 'Manifesto' },
+    { pos: SENTENCE_CENTER,            color: 0xffe066, baseScale: 8  },
+    { pos: CAREER_OFFSET,              color: 0xdaa520, baseScale: 10 },
+    { pos: CLAUDE_CENTER,              color: 0x6699ff, baseScale: 9  },
+    { pos: new THREE.Vector3(0, 0, 0), color: 0xff9944, baseScale: 12 },
   ];
+
   defs.forEach(def => {
-    const spr = makeStarSprite(def.color, def.size);
-    spr.position.copy(def.pos);
-    scene.add(spr);
-    galaxyStars.push({ spr, color: def.color });
+    // Three stacked layers: outer haze, mid bloom, tight core
+    const layers = [
+      { scMult: 3.2, opacity: 0.22, alpha: 0.18 },
+      { scMult: 1.6, opacity: 0.55, alpha: 0.55 },
+      { scMult: 0.7, opacity: 0.90, alpha: 1.00 },
+    ].map(({ scMult, opacity, alpha }) => {
+      const tex = makeStarCore(def.color, alpha);
+      const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false,
+        blending: THREE.AdditiveBlending
+      }));
+      spr.scale.setScalar(def.baseScale * scMult);
+      spr.position.copy(def.pos);
+      spr.material.opacity = opacity;
+      scene.add(spr);
+      return spr;
+    });
+
+    galaxyStars.push({ layers, pos: def.pos, color: def.color, baseScale: def.baseScale });
   });
 })();
 
@@ -3912,13 +3935,20 @@ function updateGalaxyAlpha() {
     if (line && line.material) line.material.opacity += (ga * 0.28 - line.material.opacity) * lk;
   });
 
-  // Galaxy center stars — pulse gently, bright at full galaxy alpha
-  const starPulse = 0.82 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 1.8 : 0) * 0.18;
-  galaxyStars.forEach(({ spr }) => {
-    if (spr && spr.material) {
-      const targetOp = isLight ? 0 : ga * starPulse;
+  // Galaxy center stars — small fixed point, slightly larger as camera pulls back
+  const camR = camState.radius;
+  // Gentle scale: 0.5 at close range, 1.0 at galaxy zoom — stars are distant suns
+  const starScale = Math.max(0.4, Math.min(1.0, camR / 200));
+  const starPulse = 0.92 + Math.sin(typeof elapsed !== 'undefined' ? elapsed * 1.6 : 0) * 0.08;
+  galaxyStars.forEach(({ layers, baseScale }) => {
+    layers.forEach((spr, i) => {
+      if (!spr || !spr.material) return;
+      const baseOpacities = [0.18, 0.50, 0.88];
+      const targetOp = isLight ? 0 : baseOpacities[i] * starPulse;
       spr.material.opacity += (targetOp - spr.material.opacity) * lk;
-    }
+      const scMults = [2.8, 1.4, 0.55];
+      spr.scale.setScalar(baseScale * scMults[i] * starScale);
+    });
   });
 
   // Update galaxy cycle hint dots
@@ -5013,9 +5043,8 @@ function applyTheme() {
       m.spr.material.needsUpdate = true;
     });
   });
-  gold1.intensity = isLight ? 0 : 5;
-  gold2.intensity = isLight ? 0 : 4;
-  warmTop.intensity = isLight ? 0 : 3;
+  starLights.forEach(pl => { pl.intensity = isLight ? 0 : pl.userData._baseIntensity || 3.5; });
+  warmTop.intensity = isLight ? 0 : 1.2;
   ambLight.intensity = isLight ? 1.1 : 0.12;
   pMat.opacity = isLight ? 0 : 0.12;
   scene.fog.color.setHex(isLight ? 0xffffff : 0x000000);
@@ -5242,20 +5271,12 @@ function animate(ts) {
   const bhA = Math.min(1, Math.max(0, (camState.radius - 50) / 100));
   tickBlackHole(elapsed, bhA);
 
-  // Blend point lights toward focused node color
-  const _ni = activeNodeNebulaIdx;
-  const _nc = (!isLight && _ni >= 0 && NODE_NEBULA_DARK[_ni]) ? NODE_NEBULA_DARK[_ni][0] : null;
-  if (_nc) {
-    const _hex = (_nc[0]<<16)|(_nc[1]<<8)|_nc[2];
-    gold1.color.setHex(_hex); gold2.color.setHex(_hex);
-    gold1.intensity = 5 + Math.sin(elapsed * 0.8) * 0.5;
-    gold2.intensity = 4 + Math.sin(elapsed * 0.6 + 1.2) * 0.4;
-  } else {
-    gold1.color.setHex(0xdaa520); gold2.color.setHex(0xb87333);
-    // Boost lights at overview zoom
-    const lightBoost = Math.min(3.5, 1 + camState.radius * 0.008);
-    gold1.intensity = (isLight ? 0 : 5 * lightBoost) + Math.sin(elapsed * 0.8) * 0.5;
-    gold2.intensity = (isLight ? 0 : 4 * lightBoost) + Math.sin(elapsed * 0.6 + 1.2) * 0.4;
+  // Star lights — gentle breathe, stay near-white, no color shift
+  if (!isLight) {
+    starLights.forEach((pl, i) => {
+      const base = pl.userData._baseIntensity || 3.5;
+      pl.intensity = base + Math.sin(elapsed * 0.6 + i * 0.8) * 0.3;
+    });
   }
   if (typeof galaxyAlpha !== 'undefined') {
     const ga = galaxyAlpha;
@@ -5867,25 +5888,3 @@ applyTesseractCam = function() {
     </div>
   </div>
 </div>
-
-<!-- ═══ MANIFESTO ═══ -->
-<div id="manifesto">
-  <button id="mf-close" onclick="window.closeManifesto()">✕</button>
-  <div id="mf-scroll">
-    <div class="mf-eyebrow">Wolfgang &amp; Co. &nbsp;·&nbsp; The Center</div>
-    <h1 class="mf-headline">I think.<br>I make.<br>I have never stopped.</h1>
-    <p class="mf-p">Twenty years. No degree. No certification. No award. Every credential earned in the work itself — starting from a pirated copy of Photoshop and a Craigslist post into the void, sustained by a single conviction: the right interface disappears and leaves only understanding.</p>
-    <div class="mf-rule"></div>
-    <div class="mf-pull">The sentence is the irreducible unit of thought. Not the page. Not the flow. Not the interface. The sentence.</div>
-    <p class="mf-p">This canvas is not a portfolio. It is the argument made visible. Vanilla HTML, CSS, and JavaScript. One file. No framework. No dependencies. No build step. I built the thing I am pitching you with the same engine I am pitching you.</p>
-    <p class="mf-p">wolfie.love established the engine. ifimaybefrank proved the thesis. reasonably.cc extended it. intoview.pro applied it professionally. dab.cx named the method. Two orbiting galaxies — career and platform — around the same center of gravity: that format shapes attention, and the right container is worth designing as carefully as what it holds.</p>
-    <div class="mf-rule"></div>
-    <div class="mf-pull">I am not looking for a title. I am looking for the problem worth solving.</div>
-    <p class="mf-p">Systems thinking. Code-native prototyping. The rare ability to hold the whole model in your head while making a pixel decision — and to know which one yields. I have done this inside startups, agencies, and Fortune 500 engagements. Philadelphia. Manhattan. Remote. In every context: I hold the thread.</p>
-    <p class="mf-p">Two case studies carry the proof: GNC reclaimed ~$500M post-bankruptcy in twelve weeks. BNY Mellon shipped Wove — an industry-first financial advisory platform — across three Agile tracks simultaneously. Neither used AI. Both were built by one person who did not ask for the scope and received it anyway.</p>
-    <div class="mf-cta">
-      <div class="mf-cta-lbl">Let&rsquo;s work</div>
-      <a class="mf-link" href="/cdn-cgi/l/email-protection#bbc1dad8d0fbc9dedac8d4d5dad9d7c295d8d8"><span class="__cf_email__" data-cfemail="5b213a38301b293e3a2834353a393722753838">[email&#160;protected]</span></a>
-      <a class="mf-link" href="https://linkedin.com/in/zackgort" target="_blank" rel="noopener">linkedin.com/in/zackgort</a>
-      <a class="mf-link" href="https://intoview.pro/cv" target="_blank" rel="noopener">intoview.pro/cv &nbsp;·&nbsp; full case studies</a>
-      <a class="mf-link" href="https
