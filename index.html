@@ -2939,7 +2939,7 @@ const GALAXY_CLUSTERS = [
   },
   {
     id: 'claude', name: 'Claude Code',
-    sub: 'Human:Client',
+    sub: 'The instrument alongside the work',
     color: 0x6699ff, hex: '#6699ff',
     center: CLAUDE_CENTER, size: 5.5,
     nodeIds: CLAUDE_ERAS.map(e => e.id)
@@ -3485,6 +3485,27 @@ const galaxyLayout = {
 // Each era gets _spiralPos, _flatPos, _gridPos, _listPos
 // ─────────────────────────────────────────────────────────────
 
+// Swoop camera to a galaxy's orrery overview (centered on the galaxy star)
+function swoopToGalaxyOverview(galaxyId) {
+  const centerMap = { career: CAREER_OFFSET, sentence: SENTENCE_CENTER, claude: CLAUDE_CENTER };
+  const p = (centerMap[galaxyId] || CAREER_OFFSET).clone();
+  const angle = Math.atan2(p.z, p.x);
+  const theta  = angle + Math.PI * 0.55;
+  const phi    = Math.PI * 0.28;
+  const radius = 52;
+  galaxyMode = false;
+  swoopTo(phi, theta, radius, p);
+  camTarget.phi = phi; camTarget.theta = theta; camTarget.radius = radius;
+  scenePivotTgt.copy(p);
+  isFocused = false; focusedEra = null;
+  // Set star as focused so second click opens tesseract
+  focusedStarGalaxyId = galaxyId;
+  document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
+  const idMap = { career: 'hud-sol-1', sentence: 'hud-sol-2', claude: 'hud-sol-3' };
+  const btn = document.getElementById(idMap[galaxyId]);
+  if (btn) btn.classList.add('active');
+}
+
 // Returns true if era belongs to the currently focused galaxy (or any if unfocused)
 function isInActiveGalaxy(era) {
   if (!isFocused || !focusedEra) return true;
@@ -3999,7 +4020,7 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
     },
     claude: {
       era: 'Claude Code · Architecture Map',
-      title: 'Human:Client',
+      title: 'The Instrument Alongside the Work.',
       role: 'Pipeline → Memory → Permission → Experimental',
       body: 'This is a map of the tool that built this file. Claude Code is not a chatbot with file access — it is a system with a Query Engine, a Skeptical Memory Architecture, a Permission System, and an Experimental tier that dreams while you sleep. This galaxy was built using the instrument it describes.',
       domain: 'system',
@@ -4764,7 +4785,7 @@ const GALAXY_TESSERACT_FILTERS = {
 const GALAXY_TESSERACT_LABELS = {
   career:   { eyebrow: 'CAREER  ·  2003 – PRESENT', title: 'Twenty Years. One Thread.', sub: 'Philadelphia  →  New York  →  Independent' },
   sentence: { eyebrow: 'PLATFORM ECOSYSTEM', title: 'The Sentence as the Primitive.', sub: 'From wolfie.love to dab.cx' },
-  claude:   { eyebrow: 'CLAUDE CODE  ·  AI-NATIVE WORKFLOW', title: 'Human:Client', sub: 'Collaboration at the speed of thought' },
+  claude:   { eyebrow: 'CLAUDE CODE  ·  AI-NATIVE WORKFLOW', title: 'The Instrument Alongside the Work.', sub: 'Collaboration at the speed of thought' },
   manifesto:{ eyebrow: 'MANIFESTO  ·  POSITIONS', title: 'The Method.', sub: 'What I believe about how things should be made' },
 };
 
@@ -5655,16 +5676,8 @@ cvs.addEventListener('pointerup', e => {
         const cl = clHits[0].object.userData.galaxyCluster;
         if (cl) {
           tooltip.classList.remove('vis');
-          let targetEra;
-          if (cl.id === 'sentence')     { targetEra = PLATFORM_ERAS[0]; }
-          else if (cl.id === 'career')  { targetEra = ERAS[0]; }
-          else                          { targetEra = CLAUDE_ERAS[0]; }
-          isFocused = true; focusedEra = targetEra;
-          const preset = eraPreset(targetEra);
-          scenePivotTgt.copy(preset.pivot);
-          swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-          camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
-          setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
+          // Desktop: swoop to galaxy orrery overview — star becomes the entry point
+          swoopToGalaxyOverview(cl.id);
           if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; }
           return;
         }
@@ -5859,7 +5872,7 @@ function buildTOC() {
 
   const ccHdr = document.createElement('div');
   ccHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(102,153,255,0.50);border-top:1px solid rgba(218,165,32,0.08);margin-top:8px;';
-  ccHdr.textContent = 'Claude Code · Human:Client';
+  ccHdr.textContent = 'Claude Code · The Instrument';
   list.appendChild(ccHdr);
 
   CLAUDE_ERAS.forEach((era) => {
@@ -6076,9 +6089,10 @@ function tickMesh() {
     if (b.y<0||b.y>1) b.vy*=-1;
   });
   if (meshT % 3 === 0) drawMesh();
-  requestAnimationFrame(tickMesh);
+  if (!_tabHidden) requestAnimationFrame(tickMesh);
+  else _meshRAFRunning = false;
 }
-drawMesh(); tickMesh();
+drawMesh(); _meshRAFRunning = true; tickMesh();
 applyTheme(); // init with default theme (light)
 
 // Mobile: start in galaxy overview (same view as screenshot)
@@ -6171,6 +6185,7 @@ function tickGalaxyMoons(elapsed) {
 }
 
 function animate(ts) {
+  if (_tabHidden) { _mainRAFRunning = false; return; } // pause when tab hidden
   requestAnimationFrame(animate);
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts; elapsed += dt;
@@ -6330,7 +6345,28 @@ function animate(ts) {
   // (already handled in contextmenu listener)
 })();
 
-requestAnimationFrame(animate);
+// ── Page Visibility: pause all RAF loops when tab is hidden ──
+// Prevents battery drain and GPU work in background tabs.
+var _tabHidden = false;
+let _mainRAF = null;   // handle for the animate loop
+let _meshRAF = null;   // handle for the tickMesh loop
+
+// Wrap rAF calls to track handles — injected after loop starts
+document.addEventListener('visibilitychange', () => {
+  _tabHidden = document.hidden;
+  if (!_tabHidden) {
+    // Resuming — restart loops with fresh timestamp to avoid dt spike
+    lastTime = performance.now();
+    if (!_mainRAFRunning) { _mainRAFRunning = true; requestAnimationFrame(animate); }
+    if (!_meshRAFRunning) { _meshRAFRunning = true; tickMesh(); }
+  }
+  // When hidden: the animate/tickMesh guards below will stop rescheduling
+});
+
+var _mainRAFRunning = false;
+var _meshRAFRunning = false;
+
+_mainRAFRunning = true; requestAnimationFrame(animate);
 
 window.addEventListener('resize', () => {
   cam.aspect = innerWidth / innerHeight;
@@ -6830,6 +6866,7 @@ function tickTesseractMoons(elapsed) {
 }
 
 function animateTesseract(ts) {
+  if (_tabHidden) { tesseractRAF = null; return; } // pause when hidden
   if (!tesseractOpen) return;
   tesseractRAF = requestAnimationFrame(animateTesseract);
 
@@ -6857,7 +6894,8 @@ window.openTesseract = function(galaxyFilter) {
   overlay.style.display = 'block';
   requestAnimationFrame(() => overlay.classList.add('on'));
 
-  // Always rebuild scene with correct filter
+  // Dispose previous scene geometry/textures before rebuilding
+  disposeTesseractScene();
   if (tesseractRenderer) {
     tesseractRenderer.dispose();
     tesseractRenderer = null;
@@ -6869,12 +6907,34 @@ window.openTesseract = function(galaxyFilter) {
   animateTesseract(performance.now());
 };
 
+// ── Dispose all objects in a Three.js scene (geometries, materials, textures) ──
+function disposeTesseractScene() {
+  if (!tesseractScene) return;
+  tesseractScene.traverse(obj => {
+    if (obj.geometry) { obj.geometry.dispose(); }
+    if (obj.material) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach(m => {
+        if (m.map)          { m.map.dispose(); }
+        if (m.emissiveMap)  { m.emissiveMap.dispose(); }
+        m.dispose();
+      });
+    }
+  });
+  tesseractScene = null;
+  tesseractNodeObjs.length = 0;
+  if (window._tesseractMoonData) window._tesseractMoonData.length = 0;
+}
+
 window.closeTesseract = function() {
   if (!tesseractOpen) return;
   tesseractOpen = false;
   const overlay = document.getElementById('tesseract-overlay');
   overlay.classList.remove('on');
-  setTimeout(() => { overlay.style.display = 'none'; }, 520);
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    disposeTesseractScene(); // free GPU memory after fade-out
+  }, 540);
   if (tesseractRAF) { cancelAnimationFrame(tesseractRAF); tesseractRAF = null; }
 };
 
