@@ -55,7 +55,7 @@ body.light #era-name{color:rgba(0,0,0,0.55);}
   transition:background 0.5s,border-color 0.5s;
 }
 @media(max-width:768px){
-  #hud{display:none;}  /* Mobile: nav handled by #mobile-nav-bar */
+  /* HUD visible on mobile */
 }
 .hud-btn{
   background:none;border:none;cursor:pointer;
@@ -1041,6 +1041,12 @@ body.light .toast-role{color:rgba(0,0,0,0.40);}
 .tess-grid-era { font-family: 'DM Mono',monospace; font-size: 7px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(218,165,32,0.40); margin-bottom: 4px; }
 .tess-grid-title { font-family: 'Crimson Text',serif; font-size: 14px; color: #f5ecd5; line-height: 1.2; }
 .tess-grid-domain { font-family: 'DM Mono',monospace; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(218,165,32,0.28); margin-top: 4px; }
+
+/* HUD mobile sizing */
+@media(max-width:768px){
+  #hud { top:12px; right:10px; }
+  .hud-btn { font-size:7px; padding:6px 10px; letter-spacing:0.12em; }
+}
 </style>
 </head>
 <body>
@@ -4692,11 +4698,18 @@ function handleStarClick(mouseVec) {
   if (!star) return false;
 
   const gid = star.def.galaxyId;
-
-  // Single click on any galaxy star → open that galaxy's tesseract directly
   isBlackHoleFocused = false;
   focusedStarGalaxyId = gid;
-  openGalaxyTesseract(gid);
+
+  if (window.innerWidth <= 768) {
+    // Mobile: star tap = swoop into that galaxy (same as cluster tap)
+    const listMap = { career: ERAS, sentence: PLATFORM_ERAS, claude: CLAUDE_ERAS, manifesto: MANIFESTO_ERAS };
+    const list = listMap[gid];
+    if (list && list[0]) focusEra(list[0]);
+  } else {
+    // Desktop: star click opens that galaxy's tesseract
+    openGalaxyTesseract(gid);
+  }
   return true;
 }
 
