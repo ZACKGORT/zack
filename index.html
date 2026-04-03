@@ -832,6 +832,7 @@ body.light #mf-close:hover{color:#000;}
 
 /* ── TESSERACT OVERLAY ── */
 #tesseract-overlay {
+  --galaxy-accent: #daa520;
   position:fixed; inset:0; z-index:960;
   background:radial-gradient(ellipse at 50% 50%, rgba(2,1,12,0.97) 0%, rgba(0,0,6,0.99) 100%);
   display:none; opacity:0; transition:opacity 0.5s;
@@ -1106,15 +1107,17 @@ body.light .toast-role{color:rgba(0,0,0,0.40);}
 
 <div id="spine-indicator"></div>
 
-<!-- TOP-RIGHT HUD: views + theme -->
+<!-- TOP-RIGHT HUD: Sol 1/2/3 · Galaxy · theme -->
 <div id="hud">
-  <button class="hud-btn" data-view="spiral">ORBIT</button>
-  <button class="hud-btn" data-view="arc">TIMELINE</button>
-  <button class="hud-btn" data-view="grid">GRID</button>
-  <button class="hud-btn active" data-view="overview">GALAXY</button>
-  <button class="hud-btn" id="tesseract-pill-btn" onclick="window.openTesseract()">dab.cx</button>
+  <button class="hud-btn" id="hud-sol-1" data-galaxy="career">SOL 1</button>
+  <button class="hud-btn" id="hud-sol-2" data-galaxy="sentence">SOL 2</button>
+  <button class="hud-btn" id="hud-sol-3" data-galaxy="claude">SOL 3</button>
   <div class="hud-sep"></div>
-  <button class="hud-btn" id="theme-toggle-hud">DARK</button>
+  <button class="hud-btn active" id="hud-galaxy" onclick="switchView('overview')">GALAXY</button>
+  <div class="hud-sep"></div>
+  <button class="hud-btn" id="theme-toggle-hud">LGHT</button>
+</div>
+  <button class="hud-btn" id="theme-toggle-hud" title="Toggle light/dark">READ</button>
 </div>
 
 <!-- hidden stubs so JS refs don't break -->
@@ -3461,219 +3464,27 @@ const galaxyLayout = {
 // Each era gets _spiralPos, _flatPos, _gridPos, _listPos
 // ─────────────────────────────────────────────────────────────
 
-function flatOrreryPos(era, center) {
-  const list = activeList(era);
-  const idx  = list.findIndex(e => e.id === era.id);
-  const n    = list.length;
-  const angle = (idx / n) * Math.PI * 2;
-  const tier  = era.solarSystem;
-  const tierR = { pipeline: 9, memory: 15, permission: 21, experimental: 27 };
-  const r = (tier && tierR[tier]) ? tierR[tier] : 18 + (idx % 3) * 4;
-  const y = (idx % 2 === 0 ? 0.8 : -0.8);
-  return new THREE.Vector3(center.x + Math.cos(angle) * r, y, center.z + Math.sin(angle) * r);
-}
-
-function gridPos(era, center) {
-  // 2D grid in the XZ plane, centered on galaxy center
-  // Nodes arrange into rows/cols; flat on Y=0
-  const list = activeList(era);
-  const idx  = list.findIndex(e => e.id === era.id);
-  const n    = list.length;
-  const cols = Math.ceil(Math.sqrt(n * 1.6));  // wider than tall
-  const rows = Math.ceil(n / cols);
-  const col  = idx % cols;
-  const row  = Math.floor(idx / cols);
-  const cellW = 9.0, cellD = 7.0;
-  const totalW = (cols - 1) * cellW;
-  const totalD = (rows - 1) * cellD;
-  return new THREE.Vector3(
-    center.x + col * cellW - totalW / 2,
-    row * 0.4 - (rows - 1) * 0.2,   // very slight Y stagger for depth
-    center.z + row * cellD - totalD / 2
-  );
-}
-
-function listPos(era, center) {
-  // Vertical list — all nodes at same XZ, evenly spaced by Y
-  const list = activeList(era);
-  const idx  = list.findIndex(e => e.id === era.id);
-  const n    = list.length;
-  const spanY = Math.min(n * 2.2, 36);
-  const y = (idx / Math.max(n - 1, 1)) * spanY - spanY / 2;
-  // Slight X offset alternates L/R for readability
-  const xOff = (idx % 2 === 0 ? 1.5 : -1.5);
-  return new THREE.Vector3(center.x + xOff, y, center.z);
-}
-
-// Assign all four layout positions to every era after scene builds
-// Register a connection line for live position updates during layout morph
-function registerConnection(line, eraA, eraB) {
-  liveConnections.push({ line, eraA, eraB });
-}
-
-// Update all registered connection geometries to current _pos values
-function updateConnectionGeometries() {
-  liveConnections.forEach(({ line, eraA, eraB }) => {
-    if (!line || !line.geometry || !eraA || !eraB) return;
-    const p1 = eraA._pos, p2 = eraB._pos;
-    const mid = p1.clone().add(p2).multiplyScalar(0.5);
-    mid.y += 0.4;
-    const pts = new THREE.QuadraticBezierCurve3(p1, mid, p2).getPoints(16);
-    const posArr = line.geometry.attributes.position;
-    if (posArr && posArr.count === pts.length) {
-      pts.forEach((p, i) => { posArr.setXYZ(i, p.x, p.y, p.z); });
-      posArr.needsUpdate = true;
-      line.geometry.computeBoundingSphere();
-    }
-  });
-}
-
-// Returns true if era belongs to the currently focused galaxy (or any galaxy if not focused)
+// Returns true if era belongs to the currently focused galaxy (or any if unfocused)
 function isInActiveGalaxy(era) {
   if (!isFocused || !focusedEra) return true;
-  return activeList(focusedEra).includes(era);
+  const fid = focusedEra.id;
+  if (fid.startsWith('cc-') || fid === 'claude-star') return era.id.startsWith('cc-');
+  if (fid.startsWith('p-')  || fid === 'sentence-star') return era.id.startsWith('p-');
+  if (fid.startsWith('m-')  || fid === 'manifesto-star') return era.id.startsWith('m-');
+  return !era.id.startsWith('cc-') && !era.id.startsWith('p-') && !era.id.startsWith('m-');
 }
 
+// Layout system removed — spiral/timeline only (right-click toggles)
+function setGalaxyLayoutMode() {}
+function updateLayoutToggleBar() {}
 function computeAllLayoutPositions() {
-  // Build fast lookup map once after all scenes are constructed
+  // Build fast O(1) lookup map
   nodeObjMap.clear();
-  nodeObjects.forEach((obj, i) => {
-    if (obj.era) nodeObjMap.set(obj.era.id, { ...obj, gi: i });
-  });
-
-  const defs = [
-    { list: ERAS,          center: CAREER_OFFSET   },
-    { list: PLATFORM_ERAS, center: SENTENCE_CENTER },
-    { list: CLAUDE_ERAS,   center: CLAUDE_CENTER   },
-    { list: MANIFESTO_ERAS,center: new THREE.Vector3(0,0,0) },
-  ];
-  defs.forEach(({ list, center }) => {
-    list.forEach(era => {
-      era._flatPos = era._flatPos || flatOrreryPos(era, center);
-      era._gridPos = gridPos(era, center);
-      era._listPos = listPos(era, center);
-    });
-  });
+  nodeObjects.forEach((obj, i) => { if (obj.era) nodeObjMap.set(obj.era.id, { ...obj, gi: i }); });
 }
-
-// Layout morph — stores a Vector3 target per era, lerps _pos toward it
-const layoutMorphState = {
-  career:   { mode: 'spiral', morphing: false },
-  sentence: { mode: 'spiral', morphing: false },
-  claude:   { mode: 'spiral', morphing: false },
-};
-
-// Target positions per era (updated when mode changes)
-const layoutTargets = new Map(); // era.id → THREE.Vector3
-
-function getLayoutTarget(era, mode, center) {
-  switch (mode) {
-    case 'orrery': return era._flatPos || flatOrreryPos(era, center);
-    case 'grid':   return era._gridPos || gridPos(era, center);
-    case 'list':   return era._listPos || listPos(era, center);
-    default:       return era._spiralPos;
-  }
-}
-
-function setGalaxyLayoutMode(galaxyId, mode) {
-  const state = layoutMorphState[galaxyId];
-  if (state.mode === mode) return;
-  state.mode = mode;
-  state.morphing = true;
-
-  // Store new targets
-  let list, center;
-  if (galaxyId === 'career')   { list = ERAS;          center = CAREER_OFFSET;   }
-  if (galaxyId === 'sentence') { list = PLATFORM_ERAS;  center = SENTENCE_CENTER; }
-  if (galaxyId === 'claude')   { list = CLAUDE_ERAS;    center = CLAUDE_CENTER;   }
-  if (!list) return;
-
-  list.forEach(era => {
-    layoutTargets.set(era.id, getLayoutTarget(era, mode, center).clone());
-  });
-
-  // Update toggle active state
-  const toggleEls = document.querySelectorAll('.layout-toggle[data-galaxy="' + galaxyId + '"]');
-  if (toggleEls) toggleEls.forEach(btn => {
-    btn.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-  });
-  
-  // Update line visibility for this galaxy
-  updateLineVisibility(galaxyId);
-
-  // Auto-swoop back to node-focused view when returning to spiral/orrery
-  if ((mode === 'spiral' || mode === 'orrery') && typeof focusedEra !== 'undefined' && focusedEra) {
-    if (typeof eraPreset === 'function' && typeof swoopTo === 'function') {
-      const p = eraPreset(focusedEra);
-      swoopTo(p.phi, p.theta, p.radius, p.pivot);
-      camTarget.phi = p.phi; camTarget.theta = p.theta; camTarget.radius = p.radius;
-      scenePivotTgt.copy(p.pivot);
-    }
-  }
-  // Auto-swoop camera for grid/list so all nodes fit in view
-  if ((mode === 'grid' || mode === 'list') && typeof eraPreset !== 'undefined') {
-    const galaxyCenter = center.clone();
-    const n = list.length;
-    let sweepRadius, sweepPhi, sweepTheta;
-    if (mode === 'grid') {
-      const cols = Math.ceil(Math.sqrt(n * 1.6));
-      sweepRadius = cols * 6.5;
-      sweepPhi   = Math.PI * 0.42;  // bird's eye
-      sweepTheta = Math.atan2(galaxyCenter.z, galaxyCenter.x) + Math.PI;
-    } else {
-      sweepRadius = 22;
-      sweepPhi   = Math.PI * 0.20;  // nearly equatorial — list reads left-right
-      sweepTheta = Math.atan2(galaxyCenter.z, galaxyCenter.x) + Math.PI * 0.75;
-    }
-    if (typeof swoopTo === 'function') {
-      swoopTo(sweepPhi, sweepTheta, sweepRadius, galaxyCenter);
-      camTarget.phi = sweepPhi; camTarget.theta = sweepTheta; camTarget.radius = sweepRadius;
-      scenePivotTgt.copy(galaxyCenter);
-    }
-  }
-}
-
-function tickLayoutMorph() {
-  const LERP = isMobileDevice() ? 0.12 : 0.075;
-  ['career', 'sentence', 'claude'].forEach(gid => {
-    const state = layoutMorphState[gid];
-    if (!state.morphing) return;
-
-    let list;
-    if (gid === 'career')   list = ERAS;
-    if (gid === 'sentence') list = PLATFORM_ERAS;
-    if (gid === 'claude')   list = CLAUDE_ERAS;
-    if (!list) return;
-
-    let stillMoving = false;
-    list.forEach(era => {
-      const target = layoutTargets.get(era.id);
-      if (!target) return;
-      const d = target.distanceTo(era._pos);
-      if (d > 0.01) {
-        era._pos.lerp(target, LERP);
-        stillMoving = true;
-      } else {
-        era._pos.copy(target);
-      }
-
-      const obj = nodeObjMap.get(era.id);
-      if (!obj || !obj.mesh) return;
-      obj.mesh.position.copy(era._pos);
-      if (obj.hitMesh) obj.hitMesh.position.copy(era._pos);
-      const gi = obj.gi !== undefined ? obj.gi : nodeObjects.indexOf(obj);
-      if (gi >= 0 && gi < glowSprites.length && glowSprites[gi]) glowSprites[gi].position.copy(era._pos);
-      const labelBase = gi * 2;
-      if (allLabels[labelBase] && allLabels[labelBase].spr) {
-        allLabels[labelBase].spr.position.set(era._pos.x + 0.6, era._pos.y + 0.5, era._pos.z);
-      }
-    });
-
-    if (!stillMoving) state.morphing = false;
-  });
-  // Update connection line geometries to match new node positions
-  updateConnectionGeometries();
-}
+function tickLayoutMorph() {} // no-op
+function registerConnection(line, eraA, eraB) {}
+function updateConnectionGeometries() {}
 
 // ─────────────────────────────────────────────────────────────
 // WIKI-STYLE TILTED ELLIPSE ORRERY LAYOUT
@@ -4234,7 +4045,7 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
 
     // ── Hit proxy ──────────────────────────────────────────
     const hitMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(def.size * 4, 8, 8),
+      new THREE.SphereGeometry(def.size * 6, 8, 8),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
     );
     hitMesh.position.copy(pos);
@@ -4594,8 +4405,14 @@ function updateGalaxyAlpha() {
   if (galaxyAlpha < 0.001) galaxyAlpha = 0;
   if (galaxyAlpha > 0.999) galaxyAlpha = 1;
 
-  // Close panel once as galaxy fades in past threshold
-  if (prevGa < 0.25 && galaxyAlpha >= 0.25 && isFocused) {
+  // Sync HUD button visibility with view mode
+  const hud = document.getElementById('hud');
+  if (hud) {
+    if (galaxyAlpha > 0.5) { hud.classList.add('galaxy-view'); hud.classList.remove('orrery-view'); }
+    else { hud.classList.add('orrery-view'); hud.classList.remove('galaxy-view'); }
+  }
+  // Close panel once as galaxy fades in past threshold (not while user is dragging)
+  if (prevGa < 0.25 && galaxyAlpha >= 0.25 && isFocused && !drag && !isDragging) {
     closePanel();
     isFocused = false;
     focusedEra = null;
@@ -4759,7 +4576,7 @@ function openGridView() {
   el.style.display = 'flex';
   requestAnimationFrame(() => el.classList.add('vis'));
   document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
-  document.querySelector('[data-view="grid"]').classList.add('active');
+  // grid button removed — no active state to set
   // Tap/click outside any card closes grid
   el.addEventListener('pointerdown', function handler(ev) {
     if (!ev.target.closest('.grid-card')) {
@@ -4810,8 +4627,6 @@ let morphing = false, morphT = 0;
 let galaxyMode = true;  // start in galaxy overview
 
 function switchView(view) {
-  const isMobile = window.innerWidth <= 768;
-  
   if (view === 'overview') {
     // Overview = zoom out to see all three orreries around the black hole
     // Focus on the orbital ring with a tilted-down angle for comfortable viewing
@@ -4822,52 +4637,31 @@ function switchView(view) {
     document.getElementById('msheet').classList.remove('on');
     hideSentGhost();
     resetHighlights();
-    
-    // MOBILE: Diorama/slideshow view - IKEA storefront walkthrough
-    // Desktop: Standard galaxy overview
-    const phi = isMobile ? Math.PI * 0.18 : Math.PI * 0.18;
-    const theta = isMobile ? Math.PI * 0.5 : Math.PI * 0.25;
-    const radius = isMobile ? 180 : 270;
-    
-    swoopTo(phi, theta, radius, new THREE.Vector3(0, 0, 0));
-    camTarget = { phi, theta, radius };
+    swoopTo(Math.PI * 0.18, Math.PI * 0.25, 270, new THREE.Vector3(0, 0, 0));
+    camTarget = { phi: Math.PI * 0.18, theta: Math.PI * 0.25, radius: 270 };
     scenePivotTgt.set(0, 0, 0);
     document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
-    document.querySelector('[data-view="overview"]').classList.add('active');
+    const _ovBtn = document.querySelector('[data-view="overview"]');
+  if (_ovBtn) _ovBtn.classList.add('active');
     return;
   }
 
   galaxyMode = false;
   
-  if (view === 'grid') { openGridView(); return; }
   closeGridView();
   if (view === currentView) return;
   currentView = view;
   morphing = true; morphT = 0;
   document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
-  document.querySelector(`[data-view="${view}"]`).classList.add('active');
+  const _vBtn = document.querySelector(`[data-view="${view}"]`);
+  if (_vBtn) _vBtn.classList.add('active');
   if (view === 'arc') { camTarget.phi = Math.PI * 0.06; camTarget.theta = 0; camTarget.radius = 48; }
   else { camTarget.phi = Math.PI * 0.28; camTarget.radius = 68; }
 }
 
-document.querySelectorAll('.hud-btn[data-view]').forEach(btn => btn.addEventListener('click', () => switchView(btn.dataset.view)));
-// ─── NAVIGATION ─────────────────────────────────────────
-// Show the correct galaxy layout toggle when focused
-function updateLayoutToggleBar(era) {
-  const bar = document.getElementById('layout-toggle-bar');
-  if (!bar) return;
-  document.querySelectorAll('.layout-toggle').forEach(el => el.style.display = 'none');
-  if (!era) { bar.style.display = 'none'; return; }
-  let gid;
-  if (era.id.startsWith('cc-')) gid = 'claude';
-  else if (era.id.startsWith('p-')) gid = 'sentence';
-  else if (!era.id.startsWith('m-')) gid = 'career';
-  // mode check handled by toggle button states
-  if (!gid) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  const tog = document.querySelector('.layout-toggle[data-galaxy="' + gid + '"]');
-  if (tog) tog.style.display = 'block';
-}
+
+// updateLayoutToggleBar → stub (no toggle bar)
+
 
 // Star hover detection — added before regular node raycast
 function checkStarHover(mouseVec) {
@@ -4897,38 +4691,56 @@ function handleStarClick(mouseVec) {
   const star = galaxyStars.find(s => s.mesh === hits[0].object || s.hitMesh === hits[0].object);
   if (!star) return false;
 
-  // Swoop to a view that frames the whole galaxy
-  const p = star.def.center;
-  const angle = Math.atan2(p.z, p.x);
-  const theta = angle + Math.PI * 0.55;
-  const phi   = Math.PI * 0.28;
-  const radius = 42;
-  const pivot  = p.clone();
-  swoopTo(phi, theta, radius, pivot);
-  camTarget.phi = phi; camTarget.theta = theta; camTarget.radius = radius;
-  scenePivotTgt.copy(pivot);
+  const gid = star.def.galaxyId;
 
-  // Open the galaxy title-card panel directly
-  // Build a synthetic era from the star panel data
-  if (star.panel) {
-    const syntheticEra = {
-      ...star.panel,
-      id: star.def.galaxyId + '-star',
-      _t: 0, _pos: p.clone(),
-      _spiralPos: p.clone(), _arcPos: p.clone(),
-      color: star.def.color, hex: star.def.hex || '#ffd060',
-      images: [],
-    };
-    isFocused = true; focusedEra = syntheticEra;
-    activeNodeNebulaIdx = -1;
-    setTimeout(() => {
-      openPanel(syntheticEra);
-      updateLayoutToggleBar(syntheticEra);
-      highlightConnections(syntheticEra);
-    }, 300);
-  }
+  // Single click on any galaxy star → open that galaxy's tesseract directly
+  isBlackHoleFocused = false;
+  focusedStarGalaxyId = gid;
+  openGalaxyTesseract(gid);
   return true;
 }
+
+// Clear star focus when user clicks away
+function clearStarFocus() {
+  focusedStarGalaxyId = null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PER-GALAXY TESSERACT
+// Opens a 2D grid view of just the clicked galaxy's nodes.
+// Re-uses the existing tesseract overlay + renderer.
+// ─────────────────────────────────────────────────────────────
+const GALAXY_TESSERACT_FILTERS = {
+  career:   () => ERAS,
+  sentence: () => PLATFORM_ERAS,
+  claude:   () => CLAUDE_ERAS,
+  manifesto:() => MANIFESTO_ERAS,
+};
+const GALAXY_TESSERACT_LABELS = {
+  career:   { eyebrow: 'CAREER  ·  2003 – PRESENT', title: 'Twenty Years. One Thread.', sub: 'Philadelphia  →  New York  →  Independent' },
+  sentence: { eyebrow: 'PLATFORM ECOSYSTEM', title: 'The Sentence as the Primitive.', sub: 'From wolfie.love to dab.cx' },
+  claude:   { eyebrow: 'CLAUDE CODE  ·  AI-NATIVE WORKFLOW', title: 'The Instrument Alongside the Work.', sub: 'Collaboration at the speed of thought' },
+  manifesto:{ eyebrow: 'MANIFESTO  ·  POSITIONS', title: 'The Method.', sub: 'What I believe about how things should be made' },
+};
+
+function openGalaxyTesseract(galaxyId) {
+  // Always show the full universe in the tesseract (all nodes, 3D cube)
+  // Update header to reflect which galaxy triggered the open
+  const labels = GALAXY_TESSERACT_LABELS[galaxyId] || {
+    eyebrow: 'THE UNIVERSE', title: 'Every Node. One Space.', sub: 'Drag to rotate  ·  click to focus'
+  };
+  const eyebrow = document.getElementById('tesseract-eyebrow');
+  const titleEl = document.getElementById('tesseract-title');
+  const subEl   = document.getElementById('tesseract-sub');
+  if (eyebrow) eyebrow.textContent = labels.eyebrow || 'THE UNIVERSE';
+  if (titleEl) titleEl.textContent = labels.title  || '';
+  if (subEl)   subEl.textContent   = labels.sub    || '';
+
+  // Open tesseract filtered to this galaxy only
+  window.openTesseract(galaxyId);
+}
+
+// Opens the tesseract overlay with a specific set of eras
 
 function navPrev() {
   if (!focusedEra) { focusEra(ERAS[0]); return; }
@@ -4950,12 +4762,12 @@ function navNext() {
 function toggleTheme() {
   isLight = !isLight;
   applyTheme();
-  document.getElementById('theme-toggle').textContent = isLight ? 'Dark' : 'Light';
-  const _thb = document.getElementById('theme-toggle-hud');
-  if (_thb) _thb.textContent = isLight ? 'DARK' : 'LIGHT';
+  // Sync all theme toggle buttons
   const thb = document.getElementById('theme-toggle-hud');
-  if (thb) thb.textContent = isLight ? 'DARK' : 'LIGHT';
+  // Label shows what you'll switch TO next click: in light mode → click for DRK
+  if (thb) thb.textContent = isLight ? 'DRK' : 'LGHT';
 }
+
 // Brand: tap = overview, long-press = theme toggle (mobile)
 let brandLongPressTimer = null;
 const brandEl = document.getElementById('brand');
@@ -4989,7 +4801,7 @@ brandEl.addEventListener('click', () => {
   camTarget.theta  = Math.PI * 0.08;
   camTarget.radius = 58;
 });
-document.getElementById('theme-toggle-hud').addEventListener('click', toggleTheme);
+// theme-toggle-hud wired in HUD_WIRE IIFE below
 
 // ─────────────────────────────────────────────────────────
 // PANEL
@@ -5261,22 +5073,16 @@ function eraPreset(era) {
   // theta = nodeAngle: same azimuth as node, further from center.
   // Pivot between node and center: star visible in background behind node.
   const theta = nodeAngle;
-  // MOBILE: Zoom much closer when focusing on a node for better centering
-  // The camera should be near enough that the node fills the negative space
-  const camOffset = isMobile ? 6 : 14;
+  const camOffset = isMobile ? 10 : 14;
   const radius = nodeR + camOffset;
-  // MOBILE: Steeper angle (lower phi = more top-down) to center node in view
-  const phi = isMobile ? Math.PI * 0.22 : Math.PI * 0.32;
+  const phi = isMobile ? Math.PI * 0.30 : Math.PI * 0.32;
 
-  // MOBILE: Pivot closer to the node itself (not between node and center)
-  // This ensures the node is centered in the viewport negative space
-  const pivotLerp = isMobile ? 0.85 : 0.6;
+  const pivotLerp = 0.6;
   const pivotBase = new THREE.Vector3(
     center.x + relX * pivotLerp,
     pos.y * pivotLerp,
     center.z + relZ * pivotLerp
   );
-  // MOBILE: No panel shift - center the node directly
   const panelShift  = isMobile ? 0 : -4.0;
   const screenRight = new THREE.Vector3(Math.cos(theta), 0, -Math.sin(theta));
   const pivot       = pivotBase.clone().addScaledVector(screenRight, panelShift);
@@ -5285,6 +5091,11 @@ function eraPreset(era) {
 }
 
 function focusEra(era, navDir) {
+  // Track which galaxy we last visited + sync HUD active state
+  if (era.id.startsWith('cc-')) { lastFocusedGalaxyId = 'claude';   document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-3'); if(b) b.classList.add('active'); }
+  else if (era.id.startsWith('p-')) { lastFocusedGalaxyId = 'sentence'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-2'); if(b) b.classList.add('active'); }
+  else if (era.id.startsWith('m-')) { lastFocusedGalaxyId = 'manifesto'; }
+  else { lastFocusedGalaxyId = 'career'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-1'); if(b) b.classList.add('active'); }
   closeGridView();
   galaxyMode = false;
   
@@ -5357,8 +5168,8 @@ function updateLineVisibility(focusedGalaxy) {
     return;
   }
   
-  // Get the current mode for the focused galaxy
-  const mode = layoutMorphState[focusedGalaxy]?.mode || 'spiral';
+  // Layout mode is always spiral (layout system removed)
+  const mode = 'spiral';
   
   allLines.forEach(({ line, darkOp, lightOp, galaxy }) => {
     if (!line || !line.material) return;
@@ -5421,6 +5232,8 @@ function focusBlackHole() {
 
 // Variable to track if black hole is focused
 let isBlackHoleFocused = false;
+let focusedStarGalaxyId = null;
+var lastFocusedGalaxyId = null; // tracks which galaxy star is currently the focus
 
 // Moon image ghost — disabled
 function showMoonGhost() { /* no-op */ }
@@ -5591,6 +5404,10 @@ let pointerDownX = 0, pointerDownY = 0;
 let _lastCX = 0, _lastCY = 0;
 const isMobileDevice = () => window.innerWidth <= 768;
 
+// Mobile momentum tracking
+let mobileVelX = 0, mobileVelY = 0;
+let mobileMomentumActive = false;
+
 cvs.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
   isDragging = false; drag = false;
@@ -5609,7 +5426,7 @@ cvs.addEventListener('pointermove', e => {
   if (e.buttons && e.button !== 2) {
     const dx = e.clientX - pointerDownX, dy = e.clientY - pointerDownY;
     // Higher threshold for mobile to distinguish tap from drag
-    const dragThreshold = isMobileDevice() ? 8 : 4;
+    const dragThreshold = isMobileDevice() ? 10 : 8;
     if (!drag && Math.sqrt(dx*dx + dy*dy) > dragThreshold) {
       drag = true;
       if (swoop.active) {
@@ -5629,8 +5446,8 @@ cvs.addEventListener('pointermove', e => {
       isDragging = true;
       if (isMobileDevice()) {
         // Mobile: write directly to camState AND camTarget — no lerp lag
-        // Smooth touch response with good sensitivity
-        const sens = 0.006;
+        // Higher sensitivity for better touch response
+        const sens = 0.008;
         const dTheta = -(e.clientX - lastDragX) * sens;
         const dPhi   =  (e.clientY - lastDragY) * sens;
         camState.theta  += dTheta;
@@ -5638,6 +5455,10 @@ cvs.addEventListener('pointermove', e => {
         const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
         camState.phi  = newPhi;
         camTarget.phi = newPhi;
+        
+        // Track velocity for momentum on touch end
+        mobileVelX = (e.clientX - lastDragX) * 0.5;
+        mobileVelY = (e.clientY - lastDragY) * 0.5;
       } else {
         const sensitivity = 0.005;
         camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
@@ -5656,12 +5477,35 @@ cvs.addEventListener('pointerup', e => {
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
   const dist = Math.sqrt(dx * dx + dy * dy);
-
+  
   // Store drag state before resetting - if we dragged, don't process as click
   const wasDragging = drag;
   drag = false; // always reset drag flag
 
+  // Apply momentum on mobile after drag
+  if (isMobileDevice() && wasDragging) {
+    // Only apply momentum if velocity is significant
+    if (Math.abs(mobileVelX) > 0.5 || Math.abs(mobileVelY) > 0.5) {
+      mobileMomentumActive = true;
+    }
+  }
+
   if (isMobileDevice()) {
+    // ── MOBILE: swipe-to-navigate only when focused on a node ──
+    // In galaxy view, swipe = camera orbit (handled in pointermove), not nav
+    const SWIPE_THRESHOLD = 48;
+    const AXIS_RATIO = 1.4;
+
+    if (isFocused && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
+      // Horizontal swipe → navigate nodes
+      if (dx < 0) {
+        navNext();
+      } else {
+        navPrev();
+      }
+      return;
+    }
+
     // Short tap: open panel for current focused node, or jump to tapped node
     // Only process as tap if we didn't drag significantly
     if (dist < 16 && !wasDragging) {
@@ -5783,6 +5627,9 @@ cvs.addEventListener('pointerup', e => {
         }
       }
     }
+    // Star checked before clearStarFocus — second click on star opens tesseract
+    if (handleStarClick && handleStarClick(mouse)) return;
+    clearStarFocus();
     if (handleGalaxyClick(mouse)) { if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; } return; }
     raycaster.setFromCamera(mouse, cam);
     const hits = raycaster.intersectObjects(getAllHittable());
@@ -5813,16 +5660,11 @@ cvs.addEventListener('pointerup', e => {
           if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
         }
       } else {
-        // When focused on a node, clicking outside should just close panel, not exit focus
+        // Clicking empty space in orrery view: just close panel, stay at this node
         document.getElementById('ghost').classList.remove('on');
         document.getElementById('msheet').classList.remove('on');
         hideSentGhost();
-        focusedEra = null; isFocused = false;
-        swoop.active = false;
-        activeNodeNebulaIdx = -1;
-        scenePivotTgt.copy(CAREER_OFFSET);
-        camTarget.radius = 68; camTarget.phi = Math.PI * 0.28; camTarget.theta = Math.PI * 0.1;
-        resetHighlights();
+        // Do NOT exit focus or move camera — user may be trying to drag/pan
       }
     }
   }
@@ -5857,7 +5699,12 @@ cvs.addEventListener('wheel', e => {
   const sensitivity = Math.max(0.012, camTarget.radius * 0.0018);
   camTarget.radius = Math.max(mn, Math.min(mx, camTarget.radius + e.deltaY * sensitivity));
 }, { passive: true });
-cvs.addEventListener('contextmenu', e => { e.preventDefault(); openTOC(); });
+cvs.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  // Right-click: toggle between orbit (spiral) and timeline (arc) views
+  const next = currentView === 'arc' ? 'spiral' : 'arc';
+  switchView(next);
+});
 
 let longPressTimer = null;
 let pinchDist = 0;
@@ -6191,19 +6038,16 @@ function tickMesh() {
 drawMesh(); tickMesh();
 applyTheme(); // init with default theme (light)
 
-// Mobile: start in diorama/slideshow view - IKEA storefront walkthrough style
-// Nodes array in a linear path for swipe navigation
+// Mobile: start in galaxy overview (same view as screenshot)
+// Zoomed out to see all galaxies + black hole
 if (window.innerWidth <= 768) {
   requestAnimationFrame(() => {
     galaxyMode = true;
     isFocused = false; focusedEra = null;
-    // Diorama view: positioned to see nodes arrayed like a storefront display
-    // Higher angle (lower phi) for better overview of the linear arrangement
-    const phi   = Math.PI * 0.18;
-    // Start from a position that shows the career spiral as a walkthrough path
-    const theta = Math.PI * 0.5;
-    // Closer zoom for diorama effect - not too far out
-    const radius = 180;
+    // Angle chosen to show sentence galaxy top-left + black hole center, matching screenshot
+    const phi   = Math.PI * 0.22;
+    const theta = Math.PI * 1.55;
+    const radius = 260;
     camState.phi    = phi;
     camState.theta  = theta;
     camState.radius = radius;
@@ -6292,6 +6136,25 @@ function animate(ts) {
     tickSwoop(dt);
     // Suppress auto-orbit and user drag during swoop
   } else {
+    // Mobile momentum decay
+    if (mobileMomentumActive && isMobileDevice()) {
+      const sens = 0.008;
+      camTarget.theta -= mobileVelX * sens;
+      const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + mobileVelY * sens));
+      camTarget.phi = newPhi;
+      
+      // Decay velocity
+      mobileVelX *= 0.92;
+      mobileVelY *= 0.92;
+      
+      // Stop momentum when velocity is very low
+      if (Math.abs(mobileVelX) < 0.1 && Math.abs(mobileVelY) < 0.1) {
+        mobileMomentumActive = false;
+        mobileVelX = 0;
+        mobileVelY = 0;
+      }
+    }
+    
     // On mobile during active drag: camState is already set directly in pointermove — skip lerp
     if (!isMobileDevice() || !drag) {
       const lerpK = isMobileDevice() ? 0.14 : 0.08;
@@ -6301,8 +6164,8 @@ function animate(ts) {
     }
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
-    // Auto-orbit: never run on mobile while drag is active
-    if (!isFocused && !isDragging && !drag && !orbitPaused) {
+    // Auto-orbit: never run on mobile while drag is active or momentum is running
+    if (!isFocused && !isDragging && !drag && !orbitPaused && !mobileMomentumActive) {
       // Galaxy view: slower, more cinematic orbit around the ring
       const orbitSpeed = galaxyAlpha > 0.5 ? 0.008 : 0.015;
       camTarget.theta += dt * orbitSpeed;
@@ -6378,6 +6241,47 @@ function animate(ts) {
       });
     }
   };
+})();
+
+// ─── HUD WIRING ─────────────────────────────────────────────
+// Sol 1/2/3 → jump to that galaxy's first node
+(function() {
+  const SOL_MAP = {
+    'hud-sol-1': { list: () => ERAS,          galaxyId: 'career'   },
+    'hud-sol-2': { list: () => PLATFORM_ERAS,  galaxyId: 'sentence' },
+    'hud-sol-3': { list: () => CLAUDE_ERAS,    galaxyId: 'claude'   },
+  };
+  Object.entries(SOL_MAP).forEach(([id, cfg]) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      galaxyMode = false;
+      const list = cfg.list();
+      if (list && list[0]) focusEra(list[0]);
+      document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  // Galaxy overview button
+  const galaxyBtn = document.getElementById('hud-galaxy');
+  if (galaxyBtn) galaxyBtn.addEventListener('click', () => {
+    switchView('overview');
+    document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
+    galaxyBtn.classList.add('active');
+  });
+
+  // Theme toggle: LGHT → switch to light (label becomes DRK), DRK → back to dark
+  const themeBtn = document.getElementById('theme-toggle-hud');
+  function syncThemeBtn() {
+    if (!themeBtn) return;
+    themeBtn.textContent = isLight ? 'DRK' : 'LGHT';
+  }
+  if (themeBtn) themeBtn.addEventListener('click', () => { toggleTheme(); syncThemeBtn(); });
+  window._syncThemeHUD = syncThemeBtn;
+
+  // Right-click on canvas: toggle spiral ↔ timeline
+  // (already handled in contextmenu listener)
 })();
 
 requestAnimationFrame(animate);
@@ -6489,7 +6393,7 @@ let tesseractDrag = false, tesseractLastX = 0, tesseractLastY = 0;
 let tesseractHovered = null;
 const tesseractNodeObjs = [];  // { mesh, hitMesh, era, galaxy }
 
-function buildTesseractScene() {
+function buildTesseractScene(galaxyFilter) {
   const cvs = document.getElementById('tesseract-canvas');
   cvs.width  = window.innerWidth;
   cvs.height = window.innerHeight;
@@ -6510,13 +6414,14 @@ function buildTesseractScene() {
   const pl2 = new THREE.PointLight(0x4466ff, 6, 180); pl2.position.set(30, -20, -10); tesseractScene.add(pl2);
   const pl3 = new THREE.PointLight(0xff8833, 5, 160); pl3.position.set(0, 0, 40); tesseractScene.add(pl3);
 
-  // Gather all eras with galaxy tag
-  const allNodes = [
+  // Gather eras — filtered by galaxy if specified
+  const _allNodes = [
     ...ERAS.map(e          => ({ era: e, galaxy: 'career'   })),
     ...PLATFORM_ERAS.map(e => ({ era: e, galaxy: 'sentence' })),
     ...CLAUDE_ERAS.map(e   => ({ era: e, galaxy: 'claude'   })),
     ...MANIFESTO_ERAS.map(e=> ({ era: e, galaxy: 'manifesto'})),
   ];
+  const allNodes = galaxyFilter ? _allNodes.filter(n => n.galaxy === galaxyFilter) : _allNodes;
 
   const GALAXY_COLORS = {
     career:   0xdaa520,
@@ -6695,8 +6600,11 @@ function buildTesseractScene() {
   tesseractScene.add(axLine);
 
   // Update count display
+  const systemLabel = galaxyFilter
+    ? sorted.length + ' nodes  ·  ' + (galaxyFilter === 'career' ? 'Career' : galaxyFilter === 'sentence' ? 'Sentence Primitive' : galaxyFilter === 'claude' ? 'Claude Code' : 'Manifesto')
+    : sorted.length + ' nodes  ·  4 systems';
   document.getElementById('tesseract-count').textContent =
-    sorted.length + ' nodes  ·  4 galaxies  ·  drag to rotate  ·  click to focus';
+    systemLabel + '  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
 
 
   // ── Interstellar / Shopify grid room ──────────────────────
@@ -6895,7 +6803,7 @@ function animateTesseract(ts) {
     tesseractRenderer.render(tesseractScene, tesseractCam);
 }
 
-window.openTesseract = function() {
+window.openTesseract = function(galaxyFilter) {
   if (tesseractOpen) return;
   tesseractOpen = true;
 
@@ -6903,16 +6811,12 @@ window.openTesseract = function() {
   overlay.style.display = 'block';
   requestAnimationFrame(() => overlay.classList.add('on'));
 
-  if (!tesseractRenderer) {
-    buildTesseractScene();
-  } else {
-    // Resize canvas if window changed
-    const cvs = document.getElementById('tesseract-canvas');
-    cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-    tesseractRenderer.setSize(window.innerWidth, window.innerHeight);
-    tesseractCam.aspect = window.innerWidth / window.innerHeight;
-    tesseractCam.updateProjectionMatrix();
+  // Always rebuild scene with correct filter
+  if (tesseractRenderer) {
+    tesseractRenderer.dispose();
+    tesseractRenderer = null;
   }
+  buildTesseractScene(galaxyFilter || null);
 
   tesseractAutoTheta = tesseractTheta;
   tesseractLastTS = performance.now();
@@ -7108,41 +7012,6 @@ applyTesseractCam = function() {
   <button class="hud-btn ss-btn" data-ss="independent">INDEPENDENT</button>
 </div>
 
-<!-- ═══ GALAXY LAYOUT TOGGLE ═══ -->
-<!-- ═══ GALAXY LAYOUT TOGGLE — 4 modes per galaxy ═══ -->
-<div id="layout-toggle-bar" style="
-  position:fixed; bottom:72px; right:28px; z-index:100;
-  display:none; flex-direction:column; gap:4px;
-  align-items:flex-end;
-">
-  <div class="layout-toggle" data-galaxy="career" style="display:none">
-    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:3px;text-align:right">Career</div>
-    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(218,165,32,0.14);border-radius:4px;overflow:hidden">
-      <button class="hud-btn active" data-mode="spiral" onclick="setGalaxyLayoutMode('career','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('career','orrery')">ORBIT</button>
-      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('career','grid')">GRID</button>
-      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('career','list')">LIST</button>
-    </div>
-  </div>
-  <div class="layout-toggle" data-galaxy="sentence" style="display:none">
-    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,224,102,0.38);margin-bottom:3px;text-align:right">Sentence Primitive</div>
-    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(255,224,102,0.14);border-radius:4px;overflow:hidden">
-      <button class="hud-btn active" data-mode="spiral"  onclick="setGalaxyLayoutMode('sentence','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('sentence','orrery')">ORBIT</button>
-      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('sentence','grid')">GRID</button>
-      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('sentence','list')">LIST</button>
-    </div>
-  </div>
-  <div class="layout-toggle" data-galaxy="claude" style="display:none">
-    <div style="font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(102,153,255,0.38);margin-bottom:3px;text-align:right">Claude Code</div>
-    <div style="display:flex;gap:1px;background:rgba(5,3,10,0.92);border:1px solid rgba(102,153,255,0.14);border-radius:4px;overflow:hidden">
-      <button class="hud-btn active" data-mode="spiral"  onclick="setGalaxyLayoutMode('claude','spiral')">SPIRAL</button>
-      <button class="hud-btn" data-mode="orrery" onclick="setGalaxyLayoutMode('claude','orrery')">ORBIT</button>
-      <button class="hud-btn" data-mode="grid"   onclick="setGalaxyLayoutMode('claude','grid')">GRID</button>
-      <button class="hud-btn" data-mode="list"   onclick="setGalaxyLayoutMode('claude','list')">LIST</button>
-    </div>
-  </div>
-</div>
 
 <!-- ═══ CASE STUDY PANEL ═══ -->
 <div id="cs-panel">
@@ -7196,17 +7065,16 @@ function mobileZoom(dir) {
 function mobileFit() {
   if (typeof camTarget === 'undefined') return;
   if (typeof isFocused !== 'undefined' && isFocused && typeof focusedEra !== 'undefined' && focusedEra) {
-    // Re-frame on focused era with closer zoom for diorama effect
+    // Re-frame on focused era
     if (typeof eraPreset === 'function') {
       const preset = eraPreset(focusedEra);
       if (typeof swoopTo === 'function') swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
       camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
     }
   } else {
-    // Fit to diorama/slideshow overview - IKEA storefront view
-    // Positioned to see the career path as a walkthrough display
-    if (typeof swoopTo === 'function') swoopTo(Math.PI*0.18, Math.PI*0.5, 180, {x:0,y:0,z:0});
-    camTarget.phi = Math.PI*0.18; camTarget.theta = Math.PI*0.5; camTarget.radius = 180;
+    // Fit to galaxy overview
+    if (typeof swoopTo === 'function') swoopTo(Math.PI*0.22, Math.PI*1.55, 260, {x:0,y:0,z:0});
+    camTarget.phi = Math.PI*0.22; camTarget.theta = Math.PI*1.55; camTarget.radius = 260;
     if (typeof scenePivotTgt !== 'undefined') scenePivotTgt.set(0,0,0);
   }
 }
