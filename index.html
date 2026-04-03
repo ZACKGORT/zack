@@ -911,6 +911,44 @@ body.light #mf-close:hover{color:#000;}
   pointer-events:none;
 }
 
+/* ── MOBILE ZOOM RAIL ── */
+#mobile-zoom-rail {
+  display: none;
+  position: fixed;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+}
+@media(max-width:768px) {
+  #mobile-zoom-rail { display: flex; }
+}
+.mzr-btn {
+  width: 36px; height: 36px;
+  background: rgba(5,3,10,0.82);
+  border: 1px solid rgba(218,165,32,0.20);
+  border-radius: 4px;
+  color: rgba(218,165,32,0.65);
+  font-family: 'DM Mono', monospace;
+  font-size: 16px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  backdrop-filter: blur(10px);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  user-select: none; -webkit-user-select: none;
+}
+.mzr-btn:active { color: #daa520; background: rgba(218,165,32,0.12); border-color: rgba(218,165,32,0.50); }
+.mzr-sep { width: 1px; height: 10px; background: rgba(218,165,32,0.12); }
+.mzr-fit-icon { font-size: 11px; letter-spacing: 0; }
+body.light #mobile-zoom-rail .mzr-btn {
+  background: rgba(255,255,255,0.90); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.55);
+}
+
 /* ── CUSTOM ELLIPTICAL CURSOR ── */
 html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
 .cs-nav-btn, .gcclose, .gcnav-btn, .gcexpand, .toc-row, .grid-card,
@@ -932,6 +970,14 @@ html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
   <ellipse id="ci-ellipse" cx="0" cy="0" rx="7" ry="4"
     fill="rgba(218,165,32,0.15)" stroke="rgba(218,165,32,0.95)" stroke-width="1"/>
 </svg>
+
+<!-- MOBILE ZOOM RAIL -->
+<div id="mobile-zoom-rail">
+  <button class="mzr-btn" id="mzr-in"  ontouchend="mobileZoom(-1)" onclick="mobileZoom(-1)">+</button>
+  <button class="mzr-btn" id="mzr-out" ontouchend="mobileZoom(1)"  onclick="mobileZoom(1)">−</button>
+  <div class="mzr-sep"></div>
+  <button class="mzr-btn" id="mzr-fit" ontouchend="mobileFit()" onclick="mobileFit()"><span class="mzr-fit-icon">⊙</span></button>
+</div>
 <canvas id="bg-mesh"></canvas>
 <canvas id="canvas"></canvas>
 
@@ -5222,7 +5268,7 @@ cvs.addEventListener('pointermove', e => {
     }
     if (drag) {
       isDragging = true;
-      const sensitivity = isMobileDevice() ? 0.004 : 0.005;
+      const sensitivity = isMobileDevice() ? 0.012 : 0.005;
       camTarget.theta -= (e.clientX - lastDragX) * sensitivity;
       camTarget.phi = Math.max(0.04, Math.min(Math.PI * 0.48, camTarget.phi + (e.clientY - lastDragY) * sensitivity));
     }
@@ -5753,23 +5799,27 @@ function tickMesh() {
 drawMesh(); tickMesh();
 applyTheme(); // init with default theme (light)
 
-// Mobile: position camera at first node preset without opening the panel
-// This gives a "pseudo-focused" state — node is framed, panel is closed
+// Mobile: start in galaxy overview (same view as screenshot)
+// Zoomed out to see all galaxies + black hole
 if (window.innerWidth <= 768) {
   requestAnimationFrame(() => {
-    const era = ERAS[0];
-    const preset = eraPreset(era);
-    isFocused = true;
-    focusedEra = era;
-    activeNodeNebulaIdx = 0;
-    scenePivotTgt.copy(preset.pivot);
-    swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-    camTarget.phi    = preset.phi;
-    camTarget.theta  = preset.theta;
-    camTarget.radius = preset.radius;
-    highlightConnections(era);
-    document.getElementById('era-year').textContent = era.year;
-    document.getElementById('era-name').textContent = era.era;
+    galaxyMode = true;
+    isFocused = false; focusedEra = null;
+    // Angle chosen to show sentence galaxy top-left + black hole center, matching screenshot
+    const phi   = Math.PI * 0.22;
+    const theta = Math.PI * 1.55;
+    const radius = 260;
+    camState.phi    = phi;
+    camState.theta  = theta;
+    camState.radius = radius;
+    camTarget.phi   = phi;
+    camTarget.theta = theta;
+    camTarget.radius= radius;
+    scenePivot.set(0,0,0);
+    scenePivotTgt.set(0,0,0);
+    document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
+    const overviewBtn = document.querySelector('[data-view="overview"]');
+    if (overviewBtn) overviewBtn.classList.add('active');
   });
 }
 
@@ -5845,9 +5895,10 @@ function animate(ts) {
     tickSwoop(dt);
     // Suppress auto-orbit and user drag during swoop
   } else {
-    camState.phi   += (camTarget.phi   - camState.phi)   * 0.08;
-    camState.theta += (camTarget.theta - camState.theta) * 0.08;
-    camState.radius+= (camTarget.radius- camState.radius)* 0.08;
+    const lerpK = isMobileDevice() ? 0.14 : 0.08;
+    camState.phi   += (camTarget.phi   - camState.phi)   * lerpK;
+    camState.theta += (camTarget.theta - camState.theta) * lerpK;
+    camState.radius+= (camTarget.radius- camState.radius)* lerpK;
     const pivotLerpSpeed = isFocused ? 0.22 : 0.08;
     scenePivot.lerp(scenePivotTgt, pivotLerpSpeed);
     if (!isFocused && !isDragging && !orbitPaused) {
@@ -6649,6 +6700,34 @@ applyTesseractCam = function() {
 </div>
 
 <script>
+// ── MOBILE ZOOM RAIL ─────────────────────────────────────
+function mobileZoom(dir) {
+  // dir: -1 = zoom in, +1 = zoom out
+  if (typeof camTarget === 'undefined') return;
+  const step = camTarget.radius * 0.22;
+  const mn = typeof ORRERY_RADIUS_MIN !== 'undefined' ? ORRERY_RADIUS_MIN : 1;
+  const mx = 340;
+  camTarget.radius = Math.max(mn, Math.min(mx, camTarget.radius + dir * step));
+  if (typeof lockPivotToFocus === 'function') lockPivotToFocus();
+}
+
+function mobileFit() {
+  if (typeof camTarget === 'undefined') return;
+  if (typeof isFocused !== 'undefined' && isFocused && typeof focusedEra !== 'undefined' && focusedEra) {
+    // Re-frame on focused era
+    if (typeof eraPreset === 'function') {
+      const preset = eraPreset(focusedEra);
+      if (typeof swoopTo === 'function') swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
+      camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
+    }
+  } else {
+    // Fit to galaxy overview
+    if (typeof swoopTo === 'function') swoopTo(Math.PI*0.22, Math.PI*1.55, 260, {x:0,y:0,z:0});
+    camTarget.phi = Math.PI*0.22; camTarget.theta = Math.PI*1.55; camTarget.radius = 260;
+    if (typeof scenePivotTgt !== 'undefined') scenePivotTgt.set(0,0,0);
+  }
+}
+
 // ── CUSTOM ELLIPTICAL CURSOR ─────────────────────────────
 (function() {
   var outerEl = document.getElementById('cursor-outer');
