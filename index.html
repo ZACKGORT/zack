@@ -14,6 +14,20 @@ html,body{width:100%;height:100%;overflow:hidden;background:#05030a;transition:b
 body.light{background:#ffffff;}
 canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-action:none;}
 #bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;}
+/* Suppress browser PDF plugin overlay (Acrobat etc.) */
+embed[type="application/pdf"],
+object[type="application/pdf"],
+embed:not([src]),
+.nppdf, #plugin-container, [id*="acrobat"], [class*="acrobat"],
+embed, object { display:none!important; visibility:hidden!important; pointer-events:none!important; }
+/* When explorer layer is active — suppress conflicting fixed elements */
+body.explorer-active #flight-launchpad,
+body.explorer-active #mission-hud,
+body.explorer-active #flight-fab {
+  opacity:0!important; pointer-events:none!important; transition:opacity 0.3s!important;
+}
+body.explorer-active #hud { opacity:0.18; pointer-events:none; transition:opacity 0.3s; }
+body.explorer-active #brand { opacity:0.18; pointer-events:none; transition:opacity 0.3s; }
 
 #brand{position:fixed;top:20px;left:24px;z-index:100;font-family:'DM Mono',monospace;cursor:pointer;}
 #brand-logo{display:flex;align-items:center;gap:10px;position:relative;}
@@ -1634,6 +1648,500 @@ body.light .mhud-nav-btn { color:rgba(0,0,0,0.45); }
 body.light .mhud-nav-btn:hover:not(:disabled) { color:#000; background:rgba(0,0,0,0.05); }
 body.light #mhud-close { color:rgba(0,0,0,0.30); }
 body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
+
+/* ══════════════════════════════════════════════════════
+   EXPLORER LAYER
+══════════════════════════════════════════════════════ */
+#explorer-layer {
+  position:fixed; inset:0; z-index:900;
+  pointer-events:none; opacity:0;
+  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1);
+  background:rgba(2,1,10,0);
+}
+#explorer-layer.active {
+  pointer-events:all; opacity:1;
+  background:rgba(2,1,10,0.97);
+  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),
+             background 0.55s cubic-bezier(0.22,1,0.36,1);
+}
+
+/* ── Vignette ring ── */
+#expl-vignette {
+  position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,
+    transparent 0%, rgba(218,165,32,0.03) 55%,
+    rgba(218,165,32,0.07) 80%, rgba(2,1,10,0.60) 100%);
+  opacity:0; transition:opacity 0.6s 0.2s;
+}
+#explorer-layer.active #expl-vignette { opacity:1; }
+
+/* ── Focused planet (State 1) ── */
+#expl-planet-wrap {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%) scale(0.3);
+  opacity:0; pointer-events:none;
+  transition:transform 0.7s cubic-bezier(0.22,1,0.36,1),
+             opacity 0.5s cubic-bezier(0.22,1,0.36,1);
+  display:flex; flex-direction:column; align-items:center; gap:24px;
+  z-index:2;
+}
+#explorer-layer.planet-focus #expl-planet-wrap {
+  transform:translate(-50%,-50%) scale(1);
+  opacity:1; pointer-events:all;
+}
+#explorer-layer.tess-open #expl-planet-wrap,
+#explorer-layer.sphere-open #expl-planet-wrap {
+  transform:translate(-50%,-50%) scale(0.15) translateY(-180%);
+  opacity:0; pointer-events:none;
+}
+#expl-saturn-canvas {
+  width:220px; height:220px; border-radius:50%;
+  cursor:pointer; display:block;
+  filter:drop-shadow(0 0 40px rgba(218,165,32,0.22));
+  transition:filter 0.3s;
+}
+#expl-saturn-canvas:hover {
+  filter:drop-shadow(0 0 60px rgba(218,165,32,0.40));
+}
+#expl-planet-hint {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.26em;
+  text-transform:uppercase; color:rgba(218,165,32,0.28);
+  text-align:center; animation:hint-pulse 3s ease-in-out infinite;
+}
+@keyframes hint-pulse {
+  0%,100% { opacity:0.28; } 50% { opacity:0.65; }
+}
+
+/* ── Constellation / Tesseract view (State 2) ── */
+#expl-tesseract {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:flex-start; gap:0;
+  opacity:0; pointer-events:none;
+  transform:scale(0.97) translateY(8px);
+  transition:opacity 0.5s cubic-bezier(0.22,1,0.36,1),
+             transform 0.5s cubic-bezier(0.22,1,0.36,1);
+  padding:20px 24px 0;
+  overflow:hidden;
+}
+#explorer-layer.tess-open #expl-tesseract {
+  opacity:1; pointer-events:all;
+  transform:none;
+}
+#expl-tess-header {
+  text-align:center; margin-bottom:10px; flex-shrink:0;
+}
+#expl-tess-eyebrow {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
+  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-bottom:5px;
+}
+#expl-tess-title {
+  font-family:'Crimson Text',serif; font-size:clamp(20px,3vw,32px);
+  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1; margin-bottom:4px;
+}
+#expl-tess-sub {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(218,165,32,0.20);
+}
+#expl-constellation-wrap {
+  width:100%; max-width:960px; flex:1; min-height:0; position:relative;
+  margin:0 auto;
+}
+#expl-constellation {
+  width:100%; height:100%; min-height:240px;
+  display:block;
+}
+/* Constellation SVG styles */
+.expl-conn-path {
+  fill:none; stroke:rgba(218,165,32,0.12);
+  stroke-width:1; stroke-dasharray:4 6;
+  transition:stroke 0.3s, stroke-width 0.3s;
+}
+.expl-conn-path.active {
+  stroke:rgba(218,165,32,0.50); stroke-width:1.5; stroke-dasharray:none;
+}
+.expl-node-group { cursor:pointer; }
+.expl-node-group:hover .expl-node-ring { r:10; opacity:0.35; }
+.expl-node-dot {
+  transition:r 0.25s, fill 0.25s;
+}
+.expl-node-ring {
+  fill:none; stroke:rgba(218,165,32,0.25);
+  stroke-width:0.8; transition:all 0.3s;
+}
+.expl-node-label {
+  font-family:'DM Mono',monospace; font-size:6px;
+  letter-spacing:0.14em; text-transform:uppercase;
+  fill:rgba(218,165,32,0.35); pointer-events:none;
+  transition:fill 0.25s;
+}
+.expl-node-group.active .expl-node-dot { r:6; fill:#daa520; }
+.expl-node-group.active .expl-node-label { fill:rgba(218,165,32,0.75); }
+.expl-node-group.active .expl-node-ring { stroke:rgba(218,165,32,0.50); }
+
+/* ── Upload JD CTA (spans all cards) ── */
+#expl-upload-cta {
+  width:100%; max-width:960px; margin:8px auto 0;
+  flex-shrink:0;
+}
+#expl-upload-cta-btn {
+  width:100%; background:none;
+  border:1px solid rgba(218,165,32,0.20);
+  border-bottom:2px solid rgba(218,165,32,0.28);
+  color:rgba(218,165,32,0.55);
+  padding:11px 24px;
+  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.26em;
+  text-transform:uppercase; border-radius:3px; cursor:pointer;
+  transition:all 0.22s;
+  display:flex; align-items:center; justify-content:center; gap:12px;
+}
+#expl-upload-cta-btn:hover {
+  color:#f5ecd5;
+  border-color:rgba(218,165,32,0.55);
+  border-bottom-color:rgba(218,165,32,0.75);
+  background:rgba(218,165,32,0.05);
+}
+#expl-upload-cta-btn .cta-label { flex:1; text-align:center; }
+#expl-upload-cta-btn .cta-hint {
+  font-size:6px; letter-spacing:0.18em;
+  color:rgba(218,165,32,0.25); font-style:italic;
+}
+
+/* ── Archetype cards ── */
+#expl-archetype-cards {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px; width:100%; max-width:960px;
+  flex-shrink:0; margin:6px auto 0;
+  padding-bottom:72px;
+}
+@media(max-width:700px) {
+  #expl-archetype-cards { grid-template-columns:repeat(2,1fr); gap:5px; padding-bottom:90px; }
+}
+.expl-arch-card {
+  display:flex; align-items:center; gap:10px;
+  background:rgba(218,165,32,0.03);
+  border:1px solid rgba(218,165,32,0.12);
+  border-radius:4px; padding:12px 14px;
+  cursor:pointer; transition:all 0.20s;
+  position:relative; overflow:hidden;
+}
+.expl-arch-card:hover {
+  background:rgba(218,165,32,0.08);
+  border-color:rgba(218,165,32,0.40);
+}
+.expl-arch-card.selected {
+  background:rgba(218,165,32,0.12);
+  border-color:rgba(218,165,32,0.65);
+}
+.expl-arch-emoji { font-size:20px; flex-shrink:0; }
+.expl-arch-info { flex:1; min-width:0; }
+.expl-arch-name {
+  font-family:'Crimson Text',serif; font-size:15px;
+  color:#f5ecd5; line-height:1.2; margin-bottom:2px;
+}
+.expl-arch-tags {
+  font-family:'DM Mono',monospace; font-size:6px;
+  letter-spacing:0.12em; text-transform:uppercase;
+  color:rgba(218,165,32,0.30); line-height:1.5;
+}
+.expl-arch-arrow {
+  font-family:'DM Mono',monospace; font-size:14px;
+  color:rgba(218,165,32,0.25); flex-shrink:0;
+  transition:color 0.18s, transform 0.18s;
+}
+.expl-arch-card:hover .expl-arch-arrow {
+  color:rgba(218,165,32,0.75); transform:translateX(3px);
+}
+
+#expl-tess-close {
+  position:absolute; top:20px; right:20px;
+  background:none; border:1px solid rgba(218,165,32,0.16);
+  color:rgba(218,165,32,0.32); width:28px; height:28px;
+  border-radius:2px; cursor:pointer; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Mono',monospace; transition:all 0.18s;
+}
+#expl-tess-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
+
+/* ── Journey HUD (active path) ── */
+#expl-journey-hud {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  z-index:960; display:none; align-items:center; gap:0;
+  background:rgba(5,3,10,0.97);
+  border:1px solid rgba(218,165,32,0.22);
+  border-top:2px solid rgba(218,165,32,0.35);
+  border-radius:5px; overflow:hidden;
+  backdrop-filter:blur(20px);
+  box-shadow:0 -2px 40px rgba(218,165,32,0.06), 0 4px 28px rgba(0,0,0,0.90);
+  opacity:0; transition:opacity 0.35s, transform 0.35s cubic-bezier(0.22,1,0.36,1);
+  min-width:0; max-width:min(540px,calc(100vw - 32px));
+  pointer-events:none;
+  transform:translateX(-50%) translateY(8px);
+}
+#expl-journey-hud.vis {
+  opacity:1; pointer-events:all;
+  transform:translateX(-50%) translateY(0);
+}
+#expl-jhud-accent { width:3px; flex-shrink:0; align-self:stretch; background:#daa520; }
+#expl-jhud-body { display:flex; align-items:center; gap:0; flex:1; min-width:0; }
+#expl-jhud-info { padding:9px 14px; flex:1; min-width:0; }
+#expl-jhud-eyebrow {
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.26em;
+  text-transform:uppercase; color:rgba(218,165,32,0.32); margin-bottom:3px;
+}
+#expl-jhud-title {
+  font-family:'Crimson Text',serif; font-size:15px;
+  color:#f5ecd5; line-height:1.2;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#expl-jhud-why {
+  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.05em;
+  color:rgba(218,165,32,0.35); line-height:1.5; margin-top:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+#expl-jhud-pips {
+  display:flex; align-items:center; gap:4px; padding:0 10px 0 0; flex-shrink:0;
+}
+.expl-jhud-pip {
+  width:4px; height:4px; border-radius:50%;
+  background:rgba(218,165,32,0.18); transition:all 0.25s;
+}
+.expl-jhud-pip.done { background:rgba(218,165,32,0.45); }
+.expl-jhud-pip.active { width:7px; height:7px; background:#daa520; }
+#expl-jhud-nav { display:flex; border-left:1px solid rgba(218,165,32,0.10); }
+.expl-jhud-nav-btn {
+  background:none; border:none; cursor:pointer;
+  color:rgba(218,165,32,0.38); padding:0 13px;
+  font-family:'DM Mono',monospace; font-size:13px; align-self:stretch;
+  display:flex; align-items:center; transition:color 0.15s, background 0.15s;
+  border-right:1px solid rgba(218,165,32,0.08);
+}
+.expl-jhud-nav-btn:last-child { border-right:none; }
+.expl-jhud-nav-btn:hover:not(:disabled) { color:#f5ecd5; background:rgba(218,165,32,0.08); }
+.expl-jhud-nav-btn:disabled { opacity:0.18; cursor:default; }
+#expl-jhud-close {
+  background:none; border:none; border-left:1px solid rgba(218,165,32,0.10);
+  color:rgba(218,165,32,0.28); padding:0 12px; cursor:pointer;
+  font-size:11px; align-self:stretch; display:flex; align-items:center;
+  font-family:'DM Mono',monospace; transition:color 0.15s;
+}
+#expl-jhud-close:hover { color:rgba(218,165,32,0.75); }
+
+/* ── Sphere environment (scroll-in JD) ── */
+#expl-sphere {
+  position:absolute; inset:0; display:flex;
+  align-items:center; justify-content:center;
+  opacity:0; pointer-events:none;
+  transform:scale(1.04);
+  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),
+             transform 0.55s cubic-bezier(0.22,1,0.36,1);
+  overflow:hidden;
+}
+#explorer-layer.sphere-open #expl-sphere {
+  opacity:1; pointer-events:all; transform:none;
+}
+#expl-sphere-bg {
+  position:absolute; inset:0;
+  background:
+    radial-gradient(ellipse 120% 120% at 50% 50%,
+      rgba(218,165,32,0.04) 0%,
+      rgba(218,165,32,0.01) 50%,
+      rgba(2,1,10,0.0) 100%);
+  animation:sphere-breathe 6s ease-in-out infinite;
+}
+@keyframes sphere-breathe {
+  0%,100% { opacity:0.6; transform:scale(1); }
+  50% { opacity:1; transform:scale(1.05); }
+}
+/* Sphere dome rings */
+#expl-sphere-bg::before {
+  content:'';
+  position:absolute; inset:-20%;
+  border-radius:50%;
+  border:1px solid rgba(218,165,32,0.06);
+  box-shadow:
+    0 0 0 60px rgba(218,165,32,0.025),
+    0 0 0 120px rgba(218,165,32,0.015),
+    0 0 0 200px rgba(218,165,32,0.008);
+}
+#expl-sphere-inner {
+  width:min(580px,92vw); position:relative; z-index:1;
+  animation:expl-rise 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+@keyframes expl-rise {
+  from { opacity:0; transform:translateY(18px) scale(0.97); }
+  to   { opacity:1; transform:none; }
+}
+#expl-sphere-header { margin-bottom:26px; position:relative; }
+#expl-sphere-eyebrow {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
+  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-bottom:8px;
+}
+#expl-sphere-title {
+  font-family:'Crimson Text',serif; font-size:clamp(24px,4vw,38px);
+  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1;
+}
+#expl-sphere-sub {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(218,165,32,0.22); margin-top:7px;
+}
+#expl-sphere-close {
+  position:absolute; top:0; right:0;
+  background:none; border:1px solid rgba(218,165,32,0.16);
+  color:rgba(218,165,32,0.32); width:28px; height:28px;
+  border-radius:2px; cursor:pointer; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Mono',monospace; transition:all 0.18s;
+}
+#expl-sphere-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
+#expl-sphere-dropzone {
+  position:relative; border:1px solid rgba(218,165,32,0.14);
+  border-radius:4px; overflow:hidden; transition:border-color 0.20s;
+  background:rgba(218,165,32,0.02);
+}
+#expl-sphere-dropzone.drag-over {
+  border-color:rgba(218,165,32,0.50); background:rgba(218,165,32,0.05);
+}
+#expl-jd-input {
+  width:100%; min-height:180px; max-height:260px;
+  background:none; border:none; outline:none; resize:none;
+  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:0.08em;
+  line-height:1.8; color:rgba(218,165,32,0.70); padding:18px 20px;
+  overflow-y:auto; scrollbar-width:thin;
+  scrollbar-color:rgba(218,165,32,0.15) transparent;
+}
+#expl-jd-input::placeholder { color:rgba(218,165,32,0.20); }
+#expl-sphere-drop-hint {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:8px;
+  pointer-events:none; opacity:1; transition:opacity 0.20s;
+}
+#expl-sphere-dropzone.has-text #expl-sphere-drop-hint { opacity:0; }
+#expl-sphere-drop-icon { font-size:22px; opacity:0.35; }
+#expl-sphere-drop-label {
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.22em;
+  text-transform:uppercase; color:rgba(218,165,32,0.22); text-align:center;
+}
+#expl-sphere-actions {
+  display:flex; align-items:center; justify-content:space-between; margin-top:10px;
+}
+#expl-char-count {
+  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(218,165,32,0.18);
+}
+#expl-launch-btn {
+  background:none; border:1px solid rgba(218,165,32,0.24);
+  color:rgba(218,165,32,0.55); padding:9px 24px;
+  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.22em;
+  text-transform:uppercase; border-radius:2px; cursor:pointer;
+  transition:all 0.20s; display:flex; align-items:center; gap:8px;
+}
+#expl-launch-btn:hover:not(:disabled) {
+  color:#f5ecd5; border-color:rgba(218,165,32,0.65); background:rgba(218,165,32,0.08);
+}
+#expl-launch-btn:disabled { opacity:0.25; cursor:default; }
+#expl-sphere-footer {
+  margin-top:14px; text-align:center;
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(218,165,32,0.12);
+}
+
+/* ── CTA Overlay ── */
+#expl-cta-overlay {
+  position:absolute; inset:0; display:flex;
+  align-items:center; justify-content:center;
+  background:rgba(2,1,10,0.92); backdrop-filter:blur(24px);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.45s;
+  z-index:10;
+}
+#expl-cta-overlay.vis { opacity:1; pointer-events:all; }
+/* Escape hatch — always visible top-right */
+#expl-cta-overlay-close {
+  position:absolute; top:20px; right:20px;
+  background:none; border:1px solid rgba(218,165,32,0.16);
+  color:rgba(218,165,32,0.32); width:28px; height:28px;
+  border-radius:2px; cursor:pointer; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'DM Mono',monospace; transition:all 0.18s;
+}
+#expl-cta-overlay-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
+#expl-cta-inner {
+  text-align:center; display:flex; flex-direction:column;
+  align-items:center; gap:18px; max-width:480px; padding:0 20px;
+  animation:expl-rise 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+#expl-cta-vessel { font-size:52px; }
+#expl-cta-title {
+  font-family:'Crimson Text',serif; font-size:clamp(24px,4vw,40px);
+  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1;
+}
+#expl-cta-sub {
+  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.35); line-height:1.8;
+}
+#expl-cta-link {
+  display:inline-flex; align-items:center; gap:8px;
+  background:none; border:1px solid rgba(218,165,32,0.40);
+  color:rgba(218,165,32,0.80); padding:13px 32px;
+  font-family:'DM Mono',monospace; font-size:8.5px; letter-spacing:0.26em;
+  text-transform:uppercase; border-radius:2px; cursor:pointer;
+  transition:all 0.22s; text-decoration:none;
+}
+#expl-cta-link:hover {
+  color:#f5ecd5; border-color:rgba(218,165,32,0.80);
+  background:rgba(218,165,32,0.10);
+}
+#expl-cta-link span { transition:transform 0.18s; }
+#expl-cta-link:hover span { transform:translateX(4px); }
+#expl-cta-close {
+  background:none; border:none; cursor:pointer;
+  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.22);
+  transition:color 0.18s; padding:4px 0;
+}
+#expl-cta-close:hover { color:rgba(218,165,32,0.55); }
+
+/* ── Mission Report Toast ── */
+#expl-mission-report {
+  position:absolute; bottom:32px; left:50%;
+  transform:translateX(-50%) translateY(120%);
+  z-index:12; width:min(400px,90vw);
+  background:rgba(5,3,10,0.97);
+  border:1px solid rgba(218,165,32,0.22);
+  border-radius:5px; backdrop-filter:blur(20px);
+  box-shadow:0 4px 32px rgba(0,0,0,0.80);
+  opacity:0; pointer-events:none;
+  transition:opacity 0.4s, transform 0.4s cubic-bezier(0.22,1,0.36,1);
+}
+#expl-mission-report.vis {
+  opacity:1; pointer-events:all;
+  transform:translateX(-50%) translateY(0);
+}
+#expl-report-inner {
+  padding:18px 20px; display:flex; flex-direction:column; gap:10px;
+}
+#expl-report-eyebrow {
+  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.28em;
+  text-transform:uppercase; color:rgba(218,165,32,0.30);
+}
+#expl-report-body {
+  font-family:'Crimson Text',serif; font-size:15px;
+  color:rgba(245,236,213,0.70); line-height:1.55; font-style:italic;
+}
+#expl-report-link {
+  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.60);
+  text-decoration:none; transition:color 0.18s;
+}
+#expl-report-link:hover { color:#daa520; }
+#expl-report-inner button {
+  background:none; border:none; cursor:pointer;
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.20);
+  padding:0; text-align:left; transition:color 0.18s;
+}
+#expl-report-inner button:hover { color:rgba(218,165,32,0.50); }
 </style>
 </head>
 <body>
@@ -7296,11 +7804,147 @@ window.addEventListener('resize', () => {
 <!-- ── MISSION LAUNCHPAD ── -->
 
 <!-- SATURN FAB — Micro-Orrery -->
-<button id="flight-fab" onclick="openLaunchpad()" title="Plot your mission">
+<button id="flight-fab" onclick="handleExplorerClick()" title="Choose your flight path">
   <canvas id="saturn-canvas" width="144" height="144"></canvas>
-  <span id="fab-moon-label">Upload JD</span>
-  <span id="fab-tooltip">Plot Mission ›</span>
+  <span id="fab-moon-label">Explore</span>
+  <span id="fab-tooltip">Choose Flight Path ›</span>
 </button>
+
+<!-- ═══ EXPLORER LAYER ═══ -->
+<div id="explorer-layer">
+  <!-- Vignette ring around focused planet -->
+  <div id="expl-vignette"></div>
+
+  <!-- Focused planet canvas (clone of FAB, scaled up) -->
+  <div id="expl-planet-wrap">
+    <canvas id="expl-saturn-canvas" width="300" height="300"></canvas>
+    <div id="expl-planet-hint">click to open · scroll to enter sphere</div>
+  </div>
+
+  <!-- Constellation map (tesseract view) -->
+  <div id="expl-tesseract">
+    <div id="expl-tess-header">
+      <div id="expl-tess-eyebrow">D.A.B.CX · Explorer · Choose Your Flight Path</div>
+      <div id="expl-tess-title">Where do you want to go?</div>
+      <div id="expl-tess-sub">Select an archetype — or scroll to upload a JD to auto-route</div>
+    </div>
+    <div id="expl-constellation-wrap">
+      <svg id="expl-constellation" viewBox="0 0 900 540" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div id="expl-upload-cta">
+      <button id="expl-upload-cta-btn" onclick="openSphere()">
+        <span class="cta-label">⌃ Upload a job description to auto-route your path</span>
+        <span class="cta-hint">or select an archetype below ↓</span>
+      </button>
+    </div>
+    <div id="expl-archetype-cards">
+      <div class="expl-arch-card" data-arch="orbiter" onclick="selectArchetype('orbiter')">
+        <span class="expl-arch-emoji">🛸</span>
+        <div class="expl-arch-info">
+          <div class="expl-arch-name">Orbiter</div>
+          <div class="expl-arch-tags">Leader · Director · VP · Strategic Vision</div>
+        </div>
+        <span class="expl-arch-arrow">›</span>
+      </div>
+      <div class="expl-arch-card" data-arch="lunar" onclick="selectArchetype('lunar')">
+        <span class="expl-arch-emoji">🚀</span>
+        <div class="expl-arch-info">
+          <div class="expl-arch-name">Lunar Lander</div>
+          <div class="expl-arch-tags">Founder · 0-to-1 · Startup · Ship Fast</div>
+        </div>
+        <span class="expl-arch-arrow">›</span>
+      </div>
+      <div class="expl-arch-card" data-arch="satellite" onclick="selectArchetype('satellite')">
+        <span class="expl-arch-emoji">🛰️</span>
+        <div class="expl-arch-info">
+          <div class="expl-arch-name">Satellite</div>
+          <div class="expl-arch-tags">Craft · Design System · Interaction · Research · IA</div>
+        </div>
+        <span class="expl-arch-arrow">›</span>
+      </div>
+      <div class="expl-arch-card" data-arch="station" onclick="selectArchetype('station')">
+        <span class="expl-arch-emoji">🌌</span>
+        <div class="expl-arch-info">
+          <div class="expl-arch-name">Space Station</div>
+          <div class="expl-arch-tags">Platform · Infrastructure · Enterprise · Architecture</div>
+        </div>
+        <span class="expl-arch-arrow">›</span>
+      </div>
+    </div>
+    <button id="expl-tess-close" onclick="closeExplorerLayer()">✕</button>
+  </div>
+
+  <!-- Sphere environment (JD input) -->
+  <div id="expl-sphere">
+    <div id="expl-sphere-bg"></div>
+    <div id="expl-sphere-inner">
+      <div id="expl-sphere-header">
+        <div id="expl-sphere-eyebrow">D.A.B.CX · Sphere · Auto-Route</div>
+        <div id="expl-sphere-title">Paste your job<br>description.</div>
+        <div id="expl-sphere-sub">We plot the route. You fly it.</div>
+        <button id="expl-sphere-close" onclick="closeSphere()">✕</button>
+      </div>
+      <div id="expl-sphere-dropzone">
+        <textarea id="expl-jd-input"
+          placeholder="Paste the job description here — or drop a .txt file..."
+          spellcheck="false"></textarea>
+        <div id="expl-sphere-drop-hint">
+          <div id="expl-sphere-drop-icon">⌃</div>
+          <div id="expl-sphere-drop-label">Paste or drop your job description<br>to generate a bespoke mission route</div>
+        </div>
+      </div>
+      <div id="expl-sphere-actions">
+        <span id="expl-char-count">0 characters</span>
+        <button id="expl-launch-btn" disabled onclick="computeExplorerMission()">
+          Auto-Route <span class="btn-arrow">›</span>
+        </button>
+      </div>
+      <div id="expl-sphere-footer">Your journey is yours · Share with Zack only if you choose</div>
+    </div>
+  </div>
+
+  <!-- Mission CTA overlay (end of archetype journey) -->
+  <div id="expl-cta-overlay">
+    <button id="expl-cta-overlay-close" onclick="closeExplorerCTA()">✕</button>
+    <div id="expl-cta-inner">
+      <div id="expl-cta-vessel"></div>
+      <div id="expl-cta-title"></div>
+      <div id="expl-cta-sub"></div>
+      <a id="expl-cta-link" href="https://wolfie.love" target="_blank" rel="noopener">
+        Visit wolfie.love <span>›</span>
+      </a>
+      <button id="expl-cta-close" onclick="closeExplorerCTA()">Continue exploring</button>
+    </div>
+  </div>
+
+  <!-- Mission report toast (idle timer) -->
+  <div id="expl-mission-report">
+    <div id="expl-report-inner">
+      <div id="expl-report-eyebrow">Mission Report</div>
+      <div id="expl-report-body"></div>
+      <a href="https://wolfie.love" target="_blank" rel="noopener" id="expl-report-link">wolfie.love ›</a>
+      <button onclick="dismissMissionReport()">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Explorer Journey HUD (outside explorer-layer so it stays on top) ── -->
+<div id="expl-journey-hud">
+  <div id="expl-jhud-accent"></div>
+  <div id="expl-jhud-body">
+    <div id="expl-jhud-info">
+      <div id="expl-jhud-eyebrow">STOP <span id="expl-jhud-idx">01</span> OF <span id="expl-jhud-total">07</span></div>
+      <div id="expl-jhud-title">—</div>
+      <div id="expl-jhud-why"></div>
+    </div>
+    <div id="expl-jhud-pips"></div>
+    <div id="expl-jhud-nav">
+      <button class="expl-jhud-nav-btn" id="expl-jhud-prev" onclick="explorJourneyStep(-1)">←</button>
+      <button class="expl-jhud-nav-btn" id="expl-jhud-next" onclick="explorJourneyStep(1)">→</button>
+    </div>
+  </div>
+  <button id="expl-jhud-close" onclick="endExplorerJourney()">✕</button>
+</div>
 
 <!-- Launchpad overlay -->
 <div id="flight-launchpad">
@@ -8578,6 +9222,646 @@ function mobileFit() {
     innerEl.style.transform = 'translate('+(mx-30).toFixed(1)+'px,'+(my-18).toFixed(1)+'px)';
   }
   tick();
+})();
+</script>
+
+<!-- ═══ EXPLORER LAYER — STATE MACHINE + CONSTELLATION ═══ -->
+<script>
+(function() {
+'use strict';
+
+// ── State ──────────────────────────────────────────────────
+let explorerState = 'idle';   // idle | planet-focus | tess-open | sphere-open
+let isExplorerFocused = false;
+let activeArchetype = null;
+let journeyRoute    = [];
+let journeyIdx      = 0;
+let idleTimer       = null;
+let idleSeconds     = 0;
+const IDLE_TRIGGER  = 55; // seconds before mission report fires
+
+const layer  = () => document.getElementById('explorer-layer');
+const fabEl  = () => document.getElementById('flight-fab');
+
+// ── Archetype journey data ──────────────────────────────────
+const ARCHETYPES = {
+  orbiter: {
+    emoji: '🛸',
+    label: 'Orbiter',
+    color: '#daa520',
+    title: 'The Strategic Horizon',
+    sub: 'Twenty years of systems thinking, compressed into one argument.',
+    nodes: [
+      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'Fifteen eras. One continuous thread of strategic elevation.' },
+      { id: 'rr',         title: 'Reason & Resolution',               why: 'An editorial redesign of Anthropic\'s RSP — the pitch as artifact.' },
+      { id: 'wolfie',     title: 'wolfie.love · Narrative Engine',    why: 'A publishing OS built to prove a thesis, not just describe one.' },
+      { id: 'presence',   title: 'Presence Designer',                 why: 'The title coined when no existing title fit the discipline.' },
+      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Cross-pollination as research method — six verticals, one grammar.' },
+      { id: 'frank',      title: 'ifimaybefrank.com',                 why: 'Product conviction at its most distilled: the sentence as the interface.' },
+      { id: 'cta',        title: 'wolfie.love',                       why: 'The full argument. Every artifact. One destination.', isCTA: true },
+    ]
+  },
+  lunar: {
+    emoji: '🚀',
+    label: 'Lunar Lander',
+    color: '#e8a030',
+    title: 'Built From Zero',
+    sub: 'Someone who ships, names things after their dog, and turns grief into infrastructure.',
+    nodes: [
+      { id: 'wolfgang',   title: 'Wolfgang · The Origin',             why: 'The brand is named after a dog. That\'s not a detail — it\'s the whole story.' },
+      { id: 'frank',      title: 'ifimaybefrank.com',                 why: '0-to-1 in a single HTML file. Sentence-as-primitive. Ships daily.' },
+      { id: 'reasonably', title: 'reasonably.cc',                     why: 'Personal knowledge management — built because nothing else was precise enough.' },
+      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'Spatial note-taking. Four clusters. No framework dependencies.' },
+      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'The full 20-year arc, rendered as an orbital system.' },
+      { id: 'thesis',     title: 'The Sentence Is The Interface',     why: 'A grammar invented before the applications — the right order.' },
+      { id: 'cta',        title: 'wolfie.love',                       why: 'Where it all lives. One link. No LinkedIn.', isCTA: true },
+    ]
+  },
+  satellite: {
+    emoji: '🛰️',
+    label: 'Satellite',
+    color: '#7ab0e8',
+    title: 'Grammar Before Applications',
+    sub: 'The sentence is the interface. Eight CSS variables. A rendering contract.',
+    nodes: [
+      { id: 'thesis',     title: 'The Sentence Is The Interface',     why: 'The founding grammar — typed node elements, pluggable rendering contract.' },
+      { id: 'frank',      title: 'ifimaybefrank.com',                 why: 'The application that most purely expresses the thesis.' },
+      { id: 'reasonably', title: 'reasonably.cc',                     why: 'Four content types. One cluster architecture. Interaction as the product.' },
+      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'A spatial canvas that treats notes as first-class design objects.' },
+      { id: 'variables',  title: 'Eight CSS Variables',               why: 'The rendering contract: decoupled from content, pluggable by vertical.' },
+      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Cross-pollination as methodology — no single tool would have invented all of it.' },
+      { id: 'cta',        title: 'wolfie.love',                       why: 'The full design system, live in production.', isCTA: true },
+    ]
+  },
+  station: {
+    emoji: '🌌',
+    label: 'Space Station',
+    color: '#50c898',
+    title: 'The Publishing Operating System',
+    sub: 'Six verticals. One grammar. Built before it was called that.',
+    nodes: [
+      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Commerce, hospitality, real estate, events, recruiting, editorial — one system.' },
+      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'The infrastructure layer: spatial, persistent, zero-framework.' },
+      { id: 'reasonably', title: 'reasonably.cc',                     why: 'The knowledge layer: four content types, cluster architecture.' },
+      { id: 'variables',  title: 'Pluggable Rendering Contract',      why: 'Eight CSS variables decoupled from content — the API surface of the system.' },
+      { id: 'rr',         title: 'Reason & Resolution',               why: 'Enterprise-grade editorial: Anthropic\'s RSP redesigned as a live artifact.' },
+      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'The platform that hosts and proves the system at scale.' },
+      { id: 'cta',        title: 'wolfie.love',                       why: 'The publishing OS. Deployed. In production.', isCTA: true },
+    ]
+  }
+};
+
+// ── Constellation node positions (shared library) ──────────
+// 900×540 viewBox. Nodes placed to feel like a star field.
+const NODE_POSITIONS = {
+  dab:        { x: 450, y: 120 },
+  rr:         { x: 680, y: 180 },
+  wolfie:     { x: 750, y: 340 },
+  presence:   { x: 580, y: 80  },
+  ecosystem:  { x: 820, y: 260 },
+  frank:      { x: 200, y: 160 },
+  wolfgang:   { x: 90,  y: 240 },
+  reasonably: { x: 300, y: 320 },
+  cortex:     { x: 160, y: 420 },
+  thesis:     { x: 380, y: 220 },
+  variables:  { x: 560, y: 380 },
+  cta:        { x: 450, y: 460 },
+};
+
+// ── Build constellation SVG ────────────────────────────────
+function buildConstellation(archKey) {
+  const svg = document.getElementById('expl-constellation');
+  if (!svg) return;
+  svg.innerHTML = '';
+
+  const arch   = ARCHETYPES[archKey];
+  const nodes  = arch ? arch.nodes : [];
+  const color  = arch ? arch.color : '#daa520';
+
+  // Draw all faint background node dots first
+  Object.entries(NODE_POSITIONS).forEach(([id, pos]) => {
+    if (id === 'cta') return;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','expl-node-group bg-node');
+    const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ring.setAttribute('class','expl-node-ring'); ring.setAttribute('cx',pos.x); ring.setAttribute('cy',pos.y); ring.setAttribute('r','7');
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('class','expl-node-dot'); dot.setAttribute('cx',pos.x); dot.setAttribute('cy',pos.y); dot.setAttribute('r','3');
+    dot.setAttribute('fill','rgba(218,165,32,0.14)');
+    g.appendChild(ring); g.appendChild(dot); svg.appendChild(g);
+  });
+
+  if (!arch) return;
+
+  // Draw path lines between active nodes
+  const pathG = document.createElementNS('http://www.w3.org/2000/svg','g');
+  pathG.setAttribute('class','expl-paths');
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const a = NODE_POSITIONS[nodes[i].id];
+    const b = NODE_POSITIONS[nodes[i+1].id];
+    if (!a || !b) continue;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('class','expl-conn-path active');
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-opacity','0.35');
+    line.setAttribute('stroke-width','1.2');
+    line.setAttribute('stroke-dasharray','none');
+    pathG.appendChild(line);
+  }
+  svg.appendChild(pathG);
+
+  // Draw active archetype nodes on top
+  nodes.forEach((node, i) => {
+    const pos = NODE_POSITIONS[node.id];
+    if (!pos) return;
+    const isCTA = node.isCTA;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','expl-node-group active-node');
+    g.setAttribute('data-idx', i);
+    g.style.cursor = 'pointer';
+
+    if (isCTA) {
+      // CTA node — pulsing diamond
+      const diamond = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+      const s = 8;
+      diamond.setAttribute('points',`${pos.x},${pos.y-s} ${pos.x+s},${pos.y} ${pos.x},${pos.y+s} ${pos.x-s},${pos.y}`);
+      diamond.setAttribute('fill', color); diamond.setAttribute('fill-opacity','0.85');
+      diamond.setAttribute('stroke', color); diamond.setAttribute('stroke-width','0.5');
+      g.appendChild(diamond);
+    } else {
+      const outerRing = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      outerRing.setAttribute('cx',pos.x); outerRing.setAttribute('cy',pos.y); outerRing.setAttribute('r','12');
+      outerRing.setAttribute('fill','none'); outerRing.setAttribute('stroke',color); outerRing.setAttribute('stroke-opacity','0.15'); outerRing.setAttribute('stroke-width','1');
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',pos.x); dot.setAttribute('cy',pos.y); dot.setAttribute('r','5');
+      dot.setAttribute('fill', color); dot.setAttribute('fill-opacity', i === 0 ? '0.90' : '0.55');
+      g.appendChild(outerRing); g.appendChild(dot);
+    }
+
+    // Index label
+    const idxText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    idxText.setAttribute('x',pos.x); idxText.setAttribute('y',pos.y - 14);
+    idxText.setAttribute('text-anchor','middle');
+    idxText.setAttribute('class','expl-node-label');
+    idxText.setAttribute('fill', color);
+    idxText.setAttribute('fill-opacity','0.55');
+    idxText.setAttribute('font-size','6');
+    idxText.textContent = String(i+1).padStart(2,'0');
+    g.appendChild(idxText);
+
+    // Title label
+    const titleText = document.createElementNS('http://www.w3.org/2000/svg','text');
+    titleText.setAttribute('x', pos.x); titleText.setAttribute('y', pos.y + 18);
+    titleText.setAttribute('text-anchor','middle');
+    titleText.setAttribute('class','expl-node-label');
+    titleText.setAttribute('fill', color);
+    titleText.setAttribute('fill-opacity','0.45');
+    titleText.setAttribute('font-size','5.5');
+    // Short title
+    const shortTitle = node.title.split('·')[0].trim().split('/')[0].trim();
+    titleText.textContent = shortTitle.length > 18 ? shortTitle.slice(0,17)+'…' : shortTitle;
+    g.appendChild(titleText);
+
+    g.addEventListener('click', () => { startJourneyAt(archKey, i); });
+    svg.appendChild(g);
+  });
+}
+
+// ── FAB click handler (replaces openLaunchpad) ────────────
+window.handleExplorerClick = function() {
+  if (explorerState === 'idle') {
+    openExplorerPlanet();
+  } else if (explorerState === 'planet-focus') {
+    openExplorerTesseract();
+  } else if (explorerState === 'tess-open') {
+    // click on planet hint area — ignore, handled by archetype cards
+  }
+};
+
+// ── State 1: Planet focus ─────────────────────────────────
+function openExplorerPlanet() {
+  explorerState = 'planet-focus';
+  isExplorerFocused = true;
+  document.body.classList.add('explorer-active');
+  const el = layer();
+  el.classList.add('active','planet-focus');
+  el.classList.remove('tess-open','sphere-open');
+  startIdleTimer();
+  // Mirror the FAB canvas into the larger expl-saturn-canvas
+  startExplPlanetRenderer();
+  // Scroll handler for sphere
+  el.addEventListener('wheel', onExplorerScroll, { passive:false });
+}
+
+// ── State 2: Tesseract ───────────────────────────────────
+function openExplorerTesseract(archKey) {
+  explorerState = 'tess-open';
+  const el = layer();
+  el.classList.add('active','tess-open');
+  el.classList.remove('planet-focus','sphere-open');
+  buildConstellation(archKey || null);
+  resetIdleTimer();
+}
+
+window.closeExplorerLayer = function() {
+  explorerState = 'idle';
+  isExplorerFocused = false;
+  document.body.classList.remove('explorer-active');
+  const el = layer();
+  el.classList.remove('active','planet-focus','tess-open','sphere-open');
+  el.removeEventListener('wheel', onExplorerScroll);
+  stopIdleTimer();
+  endExplorerJourney();
+  closeSphere();
+};
+
+// ── Scroll to open sphere ────────────────────────────────
+function onExplorerScroll(e) {
+  if (explorerState !== 'planet-focus') return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.deltaY > 0 || e.deltaY < 0) {
+    openSphere();
+  }
+}
+
+function openSphere() {
+  explorerState = 'sphere-open';
+  const el = layer();
+  el.classList.add('active','sphere-open');
+  el.classList.remove('planet-focus','tess-open');
+  resetIdleTimer();
+}
+
+window.closeSphere = function() {
+  if (explorerState !== 'sphere-open') return;
+  // Return to tesseract if we came from there, else planet-focus
+  explorerState = 'tess-open';
+  const el = layer();
+  el.classList.add('tess-open');
+  el.classList.remove('sphere-open','planet-focus');
+};
+
+// ── Archetype selection ──────────────────────────────────
+window.selectArchetype = function(archKey) {
+  activeArchetype = archKey;
+  // Highlight selected card
+  document.querySelectorAll('.expl-arch-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.arch === archKey);
+  });
+  buildConstellation(archKey);
+  startJourneyAt(archKey, 0);
+  resetIdleTimer();
+};
+
+// ── Journey navigation ───────────────────────────────────
+function startJourneyAt(archKey, startIdx) {
+  activeArchetype = archKey;
+  const arch = ARCHETYPES[archKey];
+  if (!arch) return;
+  journeyRoute = arch.nodes;
+  journeyIdx   = startIdx;
+  buildConstellation(archKey);
+  renderJourneyHUD();
+  showJourneyHUD();
+  resetIdleTimer();
+
+  // If this is the CTA node — open CTA overlay
+  if (journeyRoute[journeyIdx]?.isCTA) {
+    setTimeout(() => openExplorerCTA(archKey), 400);
+  }
+}
+
+window.explorJourneyStep = function(dir) {
+  const next = Math.max(0, Math.min(journeyRoute.length - 1, journeyIdx + dir));
+  if (next === journeyIdx) return;
+  journeyIdx = next;
+  renderJourneyHUD();
+  resetIdleTimer();
+  if (journeyRoute[journeyIdx]?.isCTA) {
+    setTimeout(() => openExplorerCTA(activeArchetype), 300);
+  }
+};
+
+window.endExplorerJourney = function() {
+  journeyRoute = []; journeyIdx = 0; activeArchetype = null;
+  hideJourneyHUD();
+  document.querySelectorAll('.expl-arch-card').forEach(c => c.classList.remove('selected'));
+};
+
+function showJourneyHUD() {
+  const hud = document.getElementById('expl-journey-hud');
+  if (!hud) return;
+  hud.style.display = 'flex';
+  requestAnimationFrame(() => hud.classList.add('vis'));
+}
+function hideJourneyHUD() {
+  const hud = document.getElementById('expl-journey-hud');
+  if (!hud) return;
+  hud.classList.remove('vis');
+  setTimeout(() => { hud.style.display = 'none'; }, 380);
+}
+
+function renderJourneyHUD() {
+  const hud = document.getElementById('expl-journey-hud');
+  if (!hud || !journeyRoute.length) return;
+  const step   = journeyRoute[journeyIdx];
+  const arch   = ARCHETYPES[activeArchetype];
+  const color  = arch?.color || '#daa520';
+  const total  = journeyRoute.length;
+
+  const accent = document.getElementById('expl-jhud-accent');
+  if (accent) accent.style.background = color;
+
+  document.getElementById('expl-jhud-idx').textContent   = String(journeyIdx+1).padStart(2,'0');
+  document.getElementById('expl-jhud-total').textContent  = String(total).padStart(2,'0');
+  document.getElementById('expl-jhud-title').textContent  = step.title;
+  document.getElementById('expl-jhud-why').textContent    = step.why;
+
+  const pips = document.getElementById('expl-jhud-pips');
+  pips.innerHTML = '';
+  journeyRoute.forEach((_,i) => {
+    const pip = document.createElement('div');
+    pip.className = 'expl-jhud-pip' + (i < journeyIdx ? ' done' : i === journeyIdx ? ' active' : '');
+    pips.appendChild(pip);
+  });
+
+  document.getElementById('expl-jhud-prev').disabled = (journeyIdx === 0);
+  document.getElementById('expl-jhud-next').disabled = (journeyIdx >= total - 1);
+
+  // Highlight active node on constellation
+  document.querySelectorAll('#expl-constellation .active-node').forEach((g,i) => {
+    const dot = g.querySelector('circle[r="5"]');
+    if (dot) dot.setAttribute('fill-opacity', i === journeyIdx ? '0.95' : '0.45');
+    const outerRing = g.querySelector('circle[r="12"]');
+    if (outerRing) outerRing.setAttribute('stroke-opacity', i === journeyIdx ? '0.50' : '0.15');
+  });
+}
+
+// ── CTA Overlay ─────────────────────────────────────────
+function openExplorerCTA(archKey) {
+  const arch = ARCHETYPES[archKey];
+  if (!arch) return;
+  const overlay = document.getElementById('expl-cta-overlay');
+  if (!overlay) return;
+  document.getElementById('expl-cta-vessel').textContent = arch.emoji;
+  document.getElementById('expl-cta-title').textContent  = arch.title;
+  document.getElementById('expl-cta-sub').textContent    = arch.sub;
+  overlay.classList.add('vis');
+  stopIdleTimer();
+}
+
+window.closeExplorerCTA = function() {
+  const overlay = document.getElementById('expl-cta-overlay');
+  if (overlay) overlay.classList.remove('vis');
+  resetIdleTimer();
+};
+
+// ── Idle timer / mission report ──────────────────────────
+function startIdleTimer() {
+  stopIdleTimer();
+  idleSeconds = 0;
+  idleTimer = setInterval(() => {
+    idleSeconds++;
+    if (idleSeconds >= IDLE_TRIGGER && explorerState !== 'idle') {
+      fireMissionReport();
+      stopIdleTimer();
+    }
+  }, 1000);
+}
+function resetIdleTimer() { idleSeconds = 0; }
+function stopIdleTimer()  { if (idleTimer) { clearInterval(idleTimer); idleTimer = null; } }
+
+function fireMissionReport() {
+  const report = document.getElementById('expl-mission-report');
+  const body   = document.getElementById('expl-report-body');
+  if (!report || !body) return;
+  const arch = activeArchetype ? ARCHETYPES[activeArchetype] : null;
+  const stopNum = journeyRoute.length ? journeyIdx + 1 : 0;
+  let text = '';
+  if (arch && stopNum > 0) {
+    text = `You've traveled ${stopNum} of ${journeyRoute.length} stops along the ${arch.label} path. Everything you've seen lives at wolfie.love.`;
+  } else {
+    text = 'You\'ve been orbiting for a while. The full universe lives at wolfie.love — whenever you\'re ready.';
+  }
+  body.textContent = text;
+  report.classList.add('vis');
+}
+
+window.dismissMissionReport = function() {
+  const report = document.getElementById('expl-mission-report');
+  if (report) report.classList.remove('vis');
+  resetIdleTimer();
+  startIdleTimer();
+};
+
+// ── JD auto-route from sphere ────────────────────────────
+window.computeExplorerMission = function() {
+  const jd = document.getElementById('expl-jd-input')?.value?.trim();
+  if (!jd || jd.length < 80) return;
+  // Simple keyword routing — same logic as VESSELS
+  const lower = jd.toLowerCase();
+  const scores = {
+    orbiter:  ['leader','director','head','vp','principal','strategic','vision','roadmap','stakeholder'].filter(t => lower.includes(t)).length,
+    lunar:    ['founder','startup','0-to-1','seed','operator','build','ship','fast'].filter(t => lower.includes(t)).length,
+    satellite:['craft','system','interaction','design system','component','accessibility','ia','research','prototype'].filter(t => lower.includes(t)).length,
+    station:  ['platform','infrastructure','scale','enterprise','architecture','api','cross-functional','program'].filter(t => lower.includes(t)).length,
+  };
+  let best = 'satellite', bestScore = 0;
+  Object.entries(scores).forEach(([k,v]) => { if (v > bestScore) { bestScore = v; best = k; } });
+  closeSphere();
+  setTimeout(() => {
+    openExplorerTesseract(best);
+    setTimeout(() => selectArchetype(best), 300);
+  }, 200);
+};
+
+// ── Sphere JD input wiring ────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const jdInput  = document.getElementById('expl-jd-input');
+  const charCount = document.getElementById('expl-char-count');
+  const launchBtn = document.getElementById('expl-launch-btn');
+  const dropzone  = document.getElementById('expl-sphere-dropzone');
+  if (jdInput) {
+    jdInput.addEventListener('input', () => {
+      const len = jdInput.value.trim().length;
+      if (charCount) charCount.textContent = len.toLocaleString() + ' characters';
+      if (launchBtn) launchBtn.disabled = len < 80;
+      if (dropzone) dropzone.classList.toggle('has-text', len > 0);
+    });
+  }
+  if (dropzone) {
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault(); dropzone.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        if (jdInput) { jdInput.value = ev.target.result; jdInput.dispatchEvent(new Event('input')); }
+      };
+      reader.readAsText(file);
+    });
+  }
+});
+
+// ── Click-away to reset planet focus ─────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const planetWrap = document.getElementById('expl-planet-wrap');
+  if (planetWrap) {
+    planetWrap.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (explorerState === 'planet-focus') {
+        openExplorerTesseract();
+      }
+    });
+  }
+  const explLayer = document.getElementById('explorer-layer');
+  if (explLayer) {
+    explLayer.addEventListener('click', function(e) {
+      if (e.target === this && explorerState === 'planet-focus') {
+        window.closeExplorerLayer();
+      }
+    });
+  }
+});
+
+// ESC closes explorer layer — pierces all sub-states
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const ctaVis = document.getElementById('expl-cta-overlay')?.classList.contains('vis');
+  if (ctaVis) { window.closeExplorerCTA(); return; }
+  if (explorerState === 'sphere-open') { closeSphere(); return; }
+  if (explorerState === 'tess-open')   { window.closeExplorerLayer(); return; }
+  if (explorerState === 'planet-focus') { window.closeExplorerLayer(); return; }
+});
+
+// ── Nuke Acrobat / PDF plugin injection via MutationObserver ──
+(function nukePlugins() {
+  function killPlugins() {
+    document.querySelectorAll('embed, object, [id*="acrobat"], [class*="acrobat"], .nppdf').forEach(el => {
+      if (el.tagName === 'CANVAS' || el.tagName === 'VIDEO' || el.tagName === 'AUDIO') return;
+      el.style.cssText = 'display:none!important;visibility:hidden!important;pointer-events:none!important;';
+    });
+  }
+  killPlugins();
+  new MutationObserver(killPlugins).observe(document.body, { childList:true, subtree:true });
+})();
+
+// ── Expl planet canvas renderer (mirrors FAB) ────────────
+function startExplPlanetRenderer() {
+  const canvas = document.getElementById('expl-saturn-canvas');
+  if (!canvas || canvas._explorerRunning) return;
+  canvas._explorerRunning = true;
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const SIZE = 300;
+  canvas.width  = SIZE * DPR;
+  canvas.height = SIZE * DPR;
+  ctx.scale(DPR, DPR);
+
+  function gold(a)  { return 'rgba(218,165,32,'+a+')'; }
+  function cream(a) { return 'rgba(245,236,213,'+a+')'; }
+  function deep(a)  { return 'rgba(12,6,24,'+a+')'; }
+
+  let t = 0;
+  const RING_MOTTOS = ['Orbiter','Satellite','Lunar Lander','Space Station'];
+  const moons = [
+    { label:'A', r:5.5, orbitR:42, speed:0.009, phase:0,            glow:true  },
+    { label:'B', r:3.4, orbitR:28, speed:0.015, phase:Math.PI*1.35, glow:false },
+  ];
+
+  function drawPlanet(cx, cy) {
+    var R = 22;
+    var g = ctx.createRadialGradient(cx, cy, R*0.4, cx, cy, R*2.2);
+    g.addColorStop(0, gold(0.10)); g.addColorStop(1, gold(0));
+    ctx.beginPath(); ctx.arc(cx,cy,R*2.2,0,Math.PI*2);
+    ctx.fillStyle=g; ctx.fill();
+    var b = ctx.createRadialGradient(cx-R*0.28, cy-R*0.32, R*0.08, cx, cy, R);
+    b.addColorStop(0,  gold(0.92)); b.addColorStop(0.4,gold(0.65));
+    b.addColorStop(0.72,'rgba(155,100,5,0.78)'); b.addColorStop(1,'rgba(55,22,2,0.92)');
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.fillStyle=b; ctx.fill();
+    for (var i=0;i<4;i++) {
+      var by=cy-R*0.55+i*R*0.38;
+      var bw=Math.sqrt(Math.max(0,R*R-(by-cy)*(by-cy)));
+      ctx.beginPath(); ctx.ellipse(cx,by,bw,1.2,0,0,Math.PI*2);
+      ctx.fillStyle=i%2===0?gold(0.07):deep(0.05); ctx.fill();
+    }
+    var l=ctx.createRadialGradient(cx,cy,R*0.6,cx,cy,R);
+    l.addColorStop(0,deep(0)); l.addColorStop(1,deep(0.65));
+    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+    ctx.fillStyle=l; ctx.fill();
+  }
+
+  function drawRings(cx, cy, time) {
+    var tr=-22*Math.PI/180;
+    var rings=[{rx:44,ry:11,al:0.55,w:5},{rx:34,ry:8.5,al:0.36,w:2.8},{rx:54,ry:13,al:0.20,w:1.5,dash:true}];
+    var seg=RING_MOTTOS.length;
+    var activeIdx=Math.floor((time*0.009)%seg);
+    rings.forEach(function(ring){
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(tr);
+      for(var s=0;s<seg;s++){
+        var sa=(s/seg)*Math.PI*2; var ea=((s+1)/seg)*Math.PI*2;
+        var isAct=(s===activeIdx);
+        ctx.beginPath(); ctx.ellipse(0,0,ring.rx,ring.ry,0,sa,ea);
+        ctx.strokeStyle=isAct?gold(0.95):gold(ring.al);
+        ctx.lineWidth=isAct?ring.w*1.8:ring.w;
+        if(ring.dash)ctx.setLineDash([4,5]); else ctx.setLineDash([]);
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.restore();
+    });
+    // Active motto label
+    ctx.font='300 7px "DM Mono",monospace';
+    ctx.fillStyle=gold(0.65); ctx.textAlign='center';
+    ctx.fillText(RING_MOTTOS[activeIdx].toUpperCase(),cx,cy-42);
+  }
+
+  function drawMoon(cx, cy, moon, time) {
+    var angle=moon.phase+time*moon.speed;
+    var mx2=cx+Math.cos(angle)*moon.orbitR;
+    var my2=cy+Math.sin(angle)*moon.orbitR*0.36;
+    ctx.beginPath(); ctx.ellipse(cx,cy,moon.orbitR,moon.orbitR*0.36,0,0,Math.PI*2);
+    ctx.strokeStyle=gold(0.06); ctx.lineWidth=0.7; ctx.setLineDash([3,8]); ctx.stroke(); ctx.setLineDash([]);
+    if(moon.glow){
+      var pulse=1+Math.sin(time*0.04)*0.5;
+      var gg=ctx.createRadialGradient(mx2,my2,0,mx2,my2,moon.r*4*pulse);
+      gg.addColorStop(0,gold(0.50)); gg.addColorStop(1,gold(0));
+      ctx.beginPath(); ctx.arc(mx2,my2,moon.r*5*pulse,0,Math.PI*2);
+      ctx.fillStyle=gg; ctx.fill();
+    }
+    var mg=ctx.createRadialGradient(mx2-moon.r*0.3,my2-moon.r*0.3,0,mx2,my2,moon.r);
+    mg.addColorStop(0,moon.label==='A'?gold(0.96):cream(0.88));
+    mg.addColorStop(1,moon.label==='A'?gold(0.40):cream(0.25));
+    ctx.beginPath(); ctx.arc(mx2,my2,moon.r,0,Math.PI*2);
+    ctx.fillStyle=mg; ctx.fill();
+  }
+
+  function render() {
+    if (explorerState === 'idle') { canvas._explorerRunning = false; return; }
+    requestAnimationFrame(render);
+    t++;
+    ctx.clearRect(0,0,SIZE,SIZE);
+    var cx=SIZE/2, cy=SIZE/2;
+    // Back half rings
+    ctx.save(); ctx.beginPath(); ctx.rect(0,cy,SIZE,cy); ctx.clip();
+    drawRings(cx,cy,t); ctx.restore();
+    drawPlanet(cx,cy);
+    // Front half rings
+    ctx.save(); ctx.beginPath(); ctx.rect(0,0,SIZE,cy); ctx.clip();
+    drawRings(cx,cy,t); ctx.restore();
+    // Moons
+    var sorted=moons.slice().sort((a,b)=>Math.sin(a.phase+t*a.speed)-Math.sin(b.phase+t*b.speed));
+    sorted.forEach(m=>drawMoon(cx,cy,m,t));
+  }
+  render();
+}
+
 })();
 </script>
 
