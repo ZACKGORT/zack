@@ -3228,7 +3228,7 @@ const GALAXY_CLUSTERS = [
   },
   {
     id: 'claude', name: 'Claude Code',
-    sub: 'Human & AI Enablement',
+    sub: 'The instrument alongside the work',
     color: 0x6699ff, hex: '#6699ff',
     center: CLAUDE_CENTER, size: 5.5,
     nodeIds: CLAUDE_ERAS.map(e => e.id)
@@ -4319,7 +4319,7 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
     },
     claude: {
       era: 'Claude Code · Architecture Map',
-      title: 'Human & AI Enablement.',
+      title: 'The Instrument Alongside the Work.',
       role: 'Pipeline → Memory → Permission → Experimental',
       body: 'This is a map of the tool that built this file. Claude Code is not a chatbot with file access — it is a system with a Query Engine, a Skeptical Memory Architecture, a Permission System, and an Experimental tier that dreams while you sleep. This galaxy was built using the instrument it describes.',
       domain: 'system',
@@ -6097,7 +6097,32 @@ cvs.addEventListener('touchmove', e => {
 cvs.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { if (tesseractOpen) { closeTesseract(); } else if (tocVisible) { closeTOC(); } else if (gridVisible) { closeGridView(); switchView('spiral'); } else { closePanel(); } }
+  if (e.key === 'Escape') {
+    // Tesseract tiers handled first by its own listener with stopImmediatePropagation
+    if (tesseractOpen) return;
+    // TOC
+    if (tocVisible)  { closeTOC(); return; }
+    // Grid overlay
+    if (gridVisible) { closeGridView(); switchView('spiral'); return; }
+    // Case study panel
+    if (document.getElementById('cs-panel') && document.getElementById('cs-panel').classList.contains('on')) { window.closeCaseStudy(); return; }
+    // Ghost / bottom sheet panel open → close it, stay put
+    const panelOpen = document.getElementById('ghost').classList.contains('on') ||
+                      document.getElementById('msheet').classList.contains('on');
+    if (panelOpen) { closePanel(); return; }
+    // Era focused (camera at a node, no panel) → unfocus era, stay in orrery
+    if (isFocused && focusedEra) {
+      closePanel();
+      isFocused = false; focusedEra = null;
+      resetHighlights();
+      return;
+    }
+    // In a galaxy orrery (SOL focused, not in black-hole overview) → escape to black hole
+    if (focusedStarGalaxyId && !galaxyMode) {
+      switchView('overview');
+      return;
+    }
+  }
   if (e.code === 'Space') { e.preventDefault(); orbitPaused = !orbitPaused; }
 
   // In galaxy view (and not focused on a node): arrow keys orbit the ring
@@ -6618,6 +6643,7 @@ function animate(ts) {
     const btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', () => {
+      closePanel();
       swoopToGalaxyOverview(cfg.galaxyId);
     });
   });
@@ -6625,6 +6651,7 @@ function animate(ts) {
   // Galaxy overview button
   const galaxyBtn = document.getElementById('hud-galaxy');
   if (galaxyBtn) galaxyBtn.addEventListener('click', () => {
+    closePanel();
     switchView('overview');
     document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
     galaxyBtn.classList.add('active');
