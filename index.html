@@ -7460,19 +7460,577 @@ function mobileFit() {
 
 // ── Node catalog: all eras across all galaxies ──
 // Built at runtime from the live era arrays so we never go stale
+// ══════════════════════════════════════════════════════════════════════════
+// MISSION ENGINE — Zero-API, fully client-side
+// Replaces the Anthropic API call in computeMission() with a deterministic
+// signal-extraction → node-scoring → narrative-sequencing pipeline.
+//
+// DROP-IN: replace the entire <script> block that contains openLaunchpad()
+
+// ── SIGNAL TAXONOMY ──────────────────────────────────────────────────────
+// 20 semantic signal categories. Each has:
+//   keywords  : terms to match in the JD (lowercase, partial-match ok)
+//   weight    : how strongly a hit scores (1 = base, 2 = strong signal)
+// ─────────────────────────────────────────────────────────────────────────
+const SIGNALS = {
+  leadership:       { w: 2.0, k: ['director','vp ','head of','principal','lead ','manager','leadership','stakeholder','cross-functional','executive','strategy','roadmap','vision'] },
+  founder_operator: { w: 2.0, k: ['founder','co-founder','startup','seed','series a','0-to-1','zero to one','operator','early-stage','scrappy','build from','greenfield','launch'] },
+  systems_thinking: { w: 1.8, k: ['systems','architecture','information architecture','ia ','scalable','platform','infrastructure','design system','component','token','atomic','modular'] },
+  enterprise:       { w: 1.6, k: ['enterprise','fortune','b2b','saas','salesforce','large-scale','organization','compliance','governance','regulated','procurement'] },
+  ecommerce:        { w: 1.8, k: ['ecommerce','e-commerce','shopify','commerce','conversion','cart','checkout','product page','merchandising','retail','d2c','b2c'] },
+  fintech:          { w: 1.8, k: ['fintech','financial','banking','investment','advisor','wealth','brokerage','trading','compliance','sec','regulatory','wealthtech'] },
+  code_native:      { w: 1.6, k: ['engineer','frontend','react','html','css','javascript','typescript','prototype','code','develop','full-stack','build','implementation','technical'] },
+  research:         { w: 1.4, k: ['research','user research','usability','testing','insights','discovery','interview','survey','synthesis','mixed method'] },
+  craft:            { w: 1.4, k: ['craft','visual','motion','animation','typography','brand','identity','aesthetic','polish','figma','sketch','illustration'] },
+  content_strategy: { w: 1.6, k: ['content','editorial','writing','copy','narrative','voice','tone','cms','structured content','documentation'] },
+  accessibility:    { w: 1.4, k: ['accessibility','wcag','a11y','inclusive','ada','screen reader','aria','section 508'] },
+  agile:            { w: 1.2, k: ['agile','scrum','sprint','kanban','jira','standup','velocity','backlog','retro','product owner','po '] },
+  ic_contributor:   { w: 1.2, k: ['individual contributor','ic ','hands-on','maker','craft-focused','no direct reports','senior individual'] },
+  ai_native:        { w: 1.8, k: ['ai','artificial intelligence','llm','machine learning','ml ','gpt','claude','generative','prompt','agentic','automation','copilot'] },
+  pharma_health:    { w: 1.6, k: ['pharma','pharmaceutical','healthcare','medical','health','clinical','fda','hipaa','patient','provider','merck','pfizer'] },
+  mobile:           { w: 1.2, k: ['mobile','ios','android','responsive','native app','react native','flutter','touch','gesture'] },
+  zero_to_one:      { w: 2.0, k: ['0 to 1','zero to one','greenfield','new product','from scratch','launch','mvp','first version','v1','inception','ideation'] },
+  scale:            { w: 1.4, k: ['scale','growth','millions','global','international','high traffic','distributed','multi-tenant','multi-brand'] },
+  workshop:         { w: 1.2, k: ['workshop','facilitation','design sprint','ideation session','co-creation','stakeholder alignment','client-facing','presentation'] },
+  remote:           { w: 1.0, k: ['remote','distributed','async','timezone','globally distributed','fully remote','hybrid'] },
+};
+
+
+// ── NODE SIGNAL TAGS ─────────────────────────────────────────────────────
+// Each era gets an array of signal keys it maps to, plus per-signal "why"
+// copy (1–2 sentences connecting that node to a recruiter with that need).
+// Format: { signals: ['key',...], copy: { key: 'sentence' } }
+// ─────────────────────────────────────────────────────────────────────────
+const NODE_TAGS = {
+
+  // ── CAREER ─────────────────────────────────────────────────────────────
+
+  origin: {
+    signals: ['craft','ic_contributor','remote'],
+    copy: {
+      craft: 'Where craft became professional — print, identity, production before any framework existed to describe it.',
+      ic_contributor: 'The foundation is entirely self-built: no degree, no cohort, just the work and what it proved.',
+    }
+  },
+  turn5: {
+    signals: ['zero_to_one','ecommerce','code_native','scale','ic_contributor'],
+    copy: {
+      zero_to_one: 'Built a photo studio from nothing — Canon Rebel DSLR, no playbook, $10M to $40M in revenue during my tenure.',
+      ecommerce: 'Web, print, packaging, email, and ads across multiple e-commerce brands simultaneously — my first real platform.',
+      code_native: 'Every deliverable was self-executed: web properties, catalogs, product photography, ads — no handoff.',
+      scale: 'Witnessed and contributed to 4x revenue growth; learned what design looks like when the business is actually moving.',
+    }
+  },
+  leadnomics: {
+    signals: ['ecommerce','code_native','mobile','research','scale'],
+    copy: {
+      ecommerce: '95.8% conversion rate via mobile-first responsive design and rigorous A/B testing — before mobile-first was a mandate.',
+      mobile: 'Designed for mobile before it was required, because the data said so. Conviction over convention.',
+      research: 'A/B testing at production scale — decisions driven by behavior, not opinion.',
+    }
+  },
+  '160over90': {
+    signals: ['enterprise','systems_thinking','accessibility','workshop','craft'],
+    copy: {
+      enterprise: 'Interaction design for Comcast, Kent State, and the Philadelphia Eagles — enterprise clients with real compliance stakes.',
+      accessibility: 'ADA compliance as a design constraint, not an afterthought — built into IA and component decisions from day one.',
+      workshop: 'Client-facing creative lead: presenting, defending, and iterating on work in rooms where the stakes were real.',
+      craft: 'The culture demanded we dare — this is where I learned what design culture could be at its best.',
+    }
+  },
+  o3world: {
+    signals: ['agile','systems_thinking','ecommerce','ic_contributor'],
+    copy: {
+      agile: 'Certified Scrum Master. Agile in practice — daily standups, real sprints, real wireframes, not the PowerPoint version.',
+      systems_thinking: 'Lean UX applied to real products: La Colombe, Vertex, SEIC — discovery through delivery in tight sprint cycles.',
+    }
+  },
+  workarea: {
+    signals: ['ecommerce','zero_to_one','agile','ic_contributor','code_native'],
+    copy: {
+      ecommerce: 'End-to-end UX ownership of a proprietary SaaS e-commerce platform — shaped directly through client feedback loops until acquisition.',
+      zero_to_one: 'Napkin sketches over high-fidelity: high-velocity iteration that shaped the product until the company sold.',
+      code_native: 'Skipped mockup theater entirely — worked directly with engineers, napkin to implementation.',
+    }
+  },
+  flightpath: {
+    signals: ['pharma_health','enterprise','remote','craft'],
+    copy: {
+      pharma_health: 'Pharma UX for Merck — regulated, high-stakes, precise. My entry into the New York design scene.',
+      enterprise: 'Stepped into an agency emerging from bankruptcy because the work — Merck, Charter, Goya — was worth it.',
+    }
+  },
+  livearea: {
+    signals: ['ecommerce','leadership','enterprise','systems_thinking','workshop'],
+    copy: {
+      ecommerce: 'UX strategy and design function for Salesforce Commerce Cloud across B2C and B2B: Aquasana, West Marine, Yeti.',
+      leadership: 'First time owning the full UX function — from IC to Manager, running discovery, delegation, and socialization.',
+      workshop: 'Invented "Cards Against Bad UX" — an empathy workshop tool that became a client-facing staple.',
+      systems_thinking: 'Design systems at platform scale: conversion, post-sale re-engagement, component architecture across multiple clients.',
+    }
+  },
+  huge2021: {
+    signals: ['zero_to_one','agile','enterprise','craft'],
+    copy: {
+      zero_to_one: 'End-to-end UX and booking flow for Sentral Lifestyle Apartments — hospitality-tech reimagining urban living, delivered fast.',
+      agile: 'Short engagement, full deliverables. Constrained conditions — fast, precise, shipped. This is how I work.',
+    }
+  },
+  elva: {
+    signals: ['ecommerce','zero_to_one','systems_thinking','code_native','scale'],
+    copy: {
+      ecommerce: 'GNC Shopify rebuild — mobile-first, atomic component system, discovery to delivery in 12 weeks. ~$500M revenue recovery.',
+      zero_to_one: 'Ground-up: research to component library to live storefront, one thread held without dropping.',
+      systems_thinking: 'Atomic design system, headless architecture, taxonomy restructure — the whole stack, not just the surface.',
+      scale: '5,200 retail stores, 1.2M monthly users. The redesign had to work at GNC scale on day one.',
+    }
+  },
+  codeandtheory: {
+    signals: ['leadership','enterprise','content_strategy','systems_thinking','ai_native'],
+    copy: {
+      leadership: 'Senior Designer → Associate Creative Director → Directly Responsible Individual. Three roles, one engagement — earned, not assigned.',
+      enterprise: 'TikTok For Business — one of the fastest-growing ad platforms in the world, 62 floors above Manhattan.',
+      content_strategy: 'Information architecture and headless CMS strategy for a global advertising platform.',
+      systems_thinking: 'IA workshops, headless CMS architecture, interaction design at enterprise scale — the whole system.',
+    }
+  },
+  publicis: {
+    signals: ['fintech','leadership','systems_thinking','agile','enterprise','scale'],
+    copy: {
+      fintech: 'BNY Mellon Pershing X: Wove — industry-first unified advisor financial dashboard. $2T+ AUM platform.',
+      leadership: 'Interim Product Owner — a role I was not hired for and became anyway, running three Agile tracks simultaneously.',
+      systems_thinking: 'Centralized a sprawling product ecosystem into a modular design system. Named silos nobody else had mapped.',
+      agile: 'Three parallel Agile tracks, user data models, flows, and a canonical Figma component library — simultaneously.',
+      enterprise: 'Embedded in a digital transformation at BNY Mellon scale and security standards. Extended twice.',
+    }
+  },
+  ic2023: {
+    signals: ['pharma_health','ai_native','remote','ic_contributor','code_native','zero_to_one'],
+    copy: {
+      pharma_health: 'UX and development for Merck at HUGE — pharma enterprise at scale, remote-first execution.',
+      ai_native: 'Phenom — proprietary AI platform UX strategy, end-to-end, from content infrastructure to live events.',
+      code_native: 'Low voltage contracting alongside UX work: terminating an RJ45 in 30 seconds, different parts of the same brain.',
+      remote: 'Two years of independent contract work across three simultaneous threads — fully distributed, zero dropped balls.',
+    }
+  },
+  wolfco: {
+    signals: ['zero_to_one','content_strategy','ai_native','code_native','ic_contributor'],
+    copy: {
+      zero_to_one: 'Wolfgang & Co. — built from nothing, named for a blind rescue poodle, now a studio with a full platform ecosystem.',
+      content_strategy: 'The sentence as the irreducible unit of thought — a conviction turned into a product architecture.',
+      code_native: 'Every platform in the ecosystem is vanilla HTML/CSS/JS: wolfie.love, ifimaybefrank, reasonably.cc, dab.cx.',
+      ai_native: 'dab.cx: Design for agentic architecture, bridging the human client experience. This is the frontier I am building toward.',
+    }
+  },
+  seek: {
+    signals: ['leadership','zero_to_one','systems_thinking','code_native','ic_contributor','remote'],
+    copy: {
+      leadership: 'Twenty years, no degree. Senior / Principal. I am not looking for a title — I am looking for the problem worth solving.',
+      zero_to_one: 'I have lived on both sides of the design/dev handoff and built products from 0 to 1 in every context.',
+      systems_thinking: 'Systems thinking, code-native prototyping, the rare ability to hold the full model while making a pixel decision.',
+      code_native: 'Single-file vanilla HTML/CSS/JS as a discipline — the constraint is the argument, and the argument is this site.',
+      remote: 'Remote. Full-time. Available. zack@reasonably.cc',
+    }
+  },
+
+  // ── MANIFESTO ──────────────────────────────────────────────────────────
+
+  'm-thinker': {
+    signals: ['ic_contributor','craft','zero_to_one','leadership'],
+    copy: {
+      ic_contributor: 'Self-taught. Twenty years. Every credential earned in the work — started with a pirated Photoshop and a Craigslist post.',
+      craft: 'The right interface disappears and leaves only understanding. This is not a feature — it is a philosophy.',
+      leadership: 'The conviction that compounds: not a credential, a belief system built over two decades of delivery.',
+    }
+  },
+  'm-sentence': {
+    signals: ['content_strategy','ai_native','systems_thinking'],
+    copy: {
+      content_strategy: 'The sentence is the irreducible unit of thought. Every platform in the ecosystem is an expression of this single conviction.',
+      systems_thinking: 'Find the right atom and everything else follows — the sentence as the primitive from which all architecture grows.',
+    }
+  },
+  'm-build': {
+    signals: ['code_native','zero_to_one','ic_contributor'],
+    copy: {
+      code_native: 'This canvas is the argument made visible — vanilla HTML, CSS, JS, one file. Built the thing I am pitching with the same engine.',
+      zero_to_one: 'The constraint is not a limitation. It is the proof. No framework, no dependencies, no build step.',
+    }
+  },
+  'm-hold': {
+    signals: ['systems_thinking','leadership','code_native','enterprise'],
+    copy: {
+      systems_thinking: 'The rare ability to hold the whole model in your head while making a pixel decision — and to know which one yields.',
+      leadership: 'Systems thinking + code-native prototyping. Both sides of the handoff. One thread, held, in every context.',
+    }
+  },
+  'm-proof': {
+    signals: ['ecommerce','fintech','zero_to_one','enterprise','scale'],
+    copy: {
+      ecommerce: 'GNC: ~$500M recovered post-bankruptcy. Twelve weeks. One designer. Ground-up Shopify rebuild. Zero dropped threads.',
+      fintech: 'BNY Mellon Wove: industry-first advisory platform across three Agile tracks. $2T+ AUM. Shipped.',
+      zero_to_one: 'Two case studies. Neither used AI. Both were built by one person who did not ask for the scope.',
+    }
+  },
+  'm-ask': {
+    signals: ['leadership','remote','ic_contributor'],
+    copy: {
+      leadership: 'I am not looking for a title. I am looking for the problem worth solving with people who want to solve it well.',
+      remote: 'Remote. Full-time. Available. If you are building something that matters — let\'s talk.',
+    }
+  },
+
+  // ── PLATFORM ───────────────────────────────────────────────────────────
+
+  'p-origin': {
+    signals: ['content_strategy','systems_thinking','ai_native'],
+    copy: {
+      content_strategy: 'Every system has a seed. Mine: the sentence is the irreducible unit of thought. Format shapes attention.',
+      systems_thinking: 'Find the right atom and everything follows — the origin of a platform architecture built on a single conviction.',
+    }
+  },
+  'p-wolfie-love': {
+    signals: ['zero_to_one','content_strategy','craft','code_native'],
+    copy: {
+      zero_to_one: 'Built entirely from scratch — no derivative parts. wolfie.love established the sentence-progressive reading engine.',
+      craft: 'Flow Mode with authored timing markup. A four-theme system. The interface that disappears and leaves only the words.',
+      code_native: 'The origin of the single-file architecture: one HTML file, the entire experience, no dependencies.',
+    }
+  },
+  'p-wolfie-life': {
+    signals: ['ecommerce','scale','systems_thinking'],
+    copy: {
+      ecommerce: 'wolfie.life: the active business face of Wolfgang & Co. — /shop, /real, /food, /job. Same engine, real commerce.',
+      systems_thinking: 'Four verticals orbiting one center — the sentence-as-primitive applied to a multi-vertical business platform.',
+    }
+  },
+  'p-intoview': {
+    signals: ['systems_thinking','content_strategy','zero_to_one','craft'],
+    copy: {
+      systems_thinking: 'Narrative-as-nodes applied to the job market: 14 organizations, 20 years, filter pills, deepdive inlets.',
+      content_strategy: 'Case studies that carry the proof: GNC and BNY Mellon — the evidence built into the architecture.',
+    }
+  },
+  'p-emdash': {
+    signals: ['content_strategy','craft','code_native'],
+    copy: {
+      content_strategy: 'A single-purpose editorial tool — the em dash as punctuation primitive, built because the need was real.',
+      code_native: 'Built in a day because the solution was obvious. The constraint is the argument.',
+    }
+  },
+  'p-rsp': {
+    signals: ['ai_native','content_strategy','enterprise'],
+    copy: {
+      ai_native: "Anthropic's RSP 3.0 rendered as narrative nodes — governance made navigable at the sentence level.",
+      content_strategy: 'Live behavioral telemetry inside a reading experience. Even policy benefits from the sentence-as-primitive approach.',
+    }
+  },
+  'p-ifimaybefrank': {
+    signals: ['content_strategy','zero_to_one','code_native','craft'],
+    copy: {
+      content_strategy: 'A writing application that manifests the thesis by existing — sentence-level composition, session stats, chapter provenance.',
+      zero_to_one: 'v2 shipped in a single session. The tool proves the argument.',
+    }
+  },
+  'p-dab': {
+    signals: ['ai_native','systems_thinking','code_native','leadership'],
+    copy: {
+      ai_native: 'dab.cx: Design for agentic architecture, bridging the human client experience. The method named.',
+      systems_thinking: 'Design. Architect. Build. Not design then hand off — one continuous motion, no translation loss.',
+      code_native: 'Vanilla HTML/CSS/JS as constraint and argument. Own the thing entirely. Understand it completely.',
+    }
+  },
+
+  // ── CLAUDE CODE ────────────────────────────────────────────────────────
+  // Surface these for AI/agentic/systems roles
+
+  'cc-queryengine': {
+    signals: ['ai_native','systems_thinking'],
+    copy: {
+      ai_native: 'The Query Engine: how Claude Code transforms natural language into executable operations — intent classification first.',
+      systems_thinking: 'Every prompt enters a pipeline: classify intent, assemble context, apply assertiveness counterweight, route to tools.',
+    }
+  },
+  'cc-memory-indexing': {
+    signals: ['ai_native','systems_thinking','content_strategy'],
+    copy: {
+      ai_native: 'MEMORY.md as long-term knowledge store — structured markdown that persists architectural decisions across sessions.',
+      systems_thinking: 'Skeptical Memory Architecture: the system doubts its own memories, allowing correction when new information contradicts stored assumptions.',
+    }
+  },
+  'cc-permission-system': {
+    signals: ['ai_native','enterprise','accessibility'],
+    copy: {
+      ai_native: 'The Permission System is the conscience of the tool — explicit consent before any sensitive operation.',
+      enterprise: 'Sandbox boundaries, confirmation dialogs, rate limiting: safety architecture for production AI at enterprise scale.',
+    }
+  },
+  'cc-autodream': {
+    signals: ['ai_native','systems_thinking'],
+    copy: {
+      ai_native: 'autoDream: background memory consolidation during idle time — the instrument thinks while you sleep.',
+      systems_thinking: 'Four phases: Orient, Gather, Consolidate, Prune. Memory architecture that improves without being asked.',
+    }
+  },
+  'cc-into-the-void': {
+    signals: ['ai_native','leadership','content_strategy'],
+    copy: {
+      ai_native: 'The source code leaked. This is what was inside — a philosophy, not a vulnerability. Legibility as the gift.',
+      leadership: 'You can work with a system you understand. That is what this map is for.',
+    }
+  },
+};
+
+
+// ── VESSEL DEFINITIONS ────────────────────────────────────────────────────
+// Vessels are determined by the dominant signal cluster, not single keywords.
+// ─────────────────────────────────────────────────────────────────────────
+const VESSELS = [
+  {
+    emoji: '🛸',
+    label: 'Orbiter',
+    title: 'The Strategic Arc',
+    sub: 'A mission built for leaders, directors, and vision-holders',
+    dominant: ['leadership','enterprise','scale','systems_thinking'],
+  },
+  {
+    emoji: '🚀',
+    label: 'Lunar Lander',
+    title: 'The Builder\'s Brief',
+    sub: 'A mission built for founders, operators, and 0-to-1 teams',
+    dominant: ['founder_operator','zero_to_one','code_native','ic_contributor'],
+  },
+  {
+    emoji: '🛰️',
+    label: 'Satellite',
+    title: 'The Craft Signal',
+    sub: 'A mission built for design leaders who care about the work',
+    dominant: ['craft','systems_thinking','content_strategy','accessibility','research'],
+  },
+  {
+    emoji: '🌌',
+    label: 'Deep Field',
+    title: 'The Platform Map',
+    sub: 'A mission built for platform, infra, and AI-native teams',
+    dominant: ['ai_native','systems_thinking','enterprise','scale','agile'],
+  },
+  {
+    emoji: '💊',
+    label: 'MedBay',
+    title: 'The Regulated Route',
+    sub: 'A mission built for healthcare and pharma teams',
+    dominant: ['pharma_health','enterprise','accessibility','research'],
+  },
+  {
+    emoji: '🏦',
+    label: 'Vault',
+    title: 'The Fintech Thread',
+    sub: 'A mission built for financial services and fintech teams',
+    dominant: ['fintech','enterprise','systems_thinking','agile'],
+  },
+  {
+    emoji: '🛒',
+    label: 'Commerce Pod',
+    title: 'The Commerce Play',
+    sub: 'A mission built for e-commerce and retail teams',
+    dominant: ['ecommerce','mobile','scale','zero_to_one'],
+  },
+];
+
+
+// ── NARRATIVE SEQUENCING RULES ────────────────────────────────────────────
+// After scoring, nodes are assembled into a narrative arc.
+// The arc has 5 roles; each pull from top-scoring nodes:
+//   HOOK      — opens with conviction (manifesto or wolfco)
+//   PROOF_A   — biggest career proof point for this signal set
+//   PROOF_B   — second proof point, preferably a different era
+//   METHOD    — how I work (process, philosophy)
+//   CLOSER    — the ask / present node
+//
+// 5 stops minimum, 7 maximum. Crossing between galaxies adds an arc node.
+// ─────────────────────────────────────────────────────────────────────────
+
+const HOOK_POOL     = ['m-thinker','wolfco','m-sentence','p-origin'];
+const METHOD_POOL   = ['m-build','m-hold','p-dab','seek'];
+const CLOSER_POOL   = ['m-ask','seek','m-proof'];
+const ALWAYS_AVOID  = [];  // nodes to never include (none currently)
+
+
+// ── SCORE ENGINE ─────────────────────────────────────────────────────────
+
+function extractSignalScores(jdText) {
+  const lower = jdText.toLowerCase();
+  const scores = {};
+  for (const [key, def] of Object.entries(SIGNALS)) {
+    let score = 0;
+    for (const kw of def.k) {
+      // Count occurrences, not just presence — repeated terms signal emphasis
+      let idx = 0;
+      while ((idx = lower.indexOf(kw, idx)) !== -1) {
+        score += def.w;
+        idx += kw.length;
+      }
+    }
+    scores[key] = score;
+  }
+  return scores;
+}
+
+function assignVesselFromScores(scores) {
+  let best = VESSELS[2]; // default: Satellite
+  let bestScore = 0;
+  for (const vessel of VESSELS) {
+    const score = vessel.dominant.reduce((sum, key) => sum + (scores[key] || 0), 0);
+    if (score > bestScore) { bestScore = score; best = vessel; }
+  }
+  return best;
+}
+
+function scoreNode(nodeId, signalScores) {
+  const tags = NODE_TAGS[nodeId];
+  if (!tags) return 0;
+  return tags.signals.reduce((sum, sig) => sum + (signalScores[sig] || 0), 0);
+}
+
+function getBestWhyCopy(nodeId, signalScores) {
+  const tags = NODE_TAGS[nodeId];
+  if (!tags || !tags.copy) return 'A defining chapter in the thread.';
+  // Find which of this node's signals scored highest in the JD
+  let bestSig = tags.signals[0];
+  let bestScore = 0;
+  for (const sig of tags.signals) {
+    const s = signalScores[sig] || 0;
+    if (s > bestScore) { bestScore = s; bestSig = sig; }
+  }
+  return tags.copy[bestSig] || tags.copy[tags.signals[0]] || 'A defining chapter in the thread.';
+}
+
+function getGalaxy(nodeId) {
+  if (nodeId.startsWith('m-'))  return 'manifesto';
+  if (nodeId.startsWith('cc-')) return 'claude';
+  if (nodeId.startsWith('p-'))  return 'platform';
+  return 'career';
+}
+
+// ── ROUTE ASSEMBLER ───────────────────────────────────────────────────────
+
+function assembleMissionRoute(signalScores, vessel) {
+  // 1. Score all tagged nodes
+  const allIds = Object.keys(NODE_TAGS);
+  const scored = allIds
+    .filter(id => !ALWAYS_AVOID.includes(id))
+    .map(id => ({ id, score: scoreNode(id, signalScores), galaxy: getGalaxy(id) }))
+    .sort((a, b) => b.score - a.score);
+
+  // 2. Pick HOOK — from hook pool, highest scoring
+  const hookId = HOOK_POOL
+    .map(id => ({ id, score: scoreNode(id, signalScores) }))
+    .sort((a, b) => b.score - a.score)[0].id;
+
+  // 3. Pick CLOSER — from closer pool
+  const closerId = CLOSER_POOL
+    .map(id => ({ id, score: scoreNode(id, signalScores) }))
+    .sort((a, b) => b.score - a.score)[0].id;
+
+  // 4. Pick METHOD — from method pool, excluding already chosen
+  const chosen = new Set([hookId, closerId]);
+  const methodId = METHOD_POOL
+    .filter(id => !chosen.has(id))
+    .map(id => ({ id, score: scoreNode(id, signalScores) }))
+    .sort((a, b) => b.score - a.score)[0].id;
+  chosen.add(methodId);
+
+  // 5. Pick 2–4 PROOF nodes — highest scored career/platform nodes not yet chosen
+  //    Prefer nodes from different eras to create temporal variety
+  const proofCandidates = scored
+    .filter(n => !chosen.has(n.id) && n.score > 0)
+    .slice(0, 12);  // top 12 to choose from
+
+  const proofNodes = [];
+  const usedYears = new Set();
+  for (const candidate of proofCandidates) {
+    if (proofNodes.length >= 3) break;
+    // Avoid nodes from the same year cluster
+    const yearKey = candidate.id.replace(/[0-9]/g, '').slice(0, 4);
+    if (usedYears.has(yearKey)) continue;
+    proofNodes.push(candidate.id);
+    usedYears.add(yearKey);
+    chosen.add(candidate.id);
+  }
+
+  // If we didn't fill 2 proof nodes (very short JD), add safe defaults
+  const PROOF_DEFAULTS = ['publicis','elva','codeandtheory','m-proof','livearea'];
+  for (const def of PROOF_DEFAULTS) {
+    if (proofNodes.length >= 2) break;
+    if (!chosen.has(def)) { proofNodes.push(def); chosen.add(def); }
+  }
+
+  // 6. Assemble narrative arc: HOOK → PROOF_A → PROOF_B → [PROOF_C] → METHOD → CLOSER
+  const route = [hookId, ...proofNodes, methodId, closerId];
+
+  // 7. Build final node objects with why-copy
+  return route.map(id => ({
+    id,
+    why: getBestWhyCopy(id, signalScores),
+  }));
+}
+
+// ── MISSION TITLE GENERATOR ───────────────────────────────────────────────
+// Deterministic title from dominant signals — no LLM needed.
+
+const MISSION_TITLES = {
+  leadership:       ['The Senior Thread',      'The Strategic Arc',    'The Leadership Stack'],
+  founder_operator: ['The Operator\'s Brief',  'The Builder\'s Route', 'Zero to One to Twenty'],
+  ecommerce:        ['The Commerce Play',      'The Conversion Record','Cart to Close'],
+  fintech:          ['The Fintech Thread',     'The Regulated Record', 'Money in Motion'],
+  ai_native:        ['The Agentic Signal',     'The Human & Machine',  'Post-AGI Architecture'],
+  systems_thinking: ['Systems, Not Surfaces',  'The Architecture Map', 'The Full Model'],
+  craft:            ['Craft as Argument',      'The Signal Record',    'Made by Hand'],
+  code_native:      ['The Constraint is the Argument', 'One File, One Thread', 'Built, Not Designed'],
+  content_strategy: ['The Sentence as Primitive', 'The Writing Engine','Language as Interface'],
+  pharma_health:    ['The Regulated Route',    'Precision by Design',  'High-Stakes Craft'],
+  zero_to_one:      ['From Nothing',           'The Build Record',     'Zero to One Thread'],
+};
+
+const MISSION_SUBS = {
+  leadership:       'A route built for directors, VPs, and vision-holders.',
+  founder_operator: 'A route for founders who need someone who can think and ship.',
+  ecommerce:        'The commerce thread — from $40M garages to post-bankruptcy recoveries.',
+  fintech:          'Two decades of precision. Two case studies that prove it.',
+  ai_native:        'The human who built the map of the instrument that helped him build it.',
+  systems_thinking: 'Twenty years of holding the full model while making the pixel decision.',
+  craft:            'Every credential earned in the work. No shortcuts.',
+  code_native:      'The site you are reading is the argument. Single file. No framework.',
+  content_strategy: 'The sentence is the irreducible unit. Everything else is downstream.',
+  pharma_health:    'High-stakes, regulated, precise — the design constraints that matter.',
+  zero_to_one:      'Built things from nothing. More than once. On purpose.',
+};
+
+function generateMissionTitle(signalScores) {
+  // Find the single highest-scoring signal
+  let topSig = 'systems_thinking';
+  let topScore = 0;
+  for (const [key, score] of Object.entries(signalScores)) {
+    if (score > topScore && MISSION_TITLES[key]) { topScore = score; topSig = key; }
+  }
+  const titles = MISSION_TITLES[topSig] || ['Twenty Years. One Thread.'];
+  const sub    = MISSION_SUBS[topSig]   || 'The argument from first principles.';
+  // Deterministic pick based on score magnitude
+  const pick = Math.floor(topScore / 8) % titles.length;
+  return { title: titles[pick], sub };
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// PUBLIC INTERFACE — drop-in replacements for the existing launchpad fns
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Node catalog builder (unchanged from original) ────────────────────────
 function buildNodeCatalog() {
   const all = [];
   const add = (era, galaxy) => {
     if (!era || !era.id) return;
-    all.push({
-      id:      era.id,
-      galaxy:  galaxy,
-      title:   era.title  || era.id,
-      role:    era.role   || '',
-      year:    era.year   || '',
-      domain:  era.domain || '',
-      body:    era.body   || era.sentences?.[0] || '',
-    });
+    all.push({ id: era.id, galaxy, title: era.title || era.id, role: era.role || '', year: era.year || '', domain: era.domain || '', body: era.body || era.sentences?.[0] || '' });
   };
   (typeof ERAS           !== 'undefined' ? ERAS           : []).forEach(e => add(e, 'career'));
   (typeof MANIFESTO_ERAS !== 'undefined' ? MANIFESTO_ERAS : []).forEach(e => add(e, 'manifesto'));
@@ -7481,31 +8039,12 @@ function buildNodeCatalog() {
   return all;
 }
 
-// ── Vessel assignment by JD signal ──
-const VESSELS = [
-  { emoji:'🛸', label:'Orbiter',       signal:'leader|director|head|VP|principal|strategic|vision|roadmap|stakeholder' },
-  { emoji:'🚀', label:'Lunar Lander',  signal:'founder|startup|0-to-1|seed|early.stage|operator|build|ship|fast' },
-  { emoji:'🛰️', label:'Satellite',    signal:'craft|system|interaction|design system|component|accessibility|IA|research|prototype' },
-  { emoji:'🌌', label:'Space Station', signal:'platform|infrastructure|scale|enterprise|architecture|API|cross-functional|program' },
-];
-function assignVessel(jd) {
-  const lower = jd.toLowerCase();
-  let best = VESSELS[2]; // default: Satellite
-  let bestScore = 0;
-  VESSELS.forEach(v => {
-    const terms = v.signal.split('|');
-    const score = terms.filter(t => lower.includes(t.replace('.',''))).length;
-    if (score > bestScore) { bestScore = score; best = v; }
-  });
-  return best;
-}
+// ── State ─────────────────────────────────────────────────────────────────
+let missionRoute  = null;
+let missionVessel = null;
+let missionJD     = '';
 
-// ── State ──
-let missionRoute   = null;
-let missionVessel  = null;
-let missionJD      = '';
-
-// ── Screens ──
+// ── Screen switcher ───────────────────────────────────────────────────────
 function showScreen(name) {
   ['input','computing','brief'].forEach(s => {
     const el = document.getElementById('flp-screen-' + s);
@@ -7517,7 +8056,7 @@ function showScreen(name) {
   if (target) { target.style.display = 'flex'; target.classList.add('active'); }
 }
 
-// ── Open / close ──
+// ── Open / close ──────────────────────────────────────────────────────────
 function openLaunchpad() {
   showScreen('input');
   document.getElementById('flight-launchpad').classList.add('vis');
@@ -7526,11 +8065,11 @@ function closeLaunchpad() {
   document.getElementById('flight-launchpad').classList.remove('vis');
 }
 
-// ── JD input wiring ──
-const jdInput    = document.getElementById('flp-jd-input');
-const charCount  = document.getElementById('flp-char-count');
-const launchBtn  = document.getElementById('flp-launch-btn');
-const dropzone   = document.getElementById('flp-dropzone');
+// ── JD input wiring ───────────────────────────────────────────────────────
+const jdInput   = document.getElementById('flp-jd-input');
+const charCount = document.getElementById('flp-char-count');
+const launchBtn = document.getElementById('flp-launch-btn');
+const dropzone  = document.getElementById('flp-dropzone');
 
 jdInput.addEventListener('input', () => {
   const len = jdInput.value.trim().length;
@@ -7554,112 +8093,62 @@ dropzone.addEventListener('drop', e => {
   reader.readAsText(file);
 });
 
-// ── Status copy cycles ──
+// ── Status copy cycles (computing screen) ────────────────────────────────
 const STATUS_LINES = [
   'Reading the brief…',
   'Mapping the signal…',
-  'Crossing galaxies…',
-  'Selecting wormholes…',
-  'Assembling the narrative…',
+  'Scoring the nodes…',
+  'Sequencing the narrative…',
   'Charting your course…',
+  'Assembling the route…',
 ];
 let statusIdx = 0, statusTimer = null;
 function cycleStatus() {
   const el = document.getElementById('flp-compute-status');
   if (!el) return;
-  el.style.animation = 'none';
-  el.offsetHeight; // reflow
-  el.style.animation = '';
   el.textContent = STATUS_LINES[statusIdx++ % STATUS_LINES.length];
-  statusTimer = setTimeout(cycleStatus, 1800);
+  statusTimer = setTimeout(cycleStatus, 680);
 }
 
-// ── Compute mission via Claude API ──
-async function computeMission() {
+// ── computeMission — ZERO API, fully deterministic ───────────────────────
+function computeMission() {
   missionJD = jdInput.value.trim();
   if (!missionJD) return;
 
-  missionVessel = assignVessel(missionJD);
-  document.getElementById('flp-compute-vessel').textContent = missionVessel.emoji;
-
+  // Show computing screen immediately
   showScreen('computing');
   statusIdx = 0;
   cycleStatus();
 
-  const catalog = buildNodeCatalog();
-  const catalogSummary = catalog.map(n =>
-    `id:${n.id} galaxy:${n.galaxy} title:"${n.title}" role:"${n.role}" year:${n.year} body:"${n.body.slice(0,120)}"`
-  ).join('\n');
+  // Defer actual computation one frame so the screen transition renders
+  setTimeout(() => {
+    const signalScores = extractSignalScores(missionJD);
+    missionVessel = assignVesselFromScores(signalScores);
 
-  const prompt = `You are a narrative route-planner for a spatial portfolio. Given a job description and a catalog of portfolio nodes across multiple galaxies (career, manifesto, claude, platform), construct a bespoke mission journey of 5–7 nodes.
+    // Update vessel emoji in computing screen
+    const vesselEl = document.getElementById('flp-compute-vessel');
+    if (vesselEl) vesselEl.textContent = missionVessel.emoji;
 
-The journey must:
-- Be non-linear — deliberately cross between galaxies when the narrative demands it
-- Tell a coherent argument for why Zack is right for THIS specific role
-- Order nodes by narrative logic, not chronology
-- Each node gets a one-sentence "why" that connects it to the JD's language
+    const nodes = assembleMissionRoute(signalScores, missionVessel);
+    const { title, sub } = generateMissionTitle(signalScores);
 
-JOB DESCRIPTION:
-${missionJD.slice(0, 2000)}
+    missionRoute = {
+      missionTitle: title,
+      missionSub:   sub,
+      nodes,
+      _signalScores: signalScores,  // stash for replot variance
+    };
 
-NODE CATALOG:
-${catalogSummary}
-
-Respond ONLY with a JSON object in this exact shape (no markdown, no preamble):
-{
-  "missionTitle": "A short evocative mission name (max 8 words)",
-  "missionSub": "One line — what this route proves",
-  "nodes": [
-    { "id": "node_id_from_catalog", "why": "one sentence connecting this node to the JD" }
-  ]
-}`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const raw  = data.content?.map(b => b.text || '').join('') || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
-
-    clearTimeout(statusTimer);
-    missionRoute = parsed;
-    renderBrief(parsed);
-    showScreen('brief');
-
-  } catch (err) {
-    clearTimeout(statusTimer);
-    // Fallback: show a sensible default route
-    missionRoute = getFallbackRoute();
-    renderBrief(missionRoute);
-    showScreen('brief');
-  }
+    // Simulate brief "thinking" delay for UX — 1.4s feels intentional, not instant
+    setTimeout(() => {
+      clearTimeout(statusTimer);
+      renderBrief(missionRoute);
+      showScreen('brief');
+    }, 1400);
+  }, 60);
 }
 
-function getFallbackRoute() {
-  return {
-    missionTitle: 'Twenty Years. One Thread.',
-    missionSub: 'The argument from first principles',
-    nodes: [
-      { id: 'm-thinker', why: 'Where the conviction was formed — self-taught, no shortcuts.' },
-      { id: 'turn5',     why: 'First proof: $10M to $40M, every hat, no playbook.' },
-      { id: 'elva',      why: 'The enterprise chapter — systems at Fortune 500 scale.' },
-      { id: 'm-proof',   why: 'GNC and BNY Mellon: the case studies that carry the evidence.' },
-      { id: 'm-hold',    why: 'The capability that connects all of it — holding the full model.' },
-      { id: 'wolfco',    why: 'Wolfgang & Co. — the conviction made into infrastructure.' },
-      { id: 'm-ask',     why: 'The ask. Simple. Direct. No title-chasing.' },
-    ]
-  };
-}
-
-// ── Render mission brief ──
+// ── renderBrief (identical contract to original) ─────────────────────────
 function renderBrief(route) {
   document.getElementById('flp-brief-vessel').textContent      = missionVessel.emoji;
   document.getElementById('flp-brief-vessel-label').textContent = missionVessel.label;
@@ -7668,11 +8157,12 @@ function renderBrief(route) {
 
   const catalog = buildNodeCatalog();
   const byId = {};
-  catalog.forEach(n => byId[n.id] = n);
+  catalog.forEach(n => (byId[n.id] = n));
 
   const routeEl = document.getElementById('flp-route');
   routeEl.innerHTML = '';
 
+  const GALAXY_LABELS = { career: 'Career', manifesto: 'Manifesto', claude: 'Claude Code', platform: 'Platform' };
   let lastGalaxy = null;
   route.nodes.forEach((step, i) => {
     const node = byId[step.id];
@@ -7683,32 +8173,29 @@ function renderBrief(route) {
     const div = document.createElement('div');
     div.className = 'flp-route-node';
     div.innerHTML = `
-      <div class="flp-rn-index">${String(i+1).padStart(2,'0')}</div>
+      <div class="flp-rn-index">${String(i + 1).padStart(2, '0')}</div>
       <div class="flp-rn-content">
-        <div class="flp-rn-galaxy">${node.galaxy.toUpperCase()} · ${node.year || ''}</div>
+        <div class="flp-rn-galaxy">${(GALAXY_LABELS[node.galaxy] || node.galaxy).toUpperCase()} · ${node.year || ''}</div>
         <div class="flp-rn-title">${node.title}</div>
         <div class="flp-rn-why">${step.why}</div>
       </div>
-      ${crossed ? '<div class="flp-rn-cross">⟿</div>' : ''}
-    `;
+      ${crossed ? '<div class="flp-rn-cross">⟿</div>' : ''}`;
     routeEl.appendChild(div);
   });
 }
 
-// ── Begin flight ──
+// ── beginFlight ───────────────────────────────────────────────────────────
 function beginFlight() {
   closeLaunchpad();
 
   const catalog = buildNodeCatalog();
   const byId = {};
-  catalog.forEach(n => byId[n.id] = n);
+  catalog.forEach(n => (byId[n.id] = n));
 
-  // Store route on window for guided navigation
-  window._missionRoute  = missionRoute?.nodes || [];
-  window._missionIdx    = 0;
-  window._missionByIdCache = byId;
+  window._missionRoute       = missionRoute?.nodes || [];
+  window._missionIdx         = 0;
+  window._missionByIdCache   = byId;
 
-  // Navigate to first node
   const first = missionRoute?.nodes?.[0];
   if (!first) return;
 
@@ -7719,15 +8206,33 @@ function beginFlight() {
     ...(typeof PLATFORM_ERAS  !== 'undefined' ? PLATFORM_ERAS  : []),
   ];
   const target = allEras.find(e => e.id === first.id);
-  if (target && typeof focusEra === 'function') {
-    setTimeout(() => focusEra(target), 220);
-  }
-
-  // Show the in-flight HUD
+  if (target && typeof focusEra === 'function') setTimeout(() => focusEra(target), 220);
   setTimeout(() => mhudShow(), 400);
 }
 
-// ── Mission HUD ──────────────────────────────────────────
+// ── regenMission — replots with slight randomisation ─────────────────────
+function regenMission() {
+  // Add small jitter to signal scores so replot produces a different but
+  // equally valid route — without re-reading the JD
+  if (missionRoute?._signalScores) {
+    const jittered = {};
+    for (const [k, v] of Object.entries(missionRoute._signalScores)) {
+      jittered[k] = v * (0.85 + Math.random() * 0.30);
+    }
+    const nodes = assembleMissionRoute(jittered, missionVessel);
+    const { title, sub } = generateMissionTitle(jittered);
+    missionRoute = { ...missionRoute, missionTitle: title, missionSub: sub, nodes, _signalScores: jittered };
+    renderBrief(missionRoute);
+  } else {
+    showScreen('input');
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+// MISSION HUD — identical to original; reproduced here for completeness
+// ══════════════════════════════════════════════════════════════════════════
+
 const GALAXY_COLORS = {
   career:   '#daa520',
   manifesto:'#a070d0',
@@ -7744,29 +8249,24 @@ function mhudShow() {
 }
 
 function mhudRender() {
-  const route  = window._missionRoute || [];
-  const idx    = window._missionIdx   || 0;
-  const byId   = window._missionByIdCache || {};
-  const step   = route[idx];
+  const route = window._missionRoute || [];
+  const idx   = window._missionIdx   || 0;
+  const byId  = window._missionByIdCache || {};
+  const step  = route[idx];
   if (!step) return;
 
   const node   = byId[step.id];
   const galaxy = node?.galaxy || 'career';
   const total  = route.length;
 
-  // accent bar
   const accent = document.getElementById('mhud-accent');
   if (accent) accent.style.background = GALAXY_COLORS[galaxy] || '#daa520';
 
-  // eyebrow
   document.getElementById('mhud-idx').textContent   = String(idx + 1).padStart(2, '0');
   document.getElementById('mhud-total').textContent  = String(total).padStart(2, '0');
+  document.getElementById('mhud-title').textContent  = node?.title || step.id;
+  document.getElementById('mhud-why').textContent    = step.why || '';
 
-  // title & why
-  document.getElementById('mhud-title').textContent = node?.title || step.id;
-  document.getElementById('mhud-why').textContent   = step.why || '';
-
-  // pips
   const pipsEl = document.getElementById('mhud-pips');
   pipsEl.innerHTML = '';
   route.forEach((_, i) => {
@@ -7775,26 +8275,24 @@ function mhudRender() {
     pipsEl.appendChild(pip);
   });
 
-  // nav buttons
   document.getElementById('mhud-prev').disabled = (idx === 0);
   document.getElementById('mhud-next').disabled = (idx >= total - 1);
 }
 
 function mhudStep(dir) {
-  const route  = window._missionRoute || [];
-  const idx    = window._missionIdx   || 0;
+  const route   = window._missionRoute || [];
+  const idx     = window._missionIdx   || 0;
   const nextIdx = Math.max(0, Math.min(route.length - 1, idx + dir));
   if (nextIdx === idx) return;
 
-  const prevNode  = (window._missionByIdCache || {})[route[idx]?.id];
-  const nextStep  = route[nextIdx];
-  const nextNode  = (window._missionByIdCache || {})[nextStep?.id];
+  const prevNode = (window._missionByIdCache || {})[route[idx]?.id];
+  const nextStep = route[nextIdx];
+  const nextNode = (window._missionByIdCache || {})[nextStep?.id];
 
-  // Galaxy crossing flash
   if (prevNode?.galaxy && nextNode?.galaxy && prevNode.galaxy !== nextNode.galaxy) {
     const hud = document.getElementById('mission-hud');
     hud.classList.remove('crossing');
-    void hud.offsetWidth; // reflow
+    void hud.offsetWidth;
     hud.classList.add('crossing');
     setTimeout(() => hud.classList.remove('crossing'), 650);
   }
@@ -7802,7 +8300,6 @@ function mhudStep(dir) {
   window._missionIdx = nextIdx;
   mhudRender();
 
-  // Navigate the galaxy
   const allEras = [
     ...(typeof ERAS           !== 'undefined' ? ERAS           : []),
     ...(typeof MANIFESTO_ERAS !== 'undefined' ? MANIFESTO_ERAS : []),
@@ -7810,9 +8307,7 @@ function mhudStep(dir) {
     ...(typeof PLATFORM_ERAS  !== 'undefined' ? PLATFORM_ERAS  : []),
   ];
   const target = allEras.find(e => e.id === nextStep?.id);
-  if (target && typeof focusEra === 'function') {
-    focusEra(target);
-  }
+  if (target && typeof focusEra === 'function') focusEra(target);
 }
 
 function mhudEnd() {
@@ -7824,12 +8319,7 @@ function mhudEnd() {
   window._missionIdx   = 0;
 }
 
-// ── Replot ──
-function regenMission() {
-  showScreen('input');
-}
-
-// ── ESC ──
+// ESC closes launchpad
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.getElementById('flight-launchpad').classList.contains('vis')) closeLaunchpad();
