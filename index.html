@@ -4318,8 +4318,8 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
       color: 0xffe566, hex: '#ffe566',
     },
     claude: {
-      era: 'Claude Code · Architecture Map',
-      title: 'The Instrument Alongside the Work.',
+      era: 'dab.cx • zack.cx',
+      title: 'Human & Machine Learning',
       role: 'Pipeline → Memory → Permission → Experimental',
       body: 'This is a map of the tool that built this file. Claude Code is not a chatbot with file access — it is a system with a Query Engine, a Skeptical Memory Architecture, a Permission System, and an Experimental tier that dreams while you sleep. This galaxy was built using the instrument it describes.',
       domain: 'system',
@@ -5450,9 +5450,11 @@ function eraPreset(era) {
 
   // PIVOT = exact node position so the node is CENTERED in viewport
   // On desktop, shift slightly left (toward star) to give ghost panel room on right
+  // On mobile, shift pivot DOWN so node appears in upper third — panel won't occlude it
   const panelShift  = isMobile ? 0 : 3.5;  // positive = toward star (left of screen)
   const screenLeft  = new THREE.Vector3(-Math.cos(theta + Math.PI * 0.5), 0, Math.sin(theta + Math.PI * 0.5));
   const pivot       = pos.clone().addScaledVector(screenLeft, panelShift);
+  if (isMobile) pivot.y -= 1.8;  // camera looks below node → node floats above panel
 
   return { theta, phi, radius, pivot };
 }
@@ -5970,8 +5972,11 @@ cvs.addEventListener('pointerup', e => {
       isBlackHoleFocused = false;
     }
 
+    // Star checked FIRST — direct star click takes priority over cluster mesh
+    if (handleStarClick && handleStarClick(mouse)) return;
+
     if (galaxyAlpha > 0.15) {
-      // Galaxy cluster click → swoop into that galaxy
+      // Galaxy cluster click → swoop into that galaxy (fallback if no star hit)
       const clMeshes = galaxyClusterObjects.map(o => o.mesh);
       const clHits = raycaster.intersectObjects(clMeshes);
       if (clHits.length) {
@@ -5985,8 +5990,6 @@ cvs.addEventListener('pointerup', e => {
         }
       }
     }
-    // Star checked before clearStarFocus — second click on star opens tesseract
-    if (handleStarClick && handleStarClick(mouse)) return;
     clearStarFocus();
     if (handleGalaxyClick(mouse)) { if (!hintFaded) { document.getElementById('hint').style.opacity = '0.05'; hintFaded = true; } return; }
     raycaster.setFromCamera(mouse, cam);
@@ -6059,10 +6062,13 @@ cvs.addEventListener('wheel', e => {
 }, { passive: true });
 cvs.addEventListener('contextmenu', e => {
   e.preventDefault();
-  // Right-click: toggle between orbit (spiral) and timeline (arc) views
+  // Right-click (desktop) or long-press (mobile): toggle spiral ↔ arc
   const next = currentView === 'arc' ? 'spiral' : 'arc';
   switchView(next);
 });
+
+// Suppress native long-press context menu on mobile everywhere
+document.addEventListener('contextmenu', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
 
 let longPressTimer = null;
 let pinchDist = 0;
@@ -6075,7 +6081,11 @@ cvs.addEventListener('touchstart', e => {
     pinchDist = Math.sqrt(dx*dx + dy*dy);
     return;
   }
-  longPressTimer = setTimeout(() => { openTOC(); }, 600);
+  // Long press → toggle spiral / arc view
+  longPressTimer = setTimeout(() => {
+    const next = currentView === 'arc' ? 'spiral' : 'arc';
+    switchView(next);
+  }, 600);
 }, { passive: true });
 
 cvs.addEventListener('touchmove', e => {
