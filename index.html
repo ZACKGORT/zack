@@ -4944,6 +4944,8 @@ function updateGalaxyAlpha() {
     if (window._updateSSFilter) window._updateSSFilter(null);
     if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
   }
+  // Reset star direct-click gate when user has returned to full galaxy view
+  if (galaxyAlpha > 0.85) starDirectClickId = null;
 
   const ga = Math.pow(galaxyAlpha, 1.6); // steeper drop-off: galaxy fades fast as you zoom in
   const oa = 1 - ga; // orrery alpha (inverse)
@@ -5152,6 +5154,7 @@ function switchView(view) {
   if (window._syncLayoutToggle) setTimeout(window._syncLayoutToggle, 10);
   if (view === 'overview') {
     focusedStarGalaxyId = null; // reset star focus on overview
+    starDirectClickId   = null;
     // Overview = zoom out to see all three orreries around the black hole
     // Focus on the orbital ring with a tilted-down angle for comfortable viewing
     closeGridView();
@@ -5219,19 +5222,18 @@ function handleStarClick(mouseVec) {
   isBlackHoleFocused = false;
 
   // ── STAR CLICK LOGIC ──────────────────────────────────────
-  // Rule: must focus the star's galaxy BEFORE the tesseract is accessible.
-  // First click (not yet focused) → swoop to orrery overview.
-  // Second click (already focused in this galaxy) → open tesseract.
+  // Rule: first click → focus orrery. Second direct star click → tesseract.
+  // Never jump straight to tesseract — starDirectClickId gates it.
 
-  const alreadyFocused = focusedStarGalaxyId === gid && !galaxyMode && galaxyAlpha < 0.5;
+  const alreadyFocused = starDirectClickId === gid && !galaxyMode && galaxyAlpha < 0.5;
 
   if (alreadyFocused) {
-    // Star is already in focus — open its tesseract
     openGalaxyTesseract(gid);
     return true;
   }
 
-  // Not yet focused — swoop into the orrery overview for this galaxy
+  // Not yet in focus — swoop into the orrery overview for this galaxy
+  starDirectClickId   = gid;   // record that THIS star was directly clicked
   focusedStarGalaxyId = gid;
   const p = star.def.center;
   const angle = Math.atan2(p.z, p.x);
@@ -5249,6 +5251,7 @@ function handleStarClick(mouseVec) {
 // Clear star focus when user clicks away
 function clearStarFocus() {
   focusedStarGalaxyId = null;
+  starDirectClickId   = null;
 }
 // Star focus cleared in switchView overview branch above
 
@@ -5781,6 +5784,7 @@ function focusBlackHole() {
 // Variable to track if black hole is focused
 let isBlackHoleFocused = false;
 var focusedStarGalaxyId = null;
+var starDirectClickId   = null;  // only set by a direct star click — gates tesseract entry
 var lastFocusedGalaxyId = null; // tracks which galaxy star is currently the focus
 
 // Moon image ghost — disabled
