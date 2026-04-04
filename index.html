@@ -1349,53 +1349,6 @@ body.light .rhud-btn.active { color: #000; }
   #flight-fab { bottom:120px; width:96px; height:96px; }
 }
 
-/* ── JOURNEY CONTROL STRIP ───────────────────────────────── */
-#fab-journey-controls {
-  position:fixed;
-  bottom:200px;
-  left:50%; transform:translateX(-50%);
-  z-index:849;
-  display:flex; align-items:center; gap:2px;
-  background:rgba(5,3,10,0.92);
-  border:1px solid rgba(255,102,204,0.22);
-  border-radius:20px;
-  padding:5px 8px;
-  opacity:0; pointer-events:none;
-  transition:opacity 0.30s, transform 0.30s cubic-bezier(0.34,1.56,0.64,1);
-  transform:translateX(-50%) translateY(8px);
-  backdrop-filter:blur(12px);
-}
-#fab-journey-controls.vis {
-  opacity:1; pointer-events:all;
-  transform:translateX(-50%) translateY(0);
-}
-.fjc-btn {
-  background:none; border:none; cursor:pointer;
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(255,102,204,0.65);
-  padding:5px 10px; border-radius:14px;
-  transition:color 0.18s, background 0.18s;
-}
-.fjc-btn:hover { color:#ff66cc; background:rgba(255,102,204,0.10); }
-.fjc-cancel { color:rgba(255,102,204,0.35) !important; }
-.fjc-cancel:hover { color:rgba(255,80,80,0.85) !important; }
-
-/* FAB pulse ring when journey active */
-#flight-fab.journey-active::after {
-  content:'';
-  position:absolute; inset:-8px; border-radius:50%;
-  border:1px solid rgba(255,102,204,0.30);
-  animation:journey-pulse 2.4s ease-in-out infinite;
-  pointer-events:none;
-}
-@keyframes journey-pulse {
-  0%,100% { opacity:0.30; transform:scale(1.00); }
-  50%      { opacity:0.08; transform:scale(1.12); }
-}
-@media(max-width:768px){
-  #fab-journey-controls { bottom:230px; }
-}
-
 #flight-launchpad {
   position:fixed; inset:0; z-index:860;
   display:flex; align-items:center; justify-content:center;
@@ -4803,299 +4756,103 @@ function buildClaudeScene() {
 }
 buildClaudeScene();
 
-
 // ─────────────────────────────────────────────────────────
-// roundRect polyfill for Safari <15.4 / older Chrome
-if (!CanvasRenderingContext2D.prototype.roundRect) {
-  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
-    const R = Math.min(r || 0, w / 2, h / 2);
-    this.beginPath();
-    this.moveTo(x + R, y);
-    this.arcTo(x + w, y,     x + w, y + h, R);
-    this.arcTo(x + w, y + h, x,     y + h, R);
-    this.arcTo(x,     y + h, x,     y,     R);
-    this.arcTo(x,     y,     x + w, y,     R);
-    this.closePath();
-  };
-}
-
-// SOL X HELPERS — bands, vessel sprites, constellations
-// ─────────────────────────────────────────────────────────
-
-// Ribbon mesh band around an ellipse orbit (colored ring, not thin line)
-function makeExplorerBand(center, e, scene, allLines, galaxyId) {
-  const N = 128, BW = e.bandWidth || 1.5;
-  const verts = [], idx = [];
-  for (let i = 0; i <= N; i++) {
-    const a = (i / N) * Math.PI * 2;
-    const ilx = (e.rx - BW * 0.5) * Math.cos(a), ilz = (e.rz - BW * 0.4) * Math.sin(a);
-    const olx = (e.rx + BW * 0.5) * Math.cos(a), olz = (e.rz + BW * 0.4) * Math.sin(a);
-    verts.push(
-      center.x + ilx * Math.cos(TILT) - ilz * Math.sin(TILT), e.y || 0,
-      center.z + ilx * Math.sin(TILT) + ilz * Math.cos(TILT)
-    );
-    verts.push(
-      center.x + olx * Math.cos(TILT) - olz * Math.sin(TILT), e.y || 0,
-      center.z + olx * Math.sin(TILT) + olz * Math.cos(TILT)
-    );
-    if (i < N) { const b = i*2; idx.push(b,b+1,b+2, b+1,b+3,b+2); }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  geo.setIndex(idx);
-  const mat = new THREE.MeshBasicMaterial({
-    color: e.color, transparent: true, opacity: e.bandOp || 0.28,
-    side: THREE.DoubleSide, depthWrite: false,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  scene.add(mesh);
-  allLines.push({ line: mesh, darkOp: e.bandOp || 0.28, lightOp: 0.52,
-                  darkColor: e.color, lightColor: 0x222222, galaxy: galaxyId });
-  return mesh;
-}
-
-// Draw a vessel icon to canvas and return a THREE.Sprite
-function makeVesselSprite(type, color, spriteSize) {
-  const S = 256, cx = S/2, cy = S/2;
-  const cvs = document.createElement('canvas');
-  cvs.width = cvs.height = S;
-  const ctx = cvs.getContext('2d');
-  const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
-  const hex = `rgb(${r},${g},${b})`, hexA = `rgba(${r},${g},${b},0.45)`;
-  ctx.shadowBlur = 24; ctx.shadowColor = hex;
-
-  if (type === 'orbiter') {
-    // UFO — saucer disc + dome
-    const dg = ctx.createRadialGradient(cx, cy+8, 4, cx, cy+8, 44);
-    dg.addColorStop(0, `rgba(${r},${g},${b},0.90)`);
-    dg.addColorStop(1, `rgba(${r},${g},${b},0.0)`);
-    ctx.beginPath(); ctx.ellipse(cx, cy+8, 46, 15, 0, 0, Math.PI*2);
-    ctx.fillStyle = dg; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(cx, cy+8, 38, 11, 0, 0, Math.PI*2);
-    ctx.strokeStyle = hex; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(cx, cy-4, 20, 15, 0, Math.PI, 0);
-    ctx.fillStyle = `rgba(${r},${g},${b},0.50)`; ctx.fill();
-    ctx.strokeStyle = hex; ctx.lineWidth = 2; ctx.stroke();
-    [-26,-13,0,13,26].forEach((dx,i) => {
-      ctx.beginPath(); ctx.arc(cx+dx, cy+8, 3.2, 0, Math.PI*2);
-      ctx.fillStyle = i%2===0 ? hex : 'rgba(255,255,200,0.90)';
-      ctx.shadowBlur = 12; ctx.fill();
-    });
-
-  } else if (type === 'lunar') {
-    // Lander — box body, 4 legs, engine bell
-    ctx.strokeStyle = hex; ctx.lineWidth = 3;
-    ctx.fillStyle = `rgba(${r},${g},${b},0.20)`;
-    ctx.beginPath(); ctx.roundRect(cx-18, cy-26, 36, 34, 5); ctx.fill(); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx-13, cy+8); ctx.lineTo(cx-17, cy+25);
-    ctx.lineTo(cx+17, cy+25); ctx.lineTo(cx+13, cy+8);
-    ctx.fillStyle = `rgba(${r},${g},${b},0.40)`; ctx.fill();
-    ctx.strokeStyle = hex; ctx.stroke();
-    const tg = ctx.createRadialGradient(cx, cy+33, 2, cx, cy+33, 22);
-    tg.addColorStop(0, 'rgba(255,220,100,0.85)');
-    tg.addColorStop(0.5, `rgba(${r},${g},${b},0.35)`);
-    tg.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.beginPath(); ctx.ellipse(cx, cy+33, 15, 24, 0, 0, Math.PI*2);
-    ctx.fillStyle = tg; ctx.shadowBlur = 0; ctx.fill();
-    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy]) => {
-      ctx.beginPath();
-      ctx.moveTo(cx+sx*15, cy+sy*10+(sy<0?-10:10));
-      ctx.lineTo(cx+sx*36, cy+31+sy*5);
-      ctx.strokeStyle = hexA; ctx.lineWidth = 2.5; ctx.shadowBlur=0; ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx+sx*36, cy+31+sy*5, 4.5, 0, Math.PI*2);
-      ctx.fillStyle = hex; ctx.shadowBlur=10; ctx.fill();
-    });
-
-  } else if (type === 'satellite') {
-    // Satellite — body + solar wings + dish
-    ctx.strokeStyle = hex; ctx.lineWidth = 2.5;
-    ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
-    ctx.beginPath(); ctx.roundRect(cx-14, cy-20, 28, 38, 4); ctx.fill(); ctx.stroke();
-    // wings
-    [[-62, 3], [20, 3]].forEach(([wx]) => {
-      ctx.beginPath(); ctx.roundRect(cx+wx, cy-13, 42, 24, 3); ctx.fill(); ctx.stroke();
-      [-1,0,1].forEach(d => {
-        ctx.beginPath();
-        ctx.moveTo(cx+wx+(d+1.5)*14, cy-13);
-        ctx.lineTo(cx+wx+(d+1.5)*14, cy+11);
-        ctx.strokeStyle = hexA; ctx.lineWidth = 1; ctx.stroke();
-      });
-    });
-    ctx.strokeStyle = hex; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(cx, cy-30, 15, Math.PI, 0); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy-30); ctx.lineTo(cx, cy-20); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, cy-30, 3.5, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.shadowBlur=14; ctx.fill();
-
-  } else {
-    // Space Station — hub + 4 spokes + ring
-    ctx.strokeStyle = `rgba(${r},${g},${b},0.55)`;
-    ctx.lineWidth = 4.5;
-    ctx.beginPath(); ctx.arc(cx, cy, 48, 0, Math.PI*2); ctx.stroke();
-    [[0,-1],[1,0],[0,1],[-1,0]].forEach(([dx,dy]) => {
-      ctx.beginPath();
-      ctx.moveTo(cx+dx*14, cy+dy*14); ctx.lineTo(cx+dx*48, cy+dy*48);
-      ctx.strokeStyle = hex; ctx.lineWidth = 3; ctx.shadowBlur=8; ctx.stroke();
-      ctx.beginPath(); ctx.roundRect(cx+dx*48-7, cy+dy*48-7, 14, 14, 2);
-      ctx.fillStyle = `rgba(${r},${g},${b},0.35)`; ctx.fill();
-      ctx.strokeStyle = hex; ctx.lineWidth = 2; ctx.stroke();
-    });
-    ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI*2);
-    ctx.fillStyle = `rgba(${r},${g},${b},0.50)`; ctx.fill();
-    ctx.strokeStyle = hex; ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2);
-    ctx.fillStyle = 'rgba(255,255,255,0.80)'; ctx.shadowBlur=20; ctx.fill();
-  }
-
-  const tex = new THREE.CanvasTexture(cvs);
-  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: tex, transparent: true, depthWrite: false, opacity: 0.94,
-  }));
-  spr.scale.setScalar(spriteSize);
-  return spr;
-}
-
-// Per-archetype constellation star patterns — relative offsets from vessel pos
-const CONSTELLATION_PATTERNS = {
-  orbiter:   [[-3.2,0.4,-2.0],[2.1,0.8,-3.5],[5.4,0.2,1.3],[3.0,-0.5,4.2],[-2.4,-0.8,3.1]],
-  lunar:     [[3.3,0.6,2.0],[-4.1,0.3,3.2],[0.2,1.2,5.4],[-3.0,-0.6,-2.5],[4.3,-0.4,-3.0]],
-  satellite: [[-5.1,0.2,1.4],[-2.3,0.9,-3.0],[3.1,0.5,-4.2],[5.3,-0.3,2.1],[2.0,-0.8,4.3]],
-  station:   [[4.2,0.3,-3.1],[0.1,1.1,-5.3],[-4.0,0.6,-2.4],[-5.2,-0.5,2.0],[0.3,-0.9,5.1]],
-};
-
-const explorerConstellations = {}; // keyed by era.id
-
-function makeConstellation(era, pos) {
-  const pattern = CONSTELLATION_PATTERNS[era.solarSystem] || CONSTELLATION_PATTERNS.satellite;
-  const group = { dots: [], lines: [] };
-  const stars = pattern.map(([dx,dy,dz]) => new THREE.Vector3(pos.x+dx, pos.y+dy, pos.z+dz));
-  stars.forEach(sp => {
-    const dot = makeGlowSprite(era.color, 0.11);
-    dot.scale.setScalar(0.38);
-    dot.position.copy(sp);
-    dot.material.opacity = 0;
-    scene.add(dot);
-    group.dots.push(dot);
-  });
-  [[0,2],[2,4],[4,1],[1,3],[3,0]].forEach(([a,b]) => {
-    const lm = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0, depthWrite: false });
-    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([stars[a], stars[b]]), lm);
-    scene.add(l);
-    group.lines.push(l);
-  });
-  explorerConstellations[era.id] = group;
-}
-
-function setConstellationVisible(eraId, vis) {
-  const g = explorerConstellations[eraId]; if (!g) return;
-  g.dots.forEach(d  => { d.material.opacity   = vis ? 0.72 : 0; });
-  g.lines.forEach(l => { l.material.opacity   = vis ? 0.32 : 0; });
-}
-
-// ─────────────────────────────────────────────────────────
-// SOL X — EXPLORER SCENE BUILD
+// SOL X — EXPLORER SCENE
+// Four archetype orbit nodes on tilted ellipse rings.
+// Pattern mirrors buildClaudeScene exactly.
 // ─────────────────────────────────────────────────────────
 function buildExplorerScene() {
-  // Spine axis
+  // ── Spine axis ──────────────────────────────────────────
   const spinePts = [
     new THREE.Vector3(EXPLORER_CENTER.x, -14, EXPLORER_CENTER.z),
     new THREE.Vector3(EXPLORER_CENTER.x,  14, EXPLORER_CENTER.z),
   ];
   const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
-    new THREE.LineBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.03 }));
+    new THREE.LineBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.04 }));
   scene.add(spine);
-  allLines.push({ line: spine, darkOp: 0.03, lightOp: 0.07,
-                  darkColor: 0xff66cc, lightColor: 0x000000, galaxy: 'explorer' });
+  allLines.push({ line: spine, darkOp: 0.04, lightOp: 0.08, darkColor: 0xff66cc, lightColor: 0x000000, galaxy: 'explorer' });
 
-  // ── BAND RINGS — colored ribbon meshes ──────────────────
-  const bandCfg = {
-    inner:  { bandWidth: 1.2, bandOp: 0.34 },
-    mid:    { bandWidth: 1.5, bandOp: 0.28 },
-    outer:  { bandWidth: 1.8, bandOp: 0.22 },
-    outer2: { bandWidth: 2.1, bandOp: 0.17 },
-  };
+  // ── Ellipse rings ───────────────────────────────────────
+  Object.keys(EXPLORER_ELLIPSES).forEach(tier => {
+    drawGalaxyEllipse(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, scene, allLines, 'explorer');
+  });
   Object.entries(EXPLORER_ELLIPSES).forEach(([tier, e]) => {
-    const cfg = bandCfg[tier] || {};
-    makeExplorerBand(EXPLORER_CENTER, { ...e, ...cfg }, scene, allLines, 'explorer');
-    // Thin bright edge highlight on outer rim of band
-    const edgePts = [];
-    for (let i = 0; i <= 128; i++) {
-      const a = i / 128 * Math.PI * 2;
-      const rx = e.rx + (cfg.bandWidth||1.5)*0.5, rz = e.rz + (cfg.bandWidth||1.5)*0.4;
-      const lx = rx*Math.cos(a), lz = rz*Math.sin(a);
-      edgePts.push(new THREE.Vector3(
-        EXPLORER_CENTER.x + lx*Math.cos(TILT) - lz*Math.sin(TILT), e.y||0,
-        EXPLORER_CENTER.z + lx*Math.sin(TILT) + lz*Math.cos(TILT)
-      ));
-    }
-    const edge = new THREE.Line(new THREE.BufferGeometry().setFromPoints(edgePts),
-      new THREE.LineBasicMaterial({ color: e.color, transparent: true, opacity: 0.55 }));
-    scene.add(edge);
-    allLines.push({ line: edge, darkOp: 0.55, lightOp: 0.85,
-                    darkColor: e.color, lightColor: 0x000000, galaxy: 'explorer' });
-    // Ring label
-    const la = 0.88*Math.PI*2, llx = e.rx*Math.cos(la), llz = e.rz*Math.sin(la);
+    const a = 0.88 * Math.PI * 2;
+    const lx = e.rx * Math.cos(a), lz = e.rz * Math.sin(a);
     const lp = new THREE.Vector3(
-      EXPLORER_CENTER.x + llx*Math.cos(TILT) - llz*Math.sin(TILT) + 0.4, (e.y||0)+0.1,
-      EXPLORER_CENTER.z + llx*Math.sin(TILT) + llz*Math.cos(TILT)
+      EXPLORER_CENTER.x + lx * Math.cos(TILT) - lz * Math.sin(TILT) + 0.4, (e.y||0) + 0.1,
+      EXPLORER_CENTER.z + lx * Math.sin(TILT) + lz * Math.cos(TILT)
     );
-    addLabel(e.label, lp, 'rgba('+[(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',')+',0.32)', 5.8);
+    addLabel(e.label, lp, 'rgba('+[(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',')+',0.28)', 5.8);
   });
 
-  // ── VESSEL NODES — icon sprites on each ring ────────────
-  const tierMap = { orbiter:'inner', lunar:'mid', satellite:'outer', station:'outer2' };
+  // ── Tier map for archetype → ring ──────────────────────
+  const tierMap = { orbiter: 'inner', lunar: 'mid', satellite: 'outer', station: 'outer2' };
 
   EXPLORER_ERAS.forEach((era) => {
     const tier = era.tier || tierMap[era.solarSystem] || 'inner';
-    era._flatPos   = ellipsePos(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t);
+    era._flatPos  = ellipsePos(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t);
     era._spiralPos = era._flatPos.clone();
     era._arcPos    = era._flatPos.clone();
     era._pos.copy(era._flatPos);
     const pos = era._flatPos;
+    const nodeSize = 0.28 + (era._t || 0) * 0.10;
 
-    // Spoke from axis to vessel
+    // spoke from axis to node
     const spokeY = new THREE.Vector3(EXPLORER_CENTER.x, pos.y, EXPLORER_CENTER.z);
     const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]),
-      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.05 }));
+      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.06 }));
     scene.add(spoke);
-    allLines.push({ line: spoke, darkOp: 0.05, lightOp: 0.12,
-                    darkColor: era.color, lightColor: 0x000000, galaxy: 'explorer' });
+    allLines.push({ line: spoke, darkOp: 0.06, lightOp: 0.14, darkColor: era.color, lightColor: 0x000000, galaxy: 'explorer' });
 
-    // Vessel icon sprite
-    const vesselSpr = makeVesselSprite(era.solarSystem, era.color, 5.8);
-    vesselSpr.position.copy(pos);
-    vesselSpr.userData = { era, origColor: era.color, origEI: 1.0,
-                           isMoon: false, isExplorer: true, isVesselSprite: true };
-    scene.add(vesselSpr);
-
-    // Hit proxy (invisible sphere for raycasting)
-    const hitMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(3.2, 8, 8),
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    // node sphere — slightly larger than career nodes to signal importance
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(nodeSize, 20, 20),
+      new THREE.MeshPhysicalMaterial({
+        color: era.color, emissive: era.color, emissiveIntensity: 1.6,
+        metalness: 0.15, roughness: 0.06, clearcoat: 1.0, transparent: true, opacity: 0.94
+      })
     );
+    mesh.position.copy(pos);
+    mesh.userData = { era, origColor: era.color, origEI: 1.6, isMoon: false, isExplorer: true };
+    scene.add(mesh);
+
+    // hit proxy — generous for mobile
+    const hitMesh = new THREE.Mesh(new THREE.SphereGeometry(nodeSize * 4, 8, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     hitMesh.position.copy(pos);
     hitMesh.userData = { era, isHitProxy: true, isExplorer: true };
     scene.add(hitMesh);
-    nodeObjects.push({ mesh: vesselSpr, hitMesh, era, isExplorer: true });
+    nodeObjects.push({ mesh, hitMesh, era, isExplorer: true });
 
-    // Glow halo
-    const gs = makeGlowSprite(era.color, 2.4);
-    gs.position.copy(pos); gs.material.opacity = 0.42;
+    // glow sprite
+    const gs = makeGlowSprite(era.color, nodeSize * 1.3);
+    gs.position.copy(pos); gs.material.opacity = 0.65;
     scene.add(gs); glowSprites.push(gs);
 
-    // Labels
-    addLabel(era.title, pos, era.hex + 'cc', 7.2);
-    addLabel(era.role.split('·')[0].trim(), pos, era.hex + '55', 5.5);
+    // tangent tick
+    makeTangentTick(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t, era.color, scene, allLines, 'explorer');
 
-    // Constellation pattern (hidden until focused)
-    makeConstellation(era, pos);
+    // labels
+    const shortTitle = era.title.length > 28 ? era.title.slice(0,26)+'…' : era.title;
+    addLabel(shortTitle, pos, era.hex + 'bb', 7.0);
+    addLabel(era.year, new THREE.Vector3(EXPLORER_CENTER.x - 0.8, pos.y, EXPLORER_CENTER.z), era.hex + '44', 6.0);
 
-    buildMoons(era, pos, 0.5);
+    buildMoons(era, pos, nodeSize);
   });
+
+  // ── Orbital connection arc linking all 4 archetype nodes ──
+  for (let i = 0; i < EXPLORER_ERAS.length - 1; i++) {
+    const a = EXPLORER_ERAS[i], b = EXPLORER_ERAS[i+1];
+    const mid = a._flatPos.clone().add(b._flatPos).multiplyScalar(0.5); mid.y += 0.5;
+    const pts = new THREE.QuadraticBezierCurve3(a._flatPos, mid, b._flatPos).getPoints(16);
+    const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.14 }));
+    scene.add(conn);
+    allLines.push({ line: conn, darkOp: 0.14, lightOp: 0.28, darkColor: 0xff66cc, lightColor: 0x000000, galaxy: 'explorer' });
+  }
 }
 buildExplorerScene();
-
 
 // of that galaxy). Each has its own PointLight.
 // ─────────────────────────────────────────────────────────
@@ -5235,71 +4992,19 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
     const cg = (def.color >> 8)  & 255;
     const cb =  def.color        & 255;
 
-    // ── Star sphere (or Saturn planet for Sol X) ────────────
-    let mesh;
-    if (def.galaxyId === 'explorer') {
-      // Saturn-like planet: sphere body + tilted torus ring system
-      const saturnGroup = new THREE.Group();
-      saturnGroup.position.copy(pos);
-
-      // Planet body
-      const body = new THREE.Mesh(
-        new THREE.SphereGeometry(def.size, 40, 40),
-        new THREE.MeshPhysicalMaterial({
-          color: 0x2a0a2a, emissive: 0xff44aa, emissiveIntensity: 1.8,
-          metalness: 0.10, roughness: 0.30, clearcoat: 0.8,
-        })
-      );
-      saturnGroup.add(body);
-
-      // Torus ring 1 — wide faint outer
-      const ring1 = new THREE.Mesh(
-        new THREE.TorusGeometry(def.size * 3.8, def.size * 0.55, 4, 80),
-        new THREE.MeshBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
-      );
-      ring1.rotation.x = Math.PI * 0.42;
-      saturnGroup.add(ring1);
-
-      // Torus ring 2 — tighter, brighter
-      const ring2 = new THREE.Mesh(
-        new THREE.TorusGeometry(def.size * 2.6, def.size * 0.35, 4, 80),
-        new THREE.MeshBasicMaterial({ color: 0xff99dd, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
-      );
-      ring2.rotation.x = Math.PI * 0.42;
-      saturnGroup.add(ring2);
-
-      // Torus ring 3 — innermost, most opaque
-      const ring3 = new THREE.Mesh(
-        new THREE.TorusGeometry(def.size * 1.9, def.size * 0.20, 4, 80),
-        new THREE.MeshBasicMaterial({ color: 0xffbbee, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
-      );
-      ring3.rotation.x = Math.PI * 0.42;
-      saturnGroup.add(ring3);
-
-      scene.add(saturnGroup);
-      // Store the torus rings for slow rotation in the render loop
-      saturnGroup.userData = { isSaturnGroup: true, rings: [ring1, ring2, ring3] };
-      window._explorerSaturnGroup = saturnGroup;
-
-      // Use the body as the click/hover mesh
-      mesh = body;
-      mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
-      mesh.userData._saturnGroup = saturnGroup;
-      // Position already set via group
-    } else {
-      mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(def.size, 32, 32),
-        new THREE.MeshPhysicalMaterial({
-          color: def.color, emissive: def.color,
-          emissiveIntensity: 5.0, metalness: 0,
-          roughness: 0.02, clearcoat: 1.0,
-          transparent: false, opacity: 1.0,
-        })
-      );
-      mesh.position.copy(pos);
-      mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
-      scene.add(mesh);
-    }
+    // ── Star sphere ────────────────────────────────────────
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(def.size, 32, 32),
+      new THREE.MeshPhysicalMaterial({
+        color: def.color, emissive: def.color,
+        emissiveIntensity: 5.0, metalness: 0,
+        roughness: 0.02, clearcoat: 1.0,
+        transparent: false, opacity: 1.0,
+      })
+    );
+    mesh.position.copy(pos);
+    mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
+    scene.add(mesh);
 
     // ── Hit proxy ──────────────────────────────────────────
     const hitMesh = new THREE.Mesh(
@@ -6404,37 +6109,6 @@ function openPanel(era) {
   document.getElementById('era-name').textContent = era.era;
   if (window._updateSSFilter) window._updateSSFilter(era);
 
-  // ── Explorer archetype: show constellation + journey button ──
-  EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, e.id === era.id));
-
-  // Inject or update journey launch button in the panel
-  const isExplorerEra = era.id && era.id.startsWith('x-');
-  let jBtn = document.getElementById('gc-journey-btn');
-  if (isExplorerEra) {
-    if (!jBtn) {
-      jBtn = document.createElement('button');
-      jBtn.id = 'gc-journey-btn';
-      // Insert after gc-body
-      const body = document.getElementById('gc-body');
-      if (body && body.parentNode) body.parentNode.insertBefore(jBtn, body.nextSibling);
-    }
-    const isActive = _journey.active && _journey.era && _journey.era.id === era.id;
-    jBtn.textContent = isActive ? era.year + ' Journey active — track vessel' : 'Launch ' + era.year + ' Journey';
-    jBtn.onclick = function() { isActive ? focusJourneyVessel() : startJourney(era); };
-    jBtn.style.cssText = [
-      'display:block;margin:14px 0 4px;padding:9px 18px;',
-      'background:none;border:1px solid ' + era.hex + '55;',
-      'color:' + era.hex + ';font-family:"DM Mono",monospace;font-size:8.5px;',
-      'letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;border-radius:3px;',
-      'transition:background 0.2s,border-color 0.2s;',
-    ].join('');
-    jBtn.onmouseenter = () => { jBtn.style.background = era.hex + '18'; jBtn.style.borderColor = era.hex + 'aa'; };
-    jBtn.onmouseleave = () => { jBtn.style.background = 'none'; jBtn.style.borderColor = era.hex + '55'; };
-  } else {
-    if (jBtn) jBtn.remove();
-    // Also hide all constellations when non-explorer panel opens
-    EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, false));
-  }
 }
 
 window.closePanel = function () {
@@ -6442,8 +6116,6 @@ window.closePanel = function () {
   document.getElementById('msheet').classList.remove('on');
   document.body.classList.remove('panel-open');
   hideSentGhost();
-  // Hide all explorer constellations when panel closes
-  EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, false));
 };
 
 // ── Ghost panel size: compact vs expanded ────────────────
@@ -6655,17 +6327,16 @@ function highlightConnections(era) {
   const idx  = list.findIndex(e => e.id === era.id);
   nodeObjects.forEach((obj) => {
     if (!obj || !obj.mesh || !obj.mesh.material) return;
-    const isSprite = obj.mesh.isSprite || obj.mesh.userData.isVesselSprite;
     const sameList = activeList(obj.era) === list;
     if (!sameList) {
-      obj.mesh.material.opacity = isSprite ? 0.30 : 0.22;
-      if (!isSprite) obj.mesh.material.emissiveIntensity = 0.06;
+      obj.mesh.material.opacity = 0.22;
+      obj.mesh.material.emissiveIntensity = 0.06;
       return;
     }
     const li = list.findIndex(e => e.id === obj.era.id);
     const near = li >= 0 && Math.abs(li - idx) <= 2;
-    obj.mesh.material.opacity = near ? (isSprite ? 0.96 : 0.96) : (isSprite ? 0.18 : 0.12);
-    if (!isSprite) obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.06;
+    obj.mesh.material.opacity = near ? 0.96 : 0.12;
+    obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.06;
   });
   allLines.forEach(({ line, darkOp }) => {
     if (line && line.material) line.material.opacity = darkOp * 0.3;
@@ -6675,9 +6346,8 @@ function highlightConnections(era) {
 function resetHighlights() {
   nodeObjects.forEach(obj => {
     if (!obj || !obj.mesh || !obj.mesh.material) return;
-    const isSprite = obj.mesh.isSprite || obj.mesh.userData.isVesselSprite;
-    obj.mesh.material.opacity = isSprite ? 0.94 : 0.92;
-    if (!isSprite) obj.mesh.material.emissiveIntensity = obj.mesh.userData.origEI;
+    obj.mesh.material.opacity = 0.92;
+    obj.mesh.material.emissiveIntensity = obj.mesh.userData.origEI;
   });
   allLines.forEach(({ line, darkOp, lightOp }) => { if (line && line.material) line.material.opacity = isLight ? lightOp : darkOp; });
   updateLineVisibility(null);
@@ -7425,22 +7095,16 @@ function applyTheme() {
   });
   nodeObjects.forEach(({ mesh }) => {
     if (!mesh || !mesh.material) return;
-    const isSprite = mesh.isSprite || mesh.userData.isVesselSprite;
-    if (isSprite) {
-      // SpriteMaterial: just dim opacity in light mode
-      mesh.material.opacity = isLight ? 0.30 : 0.94;
-      return;
-    }
     if (isLight) {
       mesh.material.color.setHex(0x111111);
-      if (mesh.material.emissive) mesh.material.emissive.setHex(0x000000);
-      if ('emissiveIntensity' in mesh.material) mesh.material.emissiveIntensity = 0;
+      mesh.material.emissive.setHex(0x000000);
+      mesh.material.emissiveIntensity = 0;
       mesh.material.metalness = 0; mesh.material.roughness = 0.9;
     } else {
       const ud = mesh.userData;
       mesh.material.color.setHex(ud.origColor);
-      if (mesh.material.emissive) mesh.material.emissive.setHex(ud.origColor);
-      if ('emissiveIntensity' in mesh.material) mesh.material.emissiveIntensity = ud.origEI;
+      mesh.material.emissive.setHex(ud.origColor);
+      mesh.material.emissiveIntensity = ud.origEI;
       mesh.material.metalness = 0.3; mesh.material.roughness = 0.08;
     }
   });
@@ -7687,206 +7351,6 @@ function tickGalaxyMoons(elapsed) {
   });
 }
 
-// ── Explorer Saturn ring slow rotation ──────────────────────
-function tickExplorerSaturn(elapsed) {
-  const sg = window._explorerSaturnGroup;
-  if (!sg) return;
-  (sg.userData.rings || []).forEach((ring, i) => {
-    ring.rotation.z = elapsed * (0.08 + i * 0.03);
-  });
-}
-
-// ─────────────────────────────────────────────────────────
-// JOURNEY SYSTEM
-// A persistent vessel that navigates the universe after an
-// archetype is selected. Continues even when camera moves
-// elsewhere. FAB transforms to show active vessel.
-// ─────────────────────────────────────────────────────────
-
-// Cross-galaxy waypoint tours per archetype
-// Each tour visits nodes in multiple galaxies, building a
-// narrative thread that links the archetype's worldview.
-function buildJourneyWaypoints(solarSystem) {
-  const tours = {
-    orbiter: [
-      // starts at Sol X, moves through career leadership nodes, then platform
-      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
-      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
-      ...([...ERAS].slice(0,4).map(e => e._spiralPos?.clone()).filter(Boolean)),
-      ...(CLAUDE_ERAS.slice(0,3).map(e => e._spiralPos?.clone()).filter(Boolean)),
-    ],
-    lunar: [
-      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
-      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
-      ...([...ERAS].slice(4,8).map(e => e._spiralPos?.clone()).filter(Boolean)),
-      ...(PLATFORM_ERAS.slice(0,3).map(e => e._spiralPos?.clone()).filter(Boolean)),
-    ],
-    satellite: [
-      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
-      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
-      ...(PLATFORM_ERAS.map(e => e._spiralPos?.clone()).filter(Boolean)),
-      ...(CLAUDE_ERAS.slice(3,7).map(e => e._spiralPos?.clone()).filter(Boolean)),
-    ],
-    station: [
-      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
-      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
-      ...([...ERAS].slice(8,13).map(e => e._spiralPos?.clone()).filter(Boolean)),
-      ...(CLAUDE_ERAS.slice(7).map(e => e._spiralPos?.clone()).filter(Boolean)),
-    ],
-  };
-  return (tours[solarSystem] || tours.satellite).filter(Boolean);
-}
-
-const _journey = {
-  active:    false,
-  era:       null,         // the archetype era
-  waypoints: [],           // THREE.Vector3[]
-  seg:       0,            // current segment index
-  t:         0,            // 0–1 progress within segment
-  speed:     0.00018,      // fraction of segment per ms-normalized tick
-  sprite:    null,         // THREE.Sprite in scene
-  trail:     [],           // last N world positions for trail dots
-  trailDots: [],           // THREE.Sprite[] trail objects
-  log:       [],           // string[] narrative log entries
-};
-window._activeJourney = _journey;
-
-function startJourney(era) {
-  if (!era || !era.solarSystem) return;
-  // Clean up previous journey
-  cancelJourney(true);
-
-  _journey.active    = true;
-  _journey.era       = era;
-  _journey.waypoints = buildJourneyWaypoints(era.solarSystem);
-  _journey.seg       = 0;
-  _journey.t         = 0;
-  _journey.log       = [`Mission initiated: ${era.title}`, `Vessel: ${era.year} ${era.title}`];
-
-  // Create the traveling vessel sprite
-  const spr = makeVesselSprite(era.solarSystem, era.color, 4.2);
-  spr.position.copy(_journey.waypoints[0] || EXPLORER_CENTER);
-  spr.userData.isJourneyVessel = true;
-  scene.add(spr);
-  _journey.sprite = spr;
-
-  // Trail dots — pre-allocate 12 fading breadcrumbs
-  for (let i = 0; i < 12; i++) {
-    const dot = makeGlowSprite(era.color, 0.18);
-    dot.scale.setScalar(0.25 - i * 0.018);
-    dot.material.opacity = 0;
-    dot.position.copy(_journey.waypoints[0] || EXPLORER_CENTER);
-    scene.add(dot);
-    _journey.trailDots.push(dot);
-  }
-
-  updateJourneyFAB();
-  showJourneyControls(true);
-
-  // Dismiss any open panel
-  if (typeof closePanel === 'function') closePanel();
-}
-
-function cancelJourney(silent) {
-  if (_journey.sprite) { scene.remove(_journey.sprite); _journey.sprite = null; }
-  _journey.trailDots.forEach(d => scene.remove(d));
-  _journey.trailDots = [];
-  _journey.trail = [];
-  _journey.active = false;
-  _journey.era = null;
-  if (!silent) {
-    updateJourneyFAB();
-    showJourneyControls(false);
-  }
-}
-
-function focusJourneyVessel() {
-  if (!_journey.active || !_journey.sprite) return;
-  const pos = _journey.sprite.position;
-  const angle = Math.atan2(pos.z, pos.x);
-  swoopTo(Math.PI * 0.28, angle + Math.PI * 0.55, 45, pos.clone());
-  camTarget.phi = Math.PI * 0.28;
-  camTarget.theta = angle + Math.PI * 0.55;
-  camTarget.radius = 45;
-  scenePivotTgt.copy(pos);
-  isFocused = false; focusedEra = null;
-}
-
-function tickJourney(elapsed) {
-  if (!_journey.active || !_journey.sprite) return;
-  const wps = _journey.waypoints;
-  if (!wps || wps.length < 2) return;
-
-  _journey.t += _journey.speed;
-  if (_journey.t >= 1) {
-    _journey.t = 0;
-    _journey.seg = (_journey.seg + 1) % (wps.length - 1);
-    // Log crossing a new node
-    const wp = wps[_journey.seg + 1];
-    if (wp) _journey.log.push(`Node reached · seg ${_journey.seg}`);
-    if (_journey.log.length > 24) _journey.log.shift();
-    updateJourneyFAB();
-  }
-
-  const a = wps[_journey.seg];
-  const b = wps[(_journey.seg + 1) % wps.length];
-  if (!a || !b) return;
-
-  const pos = new THREE.Vector3().lerpVectors(a, b, _journey.t);
-  _journey.sprite.position.copy(pos);
-
-  // Pulse scale
-  const pulse = 1 + Math.sin(elapsed * 3.2) * 0.08;
-  _journey.sprite.scale.setScalar(4.2 * pulse);
-
-  // Update trail breadcrumbs
-  _journey.trail.unshift(pos.clone());
-  if (_journey.trail.length > 12) _journey.trail.pop();
-  _journey.trailDots.forEach((dot, i) => {
-    const tp = _journey.trail[i];
-    if (tp) {
-      dot.position.copy(tp);
-      dot.material.opacity = Math.max(0, (0.50 - i * 0.04));
-    }
-  });
-}
-
-// ── Journey FAB + controls ─────────────────────────────────
-
-function updateJourneyFAB() {
-  const fab = document.getElementById('flight-fab');
-  if (!fab) return;
-  const label = fab.querySelector('#fab-moon-label');
-  const tip   = fab.querySelector('#fab-tooltip');
-  if (_journey.active && _journey.era) {
-    if (label) label.textContent = _journey.era.year + ' In Flight';
-    if (tip)   tip.textContent   = 'Track Vessel ›';
-    fab.title = 'Track ' + _journey.era.title;
-    fab.onclick = focusJourneyVessel;
-    fab.classList.add('journey-active');
-  } else {
-    if (label) label.textContent = 'Sol X';
-    if (tip)   tip.textContent   = 'Sol X · Explorer ›';
-    fab.title = 'Sol X · Explorer';
-    fab.onclick = function() { swoopToGalaxyOverview('explorer'); };
-    fab.classList.remove('journey-active');
-  }
-}
-
-function showJourneyControls(show) {
-  const ctrl = document.getElementById('fab-journey-controls');
-  if (!ctrl) return;
-  ctrl.classList.toggle('vis', show);
-}
-
-// ── Constellation show/hide wired to panel open/close ─────
-
-// Patch openPanel to show constellation when explorer era focused
-const _origOpenPanel = typeof openPanel === 'function' ? openPanel : null;
-// We hook this after openPanel is defined — see below after panel code.
-
-
-
 function animate(ts) {
   if (_tabHidden) { _mainRAFRunning = false; return; } // pause when tab hidden
   requestAnimationFrame(animate);
@@ -7954,8 +7418,6 @@ function animate(ts) {
   tickGalaxyStars(elapsed);
   tickLayoutMorph();
   tickCaseStudyMoons(elapsed);
-  tickExplorerSaturn(elapsed);
-  tickJourney(elapsed);
   updateGalaxyAlpha();
   const bhA = Math.min(1, Math.max(0, (camState.radius - 10) / 70));
   tickBlackHole(elapsed, bhA);
@@ -8102,14 +7564,6 @@ window.addEventListener('resize', () => {
   <span id="fab-moon-label">Sol X</span>
   <span id="fab-tooltip">Sol X · Explorer ›</span>
 </button>
-
-<!-- Journey control strip — appears below FAB when voyage active -->
-<div id="fab-journey-controls">
-  <button class="fjc-btn" onclick="focusJourneyVessel()">Track</button>
-  <button class="fjc-btn fjc-new" onclick="openLaunchpad()">New</button>
-  <button class="fjc-btn fjc-log" onclick="openJourneyLog()">Log</button>
-  <button class="fjc-btn fjc-cancel" onclick="cancelJourney()">✕</button>
-</div>
 
 <!-- Launchpad overlay -->
 <div id="flight-launchpad">
@@ -8364,81 +7818,7 @@ function closeLaunchpad() {
   document.getElementById('flight-launchpad').classList.remove('vis');
 }
 
-// ── Journey Log overlay ──────────────────────────────────
-function openJourneyLog() {
-  const jny = window._activeJourney;
-  let overlay = document.getElementById('journey-log-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'journey-log-overlay';
-    overlay.style.cssText = [
-      'position:fixed;bottom:280px;left:50%;transform:translateX(-50%);',
-      'z-index:860;min-width:240px;max-width:320px;',
-      'background:rgba(5,3,10,0.95);border:1px solid rgba(255,102,204,0.20);',
-      'border-radius:6px;padding:16px 18px;',
-      'font-family:"DM Mono",monospace;',
-      'backdrop-filter:blur(18px);box-shadow:0 8px 32px rgba(0,0,0,0.70);',
-    ].join('');
-    const close = document.createElement('button');
-    close.textContent = '✕';
-    close.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(255,102,204,0.50);font-size:11px;';
-    close.onclick = () => overlay.remove();
-    overlay.appendChild(close);
-    document.body.appendChild(overlay);
-  }
-
-  const era  = jny && jny.active && jny.era;
-  const log  = jny ? jny.log : [];
-  const hex  = era ? era.hex : '#ff66cc';
-  const seg  = jny ? jny.seg : 0;
-  const wps  = jny ? jny.waypoints.length : 0;
-
-  overlay.innerHTML = '';
-
-  // Re-add close button
-  const close2 = document.createElement('button');
-  close2.textContent = '✕';
-  close2.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(255,102,204,0.45);font-size:11px;';
-  close2.onclick = () => overlay.remove();
-  overlay.appendChild(close2);
-
-  const eyebrow = document.createElement('div');
-  eyebrow.style.cssText = 'font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:' + hex + ';opacity:0.50;margin-bottom:8px;';
-  eyebrow.textContent = era ? ('SOL X · ' + era.title.toUpperCase()) : 'NO ACTIVE JOURNEY';
-  overlay.appendChild(eyebrow);
-
-  if (era) {
-    const progress = document.createElement('div');
-    progress.style.cssText = 'font-size:7px;letter-spacing:0.14em;color:' + hex + ';opacity:0.70;margin-bottom:12px;';
-    progress.textContent = 'Node ' + seg + ' of ' + (wps - 1) + '  ·  ' + Math.round((seg / Math.max(wps - 1, 1)) * 100) + '% traversed';
-    overlay.appendChild(progress);
-
-    // Progress bar
-    const barWrap = document.createElement('div');
-    barWrap.style.cssText = 'height:2px;background:rgba(255,102,204,0.12);border-radius:1px;margin-bottom:14px;overflow:hidden;';
-    const barFill = document.createElement('div');
-    barFill.style.cssText = 'height:100%;border-radius:1px;background:' + hex + ';width:' + Math.round((seg / Math.max(wps - 1, 1)) * 100) + '%;transition:width 0.4s;';
-    barWrap.appendChild(barFill);
-    overlay.appendChild(barWrap);
-  }
-
-  const title = document.createElement('div');
-  title.style.cssText = 'font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:8px;';
-  title.textContent = 'Flight Log';
-  overlay.appendChild(title);
-
-  const logList = document.createElement('div');
-  logList.style.cssText = 'display:flex;flex-direction:column;gap:5px;max-height:120px;overflow-y:auto;';
-  (log.length ? log : ['No log entries yet.']).slice(-8).reverse().forEach((entry, i) => {
-    const row = document.createElement('div');
-    row.style.cssText = 'font-size:7.5px;letter-spacing:0.06em;color:rgba(245,236,213,' + (i === 0 ? '0.75' : '0.35') + ');line-height:1.5;';
-    row.textContent = '› ' + entry;
-    logList.appendChild(row);
-  });
-  overlay.appendChild(logList);
-}
-
-
+// ── JD input wiring ──
 const jdInput    = document.getElementById('flp-jd-input');
 const charCount  = document.getElementById('flp-char-count');
 const launchBtn  = document.getElementById('flp-launch-btn');
@@ -9583,76 +8963,6 @@ function mobileFit() {
     var hov=fab?fab.matches(':hover'):false;
     ctx.clearRect(0,0,SIZE,SIZE);
     var cx=SIZE/2, cy=SIZE/2;
-
-    // ── Journey mode: draw active vessel instead of Saturn ──
-    var jny=window._activeJourney;
-    if(jny&&jny.active&&jny.era){
-      var era=jny.era, col=era.color||0xff66cc;
-      var r2=(col>>16)&255, g2=(col>>8)&255, b2=col&255;
-      var pulse=1+Math.sin(t*0.04)*0.12;
-      var og=ctx.createRadialGradient(cx,cy,SIZE*0.15,cx,cy,SIZE*0.5);
-      og.addColorStop(0,'rgba('+r2+','+g2+','+b2+',0.22)');
-      og.addColorStop(1,'rgba('+r2+','+g2+','+b2+',0)');
-      ctx.beginPath(); ctx.arc(cx,cy,SIZE*0.5,0,Math.PI*2);
-      ctx.fillStyle=og; ctx.fill();
-      var vc=document.createElement('canvas'); vc.width=vc.height=SIZE;
-      var vx=vc.getContext('2d'); var vcx=SIZE/2,vcy=SIZE/2;
-      var vhex='rgb('+r2+','+g2+','+b2+')';
-      vx.shadowBlur=20; vx.shadowColor=vhex;
-      vx.strokeStyle=vhex; vx.lineWidth=2.5;
-      vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.22)';
-      var type=era.solarSystem;
-      if(type==='orbiter'){
-        vx.beginPath(); vx.ellipse(vcx,vcy+5,34,10,0,0,Math.PI*2); vx.fill();
-        vx.beginPath(); vx.ellipse(vcx,vcy+5,30,8,0,0,Math.PI*2); vx.stroke();
-        vx.beginPath(); vx.ellipse(vcx,vcy-3,15,11,0,Math.PI,0); vx.fill(); vx.stroke();
-        [-18,-6,6,18].forEach(function(dx,i){
-          vx.beginPath(); vx.arc(vcx+dx,vcy+5,2.5,0,Math.PI*2);
-          vx.fillStyle=i%2===0?vhex:'rgba(255,255,200,0.9)'; vx.shadowBlur=10; vx.fill();
-        });
-      } else if(type==='lunar'){
-        vx.beginPath(); vx.roundRect(vcx-13,vcy-18,26,24,4); vx.fill(); vx.stroke();
-        vx.beginPath();
-        vx.moveTo(vcx-10,vcy+6); vx.lineTo(vcx-12,vcy+18);
-        vx.lineTo(vcx+12,vcy+18); vx.lineTo(vcx+10,vcy+6);
-        vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.38)'; vx.fill(); vx.stroke();
-        var tg3=vx.createRadialGradient(vcx,vcy+25,2,vcx,vcy+25,16);
-        tg3.addColorStop(0,'rgba(255,220,100,0.75)'); tg3.addColorStop(1,'rgba(0,0,0,0)');
-        vx.beginPath(); vx.ellipse(vcx,vcy+25,10,16,0,0,Math.PI*2);
-        vx.fillStyle=tg3; vx.shadowBlur=0; vx.fill();
-      } else if(type==='satellite'){
-        vx.beginPath(); vx.roundRect(vcx-10,vcy-14,20,28,3); vx.fill(); vx.stroke();
-        vx.beginPath(); vx.roundRect(vcx-46,vcy-9,32,17,2); vx.fill(); vx.stroke();
-        vx.beginPath(); vx.roundRect(vcx+14,vcy-9,32,17,2); vx.fill(); vx.stroke();
-        vx.beginPath(); vx.arc(vcx,vcy-22,10,Math.PI,0); vx.stroke();
-        vx.beginPath(); vx.moveTo(vcx,vcy-22); vx.lineTo(vcx,vcy-14); vx.stroke();
-        vx.beginPath(); vx.arc(vcx,vcy-22,2.5,0,Math.PI*2);
-        vx.fillStyle='rgba(255,255,255,0.85)'; vx.shadowBlur=12; vx.fill();
-      } else {
-        vx.strokeStyle='rgba('+r2+','+g2+','+b2+',0.50)'; vx.lineWidth=3;
-        vx.beginPath(); vx.arc(vcx,vcy,36,0,Math.PI*2); vx.stroke();
-        [[0,-1],[1,0],[0,1],[-1,0]].forEach(function(d){
-          vx.strokeStyle=vhex; vx.lineWidth=2.5;
-          vx.beginPath(); vx.moveTo(vcx+d[0]*10,vcy+d[1]*10);
-          vx.lineTo(vcx+d[0]*36,vcy+d[1]*36); vx.stroke();
-        });
-        vx.beginPath(); vx.arc(vcx,vcy,10,0,Math.PI*2);
-        vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.50)'; vx.fill(); vx.stroke();
-        vx.beginPath(); vx.arc(vcx,vcy,4,0,Math.PI*2);
-        vx.fillStyle='rgba(255,255,255,0.80)'; vx.shadowBlur=16; vx.fill();
-      }
-      ctx.save(); ctx.globalAlpha=0.92*pulse;
-      ctx.drawImage(vc,0,0,SIZE,SIZE); ctx.restore();
-      if(hov){
-        ctx.font='300 5.5px "DM Mono",monospace';
-        ctx.fillStyle='rgba('+r2+','+g2+','+b2+',0.80)';
-        ctx.textAlign='center';
-        ctx.fillText('TRACK VESSEL ›',cx,cy+SIZE*0.37);
-      }
-      return;
-    }
-
-    // ── Default: Saturn micro-orrery ─────────────────────
     drawRingArc(cx,cy,hov,t,Math.PI,Math.PI*2);
     drawPlanet(cx,cy,hov);
     drawRingArc(cx,cy,hov,t,0,Math.PI);
