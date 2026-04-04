@@ -7725,8 +7725,278 @@ function cycleStatus() {
   statusTimer = setTimeout(cycleStatus, 1800);
 }
 
-// ── Compute mission via Claude API ──
-async function computeMission() {
+// ══════════════════════════════════════════════════════════
+// DETERMINISTIC MISSION ROUTER — no AI dependency
+// Scores every node against JD signals, enforces galaxy
+// diversity, generates bespoke "why" annotations from
+// pre-authored templates matched to node + detected signals.
+// ══════════════════════════════════════════════════════════
+
+// ── Signal dimensions extracted from JD ──
+const SIGNAL_DIMS = {
+  // Role seniority
+  senior:      /senior|principal|lead|staff|director|vp|head of|manager/i,
+  ic:          /\bic\b|individual contributor|designer|researcher|specialist/i,
+  founder:     /founder|startup|0.to.1|seed|series.a|early.stage/i,
+
+  // Work type
+  strategy:    /strategy|vision|roadmap|stakeholder|executive|cross.functional|program/i,
+  craft:       /craft|visual|ui|motion|brand|figma|prototype|wireframe|component/i,
+  systems:     /design.system|system|architecture|IA|information.arch|scalable|platform/i,
+  research:    /research|discovery|user.test|interview|synthesis|insight|qual|quant/i,
+  product:     /product|pm|product.manager|0-to-1|mvp|sprint|roadmap|backlog|agile|scrum/i,
+  engineering: /engineer|developer|code|build|ship|deploy|react|frontend|css|html|technical/i,
+
+  // Domain
+  ecommerce:   /ecommerce|e.commerce|retail|shopify|conversion|cvr|checkout|cart/i,
+  fintech:     /finance|fintech|banking|wealth|advisory|investment|bny|trading|compliance/i,
+  enterprise:  /enterprise|fortune|b2b|saas|platform|salesforce|sfcc/i,
+  consumer:    /b2c|consumer|lifestyle|mobile.app|growth|acquisition/i,
+  ai:          /\bai\b|machine.learning|llm|gpt|model|artificial.intelligence|agentic/i,
+  agency:      /agency|client|consulting|services|studio/i,
+
+  // Collaboration
+  collab:      /collaborate|cross.functional|partner|align|stakeholder|relationship/i,
+  leadership:  /mentor|manage|grow|team|lead a|hire|culture|org/i,
+};
+
+function extractSignals(jd) {
+  const signals = {};
+  for (const [dim, re] of Object.entries(SIGNAL_DIMS)) {
+    signals[dim] = re.test(jd);
+  }
+  return signals;
+}
+
+// ── Per-node scoring weights ──
+// Each node has a list of signal dims it scores against
+const NODE_SIGNALS = {
+  // CAREER
+  'origin':       { senior:1, craft:2, founder:1 },
+  'turn5':        { ecommerce:3, craft:2, founder:2, systems:1 },
+  'leadnomics':   { ecommerce:3, craft:2, research:1, ic:1 },
+  '160over90':    { enterprise:2, collab:2, craft:2, systems:1, agency:2 },
+  'o3world':      { product:3, systems:2, collab:2, craft:2 },
+  'workarea':     { ecommerce:2, product:3, engineering:2, systems:2 },
+  'flightpath':   { agency:2, enterprise:1, craft:2 },
+  'livearea':     { ecommerce:3, enterprise:2, systems:2, product:2, leadership:2 },
+  'huge2021':     { agency:2, product:2, craft:2 },
+  'elva':         { ecommerce:4, systems:3, product:3, craft:3, engineering:1 },
+  'codeandtheory':{ enterprise:3, agency:2, systems:2, leadership:2, collab:2 },
+  'publicis':     { fintech:4, enterprise:4, systems:4, product:3, leadership:3, collab:3 },
+  'ic2023':       { ai:3, product:2, engineering:2, senior:1 },
+  'wolfco':       { founder:4, systems:3, engineering:3, strategy:3, ai:2 },
+  'seek':         { senior:2, strategy:1, systems:1, craft:1 },
+
+  // MANIFESTO
+  'm-thinker':    { founder:3, senior:2, strategy:2, craft:3 },
+  'm-sentence':   { strategy:3, craft:4, systems:3, engineering:2 },
+  'm-build':      { engineering:4, systems:3, craft:3, founder:2 },
+  'm-hold':       { systems:4, senior:3, strategy:3, product:3, leadership:3 },
+  'm-proof':      { ecommerce:3, fintech:3, enterprise:3, product:3, systems:3 },
+  'm-ask':        { senior:2, strategy:1, collab:1 },
+
+  // CLAUDE (use sparingly — relevant for AI/technical roles)
+  'cc-queryengine':    { ai:4, engineering:3, systems:3 },
+  'cc-intent-filter':  { ai:3, engineering:2 },
+  'cc-context-assembly':{ ai:3, engineering:2, systems:2 },
+  'cc-assertiveness':  { ai:4, strategy:2, product:2 },
+  'cc-yolo-classifier':{ ai:4, engineering:3 },
+  'cc-tool-router':    { ai:3, engineering:3 },
+  'cc-prompt-cache':   { ai:3, engineering:2 },
+  'cc-memory-indexing':{ ai:3, engineering:2, systems:2 },
+};
+
+function scoreNode(nodeId, signals) {
+  const weights = NODE_SIGNALS[nodeId] || {};
+  let score = 0;
+  for (const [dim, weight] of Object.entries(weights)) {
+    if (signals[dim]) score += weight;
+  }
+  return score;
+}
+
+// ── Pre-authored "why" annotations ──
+// Keyed by nodeId, then by primary matched signal dim (or 'default')
+const NODE_WHYS = {
+  'origin':       { craft:'The thread starts here — instinct before credential.', default:'Where the conviction was formed, before the titles existed.' },
+  'turn5':        { ecommerce:'Built the entire digital presence of a $40M e-commerce brand — solo.', founder:'Proof that zero-to-one isn\'t a philosophy — it\'s a job.', default:'$10M to $40M. Every hat. No playbook.' },
+  'leadnomics':   { ecommerce:'95.8% conversion rate — mobile-first before it was mandated.', craft:'Rigorous A/B craft at the edge of ethics.', default:'Where conversion discipline got learned the hard way.' },
+  '160over90':    { enterprise:'Enterprise + .EDU: Comcast, Kent State, the Eagles — at agency scale.', agency:'The culture demanded we dare. Took a pay cut to join.', default:'Where design culture became a belief system.' },
+  'o3world':      { product:'Certified Scrum Master. Real Lean UX, not the PowerPoint version.', systems:'Agile at practice level — standups, whiteboards, real sprints.', default:'Where process became muscle memory.' },
+  'workarea':     { product:'Shaped a SaaS platform through direct client feedback loops until acquisition.', ecommerce:'High-velocity over high-fidelity — napkin sketches straight to engineers.', default:'Where the handoff disappeared and the work got better.' },
+  'flightpath':   { agency:'Foot in the door to NYC — undeterred by bankruptcy, Merck and Charter on the other side.', default:'The commute that proved the commitment: Philly to Manhattan, every day, for a year.' },
+  'livearea':     { ecommerce:'IC → Manager. Salesforce Commerce Cloud across B2C and B2B at scale.', leadership:'First time owning the function, not just doing the work.', systems:'Design systems at platform scale — Yeti, West Marine, Aquasana.', default:'Where I learned that managing is a design problem too.' },
+  'huge2021':     { agency:'End-to-end UX under constrained conditions. Fast. Precise. Shipped.', default:'Short but sharp — Sentral booking flow, full deliverables, no excuses.' },
+  'elva':         { ecommerce:'GNC Shopify rebuild — discovery to delivery in 12 weeks, ~$500M revenue recovered.', systems:'Atomic design system, mobile-first, component-based — built for scale.', product:'Strategy and execution in the same hands. One thread, not dropped.', default:'The case study that proves what singular ownership produces.' },
+  'codeandtheory':{ enterprise:'TikTok For Business UX — 62 floors above Manhattan, one of the fastest-growing ad platforms alive.', leadership:'Senior Designer → ACD → DRI. Trajectory earned, not assigned.', systems:'IA and headless CMS workshops for enterprise content at scale.', default:'Where DRI stopped being a title and became a responsibility.' },
+  'publicis':     { fintech:'BNY Mellon Wove — industry-first advisory platform, three Agile tracks, interim Product Owner.', enterprise:'Embedded at the largest custodian bank in the US. Centralized a sprawling ecosystem into one design system.', systems:'Architected user data models across parallel workstreams and named silos nobody else had mapped.', leadership:'Assumed PO responsibility. Not hired for it. Became it through delivery.', default:'The work that proves the ceiling: systems thinking at Fortune 50 scale.' },
+  'ic2023':       { ai:'Phenom AI platform — UX strategy for proprietary ML infrastructure, end-to-end.', product:'Three distinct threads: AI, pharma, fintech. Same discipline applied across all.', default:'The years that proved adaptability: AI, pharma, and a stint running cable as humility.' },
+  'wolfco':       { founder:'Wolfgang & Co. — the conviction institutionalized. Five platforms, one engine, zero frameworks.', systems:'The sentence as primitive: every platform is an expression of a single architectural belief.', ai:'Built dab.cx — an agentic architecture portfolio — in vanilla HTML before it had a name.', default:'Where the philosophy became infrastructure.' },
+  'seek':         { default:'The ask is simple: the right problem, with people who want to solve it well.' },
+
+  'm-thinker':    { craft:'Twenty years. No degree. Every credential earned in the work itself.', founder:'Self-taught from a pirated Photoshop and a Craigslist post — no credential, only conviction.', default:'The belief that sustained everything: the right interface disappears and leaves only understanding.' },
+  'm-sentence':   { systems:'The sentence is the irreducible unit of thought — the architecture beneath every platform.', strategy:'Not a product feature. A philosophy. This is the thesis behind twenty years of decisions.', craft:'The primitive: find the right atom, and everything else follows.', default:'The theory that this entire portfolio proves in practice.' },
+  'm-build':      { engineering:'Vanilla HTML, CSS, JavaScript. One file. No framework. No build step. The constraint is the argument.', systems:'Built the thing I\'m pitching you with the same engine I\'m pitching you.', default:'The proof that the medium and the message are the same.' },
+  'm-hold':       { systems:'Systems thinking + code-native prototyping — the rare ability to hold the whole model while making a pixel decision.', senior:'The capability that connects everything: structure before surface, always.', leadership:'Lived on both sides of the design/dev handoff. Built what others only spec.', product:'0-to-1 is not a methodology. It is a posture. This is what it looks like.', default:'The thread that holds: one designer, the whole model, no dropped ends.' },
+  'm-proof':      { ecommerce:'GNC and BNY Mellon — the two case studies that carry the weight of the argument.', fintech:'~$500M recovered. $2T+ AUM platform launched. Neither used AI. Both built by one person.', enterprise:'The proof at Fortune 50 scale: systems thinking applied under real constraints.', default:'The work speaks. The testimony is unsolicited and in the record.' },
+  'm-ask':        { default:'I am not looking for a title. I am looking for the problem worth solving with people who want to solve it well.' },
+
+  'cc-queryengine':   { ai:'Where natural language becomes executable operations — the architecture I understand and document.', default:'The pipeline that classifies, assembles, and acts: Claude Code from the inside.' },
+  'cc-assertiveness': { ai:'A deliberate friction mechanism that makes AI safer — the design constraint I find most interesting.', default:'Why Claude asks clarifying questions: the counterweight that prevents overconfidence.' },
+  'cc-yolo-classifier':{ ai:'ML-based permission decisions in a single forward pass — the speed/explainability tradeoff made architectural.', default:'The YOLO Classifier: where AI infrastructure meets design philosophy.' },
+};
+
+function getWhy(nodeId, signals) {
+  const whys = NODE_WHYS[nodeId];
+  if (!whys) return 'A node that belongs in this argument.';
+  // Find the first matching signal dim with a specific why
+  for (const dim of Object.keys(SIGNAL_DIMS)) {
+    if (signals[dim] && whys[dim]) return whys[dim];
+  }
+  return whys['default'] || 'A node that belongs in this argument.';
+}
+
+// ── Mission title + sub generators ──
+function generateMissionTitle(signals) {
+  if (signals.fintech && signals.enterprise) return 'The Enterprise Thread';
+  if (signals.ecommerce && signals.product)  return 'From $10M to $500M';
+  if (signals.ai && signals.engineering)     return 'The Agentic Architecture';
+  if (signals.founder && signals.strategy)   return 'Zero to One, On Conviction';
+  if (signals.leadership && signals.senior)  return 'How the Thread Held';
+  if (signals.systems && signals.craft)      return 'Structure Before Surface';
+  if (signals.agency && signals.collab)      return 'The Client Who Became the Lead';
+  if (signals.research && signals.product)   return 'Discovery as Design';
+  return 'Twenty Years. One Thread.';
+}
+
+function generateMissionSub(signals) {
+  if (signals.fintech)   return 'The case for systems thinking at Fortune 50 scale';
+  if (signals.ecommerce) return 'Conversion, craft, and one designer who held the thread';
+  if (signals.ai)        return 'The designer who reads the source code';
+  if (signals.founder)   return 'What conviction looks like when it compounds over twenty years';
+  if (signals.leadership)return 'The argument for someone who became the lead through delivery';
+  if (signals.systems)   return 'Why the architecture beneath the surface is the real work';
+  return 'The argument from first principles';
+}
+
+// ── Narrative ordering: enforce a good story arc ──
+// Story shape: Origin → Evidence → Theory → Proof → Now
+const NARRATIVE_TIERS = {
+  // Tier 0: establish the person (origin story)
+  origin:   ['m-thinker', 'origin', 'turn5'],
+  // Tier 1: domain proof (where they earned it)
+  proof:    ['elva', 'publicis', 'livearea', 'codeandtheory', 'leadnomics', 'o3world', 'workarea', '160over90', 'flightpath', 'ic2023'],
+  // Tier 2: capability (the cross-cutting thesis)
+  theory:   ['m-hold', 'm-sentence', 'm-build', 'wolfco'],
+  // Tier 3: evidence (case studies / numbers)
+  evidence: ['m-proof', 'elva', 'publicis'],
+  // Tier 4: close (the ask)
+  close:    ['m-ask', 'seek'],
+  // AI-specific
+  ai_layer: ['cc-queryengine', 'cc-assertiveness', 'cc-yolo-classifier', 'cc-memory-indexing'],
+};
+
+function buildRoute(signals, catalog) {
+  // Score all nodes
+  const byId = {};
+  catalog.forEach(n => { byId[n.id] = n; });
+
+  const scored = catalog
+    .filter(n => NODE_SIGNALS[n.id] !== undefined)  // only nodes with explicit scoring
+    .map(n => ({ ...n, score: scoreNode(n.id, signals) }))
+    .sort((a, b) => b.score - a.score);
+
+  // Enforce galaxy diversity — pick from each galaxy proportionally
+  const galaxyBudget = { career: 3, manifesto: 2, claude: 0, platform: 0 };
+  if (signals.ai || signals.engineering) galaxyBudget.claude = 1;
+
+  // Build by narrative tier:
+  //   slot 0: origin/philosophy node (manifesto or early career)
+  //   slots 1-3: high-scoring career nodes (domain proof)
+  //   slot 4: theory node (manifesto)
+  //   slot 5: optional AI node if signal
+  //   slot 6: close
+
+  const used = new Set();
+  const route = [];
+
+  function pickFrom(candidates, galaxy, fallback) {
+    for (const id of candidates) {
+      const node = catalog.find(n => n.id === id);
+      if (node && !used.has(id) && (!galaxy || node.galaxy === galaxy)) {
+        used.add(id);
+        return { id, why: getWhy(id, signals) };
+      }
+    }
+    if (fallback) {
+      // pick highest-scoring unused node from that galaxy
+      const fallbackNode = scored.find(n => n.galaxy === fallback && !used.has(n.id));
+      if (fallbackNode) {
+        used.add(fallbackNode.id);
+        return { id: fallbackNode.id, why: getWhy(fallbackNode.id, signals) };
+      }
+    }
+    return null;
+  }
+
+  // Slot 0 — Origin: always manifesto/person declaration
+  const originNode = signals.founder
+    ? pickFrom(['m-thinker', 'origin'], 'manifesto', 'manifesto')
+    : pickFrom(['m-thinker'], 'manifesto', 'manifesto');
+  if (originNode) route.push(originNode);
+
+  // Slots 1–3 — Domain proof: top career nodes by score, respect budget
+  let careerAdded = 0;
+  for (const n of scored) {
+    if (careerAdded >= galaxyBudget.career) break;
+    if (n.galaxy !== 'career' || used.has(n.id)) continue;
+    if (n.score < 2) break; // only genuinely relevant nodes
+    used.add(n.id);
+    route.push({ id: n.id, why: getWhy(n.id, signals) });
+    careerAdded++;
+  }
+
+  // If fewer than 2 career nodes matched well, add the strongest ones regardless
+  if (careerAdded < 2) {
+    for (const n of scored) {
+      if (careerAdded >= 2) break;
+      if (n.galaxy !== 'career' || used.has(n.id)) continue;
+      used.add(n.id);
+      route.push({ id: n.id, why: getWhy(n.id, signals) });
+      careerAdded++;
+    }
+  }
+
+  // Slot — Capability theory node (manifesto)
+  const theoryNode = pickFrom(['m-hold', 'm-sentence', 'm-build'], 'manifesto', null);
+  if (theoryNode) route.push(theoryNode);
+
+  // Slot — AI layer if signaled
+  if (galaxyBudget.claude > 0) {
+    const aiNode = pickFrom(['cc-assertiveness', 'cc-queryengine', 'cc-yolo-classifier'], 'claude', null);
+    if (aiNode) route.push(aiNode);
+  }
+
+  // Slot — Proof / wolfco
+  if (signals.ecommerce || signals.fintech || signals.enterprise) {
+    const proofNode = pickFrom(['m-proof'], 'manifesto', null);
+    if (proofNode) route.push(proofNode);
+  } else {
+    const wolfNode = pickFrom(['wolfco'], 'career', null);
+    if (wolfNode) route.push(wolfNode);
+  }
+
+  // Slot — Close: always m-ask
+  const closeNode = pickFrom(['m-ask'], 'manifesto', null);
+  if (closeNode) route.push(closeNode);
+
+  // Clamp to 7 max
+  return route.slice(0, 7);
+}
+
+// ── Main compute function — now fully local ──
+function computeMission() {
   missionJD = jdInput.value.trim();
   if (!missionJD) return;
 
@@ -7737,77 +8007,23 @@ async function computeMission() {
   statusIdx = 0;
   cycleStatus();
 
-  const catalog = buildNodeCatalog();
-  const catalogSummary = catalog.map(n =>
-    `id:${n.id} galaxy:${n.galaxy} title:"${n.title}" role:"${n.role}" year:${n.year} body:"${n.body.slice(0,120)}"`
-  ).join('\n');
+  // Small async gap so the computing screen renders before heavy work
+  setTimeout(() => {
+    const catalog  = buildNodeCatalog();
+    const signals  = extractSignals(missionJD);
+    const nodes    = buildRoute(signals, catalog);
 
-  const prompt = `You are a narrative route-planner for a spatial portfolio. Given a job description and a catalog of portfolio nodes across multiple galaxies (career, manifesto, claude, platform), construct a bespoke mission journey of 5–7 nodes.
-
-The journey must:
-- Be non-linear — deliberately cross between galaxies when the narrative demands it
-- Tell a coherent argument for why Zack is right for THIS specific role
-- Order nodes by narrative logic, not chronology
-- Each node gets a one-sentence "why" that connects it to the JD's language
-
-JOB DESCRIPTION:
-${missionJD.slice(0, 2000)}
-
-NODE CATALOG:
-${catalogSummary}
-
-Respond ONLY with a JSON object in this exact shape (no markdown, no preamble):
-{
-  "missionTitle": "A short evocative mission name (max 8 words)",
-  "missionSub": "One line — what this route proves",
-  "nodes": [
-    { "id": "node_id_from_catalog", "why": "one sentence connecting this node to the JD" }
-  ]
-}`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await res.json();
-    const raw  = data.content?.map(b => b.text || '').join('') || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean);
+    const result = {
+      missionTitle: generateMissionTitle(signals),
+      missionSub:   generateMissionSub(signals),
+      nodes,
+    };
 
     clearTimeout(statusTimer);
-    missionRoute = parsed;
-    renderBrief(parsed);
+    missionRoute = result;
+    renderBrief(result);
     showScreen('brief');
-
-  } catch (err) {
-    clearTimeout(statusTimer);
-    // Fallback: show a sensible default route
-    missionRoute = getFallbackRoute();
-    renderBrief(missionRoute);
-    showScreen('brief');
-  }
-}
-
-function getFallbackRoute() {
-  return {
-    missionTitle: 'Twenty Years. One Thread.',
-    missionSub: 'The argument from first principles',
-    nodes: [
-      { id: 'm-thinker', why: 'Where the conviction was formed — self-taught, no shortcuts.' },
-      { id: 'turn5',     why: 'First proof: $10M to $40M, every hat, no playbook.' },
-      { id: 'elva',      why: 'The enterprise chapter — systems at Fortune 500 scale.' },
-      { id: 'm-proof',   why: 'GNC and BNY Mellon: the case studies that carry the evidence.' },
-      { id: 'm-hold',    why: 'The capability that connects all of it — holding the full model.' },
-      { id: 'wolfco',    why: 'Wolfgang & Co. — the conviction made into infrastructure.' },
-      { id: 'm-ask',     why: 'The ask. Simple. Direct. No title-chasing.' },
-    ]
-  };
+  }, 2800); // let the status lines cycle a bit — feels considered
 }
 
 // ── Render mission brief ──
