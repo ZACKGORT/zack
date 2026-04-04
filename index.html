@@ -4730,16 +4730,23 @@ function buildWolfgangSphere() {
   scene.add(wolfgangGroup);
   wolfgangGroup.visible = false;
 
-  const n       = WOLFGANG_PHOTOS.length;
-  const golden  = (1 + Math.sqrt(5)) / 2;
-  const loader  = new THREE.TextureLoader();
+  const golden = (1 + Math.sqrt(5)) / 2;
+  const loader = new THREE.TextureLoader();
 
-  // Seed a simple deterministic pseudo-random for consistent layout
+  // Seed deterministic pseudo-random
   let seed = 42;
   const rand = () => { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; };
 
-  WOLFGANG_PHOTOS.forEach((url, i) => {
-    // Fibonacci sphere distribution — even coverage, no poles clustering
+  // Double the array for dense sphere coverage — Wolfgang in every direction
+  const photos = [...WOLFGANG_PHOTOS, ...WOLFGANG_PHOTOS];
+  // Shuffle deterministically so duplicates aren't adjacent
+  for (let i = photos.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [photos[i], photos[j]] = [photos[j], photos[i]];
+  }
+  const n = photos.length;
+
+  photos.forEach((url, i) => {
     const theta = Math.acos(1 - 2 * (i + 0.5) / n);
     const phi   = 2 * Math.PI * i / golden;
 
@@ -4747,40 +4754,43 @@ function buildWolfgangSphere() {
     const y = Math.cos(theta) * WOLF_SPHERE_R;
     const z = Math.sin(theta) * Math.sin(phi) * WOLF_SPHERE_R;
 
-    // Slight size variety — portrait or landscape
-    const portrait = rand() < 0.38;
-    const w = portrait ? 13 : 19;
-    const h = portrait ? 18 : 13;
-
-    const geo = new THREE.PlaneGeometry(w, h, 1, 1);
+    // Start with a square placeholder — replaced once texture resolves
+    const CELL = 15;
+    const geo = new THREE.PlaneGeometry(CELL, CELL, 1, 1);
     const mat = new THREE.MeshBasicMaterial({
       transparent: true, opacity: 0,
       side: THREE.DoubleSide, depthWrite: false,
-      color: 0xfff4e8,
-    });
-
-    loader.load(url, tex => {
-      tex.minFilter = THREE.LinearFilter;
-      mat.map   = tex;
-      mat.color.set(0xffffff);
-      mat.needsUpdate = true;
     });
 
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
 
-    // Orient plane to face center (inward) — DoubleSide handles the rest
-    const up  = Math.abs(y / WOLF_SPHERE_R) > 0.95
+    // Orient to face center
+    const up = Math.abs(y / WOLF_SPHERE_R) > 0.92
       ? new THREE.Vector3(0, 0, 1)
       : new THREE.Vector3(0, 1, 0);
     const mat4 = new THREE.Matrix4();
     mat4.lookAt(new THREE.Vector3(x, y, z), new THREE.Vector3(0, 0, 0), up);
     mesh.setRotationFromMatrix(mat4);
-
-    // Small random tilt for organic feel
-    mesh.rotateZ((rand() - 0.5) * 0.18);
+    mesh.rotateZ((rand() - 0.5) * 0.16);
 
     wolfgangGroup.add(mesh);
+
+    // Load texture — rebuild geometry at correct natural aspect ratio
+    loader.load(url, tex => {
+      tex.minFilter = THREE.LinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      const iw = tex.image.naturalWidth  || tex.image.width  || 1;
+      const ih = tex.image.naturalHeight || tex.image.height || 1;
+      const aspect = iw / ih;
+      // Longest edge = CELL, other edge scales to preserve ratio
+      const w = aspect >= 1 ? CELL : CELL * aspect;
+      const h = aspect >= 1 ? CELL / aspect : CELL;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.PlaneGeometry(w, h, 1, 1);
+      mat.map = tex;
+      mat.needsUpdate = true;
+    });
   });
 }
 
