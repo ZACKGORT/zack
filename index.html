@@ -285,7 +285,26 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
 }
 #tess-nav-hint { display:none!important; }
 
-/* ── GOD-MODE ORBIT CONTROL PANEL ──────────────────────────
+/* ── WOLFGANG INTERIOR SPHERE ───────────────────────────── */
+#wolfgang-vignette {
+  position:fixed;inset:0;z-index:50;pointer-events:none;
+  background:radial-gradient(ellipse 70% 70% at 50% 50%,
+    transparent 0%, rgba(2,1,6,0.0) 45%, rgba(2,1,6,0.55) 80%, rgba(1,0,4,0.92) 100%);
+  opacity:0;transition:opacity 1.8s ease;
+}
+#wolfgang-vignette.vis{opacity:1;}
+#wolfgang-caption {
+  position:fixed;bottom:72px;left:50%;
+  transform:translateX(-50%);
+  z-index:55;pointer-events:none;
+  font-family:'Crimson Text',serif;font-style:italic;
+  font-size:15px;letter-spacing:0.06em;
+  color:rgba(245,236,213,0);
+  transition:color 2.2s ease;
+  text-align:center;white-space:nowrap;
+}
+#wolfgang-caption.vis{color:rgba(245,236,213,0.38);}
+
    Desktop: lower-right fixed. Mobile: bottom-center.        */
 #tess-controls {
   position:fixed;bottom:28px;right:28px;z-index:620;
@@ -1305,6 +1324,10 @@ body.light .rhud-btn.active { color: #000; }
 </div>
 <canvas id="bg-mesh"></canvas>
 <canvas id="canvas"></canvas>
+
+<!-- Wolfgang interior sphere overlay elements -->
+<div id="wolfgang-vignette"></div>
+<div id="wolfgang-caption">Wolfgang · 2010 — 2023</div>
 
 
 
@@ -4658,6 +4681,151 @@ bhGroup.visible = false;
 })();
 
 // Tick — called every frame with current galaxyAlpha
+// ── WOLFGANG INTERIOR SPHERE ─────────────────────────────
+// Cross the event horizon and find the origin.
+const WOLFGANG_PHOTOS = [
+  'https://i.ibb.co/0RM9H4bs/lastsleepies.webp',
+  'https://i.ibb.co/204XKS7B/lastsleepies.jpg',
+  'https://i.ibb.co/YBqRmT0f/batman.webp',
+  'https://i.ibb.co/WpdLgszx/superhero.jpg',
+  'https://i.ibb.co/8gdCLfSx/traininghumanonmyfavoritethingtodoperiod.webp',
+  'https://i.ibb.co/fd1Byttx/lookiftheysayanythingiamheretokeepyouontask.webp',
+  'https://i.ibb.co/M52WpNbN/hisfavoritecafe.webp',
+  'https://i.ibb.co/4gF252NS/laplife.jpg',
+  'https://i.ibb.co/GfT4yhBy/love2.webp',
+  'https://i.ibb.co/ZzZcHSmN/love.webp',
+  'https://i.ibb.co/609GbJPC/looktothesky.webp',
+  'https://i.ibb.co/B5hk87fv/flower.webp',
+  'https://i.ibb.co/hxWjtMhK/winterwolf.webp',
+  'https://i.ibb.co/Z1FrMWch/closer.webp',
+  'https://i.ibb.co/ZpbYqMZg/superhero.webp',
+  'https://i.ibb.co/dwxKVyfP/nycleashlaws.webp',
+  'https://i.ibb.co/pB65Lqy6/laplife.webp',
+  'https://i.ibb.co/4RkM3rHt/intothevoid.webp',
+  'https://i.ibb.co/z90Y1K0/hazy.webp',
+  'https://i.ibb.co/rRLkbvPw/wakinguptothisface.webp',
+  'https://i.ibb.co/35wn6dyd/sleepies.webp',
+  'https://i.ibb.co/7xVk4kZh/realitycheck.webp',
+  'https://i.ibb.co/8g6xb5xh/pleased2.webp',
+  'https://i.ibb.co/q3w23YbL/pleased.webp',
+  'https://i.ibb.co/5Xf4pWgs/penguin056.webp',
+  'https://i.ibb.co/HDpMfC96/penguin003.webp',
+  'https://i.ibb.co/Xx5xySV3/penguin002.webp',
+  'https://i.ibb.co/wFWhPJ1t/notaregulationseatbeltbutgreatlapwarmer.webp',
+  'https://i.ibb.co/v4SyZC8n/newviews.webp',
+  'https://i.ibb.co/ynXcRw2w/nightnight.webp',
+  'https://i.ibb.co/b5Y8SMh6/makingitwork.webp',
+  'https://i.ibb.co/JR1SH0g3/justmaterialexcessweknowwhatmyfocusis.webp',
+];
+
+let wolfgangGroup    = null;
+let wolfgangAlpha    = 0;
+let wolfgangBuilt    = false;
+const WOLF_TRIGGER_R = 7.2;   // just inside event horizon sphere (r=7.5)
+const WOLF_SPHERE_R  = 42;    // radius of the photo sphere
+
+function buildWolfgangSphere() {
+  wolfgangBuilt = true;
+  wolfgangGroup = new THREE.Group();
+  scene.add(wolfgangGroup);
+  wolfgangGroup.visible = false;
+
+  const n       = WOLFGANG_PHOTOS.length;
+  const golden  = (1 + Math.sqrt(5)) / 2;
+  const loader  = new THREE.TextureLoader();
+
+  // Seed a simple deterministic pseudo-random for consistent layout
+  let seed = 42;
+  const rand = () => { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; };
+
+  WOLFGANG_PHOTOS.forEach((url, i) => {
+    // Fibonacci sphere distribution — even coverage, no poles clustering
+    const theta = Math.acos(1 - 2 * (i + 0.5) / n);
+    const phi   = 2 * Math.PI * i / golden;
+
+    const x = Math.sin(theta) * Math.cos(phi) * WOLF_SPHERE_R;
+    const y = Math.cos(theta) * WOLF_SPHERE_R;
+    const z = Math.sin(theta) * Math.sin(phi) * WOLF_SPHERE_R;
+
+    // Slight size variety — portrait or landscape
+    const portrait = rand() < 0.38;
+    const w = portrait ? 13 : 19;
+    const h = portrait ? 18 : 13;
+
+    const geo = new THREE.PlaneGeometry(w, h, 1, 1);
+    const mat = new THREE.MeshBasicMaterial({
+      transparent: true, opacity: 0,
+      side: THREE.DoubleSide, depthWrite: false,
+      color: 0xfff4e8,
+    });
+
+    loader.load(url, tex => {
+      tex.minFilter = THREE.LinearFilter;
+      mat.map   = tex;
+      mat.color.set(0xffffff);
+      mat.needsUpdate = true;
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+
+    // Orient plane to face center (inward) — DoubleSide handles the rest
+    const up  = Math.abs(y / WOLF_SPHERE_R) > 0.95
+      ? new THREE.Vector3(0, 0, 1)
+      : new THREE.Vector3(0, 1, 0);
+    const mat4 = new THREE.Matrix4();
+    mat4.lookAt(new THREE.Vector3(x, y, z), new THREE.Vector3(0, 0, 0), up);
+    mesh.setRotationFromMatrix(mat4);
+
+    // Small random tilt for organic feel
+    mesh.rotateZ((rand() - 0.5) * 0.18);
+
+    wolfgangGroup.add(mesh);
+  });
+}
+
+function tickWolfgang(elapsed) {
+  const inside = isBlackHoleFocused && camState.radius < WOLF_TRIGGER_R;
+  const target = inside ? 1 : 0;
+  wolfgangAlpha += (target - wolfgangAlpha) * (inside ? 0.028 : 0.045);
+
+  // Overlay elements
+  const vig = document.getElementById('wolfgang-vignette');
+  const cap = document.getElementById('wolfgang-caption');
+
+  if (wolfgangAlpha < 0.005) {
+    if (wolfgangGroup) wolfgangGroup.visible = false;
+    if (vig) vig.classList.remove('vis');
+    if (cap) cap.classList.remove('vis');
+    return;
+  }
+
+  // Build lazily on first entry
+  if (!wolfgangBuilt) buildWolfgangSphere();
+  wolfgangGroup.visible = true;
+
+  // Slowly drift-rotate the whole sphere for life
+  wolfgangGroup.rotation.y += 0.00018;
+  wolfgangGroup.rotation.x  = Math.sin(elapsed * 0.04) * 0.018;
+
+  // Fade each photo
+  const targetOp = wolfgangAlpha * 0.90;
+  wolfgangGroup.children.forEach(child => {
+    if (child.material) child.material.opacity += (targetOp - child.material.opacity) * 0.06;
+  });
+
+  // Overlay fade
+  if (vig) { if (wolfgangAlpha > 0.3) vig.classList.add('vis'); else vig.classList.remove('vis'); }
+  if (cap) { if (wolfgangAlpha > 0.6) cap.classList.add('vis'); else cap.classList.remove('vis'); }
+
+  // Dim the black hole glow and disk when fully inside — you're past it
+  if (bhGroup && bhGroup.userData.disk) {
+    const dimTarget = 1 - wolfgangAlpha * 0.75;
+    bhGroup.userData.disk.material.opacity *= dimTarget;
+    if (bhGroup.userData.halo) bhGroup.userData.halo.material.opacity *= dimTarget;
+  }
+}
+
 function tickBlackHole(elapsed, ga) {
   if (ga < 0.01) {
     bhGroup.visible = false;
@@ -6047,7 +6215,7 @@ cvs.addEventListener('wheel', e => {
 
   // In galaxy view: allow deep zoom into the black hole
   if (galaxyAlpha > 0.5) {
-    const GALAXY_ZOOM_MIN = 8;
+    const GALAXY_ZOOM_MIN = isBlackHoleFocused ? 1.2 : 8;
     const GALAXY_ZOOM_MAX = 360;
     const sensitivity = Math.max(0.008, camTarget.radius * 0.0015);
     camTarget.radius = Math.max(GALAXY_ZOOM_MIN, Math.min(GALAXY_ZOOM_MAX, camTarget.radius + e.deltaY * sensitivity));
@@ -6592,6 +6760,7 @@ function animate(ts) {
   updateGalaxyAlpha();
   const bhA = Math.min(1, Math.max(0, (camState.radius - 10) / 70));
   tickBlackHole(elapsed, bhA);
+  tickWolfgang(elapsed);
 
   // Star lights + galaxy lights — skip dynamic breathing on mobile
   if (!isLight && !_isMobile) {
