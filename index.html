@@ -14,20 +14,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#05030a;transition:b
 body.light{background:#ffffff;}
 canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-action:none;}
 #bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;}
-/* Suppress browser PDF plugin overlay (Acrobat etc.) */
-embed[type="application/pdf"],
-object[type="application/pdf"],
-embed:not([src]),
-.nppdf, #plugin-container, [id*="acrobat"], [class*="acrobat"],
-embed, object { display:none!important; visibility:hidden!important; pointer-events:none!important; }
-/* When explorer layer is active — suppress conflicting fixed elements */
-body.explorer-active #flight-launchpad,
-body.explorer-active #mission-hud,
-body.explorer-active #flight-fab {
-  opacity:0!important; pointer-events:none!important; transition:opacity 0.3s!important;
-}
-body.explorer-active #hud { opacity:0.18; pointer-events:none; transition:opacity 0.3s; }
-body.explorer-active #brand { opacity:0.18; pointer-events:none; transition:opacity 0.3s; }
 
 #brand{position:fixed;top:20px;left:24px;z-index:100;font-family:'DM Mono',monospace;cursor:pointer;}
 #brand-logo{display:flex;align-items:center;gap:10px;position:relative;}
@@ -1313,16 +1299,16 @@ body.light .rhud-btn.active { color: #000; }
 /* ── SATURN FAB — MICRO-ORRERY ───────────────────────────── */
 #flight-fab {
   position:fixed;
-  bottom:32px;
+  bottom:72px;
   left:50%; transform:translateX(-50%);
   z-index:850;
-  width:100px; height:100px; border-radius:50%;
+  width:120px; height:120px; border-radius:50%;
   background:transparent; border:none;
   cursor:pointer; display:flex; align-items:center; justify-content:center;
   transition:transform 0.32s cubic-bezier(0.34,1.56,0.64,1);
   padding:0; overflow:visible;
 }
-#flight-fab:hover { transform:translateX(-50%) scale(1.10); }
+#flight-fab:hover { transform:translateX(-50%) scale(1.14); }
 #flight-fab:active { transform:translateX(-50%) scale(0.95); }
 
 /* The canvas lives inside the button */
@@ -1360,7 +1346,54 @@ body.light .rhud-btn.active { color: #000; }
 }
 
 @media(max-width:768px){
-  #flight-fab { bottom:100px; width:80px; height:80px; }
+  #flight-fab { bottom:120px; width:96px; height:96px; }
+}
+
+/* ── JOURNEY CONTROL STRIP ───────────────────────────────── */
+#fab-journey-controls {
+  position:fixed;
+  bottom:200px;
+  left:50%; transform:translateX(-50%);
+  z-index:849;
+  display:flex; align-items:center; gap:2px;
+  background:rgba(5,3,10,0.92);
+  border:1px solid rgba(255,102,204,0.22);
+  border-radius:20px;
+  padding:5px 8px;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.30s, transform 0.30s cubic-bezier(0.34,1.56,0.64,1);
+  transform:translateX(-50%) translateY(8px);
+  backdrop-filter:blur(12px);
+}
+#fab-journey-controls.vis {
+  opacity:1; pointer-events:all;
+  transform:translateX(-50%) translateY(0);
+}
+.fjc-btn {
+  background:none; border:none; cursor:pointer;
+  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
+  text-transform:uppercase; color:rgba(255,102,204,0.65);
+  padding:5px 10px; border-radius:14px;
+  transition:color 0.18s, background 0.18s;
+}
+.fjc-btn:hover { color:#ff66cc; background:rgba(255,102,204,0.10); }
+.fjc-cancel { color:rgba(255,102,204,0.35) !important; }
+.fjc-cancel:hover { color:rgba(255,80,80,0.85) !important; }
+
+/* FAB pulse ring when journey active */
+#flight-fab.journey-active::after {
+  content:'';
+  position:absolute; inset:-8px; border-radius:50%;
+  border:1px solid rgba(255,102,204,0.30);
+  animation:journey-pulse 2.4s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes journey-pulse {
+  0%,100% { opacity:0.30; transform:scale(1.00); }
+  50%      { opacity:0.08; transform:scale(1.12); }
+}
+@media(max-width:768px){
+  #fab-journey-controls { bottom:230px; }
 }
 
 #flight-launchpad {
@@ -1648,500 +1681,6 @@ body.light .mhud-nav-btn { color:rgba(0,0,0,0.45); }
 body.light .mhud-nav-btn:hover:not(:disabled) { color:#000; background:rgba(0,0,0,0.05); }
 body.light #mhud-close { color:rgba(0,0,0,0.30); }
 body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
-
-/* ══════════════════════════════════════════════════════
-   EXPLORER LAYER
-══════════════════════════════════════════════════════ */
-#explorer-layer {
-  position:fixed; inset:0; z-index:900;
-  pointer-events:none; opacity:0;
-  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1);
-  background:rgba(2,1,10,0);
-}
-#explorer-layer.active {
-  pointer-events:all; opacity:1;
-  background:rgba(2,1,10,0.97);
-  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),
-             background 0.55s cubic-bezier(0.22,1,0.36,1);
-}
-
-/* ── Vignette ring ── */
-#expl-vignette {
-  position:absolute; inset:0; pointer-events:none;
-  background:radial-gradient(ellipse 60% 60% at 50% 50%,
-    transparent 0%, rgba(218,165,32,0.03) 55%,
-    rgba(218,165,32,0.07) 80%, rgba(2,1,10,0.60) 100%);
-  opacity:0; transition:opacity 0.6s 0.2s;
-}
-#explorer-layer.active #expl-vignette { opacity:1; }
-
-/* ── Focused planet (State 1) ── */
-#expl-planet-wrap {
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%) scale(0.3);
-  opacity:0; pointer-events:none;
-  transition:transform 0.7s cubic-bezier(0.22,1,0.36,1),
-             opacity 0.5s cubic-bezier(0.22,1,0.36,1);
-  display:flex; flex-direction:column; align-items:center; gap:24px;
-  z-index:2;
-}
-#explorer-layer.planet-focus #expl-planet-wrap {
-  transform:translate(-50%,-50%) scale(1);
-  opacity:1; pointer-events:all;
-}
-#explorer-layer.tess-open #expl-planet-wrap,
-#explorer-layer.sphere-open #expl-planet-wrap {
-  transform:translate(-50%,-50%) scale(0.15) translateY(-180%);
-  opacity:0; pointer-events:none;
-}
-#expl-saturn-canvas {
-  width:220px; height:220px; border-radius:50%;
-  cursor:pointer; display:block;
-  filter:drop-shadow(0 0 40px rgba(218,165,32,0.22));
-  transition:filter 0.3s;
-}
-#expl-saturn-canvas:hover {
-  filter:drop-shadow(0 0 60px rgba(218,165,32,0.40));
-}
-#expl-planet-hint {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.26em;
-  text-transform:uppercase; color:rgba(218,165,32,0.28);
-  text-align:center; animation:hint-pulse 3s ease-in-out infinite;
-}
-@keyframes hint-pulse {
-  0%,100% { opacity:0.28; } 50% { opacity:0.65; }
-}
-
-/* ── Constellation / Tesseract view (State 2) ── */
-#expl-tesseract {
-  position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:flex-start; gap:0;
-  opacity:0; pointer-events:none;
-  transform:scale(0.97) translateY(8px);
-  transition:opacity 0.5s cubic-bezier(0.22,1,0.36,1),
-             transform 0.5s cubic-bezier(0.22,1,0.36,1);
-  padding:20px 24px 0;
-  overflow:hidden;
-}
-#explorer-layer.tess-open #expl-tesseract {
-  opacity:1; pointer-events:all;
-  transform:none;
-}
-#expl-tess-header {
-  text-align:center; margin-bottom:10px; flex-shrink:0;
-}
-#expl-tess-eyebrow {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
-  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-bottom:5px;
-}
-#expl-tess-title {
-  font-family:'Crimson Text',serif; font-size:clamp(20px,3vw,32px);
-  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1; margin-bottom:4px;
-}
-#expl-tess-sub {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(218,165,32,0.20);
-}
-#expl-constellation-wrap {
-  width:100%; max-width:960px; flex:1; min-height:0; position:relative;
-  margin:0 auto;
-}
-#expl-constellation {
-  width:100%; height:100%; min-height:240px;
-  display:block;
-}
-/* Constellation SVG styles */
-.expl-conn-path {
-  fill:none; stroke:rgba(218,165,32,0.12);
-  stroke-width:1; stroke-dasharray:4 6;
-  transition:stroke 0.3s, stroke-width 0.3s;
-}
-.expl-conn-path.active {
-  stroke:rgba(218,165,32,0.50); stroke-width:1.5; stroke-dasharray:none;
-}
-.expl-node-group { cursor:pointer; }
-.expl-node-group:hover .expl-node-ring { r:10; opacity:0.35; }
-.expl-node-dot {
-  transition:r 0.25s, fill 0.25s;
-}
-.expl-node-ring {
-  fill:none; stroke:rgba(218,165,32,0.25);
-  stroke-width:0.8; transition:all 0.3s;
-}
-.expl-node-label {
-  font-family:'DM Mono',monospace; font-size:6px;
-  letter-spacing:0.14em; text-transform:uppercase;
-  fill:rgba(218,165,32,0.35); pointer-events:none;
-  transition:fill 0.25s;
-}
-.expl-node-group.active .expl-node-dot { r:6; fill:#daa520; }
-.expl-node-group.active .expl-node-label { fill:rgba(218,165,32,0.75); }
-.expl-node-group.active .expl-node-ring { stroke:rgba(218,165,32,0.50); }
-
-/* ── Upload JD CTA (spans all cards) ── */
-#expl-upload-cta {
-  width:100%; max-width:960px; margin:8px auto 0;
-  flex-shrink:0;
-}
-#expl-upload-cta-btn {
-  width:100%; background:none;
-  border:1px solid rgba(218,165,32,0.20);
-  border-bottom:2px solid rgba(218,165,32,0.28);
-  color:rgba(218,165,32,0.55);
-  padding:11px 24px;
-  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.26em;
-  text-transform:uppercase; border-radius:3px; cursor:pointer;
-  transition:all 0.22s;
-  display:flex; align-items:center; justify-content:center; gap:12px;
-}
-#expl-upload-cta-btn:hover {
-  color:#f5ecd5;
-  border-color:rgba(218,165,32,0.55);
-  border-bottom-color:rgba(218,165,32,0.75);
-  background:rgba(218,165,32,0.05);
-}
-#expl-upload-cta-btn .cta-label { flex:1; text-align:center; }
-#expl-upload-cta-btn .cta-hint {
-  font-size:6px; letter-spacing:0.18em;
-  color:rgba(218,165,32,0.25); font-style:italic;
-}
-
-/* ── Archetype cards ── */
-#expl-archetype-cards {
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:6px; width:100%; max-width:960px;
-  flex-shrink:0; margin:6px auto 0;
-  padding-bottom:72px;
-}
-@media(max-width:700px) {
-  #expl-archetype-cards { grid-template-columns:repeat(2,1fr); gap:5px; padding-bottom:90px; }
-}
-.expl-arch-card {
-  display:flex; align-items:center; gap:10px;
-  background:rgba(218,165,32,0.03);
-  border:1px solid rgba(218,165,32,0.12);
-  border-radius:4px; padding:12px 14px;
-  cursor:pointer; transition:all 0.20s;
-  position:relative; overflow:hidden;
-}
-.expl-arch-card:hover {
-  background:rgba(218,165,32,0.08);
-  border-color:rgba(218,165,32,0.40);
-}
-.expl-arch-card.selected {
-  background:rgba(218,165,32,0.12);
-  border-color:rgba(218,165,32,0.65);
-}
-.expl-arch-emoji { font-size:20px; flex-shrink:0; }
-.expl-arch-info { flex:1; min-width:0; }
-.expl-arch-name {
-  font-family:'Crimson Text',serif; font-size:15px;
-  color:#f5ecd5; line-height:1.2; margin-bottom:2px;
-}
-.expl-arch-tags {
-  font-family:'DM Mono',monospace; font-size:6px;
-  letter-spacing:0.12em; text-transform:uppercase;
-  color:rgba(218,165,32,0.30); line-height:1.5;
-}
-.expl-arch-arrow {
-  font-family:'DM Mono',monospace; font-size:14px;
-  color:rgba(218,165,32,0.25); flex-shrink:0;
-  transition:color 0.18s, transform 0.18s;
-}
-.expl-arch-card:hover .expl-arch-arrow {
-  color:rgba(218,165,32,0.75); transform:translateX(3px);
-}
-
-#expl-tess-close {
-  position:absolute; top:20px; right:20px;
-  background:none; border:1px solid rgba(218,165,32,0.16);
-  color:rgba(218,165,32,0.32); width:28px; height:28px;
-  border-radius:2px; cursor:pointer; font-size:12px;
-  display:flex; align-items:center; justify-content:center;
-  font-family:'DM Mono',monospace; transition:all 0.18s;
-}
-#expl-tess-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
-
-/* ── Journey HUD (active path) ── */
-#expl-journey-hud {
-  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
-  z-index:960; display:none; align-items:center; gap:0;
-  background:rgba(5,3,10,0.97);
-  border:1px solid rgba(218,165,32,0.22);
-  border-top:2px solid rgba(218,165,32,0.35);
-  border-radius:5px; overflow:hidden;
-  backdrop-filter:blur(20px);
-  box-shadow:0 -2px 40px rgba(218,165,32,0.06), 0 4px 28px rgba(0,0,0,0.90);
-  opacity:0; transition:opacity 0.35s, transform 0.35s cubic-bezier(0.22,1,0.36,1);
-  min-width:0; max-width:min(540px,calc(100vw - 32px));
-  pointer-events:none;
-  transform:translateX(-50%) translateY(8px);
-}
-#expl-journey-hud.vis {
-  opacity:1; pointer-events:all;
-  transform:translateX(-50%) translateY(0);
-}
-#expl-jhud-accent { width:3px; flex-shrink:0; align-self:stretch; background:#daa520; }
-#expl-jhud-body { display:flex; align-items:center; gap:0; flex:1; min-width:0; }
-#expl-jhud-info { padding:9px 14px; flex:1; min-width:0; }
-#expl-jhud-eyebrow {
-  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.26em;
-  text-transform:uppercase; color:rgba(218,165,32,0.32); margin-bottom:3px;
-}
-#expl-jhud-title {
-  font-family:'Crimson Text',serif; font-size:15px;
-  color:#f5ecd5; line-height:1.2;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-#expl-jhud-why {
-  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.05em;
-  color:rgba(218,165,32,0.35); line-height:1.5; margin-top:2px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-#expl-jhud-pips {
-  display:flex; align-items:center; gap:4px; padding:0 10px 0 0; flex-shrink:0;
-}
-.expl-jhud-pip {
-  width:4px; height:4px; border-radius:50%;
-  background:rgba(218,165,32,0.18); transition:all 0.25s;
-}
-.expl-jhud-pip.done { background:rgba(218,165,32,0.45); }
-.expl-jhud-pip.active { width:7px; height:7px; background:#daa520; }
-#expl-jhud-nav { display:flex; border-left:1px solid rgba(218,165,32,0.10); }
-.expl-jhud-nav-btn {
-  background:none; border:none; cursor:pointer;
-  color:rgba(218,165,32,0.38); padding:0 13px;
-  font-family:'DM Mono',monospace; font-size:13px; align-self:stretch;
-  display:flex; align-items:center; transition:color 0.15s, background 0.15s;
-  border-right:1px solid rgba(218,165,32,0.08);
-}
-.expl-jhud-nav-btn:last-child { border-right:none; }
-.expl-jhud-nav-btn:hover:not(:disabled) { color:#f5ecd5; background:rgba(218,165,32,0.08); }
-.expl-jhud-nav-btn:disabled { opacity:0.18; cursor:default; }
-#expl-jhud-close {
-  background:none; border:none; border-left:1px solid rgba(218,165,32,0.10);
-  color:rgba(218,165,32,0.28); padding:0 12px; cursor:pointer;
-  font-size:11px; align-self:stretch; display:flex; align-items:center;
-  font-family:'DM Mono',monospace; transition:color 0.15s;
-}
-#expl-jhud-close:hover { color:rgba(218,165,32,0.75); }
-
-/* ── Sphere environment (scroll-in JD) ── */
-#expl-sphere {
-  position:absolute; inset:0; display:flex;
-  align-items:center; justify-content:center;
-  opacity:0; pointer-events:none;
-  transform:scale(1.04);
-  transition:opacity 0.55s cubic-bezier(0.22,1,0.36,1),
-             transform 0.55s cubic-bezier(0.22,1,0.36,1);
-  overflow:hidden;
-}
-#explorer-layer.sphere-open #expl-sphere {
-  opacity:1; pointer-events:all; transform:none;
-}
-#expl-sphere-bg {
-  position:absolute; inset:0;
-  background:
-    radial-gradient(ellipse 120% 120% at 50% 50%,
-      rgba(218,165,32,0.04) 0%,
-      rgba(218,165,32,0.01) 50%,
-      rgba(2,1,10,0.0) 100%);
-  animation:sphere-breathe 6s ease-in-out infinite;
-}
-@keyframes sphere-breathe {
-  0%,100% { opacity:0.6; transform:scale(1); }
-  50% { opacity:1; transform:scale(1.05); }
-}
-/* Sphere dome rings */
-#expl-sphere-bg::before {
-  content:'';
-  position:absolute; inset:-20%;
-  border-radius:50%;
-  border:1px solid rgba(218,165,32,0.06);
-  box-shadow:
-    0 0 0 60px rgba(218,165,32,0.025),
-    0 0 0 120px rgba(218,165,32,0.015),
-    0 0 0 200px rgba(218,165,32,0.008);
-}
-#expl-sphere-inner {
-  width:min(580px,92vw); position:relative; z-index:1;
-  animation:expl-rise 0.5s cubic-bezier(0.22,1,0.36,1) both;
-}
-@keyframes expl-rise {
-  from { opacity:0; transform:translateY(18px) scale(0.97); }
-  to   { opacity:1; transform:none; }
-}
-#expl-sphere-header { margin-bottom:26px; position:relative; }
-#expl-sphere-eyebrow {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
-  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-bottom:8px;
-}
-#expl-sphere-title {
-  font-family:'Crimson Text',serif; font-size:clamp(24px,4vw,38px);
-  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1;
-}
-#expl-sphere-sub {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(218,165,32,0.22); margin-top:7px;
-}
-#expl-sphere-close {
-  position:absolute; top:0; right:0;
-  background:none; border:1px solid rgba(218,165,32,0.16);
-  color:rgba(218,165,32,0.32); width:28px; height:28px;
-  border-radius:2px; cursor:pointer; font-size:12px;
-  display:flex; align-items:center; justify-content:center;
-  font-family:'DM Mono',monospace; transition:all 0.18s;
-}
-#expl-sphere-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
-#expl-sphere-dropzone {
-  position:relative; border:1px solid rgba(218,165,32,0.14);
-  border-radius:4px; overflow:hidden; transition:border-color 0.20s;
-  background:rgba(218,165,32,0.02);
-}
-#expl-sphere-dropzone.drag-over {
-  border-color:rgba(218,165,32,0.50); background:rgba(218,165,32,0.05);
-}
-#expl-jd-input {
-  width:100%; min-height:180px; max-height:260px;
-  background:none; border:none; outline:none; resize:none;
-  font-family:'DM Mono',monospace; font-size:8px; letter-spacing:0.08em;
-  line-height:1.8; color:rgba(218,165,32,0.70); padding:18px 20px;
-  overflow-y:auto; scrollbar-width:thin;
-  scrollbar-color:rgba(218,165,32,0.15) transparent;
-}
-#expl-jd-input::placeholder { color:rgba(218,165,32,0.20); }
-#expl-sphere-drop-hint {
-  position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:8px;
-  pointer-events:none; opacity:1; transition:opacity 0.20s;
-}
-#expl-sphere-dropzone.has-text #expl-sphere-drop-hint { opacity:0; }
-#expl-sphere-drop-icon { font-size:22px; opacity:0.35; }
-#expl-sphere-drop-label {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.22em;
-  text-transform:uppercase; color:rgba(218,165,32,0.22); text-align:center;
-}
-#expl-sphere-actions {
-  display:flex; align-items:center; justify-content:space-between; margin-top:10px;
-}
-#expl-char-count {
-  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(218,165,32,0.18);
-}
-#expl-launch-btn {
-  background:none; border:1px solid rgba(218,165,32,0.24);
-  color:rgba(218,165,32,0.55); padding:9px 24px;
-  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.22em;
-  text-transform:uppercase; border-radius:2px; cursor:pointer;
-  transition:all 0.20s; display:flex; align-items:center; gap:8px;
-}
-#expl-launch-btn:hover:not(:disabled) {
-  color:#f5ecd5; border-color:rgba(218,165,32,0.65); background:rgba(218,165,32,0.08);
-}
-#expl-launch-btn:disabled { opacity:0.25; cursor:default; }
-#expl-sphere-footer {
-  margin-top:14px; text-align:center;
-  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(218,165,32,0.12);
-}
-
-/* ── CTA Overlay ── */
-#expl-cta-overlay {
-  position:absolute; inset:0; display:flex;
-  align-items:center; justify-content:center;
-  background:rgba(2,1,10,0.92); backdrop-filter:blur(24px);
-  opacity:0; pointer-events:none;
-  transition:opacity 0.45s;
-  z-index:10;
-}
-#expl-cta-overlay.vis { opacity:1; pointer-events:all; }
-/* Escape hatch — always visible top-right */
-#expl-cta-overlay-close {
-  position:absolute; top:20px; right:20px;
-  background:none; border:1px solid rgba(218,165,32,0.16);
-  color:rgba(218,165,32,0.32); width:28px; height:28px;
-  border-radius:2px; cursor:pointer; font-size:12px;
-  display:flex; align-items:center; justify-content:center;
-  font-family:'DM Mono',monospace; transition:all 0.18s;
-}
-#expl-cta-overlay-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.60); }
-#expl-cta-inner {
-  text-align:center; display:flex; flex-direction:column;
-  align-items:center; gap:18px; max-width:480px; padding:0 20px;
-  animation:expl-rise 0.5s cubic-bezier(0.22,1,0.36,1) both;
-}
-#expl-cta-vessel { font-size:52px; }
-#expl-cta-title {
-  font-family:'Crimson Text',serif; font-size:clamp(24px,4vw,40px);
-  color:#f5ecd5; letter-spacing:-0.02em; line-height:1.1;
-}
-#expl-cta-sub {
-  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.20em;
-  text-transform:uppercase; color:rgba(218,165,32,0.35); line-height:1.8;
-}
-#expl-cta-link {
-  display:inline-flex; align-items:center; gap:8px;
-  background:none; border:1px solid rgba(218,165,32,0.40);
-  color:rgba(218,165,32,0.80); padding:13px 32px;
-  font-family:'DM Mono',monospace; font-size:8.5px; letter-spacing:0.26em;
-  text-transform:uppercase; border-radius:2px; cursor:pointer;
-  transition:all 0.22s; text-decoration:none;
-}
-#expl-cta-link:hover {
-  color:#f5ecd5; border-color:rgba(218,165,32,0.80);
-  background:rgba(218,165,32,0.10);
-}
-#expl-cta-link span { transition:transform 0.18s; }
-#expl-cta-link:hover span { transform:translateX(4px); }
-#expl-cta-close {
-  background:none; border:none; cursor:pointer;
-  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.20em;
-  text-transform:uppercase; color:rgba(218,165,32,0.22);
-  transition:color 0.18s; padding:4px 0;
-}
-#expl-cta-close:hover { color:rgba(218,165,32,0.55); }
-
-/* ── Mission Report Toast ── */
-#expl-mission-report {
-  position:absolute; bottom:32px; left:50%;
-  transform:translateX(-50%) translateY(120%);
-  z-index:12; width:min(400px,90vw);
-  background:rgba(5,3,10,0.97);
-  border:1px solid rgba(218,165,32,0.22);
-  border-radius:5px; backdrop-filter:blur(20px);
-  box-shadow:0 4px 32px rgba(0,0,0,0.80);
-  opacity:0; pointer-events:none;
-  transition:opacity 0.4s, transform 0.4s cubic-bezier(0.22,1,0.36,1);
-}
-#expl-mission-report.vis {
-  opacity:1; pointer-events:all;
-  transform:translateX(-50%) translateY(0);
-}
-#expl-report-inner {
-  padding:18px 20px; display:flex; flex-direction:column; gap:10px;
-}
-#expl-report-eyebrow {
-  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.28em;
-  text-transform:uppercase; color:rgba(218,165,32,0.30);
-}
-#expl-report-body {
-  font-family:'Crimson Text',serif; font-size:15px;
-  color:rgba(245,236,213,0.70); line-height:1.55; font-style:italic;
-}
-#expl-report-link {
-  font-family:'DM Mono',monospace; font-size:7.5px; letter-spacing:0.20em;
-  text-transform:uppercase; color:rgba(218,165,32,0.60);
-  text-decoration:none; transition:color 0.18s;
-}
-#expl-report-link:hover { color:#daa520; }
-#expl-report-inner button {
-  background:none; border:none; cursor:pointer;
-  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.20em;
-  text-transform:uppercase; color:rgba(218,165,32,0.20);
-  padding:0; text-align:left; transition:color 0.18s;
-}
-#expl-report-inner button:hover { color:rgba(218,165,32,0.50); }
 </style>
 </head>
 <body>
@@ -2212,11 +1751,12 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
 
 <div id="spine-indicator"></div>
 
-<!-- TOP-RIGHT HUD: Sol 1/2/3 · Galaxy · theme -->
+<!-- TOP-RIGHT HUD: Sol 1/2/3/X · Galaxy · theme -->
 <div id="hud">
   <button class="hud-btn" id="hud-sol-1" data-galaxy="career">SOL 1</button>
   <button class="hud-btn" id="hud-sol-2" data-galaxy="sentence">SOL 2</button>
   <button class="hud-btn" id="hud-sol-3" data-galaxy="claude">SOL 3</button>
+  <button class="hud-btn" id="hud-sol-x" data-galaxy="explorer">SOL X</button>
   <div class="hud-sep"></div>
   <button class="hud-btn active" id="hud-galaxy" onclick="switchView('overview')">GALAXY</button>
   <div class="hud-sep"></div>
@@ -3013,8 +2553,116 @@ const BNY_SLIDES = [
 // Click the black hole in galaxy view to enter.
 // ─────────────────────────────────────────────────────────
 // Galaxy centers — world positions (must precede all forEach that reference them)
-const SENTENCE_CENTER = new THREE.Vector3(-90, 0, -65);
-const CLAUDE_CENTER   = new THREE.Vector3(175, 0, 148);
+const SENTENCE_CENTER  = new THREE.Vector3(-90, 0, -65);
+const CLAUDE_CENTER    = new THREE.Vector3(175, 0, 148);
+const EXPLORER_CENTER  = new THREE.Vector3(-210, 0, 120);
+
+// ── SOL X — EXPLORER ARCHETYPES ─────────────────────────────
+// Four vessel archetypes: each an orbit node in the Explorer galaxy.
+// id prefix: 'x-'  tier maps to EXPLORER_ELLIPSES ring.
+const EXPLORER_ERAS = [
+  {
+    id: 'x-orbiter', tier: 'inner', angle: 0.12,
+    year: '🛸', title: 'The Orbiter',
+    role: 'Strategic Leadership · Vision · Roadmap',
+    era: 'Sol X — Archetype I',
+    domain: 'explorer',
+    color: 0xff66cc, hex: '#ff66cc',
+    solarSystem: 'orbiter',
+    url: null,
+    body: 'You need a director, a VP of Design, a head of product experience — someone who holds the model in their head while managing stakeholders and setting direction. That is this archetype. Twenty years of reading a room while building the thing inside it.',
+    sentences: [
+      'Stakeholder management is a craft, not a soft skill.',
+      'The roadmap is the argument. The design is the proof.',
+      'Senior means knowing which decisions will outlive you.',
+      'Vision without implementation is philosophy.',
+    ],
+    moons: [
+      { label: 'Huge · Code & Theory', desc: 'Led cross-functional teams across enterprise engagements' },
+      { label: 'BNY Mellon Wove',      desc: 'Principal design lead — 0 to shipped product' },
+      { label: 'GNC Recovery',         desc: 'Post-bankruptcy UX strategy — ~$500M outcome' },
+      { label: 'Wolfgang & Co.',       desc: 'Founder · IC strategic design · ongoing' },
+    ],
+  },
+  {
+    id: 'x-lunar', tier: 'mid', angle: 0.38,
+    year: '🚀', title: 'The Lunar Lander',
+    role: 'Founder-Mode · 0-to-1 · Ship Fast',
+    era: 'Sol X — Archetype II',
+    domain: 'explorer',
+    color: 0xff9944, hex: '#ff9944',
+    solarSystem: 'lunar',
+    url: null,
+    body: 'Seed stage, early product, founding designer — this is where everything needs to exist before anything is ready. This archetype thrives on constraint. The whole stack, the whole picture, one person who cannot afford to be precious about any of it.',
+    sentences: [
+      'Founding designer means the north star is yours to set.',
+      'Constraint is not a limitation. It is the brief.',
+      'Move fast enough that the product teaches you.',
+      '0-to-1 only happens once. Make it mean something.',
+    ],
+    moons: [
+      { label: 'FlightPath · co-founder', desc: 'Built from zero — product, brand, client relationships' },
+      { label: 'wolfie.love',             desc: 'No framework. No derivative parts. One file.' },
+      { label: 'dab.cx',                  desc: 'The whole product is also the portfolio' },
+      { label: 'Phenom People',           desc: 'IC rapid-execution — shipped across enterprise hiring platform' },
+    ],
+  },
+  {
+    id: 'x-satellite', tier: 'outer', angle: 0.62,
+    year: '🛰️', title: 'The Satellite',
+    role: 'Craft · Systems · Interaction Design',
+    era: 'Sol X — Archetype III',
+    domain: 'explorer',
+    color: 0x66ffcc, hex: '#66ffcc',
+    solarSystem: 'satellite',
+    url: null,
+    body: 'You need the craft. Not the taste alone — the implementation. Design systems, interaction patterns, component architecture, prototype-to-production fidelity. This archetype does not hand off. It delivers the system that makes handoff unnecessary.',
+    sentences: [
+      'A design system is an argument about what matters.',
+      'Prototype fidelity is not a luxury. It is the spec.',
+      'The component is the conversation.',
+      'Accessibility is not a checklist. It is a design decision.',
+    ],
+    moons: [
+      { label: 'Three.js spatial builds', desc: 'Orrery, wiki, pulsar — custom 3D interaction systems' },
+      { label: 'ifimaybefrank.com',        desc: 'Sentence-as-primitive writing engine — custom everything' },
+      { label: 'reasonably.cc',           desc: 'Bracket annotation + scatter canvas interaction system' },
+      { label: 'Design Technologist',     desc: 'Vanilla HTML/CSS/JS — no framework dependency' },
+    ],
+  },
+  {
+    id: 'x-station', tier: 'outer2', angle: 0.82,
+    year: '🌌', title: 'The Space Station',
+    role: 'Platform · Infrastructure · Enterprise Scale',
+    era: 'Sol X — Archetype IV',
+    domain: 'explorer',
+    color: 0xcc88ff, hex: '#cc88ff',
+    solarSystem: 'station',
+    url: null,
+    body: 'Content platforms, design infrastructure, cross-functional programs at scale. This archetype builds the system other teams build on. Architecture decisions that survive five product cycles. The platform that makes the product possible.',
+    sentences: [
+      'The platform is invisible until it is wrong.',
+      'Cross-functional alignment is a design output.',
+      'Infrastructure decisions have a half-life. Make them long.',
+      'Scale means your judgment multiplies through other people.',
+    ],
+    moons: [
+      { label: 'Publicis Sapient · BNY',  desc: 'Enterprise platform design — Wove investment platform' },
+      { label: 'Content infrastructure',  desc: 'wolfie.love → reasonably → frank → dab — unified sentence engine' },
+      { label: 'anthropic.html',          desc: 'RSP 3.0 narrative engine — live behavioral telemetry' },
+      { label: 'intoview.pro',            desc: 'Professional platform — pedigree panel + case study engine' },
+    ],
+  },
+];
+
+// Position EXPLORER_ERAS on ellipse rings (flat radial, same pattern as PLATFORM_ERAS)
+EXPLORER_ERAS.forEach((era, i) => {
+  const t = i / Math.max(EXPLORER_ERAS.length - 1, 1);
+  era._t = t;
+  era._pos = new THREE.Vector3();
+  ERA_BY_ID[era.id] = era;
+  // _spiralPos / _arcPos set inside buildExplorerScene after EXPLORER_ELLIPSES is defined
+});
 
 const MANIFESTO_ERAS = [
   {
@@ -3919,6 +3567,7 @@ function activeList(era) {
   if (era.id.startsWith('cc-'))  return CLAUDE_ERAS;
   if (era.id.startsWith('p-'))   return PLATFORM_ERAS;
   if (era.id.startsWith('m-'))   return MANIFESTO_ERAS;
+  if (era.id.startsWith('x-'))   return EXPLORER_ERAS;
   return ERAS;
 }
 
@@ -4055,6 +3704,7 @@ const starLights = [];
   { pos: CAREER_OFFSET,            intensity: 3.5, distance: 180 },
   { pos: SENTENCE_CENTER,          intensity: 3.0, distance: 160 },
   { pos: CLAUDE_CENTER,            intensity: 3.0, distance: 160 },
+  { pos: EXPLORER_CENTER,          intensity: 3.0, distance: 160 },
   { pos: new THREE.Vector3(0,0,0), intensity: 4.0, distance: 220 },
 ].forEach(({ pos, intensity, distance }) => {
   const pl = new THREE.PointLight(0xfff8ee, intensity, distance, 1.8);
@@ -4111,6 +3761,13 @@ const GALAXY_CLUSTERS = [
     color: 0x6699ff, hex: '#6699ff',
     center: CLAUDE_CENTER, size: 5.5,
     nodeIds: CLAUDE_ERAS.map(e => e.id)
+  },
+  {
+    id: 'explorer', name: 'Sol X · Explorer',
+    sub: 'Four archetypes · Match your mission',
+    color: 0xff66cc, hex: '#ff66cc',
+    center: EXPLORER_CENTER, size: 5.2,
+    nodeIds: EXPLORER_ERAS.map(e => e.id)
   },
 ];
 
@@ -4655,7 +4312,7 @@ const galaxyLayout = {
 
 // Swoop camera to a galaxy's orrery overview (centered on the galaxy star)
 function swoopToGalaxyOverview(galaxyId) {
-  const centerMap = { career: CAREER_OFFSET, sentence: SENTENCE_CENTER, claude: CLAUDE_CENTER };
+  const centerMap = { career: CAREER_OFFSET, sentence: SENTENCE_CENTER, claude: CLAUDE_CENTER, explorer: EXPLORER_CENTER };
   const p = (centerMap[galaxyId] || CAREER_OFFSET).clone();
   const angle = Math.atan2(p.z, p.x);
   const theta  = angle + Math.PI * 0.55;
@@ -4669,7 +4326,7 @@ function swoopToGalaxyOverview(galaxyId) {
   // Set star as focused so second click opens tesseract
   focusedStarGalaxyId = galaxyId;
   document.querySelectorAll('#hud .hud-btn').forEach(b => b.classList.remove('active'));
-  const idMap = { career: 'hud-sol-1', sentence: 'hud-sol-2', claude: 'hud-sol-3' };
+  const idMap = { career: 'hud-sol-1', sentence: 'hud-sol-2', claude: 'hud-sol-3', explorer: 'hud-sol-x' };
   const btn = document.getElementById(idMap[galaxyId]);
   if (btn) btn.classList.add('active');
 }
@@ -4681,7 +4338,8 @@ function isInActiveGalaxy(era) {
   if (fid.startsWith('cc-') || fid === 'claude-star') return era.id.startsWith('cc-');
   if (fid.startsWith('p-')  || fid === 'sentence-star') return era.id.startsWith('p-');
   if (fid.startsWith('m-')  || fid === 'manifesto-star') return era.id.startsWith('m-');
-  return !era.id.startsWith('cc-') && !era.id.startsWith('p-') && !era.id.startsWith('m-');
+  if (fid.startsWith('x-')  || fid === 'explorer-star') return era.id.startsWith('x-');
+  return !era.id.startsWith('cc-') && !era.id.startsWith('p-') && !era.id.startsWith('m-') && !era.id.startsWith('x-');
 }
 
 // Layout system removed — spiral/timeline only (right-click toggles)
@@ -4722,6 +4380,13 @@ const CLAUDE_ELLIPSES = {
   mid:    { rx: 16, rz: 9,  color: 0x8fff6e, label: 'Memory & State', y: 0.20 },
   outer:  { rx: 23, rz: 13, color: 0xff8866, label: 'Permission',     y: 0.38 },
   outer2: { rx: 30, rz: 17, color: 0xb388ff, label: 'Experimental',   y: 0.58 },
+};
+
+const EXPLORER_ELLIPSES = {
+  inner:  { rx: 10, rz: 6,  color: 0xff66cc, label: 'Orbiter · Strategic Leadership',  y: 0.05 },
+  mid:    { rx: 18, rz: 10, color: 0xff9944, label: 'Lunar · 0-to-1 Builder',           y: 0.20 },
+  outer:  { rx: 26, rz: 15, color: 0x66ffcc, label: 'Satellite · Systems & Craft',      y: 0.38 },
+  outer2: { rx: 33, rz: 19, color: 0xcc88ff, label: 'Station · Platform & Scale',       y: 0.58 },
 };
 
 // Compute ellipse position for a node within a galaxy
@@ -5138,9 +4803,300 @@ function buildClaudeScene() {
 }
 buildClaudeScene();
 
+
 // ─────────────────────────────────────────────────────────
-// GALAXY STAR NODES — central light-emitting suns
-// One per galaxy. Large, bright, clickable (go to overview
+// roundRect polyfill for Safari <15.4 / older Chrome
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    const R = Math.min(r || 0, w / 2, h / 2);
+    this.beginPath();
+    this.moveTo(x + R, y);
+    this.arcTo(x + w, y,     x + w, y + h, R);
+    this.arcTo(x + w, y + h, x,     y + h, R);
+    this.arcTo(x,     y + h, x,     y,     R);
+    this.arcTo(x,     y,     x + w, y,     R);
+    this.closePath();
+  };
+}
+
+// SOL X HELPERS — bands, vessel sprites, constellations
+// ─────────────────────────────────────────────────────────
+
+// Ribbon mesh band around an ellipse orbit (colored ring, not thin line)
+function makeExplorerBand(center, e, scene, allLines, galaxyId) {
+  const N = 128, BW = e.bandWidth || 1.5;
+  const verts = [], idx = [];
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * Math.PI * 2;
+    const ilx = (e.rx - BW * 0.5) * Math.cos(a), ilz = (e.rz - BW * 0.4) * Math.sin(a);
+    const olx = (e.rx + BW * 0.5) * Math.cos(a), olz = (e.rz + BW * 0.4) * Math.sin(a);
+    verts.push(
+      center.x + ilx * Math.cos(TILT) - ilz * Math.sin(TILT), e.y || 0,
+      center.z + ilx * Math.sin(TILT) + ilz * Math.cos(TILT)
+    );
+    verts.push(
+      center.x + olx * Math.cos(TILT) - olz * Math.sin(TILT), e.y || 0,
+      center.z + olx * Math.sin(TILT) + olz * Math.cos(TILT)
+    );
+    if (i < N) { const b = i*2; idx.push(b,b+1,b+2, b+1,b+3,b+2); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setIndex(idx);
+  const mat = new THREE.MeshBasicMaterial({
+    color: e.color, transparent: true, opacity: e.bandOp || 0.28,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  scene.add(mesh);
+  allLines.push({ line: mesh, darkOp: e.bandOp || 0.28, lightOp: 0.52,
+                  darkColor: e.color, lightColor: 0x222222, galaxy: galaxyId });
+  return mesh;
+}
+
+// Draw a vessel icon to canvas and return a THREE.Sprite
+function makeVesselSprite(type, color, spriteSize) {
+  const S = 256, cx = S/2, cy = S/2;
+  const cvs = document.createElement('canvas');
+  cvs.width = cvs.height = S;
+  const ctx = cvs.getContext('2d');
+  const r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+  const hex = `rgb(${r},${g},${b})`, hexA = `rgba(${r},${g},${b},0.45)`;
+  ctx.shadowBlur = 24; ctx.shadowColor = hex;
+
+  if (type === 'orbiter') {
+    // UFO — saucer disc + dome
+    const dg = ctx.createRadialGradient(cx, cy+8, 4, cx, cy+8, 44);
+    dg.addColorStop(0, `rgba(${r},${g},${b},0.90)`);
+    dg.addColorStop(1, `rgba(${r},${g},${b},0.0)`);
+    ctx.beginPath(); ctx.ellipse(cx, cy+8, 46, 15, 0, 0, Math.PI*2);
+    ctx.fillStyle = dg; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx, cy+8, 38, 11, 0, 0, Math.PI*2);
+    ctx.strokeStyle = hex; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy-4, 20, 15, 0, Math.PI, 0);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.50)`; ctx.fill();
+    ctx.strokeStyle = hex; ctx.lineWidth = 2; ctx.stroke();
+    [-26,-13,0,13,26].forEach((dx,i) => {
+      ctx.beginPath(); ctx.arc(cx+dx, cy+8, 3.2, 0, Math.PI*2);
+      ctx.fillStyle = i%2===0 ? hex : 'rgba(255,255,200,0.90)';
+      ctx.shadowBlur = 12; ctx.fill();
+    });
+
+  } else if (type === 'lunar') {
+    // Lander — box body, 4 legs, engine bell
+    ctx.strokeStyle = hex; ctx.lineWidth = 3;
+    ctx.fillStyle = `rgba(${r},${g},${b},0.20)`;
+    ctx.beginPath(); ctx.roundRect(cx-18, cy-26, 36, 34, 5); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx-13, cy+8); ctx.lineTo(cx-17, cy+25);
+    ctx.lineTo(cx+17, cy+25); ctx.lineTo(cx+13, cy+8);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.40)`; ctx.fill();
+    ctx.strokeStyle = hex; ctx.stroke();
+    const tg = ctx.createRadialGradient(cx, cy+33, 2, cx, cy+33, 22);
+    tg.addColorStop(0, 'rgba(255,220,100,0.85)');
+    tg.addColorStop(0.5, `rgba(${r},${g},${b},0.35)`);
+    tg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath(); ctx.ellipse(cx, cy+33, 15, 24, 0, 0, Math.PI*2);
+    ctx.fillStyle = tg; ctx.shadowBlur = 0; ctx.fill();
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy]) => {
+      ctx.beginPath();
+      ctx.moveTo(cx+sx*15, cy+sy*10+(sy<0?-10:10));
+      ctx.lineTo(cx+sx*36, cy+31+sy*5);
+      ctx.strokeStyle = hexA; ctx.lineWidth = 2.5; ctx.shadowBlur=0; ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx+sx*36, cy+31+sy*5, 4.5, 0, Math.PI*2);
+      ctx.fillStyle = hex; ctx.shadowBlur=10; ctx.fill();
+    });
+
+  } else if (type === 'satellite') {
+    // Satellite — body + solar wings + dish
+    ctx.strokeStyle = hex; ctx.lineWidth = 2.5;
+    ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
+    ctx.beginPath(); ctx.roundRect(cx-14, cy-20, 28, 38, 4); ctx.fill(); ctx.stroke();
+    // wings
+    [[-62, 3], [20, 3]].forEach(([wx]) => {
+      ctx.beginPath(); ctx.roundRect(cx+wx, cy-13, 42, 24, 3); ctx.fill(); ctx.stroke();
+      [-1,0,1].forEach(d => {
+        ctx.beginPath();
+        ctx.moveTo(cx+wx+(d+1.5)*14, cy-13);
+        ctx.lineTo(cx+wx+(d+1.5)*14, cy+11);
+        ctx.strokeStyle = hexA; ctx.lineWidth = 1; ctx.stroke();
+      });
+    });
+    ctx.strokeStyle = hex; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(cx, cy-30, 15, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy-30); ctx.lineTo(cx, cy-20); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy-30, 3.5, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.shadowBlur=14; ctx.fill();
+
+  } else {
+    // Space Station — hub + 4 spokes + ring
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.55)`;
+    ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.arc(cx, cy, 48, 0, Math.PI*2); ctx.stroke();
+    [[0,-1],[1,0],[0,1],[-1,0]].forEach(([dx,dy]) => {
+      ctx.beginPath();
+      ctx.moveTo(cx+dx*14, cy+dy*14); ctx.lineTo(cx+dx*48, cy+dy*48);
+      ctx.strokeStyle = hex; ctx.lineWidth = 3; ctx.shadowBlur=8; ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(cx+dx*48-7, cy+dy*48-7, 14, 14, 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},0.35)`; ctx.fill();
+      ctx.strokeStyle = hex; ctx.lineWidth = 2; ctx.stroke();
+    });
+    ctx.beginPath(); ctx.arc(cx, cy, 15, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${r},${g},${b},0.50)`; ctx.fill();
+    ctx.strokeStyle = hex; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.80)'; ctx.shadowBlur=20; ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(cvs);
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false, opacity: 0.94,
+  }));
+  spr.scale.setScalar(spriteSize);
+  return spr;
+}
+
+// Per-archetype constellation star patterns — relative offsets from vessel pos
+const CONSTELLATION_PATTERNS = {
+  orbiter:   [[-3.2,0.4,-2.0],[2.1,0.8,-3.5],[5.4,0.2,1.3],[3.0,-0.5,4.2],[-2.4,-0.8,3.1]],
+  lunar:     [[3.3,0.6,2.0],[-4.1,0.3,3.2],[0.2,1.2,5.4],[-3.0,-0.6,-2.5],[4.3,-0.4,-3.0]],
+  satellite: [[-5.1,0.2,1.4],[-2.3,0.9,-3.0],[3.1,0.5,-4.2],[5.3,-0.3,2.1],[2.0,-0.8,4.3]],
+  station:   [[4.2,0.3,-3.1],[0.1,1.1,-5.3],[-4.0,0.6,-2.4],[-5.2,-0.5,2.0],[0.3,-0.9,5.1]],
+};
+
+const explorerConstellations = {}; // keyed by era.id
+
+function makeConstellation(era, pos) {
+  const pattern = CONSTELLATION_PATTERNS[era.solarSystem] || CONSTELLATION_PATTERNS.satellite;
+  const group = { dots: [], lines: [] };
+  const stars = pattern.map(([dx,dy,dz]) => new THREE.Vector3(pos.x+dx, pos.y+dy, pos.z+dz));
+  stars.forEach(sp => {
+    const dot = makeGlowSprite(era.color, 0.11);
+    dot.scale.setScalar(0.38);
+    dot.position.copy(sp);
+    dot.material.opacity = 0;
+    scene.add(dot);
+    group.dots.push(dot);
+  });
+  [[0,2],[2,4],[4,1],[1,3],[3,0]].forEach(([a,b]) => {
+    const lm = new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0, depthWrite: false });
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([stars[a], stars[b]]), lm);
+    scene.add(l);
+    group.lines.push(l);
+  });
+  explorerConstellations[era.id] = group;
+}
+
+function setConstellationVisible(eraId, vis) {
+  const g = explorerConstellations[eraId]; if (!g) return;
+  g.dots.forEach(d  => { d.material.opacity   = vis ? 0.72 : 0; });
+  g.lines.forEach(l => { l.material.opacity   = vis ? 0.32 : 0; });
+}
+
+// ─────────────────────────────────────────────────────────
+// SOL X — EXPLORER SCENE BUILD
+// ─────────────────────────────────────────────────────────
+function buildExplorerScene() {
+  // Spine axis
+  const spinePts = [
+    new THREE.Vector3(EXPLORER_CENTER.x, -14, EXPLORER_CENTER.z),
+    new THREE.Vector3(EXPLORER_CENTER.x,  14, EXPLORER_CENTER.z),
+  ];
+  const spine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(spinePts),
+    new THREE.LineBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.03 }));
+  scene.add(spine);
+  allLines.push({ line: spine, darkOp: 0.03, lightOp: 0.07,
+                  darkColor: 0xff66cc, lightColor: 0x000000, galaxy: 'explorer' });
+
+  // ── BAND RINGS — colored ribbon meshes ──────────────────
+  const bandCfg = {
+    inner:  { bandWidth: 1.2, bandOp: 0.34 },
+    mid:    { bandWidth: 1.5, bandOp: 0.28 },
+    outer:  { bandWidth: 1.8, bandOp: 0.22 },
+    outer2: { bandWidth: 2.1, bandOp: 0.17 },
+  };
+  Object.entries(EXPLORER_ELLIPSES).forEach(([tier, e]) => {
+    const cfg = bandCfg[tier] || {};
+    makeExplorerBand(EXPLORER_CENTER, { ...e, ...cfg }, scene, allLines, 'explorer');
+    // Thin bright edge highlight on outer rim of band
+    const edgePts = [];
+    for (let i = 0; i <= 128; i++) {
+      const a = i / 128 * Math.PI * 2;
+      const rx = e.rx + (cfg.bandWidth||1.5)*0.5, rz = e.rz + (cfg.bandWidth||1.5)*0.4;
+      const lx = rx*Math.cos(a), lz = rz*Math.sin(a);
+      edgePts.push(new THREE.Vector3(
+        EXPLORER_CENTER.x + lx*Math.cos(TILT) - lz*Math.sin(TILT), e.y||0,
+        EXPLORER_CENTER.z + lx*Math.sin(TILT) + lz*Math.cos(TILT)
+      ));
+    }
+    const edge = new THREE.Line(new THREE.BufferGeometry().setFromPoints(edgePts),
+      new THREE.LineBasicMaterial({ color: e.color, transparent: true, opacity: 0.55 }));
+    scene.add(edge);
+    allLines.push({ line: edge, darkOp: 0.55, lightOp: 0.85,
+                    darkColor: e.color, lightColor: 0x000000, galaxy: 'explorer' });
+    // Ring label
+    const la = 0.88*Math.PI*2, llx = e.rx*Math.cos(la), llz = e.rz*Math.sin(la);
+    const lp = new THREE.Vector3(
+      EXPLORER_CENTER.x + llx*Math.cos(TILT) - llz*Math.sin(TILT) + 0.4, (e.y||0)+0.1,
+      EXPLORER_CENTER.z + llx*Math.sin(TILT) + llz*Math.cos(TILT)
+    );
+    addLabel(e.label, lp, 'rgba('+[(e.color>>16)&255,(e.color>>8)&255,e.color&255].join(',')+',0.32)', 5.8);
+  });
+
+  // ── VESSEL NODES — icon sprites on each ring ────────────
+  const tierMap = { orbiter:'inner', lunar:'mid', satellite:'outer', station:'outer2' };
+
+  EXPLORER_ERAS.forEach((era) => {
+    const tier = era.tier || tierMap[era.solarSystem] || 'inner';
+    era._flatPos   = ellipsePos(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t);
+    era._spiralPos = era._flatPos.clone();
+    era._arcPos    = era._flatPos.clone();
+    era._pos.copy(era._flatPos);
+    const pos = era._flatPos;
+
+    // Spoke from axis to vessel
+    const spokeY = new THREE.Vector3(EXPLORER_CENTER.x, pos.y, EXPLORER_CENTER.z);
+    const spoke = new THREE.Line(new THREE.BufferGeometry().setFromPoints([spokeY, pos.clone()]),
+      new THREE.LineBasicMaterial({ color: era.color, transparent: true, opacity: 0.05 }));
+    scene.add(spoke);
+    allLines.push({ line: spoke, darkOp: 0.05, lightOp: 0.12,
+                    darkColor: era.color, lightColor: 0x000000, galaxy: 'explorer' });
+
+    // Vessel icon sprite
+    const vesselSpr = makeVesselSprite(era.solarSystem, era.color, 5.8);
+    vesselSpr.position.copy(pos);
+    vesselSpr.userData = { era, origColor: era.color, origEI: 1.0,
+                           isMoon: false, isExplorer: true, isVesselSprite: true };
+    scene.add(vesselSpr);
+
+    // Hit proxy (invisible sphere for raycasting)
+    const hitMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(3.2, 8, 8),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    hitMesh.position.copy(pos);
+    hitMesh.userData = { era, isHitProxy: true, isExplorer: true };
+    scene.add(hitMesh);
+    nodeObjects.push({ mesh: vesselSpr, hitMesh, era, isExplorer: true });
+
+    // Glow halo
+    const gs = makeGlowSprite(era.color, 2.4);
+    gs.position.copy(pos); gs.material.opacity = 0.42;
+    scene.add(gs); glowSprites.push(gs);
+
+    // Labels
+    addLabel(era.title, pos, era.hex + 'cc', 7.2);
+    addLabel(era.role.split('·')[0].trim(), pos, era.hex + '55', 5.5);
+
+    // Constellation pattern (hidden until focused)
+    makeConstellation(era, pos);
+
+    buildMoons(era, pos, 0.5);
+  });
+}
+buildExplorerScene();
+
+
 // of that galaxy). Each has its own PointLight.
 // ─────────────────────────────────────────────────────────
 const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
@@ -5219,6 +5175,30 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
       ],
       color: 0x88aaff, hex: '#88aaff',
     },
+    explorer: {
+      era: 'Sol X · Wolfgang & Co.',
+      title: 'Find Your Archetype.',
+      role: 'Orbiter → Lunar Lander → Satellite → Space Station',
+      body: 'Paste your job description and Sol X plots your archetype match. Four vessel types — four distinct modes of contribution. Each node in this system represents a different shape of collaboration. The instrument reads the brief and maps the orbit.',
+      domain: 'explorer',
+      year: '✦',
+      url: null,
+      sentences: [
+        'Four archetypes. One of them is yours.',
+        'The Orbiter sets direction and holds the model.',
+        'The Lunar Lander lands hard and ships fast.',
+        'The Satellite brings the craft. The Station scales it.',
+        'Paste your JD. Sol X plots the route.',
+      ],
+      moons: [
+        { label: '🛸 Orbiter',       desc: 'Strategic leadership · VP/Director · roadmap & stakeholder' },
+        { label: '🚀 Lunar Lander',  desc: 'Founder-mode · 0-to-1 · seed/early stage builder' },
+        { label: '🛰️ Satellite',    desc: 'Craft & systems · design system · interaction architecture' },
+        { label: '🌌 Space Station', desc: 'Platform & scale · enterprise · cross-functional infrastructure' },
+      ],
+      color: 0xff66cc, hex: '#ff66cc',
+      onSecondClick: 'openLaunchpad',
+    },
   };
 
   const starDefs = [
@@ -5240,6 +5220,12 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
       color: 0x88aaff, lightColor: 0xccdeff,
       size: 1.5, intensity: 4, distance: 48,
     },
+    {
+      galaxyId: 'explorer',
+      center: EXPLORER_CENTER,
+      color: 0xff66cc, lightColor: 0xffccee,
+      size: 1.6, intensity: 4.5, distance: 52,
+    },
   ];
 
   starDefs.forEach(def => {
@@ -5249,19 +5235,71 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
     const cg = (def.color >> 8)  & 255;
     const cb =  def.color        & 255;
 
-    // ── Star sphere ────────────────────────────────────────
-    const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(def.size, 32, 32),
-      new THREE.MeshPhysicalMaterial({
-        color: def.color, emissive: def.color,
-        emissiveIntensity: 5.0, metalness: 0,
-        roughness: 0.02, clearcoat: 1.0,
-        transparent: false, opacity: 1.0,
-      })
-    );
-    mesh.position.copy(pos);
-    mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
-    scene.add(mesh);
+    // ── Star sphere (or Saturn planet for Sol X) ────────────
+    let mesh;
+    if (def.galaxyId === 'explorer') {
+      // Saturn-like planet: sphere body + tilted torus ring system
+      const saturnGroup = new THREE.Group();
+      saturnGroup.position.copy(pos);
+
+      // Planet body
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(def.size, 40, 40),
+        new THREE.MeshPhysicalMaterial({
+          color: 0x2a0a2a, emissive: 0xff44aa, emissiveIntensity: 1.8,
+          metalness: 0.10, roughness: 0.30, clearcoat: 0.8,
+        })
+      );
+      saturnGroup.add(body);
+
+      // Torus ring 1 — wide faint outer
+      const ring1 = new THREE.Mesh(
+        new THREE.TorusGeometry(def.size * 3.8, def.size * 0.55, 4, 80),
+        new THREE.MeshBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+      );
+      ring1.rotation.x = Math.PI * 0.42;
+      saturnGroup.add(ring1);
+
+      // Torus ring 2 — tighter, brighter
+      const ring2 = new THREE.Mesh(
+        new THREE.TorusGeometry(def.size * 2.6, def.size * 0.35, 4, 80),
+        new THREE.MeshBasicMaterial({ color: 0xff99dd, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
+      );
+      ring2.rotation.x = Math.PI * 0.42;
+      saturnGroup.add(ring2);
+
+      // Torus ring 3 — innermost, most opaque
+      const ring3 = new THREE.Mesh(
+        new THREE.TorusGeometry(def.size * 1.9, def.size * 0.20, 4, 80),
+        new THREE.MeshBasicMaterial({ color: 0xffbbee, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+      );
+      ring3.rotation.x = Math.PI * 0.42;
+      saturnGroup.add(ring3);
+
+      scene.add(saturnGroup);
+      // Store the torus rings for slow rotation in the render loop
+      saturnGroup.userData = { isSaturnGroup: true, rings: [ring1, ring2, ring3] };
+      window._explorerSaturnGroup = saturnGroup;
+
+      // Use the body as the click/hover mesh
+      mesh = body;
+      mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
+      mesh.userData._saturnGroup = saturnGroup;
+      // Position already set via group
+    } else {
+      mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(def.size, 32, 32),
+        new THREE.MeshPhysicalMaterial({
+          color: def.color, emissive: def.color,
+          emissiveIntensity: 5.0, metalness: 0,
+          roughness: 0.02, clearcoat: 1.0,
+          transparent: false, opacity: 1.0,
+        })
+      );
+      mesh.position.copy(pos);
+      mesh.userData = { isGalaxyStar: true, galaxyId: def.galaxyId, starDef: def, panel };
+      scene.add(mesh);
+    }
 
     // ── Hit proxy ──────────────────────────────────────────
     const hitMesh = new THREE.Mesh(
@@ -5331,6 +5369,7 @@ const galaxyStars = []; // { mesh, glow, light, galaxyId, center }
     { starCenter: CAREER_OFFSET,   list: ERAS,          color: 0xffd060, op: 0.035 },
     { starCenter: SENTENCE_CENTER, list: PLATFORM_ERAS, color: 0xffe566, op: 0.040 },
     { starCenter: CLAUDE_CENTER,   list: CLAUDE_ERAS,   color: 0x88aaff, op: 0.030 },
+    { starCenter: EXPLORER_CENTER, list: EXPLORER_ERAS, color: 0xff66cc, op: 0.030 },
   ];
   spokeDefs.forEach(({ starCenter, list, color, op }) => {
     list.forEach(era => {
@@ -6081,12 +6120,17 @@ function handleStarClick(mouseVec) {
 
   // ── STAR CLICK LOGIC ──────────────────────────────────────
   // Rule: first click → focus orrery. Second direct star click → tesseract.
+  // Sol X exception: second click opens the Mission Launchpad.
   // Never jump straight to tesseract — starDirectClickId gates it.
 
   const alreadyFocused = starDirectClickId === gid && !galaxyMode && galaxyAlpha < 0.5;
 
   if (alreadyFocused) {
-    openGalaxyTesseract(gid);
+    if (gid === 'explorer') {
+      openLaunchpad();
+    } else {
+      openGalaxyTesseract(gid);
+    }
     return true;
   }
 
@@ -6123,12 +6167,14 @@ const GALAXY_TESSERACT_FILTERS = {
   sentence: () => PLATFORM_ERAS,
   claude:   () => CLAUDE_ERAS,
   manifesto:() => MANIFESTO_ERAS,
+  explorer: () => EXPLORER_ERAS,
 };
 const GALAXY_TESSERACT_LABELS = {
   career:   { eyebrow: 'CAREER  ·  2003 – PRESENT', title: 'Twenty Years. One Thread.', sub: 'Philadelphia  →  New York  →  Independent' },
   sentence: { eyebrow: 'PLATFORM ECOSYSTEM', title: 'The Sentence as the Primitive.', sub: 'From wolfie.love to dab.cx' },
   claude:   { eyebrow: 'CLAUDE CODE  ·  AI-NATIVE WORKFLOW', title: 'The Instrument Alongside the Work.', sub: 'Collaboration at the speed of thought' },
   manifesto:{ eyebrow: 'MANIFESTO  ·  POSITIONS', title: 'The Method.', sub: 'What I believe about how things should be made' },
+  explorer: { eyebrow: 'SOL X  ·  EXPLORER ARCHETYPES', title: 'Find Your Archetype.', sub: 'Four vessels · one matched to your brief' },
 };
 
 function openGalaxyTesseract(galaxyId) {
@@ -6358,6 +6404,37 @@ function openPanel(era) {
   document.getElementById('era-name').textContent = era.era;
   if (window._updateSSFilter) window._updateSSFilter(era);
 
+  // ── Explorer archetype: show constellation + journey button ──
+  EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, e.id === era.id));
+
+  // Inject or update journey launch button in the panel
+  const isExplorerEra = era.id && era.id.startsWith('x-');
+  let jBtn = document.getElementById('gc-journey-btn');
+  if (isExplorerEra) {
+    if (!jBtn) {
+      jBtn = document.createElement('button');
+      jBtn.id = 'gc-journey-btn';
+      // Insert after gc-body
+      const body = document.getElementById('gc-body');
+      if (body && body.parentNode) body.parentNode.insertBefore(jBtn, body.nextSibling);
+    }
+    const isActive = _journey.active && _journey.era && _journey.era.id === era.id;
+    jBtn.textContent = isActive ? era.year + ' Journey active — track vessel' : 'Launch ' + era.year + ' Journey';
+    jBtn.onclick = function() { isActive ? focusJourneyVessel() : startJourney(era); };
+    jBtn.style.cssText = [
+      'display:block;margin:14px 0 4px;padding:9px 18px;',
+      'background:none;border:1px solid ' + era.hex + '55;',
+      'color:' + era.hex + ';font-family:"DM Mono",monospace;font-size:8.5px;',
+      'letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;border-radius:3px;',
+      'transition:background 0.2s,border-color 0.2s;',
+    ].join('');
+    jBtn.onmouseenter = () => { jBtn.style.background = era.hex + '18'; jBtn.style.borderColor = era.hex + 'aa'; };
+    jBtn.onmouseleave = () => { jBtn.style.background = 'none'; jBtn.style.borderColor = era.hex + '55'; };
+  } else {
+    if (jBtn) jBtn.remove();
+    // Also hide all constellations when non-explorer panel opens
+    EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, false));
+  }
 }
 
 window.closePanel = function () {
@@ -6365,6 +6442,8 @@ window.closePanel = function () {
   document.getElementById('msheet').classList.remove('on');
   document.body.classList.remove('panel-open');
   hideSentGhost();
+  // Hide all explorer constellations when panel closes
+  EXPLORER_ERAS.forEach(e => setConstellationVisible(e.id, false));
 };
 
 // ── Ghost panel size: compact vs expanded ────────────────
@@ -6506,6 +6585,7 @@ function eraPreset(era) {
   const center = era.id.startsWith('m-')  ? new THREE.Vector3(0, 0, 0)
                : era.id.startsWith('cc-') ? CLAUDE_CENTER.clone()
                : era.id.startsWith('p-')  ? SENTENCE_CENTER.clone()
+               : era.id.startsWith('x-')  ? EXPLORER_CENTER.clone()
                :                            CAREER_OFFSET.clone();
 
   const relX = pos.x - center.x;
@@ -6540,6 +6620,7 @@ function focusEra(era, navDir) {
   if (era.id.startsWith('cc-')) { lastFocusedGalaxyId = 'claude';   document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-3'); if(b) b.classList.add('active'); }
   else if (era.id.startsWith('p-')) { lastFocusedGalaxyId = 'sentence'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-2'); if(b) b.classList.add('active'); }
   else if (era.id.startsWith('m-')) { lastFocusedGalaxyId = 'manifesto'; }
+  else if (era.id.startsWith('x-')) { lastFocusedGalaxyId = 'explorer'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-x'); if(b) b.classList.add('active'); }
   else { lastFocusedGalaxyId = 'career'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-1'); if(b) b.classList.add('active'); }
   closeGridView();
   galaxyMode = false;
@@ -6574,16 +6655,17 @@ function highlightConnections(era) {
   const idx  = list.findIndex(e => e.id === era.id);
   nodeObjects.forEach((obj) => {
     if (!obj || !obj.mesh || !obj.mesh.material) return;
+    const isSprite = obj.mesh.isSprite || obj.mesh.userData.isVesselSprite;
     const sameList = activeList(obj.era) === list;
     if (!sameList) {
-      obj.mesh.material.opacity = 0.22;
-      obj.mesh.material.emissiveIntensity = 0.06;
+      obj.mesh.material.opacity = isSprite ? 0.30 : 0.22;
+      if (!isSprite) obj.mesh.material.emissiveIntensity = 0.06;
       return;
     }
     const li = list.findIndex(e => e.id === obj.era.id);
     const near = li >= 0 && Math.abs(li - idx) <= 2;
-    obj.mesh.material.opacity = near ? 0.96 : 0.12;
-    obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.06;
+    obj.mesh.material.opacity = near ? (isSprite ? 0.96 : 0.96) : (isSprite ? 0.18 : 0.12);
+    if (!isSprite) obj.mesh.material.emissiveIntensity = near ? (obj.mesh.userData.origEI * 1.5) : 0.06;
   });
   allLines.forEach(({ line, darkOp }) => {
     if (line && line.material) line.material.opacity = darkOp * 0.3;
@@ -6593,8 +6675,9 @@ function highlightConnections(era) {
 function resetHighlights() {
   nodeObjects.forEach(obj => {
     if (!obj || !obj.mesh || !obj.mesh.material) return;
-    obj.mesh.material.opacity = 0.92;
-    obj.mesh.material.emissiveIntensity = obj.mesh.userData.origEI;
+    const isSprite = obj.mesh.isSprite || obj.mesh.userData.isVesselSprite;
+    obj.mesh.material.opacity = isSprite ? 0.94 : 0.92;
+    if (!isSprite) obj.mesh.material.emissiveIntensity = obj.mesh.userData.origEI;
   });
   allLines.forEach(({ line, darkOp, lightOp }) => { if (line && line.material) line.material.opacity = isLight ? lightOp : darkOp; });
   updateLineVisibility(null);
@@ -7342,16 +7425,22 @@ function applyTheme() {
   });
   nodeObjects.forEach(({ mesh }) => {
     if (!mesh || !mesh.material) return;
+    const isSprite = mesh.isSprite || mesh.userData.isVesselSprite;
+    if (isSprite) {
+      // SpriteMaterial: just dim opacity in light mode
+      mesh.material.opacity = isLight ? 0.30 : 0.94;
+      return;
+    }
     if (isLight) {
       mesh.material.color.setHex(0x111111);
-      mesh.material.emissive.setHex(0x000000);
-      mesh.material.emissiveIntensity = 0;
+      if (mesh.material.emissive) mesh.material.emissive.setHex(0x000000);
+      if ('emissiveIntensity' in mesh.material) mesh.material.emissiveIntensity = 0;
       mesh.material.metalness = 0; mesh.material.roughness = 0.9;
     } else {
       const ud = mesh.userData;
       mesh.material.color.setHex(ud.origColor);
-      mesh.material.emissive.setHex(ud.origColor);
-      mesh.material.emissiveIntensity = ud.origEI;
+      if (mesh.material.emissive) mesh.material.emissive.setHex(ud.origColor);
+      if ('emissiveIntensity' in mesh.material) mesh.material.emissiveIntensity = ud.origEI;
       mesh.material.metalness = 0.3; mesh.material.roughness = 0.08;
     }
   });
@@ -7598,6 +7687,206 @@ function tickGalaxyMoons(elapsed) {
   });
 }
 
+// ── Explorer Saturn ring slow rotation ──────────────────────
+function tickExplorerSaturn(elapsed) {
+  const sg = window._explorerSaturnGroup;
+  if (!sg) return;
+  (sg.userData.rings || []).forEach((ring, i) => {
+    ring.rotation.z = elapsed * (0.08 + i * 0.03);
+  });
+}
+
+// ─────────────────────────────────────────────────────────
+// JOURNEY SYSTEM
+// A persistent vessel that navigates the universe after an
+// archetype is selected. Continues even when camera moves
+// elsewhere. FAB transforms to show active vessel.
+// ─────────────────────────────────────────────────────────
+
+// Cross-galaxy waypoint tours per archetype
+// Each tour visits nodes in multiple galaxies, building a
+// narrative thread that links the archetype's worldview.
+function buildJourneyWaypoints(solarSystem) {
+  const tours = {
+    orbiter: [
+      // starts at Sol X, moves through career leadership nodes, then platform
+      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
+      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
+      ...([...ERAS].slice(0,4).map(e => e._spiralPos?.clone()).filter(Boolean)),
+      ...(CLAUDE_ERAS.slice(0,3).map(e => e._spiralPos?.clone()).filter(Boolean)),
+    ],
+    lunar: [
+      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
+      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
+      ...([...ERAS].slice(4,8).map(e => e._spiralPos?.clone()).filter(Boolean)),
+      ...(PLATFORM_ERAS.slice(0,3).map(e => e._spiralPos?.clone()).filter(Boolean)),
+    ],
+    satellite: [
+      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
+      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
+      ...(PLATFORM_ERAS.map(e => e._spiralPos?.clone()).filter(Boolean)),
+      ...(CLAUDE_ERAS.slice(3,7).map(e => e._spiralPos?.clone()).filter(Boolean)),
+    ],
+    station: [
+      EXPLORER_CENTER.clone().add(new THREE.Vector3(0,1,0)),
+      ...(EXPLORER_ERAS.map(e => e._flatPos.clone())),
+      ...([...ERAS].slice(8,13).map(e => e._spiralPos?.clone()).filter(Boolean)),
+      ...(CLAUDE_ERAS.slice(7).map(e => e._spiralPos?.clone()).filter(Boolean)),
+    ],
+  };
+  return (tours[solarSystem] || tours.satellite).filter(Boolean);
+}
+
+const _journey = {
+  active:    false,
+  era:       null,         // the archetype era
+  waypoints: [],           // THREE.Vector3[]
+  seg:       0,            // current segment index
+  t:         0,            // 0–1 progress within segment
+  speed:     0.00018,      // fraction of segment per ms-normalized tick
+  sprite:    null,         // THREE.Sprite in scene
+  trail:     [],           // last N world positions for trail dots
+  trailDots: [],           // THREE.Sprite[] trail objects
+  log:       [],           // string[] narrative log entries
+};
+window._activeJourney = _journey;
+
+function startJourney(era) {
+  if (!era || !era.solarSystem) return;
+  // Clean up previous journey
+  cancelJourney(true);
+
+  _journey.active    = true;
+  _journey.era       = era;
+  _journey.waypoints = buildJourneyWaypoints(era.solarSystem);
+  _journey.seg       = 0;
+  _journey.t         = 0;
+  _journey.log       = [`Mission initiated: ${era.title}`, `Vessel: ${era.year} ${era.title}`];
+
+  // Create the traveling vessel sprite
+  const spr = makeVesselSprite(era.solarSystem, era.color, 4.2);
+  spr.position.copy(_journey.waypoints[0] || EXPLORER_CENTER);
+  spr.userData.isJourneyVessel = true;
+  scene.add(spr);
+  _journey.sprite = spr;
+
+  // Trail dots — pre-allocate 12 fading breadcrumbs
+  for (let i = 0; i < 12; i++) {
+    const dot = makeGlowSprite(era.color, 0.18);
+    dot.scale.setScalar(0.25 - i * 0.018);
+    dot.material.opacity = 0;
+    dot.position.copy(_journey.waypoints[0] || EXPLORER_CENTER);
+    scene.add(dot);
+    _journey.trailDots.push(dot);
+  }
+
+  updateJourneyFAB();
+  showJourneyControls(true);
+
+  // Dismiss any open panel
+  if (typeof closePanel === 'function') closePanel();
+}
+
+function cancelJourney(silent) {
+  if (_journey.sprite) { scene.remove(_journey.sprite); _journey.sprite = null; }
+  _journey.trailDots.forEach(d => scene.remove(d));
+  _journey.trailDots = [];
+  _journey.trail = [];
+  _journey.active = false;
+  _journey.era = null;
+  if (!silent) {
+    updateJourneyFAB();
+    showJourneyControls(false);
+  }
+}
+
+function focusJourneyVessel() {
+  if (!_journey.active || !_journey.sprite) return;
+  const pos = _journey.sprite.position;
+  const angle = Math.atan2(pos.z, pos.x);
+  swoopTo(Math.PI * 0.28, angle + Math.PI * 0.55, 45, pos.clone());
+  camTarget.phi = Math.PI * 0.28;
+  camTarget.theta = angle + Math.PI * 0.55;
+  camTarget.radius = 45;
+  scenePivotTgt.copy(pos);
+  isFocused = false; focusedEra = null;
+}
+
+function tickJourney(elapsed) {
+  if (!_journey.active || !_journey.sprite) return;
+  const wps = _journey.waypoints;
+  if (!wps || wps.length < 2) return;
+
+  _journey.t += _journey.speed;
+  if (_journey.t >= 1) {
+    _journey.t = 0;
+    _journey.seg = (_journey.seg + 1) % (wps.length - 1);
+    // Log crossing a new node
+    const wp = wps[_journey.seg + 1];
+    if (wp) _journey.log.push(`Node reached · seg ${_journey.seg}`);
+    if (_journey.log.length > 24) _journey.log.shift();
+    updateJourneyFAB();
+  }
+
+  const a = wps[_journey.seg];
+  const b = wps[(_journey.seg + 1) % wps.length];
+  if (!a || !b) return;
+
+  const pos = new THREE.Vector3().lerpVectors(a, b, _journey.t);
+  _journey.sprite.position.copy(pos);
+
+  // Pulse scale
+  const pulse = 1 + Math.sin(elapsed * 3.2) * 0.08;
+  _journey.sprite.scale.setScalar(4.2 * pulse);
+
+  // Update trail breadcrumbs
+  _journey.trail.unshift(pos.clone());
+  if (_journey.trail.length > 12) _journey.trail.pop();
+  _journey.trailDots.forEach((dot, i) => {
+    const tp = _journey.trail[i];
+    if (tp) {
+      dot.position.copy(tp);
+      dot.material.opacity = Math.max(0, (0.50 - i * 0.04));
+    }
+  });
+}
+
+// ── Journey FAB + controls ─────────────────────────────────
+
+function updateJourneyFAB() {
+  const fab = document.getElementById('flight-fab');
+  if (!fab) return;
+  const label = fab.querySelector('#fab-moon-label');
+  const tip   = fab.querySelector('#fab-tooltip');
+  if (_journey.active && _journey.era) {
+    if (label) label.textContent = _journey.era.year + ' In Flight';
+    if (tip)   tip.textContent   = 'Track Vessel ›';
+    fab.title = 'Track ' + _journey.era.title;
+    fab.onclick = focusJourneyVessel;
+    fab.classList.add('journey-active');
+  } else {
+    if (label) label.textContent = 'Sol X';
+    if (tip)   tip.textContent   = 'Sol X · Explorer ›';
+    fab.title = 'Sol X · Explorer';
+    fab.onclick = function() { swoopToGalaxyOverview('explorer'); };
+    fab.classList.remove('journey-active');
+  }
+}
+
+function showJourneyControls(show) {
+  const ctrl = document.getElementById('fab-journey-controls');
+  if (!ctrl) return;
+  ctrl.classList.toggle('vis', show);
+}
+
+// ── Constellation show/hide wired to panel open/close ─────
+
+// Patch openPanel to show constellation when explorer era focused
+const _origOpenPanel = typeof openPanel === 'function' ? openPanel : null;
+// We hook this after openPanel is defined — see below after panel code.
+
+
+
 function animate(ts) {
   if (_tabHidden) { _mainRAFRunning = false; return; } // pause when tab hidden
   requestAnimationFrame(animate);
@@ -7665,6 +7954,8 @@ function animate(ts) {
   tickGalaxyStars(elapsed);
   tickLayoutMorph();
   tickCaseStudyMoons(elapsed);
+  tickExplorerSaturn(elapsed);
+  tickJourney(elapsed);
   updateGalaxyAlpha();
   const bhA = Math.min(1, Math.max(0, (camState.radius - 10) / 70));
   tickBlackHole(elapsed, bhA);
@@ -7726,6 +8017,7 @@ function animate(ts) {
     'hud-sol-1': { list: () => ERAS,          galaxyId: 'career'   },
     'hud-sol-2': { list: () => PLATFORM_ERAS,  galaxyId: 'sentence' },
     'hud-sol-3': { list: () => CLAUDE_ERAS,    galaxyId: 'claude'   },
+    'hud-sol-x': { list: () => EXPLORER_ERAS,  galaxyId: 'explorer' },
   };
   Object.entries(SOL_MAP).forEach(([id, cfg]) => {
     const btn = document.getElementById(id);
@@ -7795,6 +8087,7 @@ window.addEventListener('resize', () => {
     <div class="gc-cycle-dot" data-galaxy="sentence"></div>
     <div class="gc-cycle-dot" data-galaxy="career"></div>
     <div class="gc-cycle-dot" data-galaxy="claude"></div>
+    <div class="gc-cycle-dot" data-galaxy="explorer"></div>
   </div>
   <span class="gc-cycle-label">drag · scroll · ←→</span>
 </div>
@@ -7804,146 +8097,18 @@ window.addEventListener('resize', () => {
 <!-- ── MISSION LAUNCHPAD ── -->
 
 <!-- SATURN FAB — Micro-Orrery -->
-<button id="flight-fab" onclick="handleExplorerClick()" title="Choose your flight path">
+<button id="flight-fab" onclick="swoopToGalaxyOverview('explorer')" title="Sol X · Explorer">
   <canvas id="saturn-canvas" width="144" height="144"></canvas>
-  <span id="fab-moon-label">Explore</span>
-  <span id="fab-tooltip">Choose Flight Path ›</span>
+  <span id="fab-moon-label">Sol X</span>
+  <span id="fab-tooltip">Sol X · Explorer ›</span>
 </button>
 
-<!-- ═══ EXPLORER LAYER ═══ -->
-<div id="explorer-layer">
-  <!-- Vignette ring around focused planet -->
-  <div id="expl-vignette"></div>
-
-  <!-- Focused planet canvas (clone of FAB, scaled up) -->
-  <div id="expl-planet-wrap">
-    <canvas id="expl-saturn-canvas" width="300" height="300"></canvas>
-    <div id="expl-planet-hint">click to open · scroll to enter sphere</div>
-  </div>
-
-  <!-- Constellation map (tesseract view) -->
-  <div id="expl-tesseract">
-    <div id="expl-tess-header">
-      <div id="expl-tess-eyebrow">D.A.B.CX · Explorer · Choose Your Flight Path</div>
-      <div id="expl-tess-title">Where do you want to go?</div>
-      <div id="expl-tess-sub">Select an archetype — or scroll to upload a JD to auto-route</div>
-    </div>
-    <div id="expl-constellation-wrap">
-      <svg id="expl-constellation" viewBox="0 0 900 540" preserveAspectRatio="xMidYMid meet"></svg>
-    </div>
-    <div id="expl-upload-cta">
-      <button id="expl-upload-cta-btn" onclick="openSphere()">
-        <span class="cta-label">⌃ Upload a job description to auto-route your path</span>
-        <span class="cta-hint">or select an archetype below ↓</span>
-      </button>
-    </div>
-    <div id="expl-archetype-cards">
-      <div class="expl-arch-card" data-arch="orbiter" onclick="selectArchetype('orbiter')">
-        <span class="expl-arch-emoji">🛸</span>
-        <div class="expl-arch-info">
-          <div class="expl-arch-name">Orbiter</div>
-          <div class="expl-arch-tags">Leader · Director · VP · Strategic Vision</div>
-        </div>
-        <span class="expl-arch-arrow">›</span>
-      </div>
-      <div class="expl-arch-card" data-arch="lunar" onclick="selectArchetype('lunar')">
-        <span class="expl-arch-emoji">🚀</span>
-        <div class="expl-arch-info">
-          <div class="expl-arch-name">Lunar Lander</div>
-          <div class="expl-arch-tags">Founder · 0-to-1 · Startup · Ship Fast</div>
-        </div>
-        <span class="expl-arch-arrow">›</span>
-      </div>
-      <div class="expl-arch-card" data-arch="satellite" onclick="selectArchetype('satellite')">
-        <span class="expl-arch-emoji">🛰️</span>
-        <div class="expl-arch-info">
-          <div class="expl-arch-name">Satellite</div>
-          <div class="expl-arch-tags">Craft · Design System · Interaction · Research · IA</div>
-        </div>
-        <span class="expl-arch-arrow">›</span>
-      </div>
-      <div class="expl-arch-card" data-arch="station" onclick="selectArchetype('station')">
-        <span class="expl-arch-emoji">🌌</span>
-        <div class="expl-arch-info">
-          <div class="expl-arch-name">Space Station</div>
-          <div class="expl-arch-tags">Platform · Infrastructure · Enterprise · Architecture</div>
-        </div>
-        <span class="expl-arch-arrow">›</span>
-      </div>
-    </div>
-    <button id="expl-tess-close" onclick="closeExplorerLayer()">✕</button>
-  </div>
-
-  <!-- Sphere environment (JD input) -->
-  <div id="expl-sphere">
-    <div id="expl-sphere-bg"></div>
-    <div id="expl-sphere-inner">
-      <div id="expl-sphere-header">
-        <div id="expl-sphere-eyebrow">D.A.B.CX · Sphere · Auto-Route</div>
-        <div id="expl-sphere-title">Paste your job<br>description.</div>
-        <div id="expl-sphere-sub">We plot the route. You fly it.</div>
-        <button id="expl-sphere-close" onclick="closeSphere()">✕</button>
-      </div>
-      <div id="expl-sphere-dropzone">
-        <textarea id="expl-jd-input"
-          placeholder="Paste the job description here — or drop a .txt file..."
-          spellcheck="false"></textarea>
-        <div id="expl-sphere-drop-hint">
-          <div id="expl-sphere-drop-icon">⌃</div>
-          <div id="expl-sphere-drop-label">Paste or drop your job description<br>to generate a bespoke mission route</div>
-        </div>
-      </div>
-      <div id="expl-sphere-actions">
-        <span id="expl-char-count">0 characters</span>
-        <button id="expl-launch-btn" disabled onclick="computeExplorerMission()">
-          Auto-Route <span class="btn-arrow">›</span>
-        </button>
-      </div>
-      <div id="expl-sphere-footer">Your journey is yours · Share with Zack only if you choose</div>
-    </div>
-  </div>
-
-  <!-- Mission CTA overlay (end of archetype journey) -->
-  <div id="expl-cta-overlay">
-    <button id="expl-cta-overlay-close" onclick="closeExplorerCTA()">✕</button>
-    <div id="expl-cta-inner">
-      <div id="expl-cta-vessel"></div>
-      <div id="expl-cta-title"></div>
-      <div id="expl-cta-sub"></div>
-      <a id="expl-cta-link" href="https://wolfie.love" target="_blank" rel="noopener">
-        Visit wolfie.love <span>›</span>
-      </a>
-      <button id="expl-cta-close" onclick="closeExplorerCTA()">Continue exploring</button>
-    </div>
-  </div>
-
-  <!-- Mission report toast (idle timer) -->
-  <div id="expl-mission-report">
-    <div id="expl-report-inner">
-      <div id="expl-report-eyebrow">Mission Report</div>
-      <div id="expl-report-body"></div>
-      <a href="https://wolfie.love" target="_blank" rel="noopener" id="expl-report-link">wolfie.love ›</a>
-      <button onclick="dismissMissionReport()">Dismiss</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Explorer Journey HUD (outside explorer-layer so it stays on top) ── -->
-<div id="expl-journey-hud">
-  <div id="expl-jhud-accent"></div>
-  <div id="expl-jhud-body">
-    <div id="expl-jhud-info">
-      <div id="expl-jhud-eyebrow">STOP <span id="expl-jhud-idx">01</span> OF <span id="expl-jhud-total">07</span></div>
-      <div id="expl-jhud-title">—</div>
-      <div id="expl-jhud-why"></div>
-    </div>
-    <div id="expl-jhud-pips"></div>
-    <div id="expl-jhud-nav">
-      <button class="expl-jhud-nav-btn" id="expl-jhud-prev" onclick="explorJourneyStep(-1)">←</button>
-      <button class="expl-jhud-nav-btn" id="expl-jhud-next" onclick="explorJourneyStep(1)">→</button>
-    </div>
-  </div>
-  <button id="expl-jhud-close" onclick="endExplorerJourney()">✕</button>
+<!-- Journey control strip — appears below FAB when voyage active -->
+<div id="fab-journey-controls">
+  <button class="fjc-btn" onclick="focusJourneyVessel()">Track</button>
+  <button class="fjc-btn fjc-new" onclick="openLaunchpad()">New</button>
+  <button class="fjc-btn fjc-log" onclick="openJourneyLog()">Log</button>
+  <button class="fjc-btn fjc-cancel" onclick="cancelJourney()">✕</button>
 </div>
 
 <!-- Launchpad overlay -->
@@ -8199,7 +8364,81 @@ function closeLaunchpad() {
   document.getElementById('flight-launchpad').classList.remove('vis');
 }
 
-// ── JD input wiring ──
+// ── Journey Log overlay ──────────────────────────────────
+function openJourneyLog() {
+  const jny = window._activeJourney;
+  let overlay = document.getElementById('journey-log-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'journey-log-overlay';
+    overlay.style.cssText = [
+      'position:fixed;bottom:280px;left:50%;transform:translateX(-50%);',
+      'z-index:860;min-width:240px;max-width:320px;',
+      'background:rgba(5,3,10,0.95);border:1px solid rgba(255,102,204,0.20);',
+      'border-radius:6px;padding:16px 18px;',
+      'font-family:"DM Mono",monospace;',
+      'backdrop-filter:blur(18px);box-shadow:0 8px 32px rgba(0,0,0,0.70);',
+    ].join('');
+    const close = document.createElement('button');
+    close.textContent = '✕';
+    close.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(255,102,204,0.50);font-size:11px;';
+    close.onclick = () => overlay.remove();
+    overlay.appendChild(close);
+    document.body.appendChild(overlay);
+  }
+
+  const era  = jny && jny.active && jny.era;
+  const log  = jny ? jny.log : [];
+  const hex  = era ? era.hex : '#ff66cc';
+  const seg  = jny ? jny.seg : 0;
+  const wps  = jny ? jny.waypoints.length : 0;
+
+  overlay.innerHTML = '';
+
+  // Re-add close button
+  const close2 = document.createElement('button');
+  close2.textContent = '✕';
+  close2.style.cssText = 'position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:rgba(255,102,204,0.45);font-size:11px;';
+  close2.onclick = () => overlay.remove();
+  overlay.appendChild(close2);
+
+  const eyebrow = document.createElement('div');
+  eyebrow.style.cssText = 'font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:' + hex + ';opacity:0.50;margin-bottom:8px;';
+  eyebrow.textContent = era ? ('SOL X · ' + era.title.toUpperCase()) : 'NO ACTIVE JOURNEY';
+  overlay.appendChild(eyebrow);
+
+  if (era) {
+    const progress = document.createElement('div');
+    progress.style.cssText = 'font-size:7px;letter-spacing:0.14em;color:' + hex + ';opacity:0.70;margin-bottom:12px;';
+    progress.textContent = 'Node ' + seg + ' of ' + (wps - 1) + '  ·  ' + Math.round((seg / Math.max(wps - 1, 1)) * 100) + '% traversed';
+    overlay.appendChild(progress);
+
+    // Progress bar
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = 'height:2px;background:rgba(255,102,204,0.12);border-radius:1px;margin-bottom:14px;overflow:hidden;';
+    const barFill = document.createElement('div');
+    barFill.style.cssText = 'height:100%;border-radius:1px;background:' + hex + ';width:' + Math.round((seg / Math.max(wps - 1, 1)) * 100) + '%;transition:width 0.4s;';
+    barWrap.appendChild(barFill);
+    overlay.appendChild(barWrap);
+  }
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:6.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:8px;';
+  title.textContent = 'Flight Log';
+  overlay.appendChild(title);
+
+  const logList = document.createElement('div');
+  logList.style.cssText = 'display:flex;flex-direction:column;gap:5px;max-height:120px;overflow-y:auto;';
+  (log.length ? log : ['No log entries yet.']).slice(-8).reverse().forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'font-size:7.5px;letter-spacing:0.06em;color:rgba(245,236,213,' + (i === 0 ? '0.75' : '0.35') + ');line-height:1.5;';
+    row.textContent = '› ' + entry;
+    logList.appendChild(row);
+  });
+  overlay.appendChild(logList);
+}
+
+
 const jdInput    = document.getElementById('flp-jd-input');
 const charCount  = document.getElementById('flp-char-count');
 const launchBtn  = document.getElementById('flp-launch-btn');
@@ -8555,13 +8794,19 @@ document.addEventListener('keydown', e => {
     sentence: Math.atan2(SENTENCE_CENTER.z, SENTENCE_CENTER.x),
     career:   Math.atan2(CAREER_OFFSET.z,   CAREER_OFFSET.x),
     claude:   Math.atan2(CLAUDE_CENTER.z,    CLAUDE_CENTER.x),
+    explorer: Math.atan2(EXPLORER_CENTER.z,  EXPLORER_CENTER.x),
   };
-  const GALAXY_ORDER = ['sentence', 'career', 'claude'];
+  const GALAXY_ORDER = ['sentence', 'career', 'claude', 'explorer'];
+
+  const GALAXY_CENTER_MAP = {
+    sentence: SENTENCE_CENTER, career: CAREER_OFFSET,
+    claude: CLAUDE_CENTER, explorer: EXPLORER_CENTER
+  };
 
   function nearestGalaxy(theta) {
     let best = 0, bestDist = Infinity;
     GALAXY_ORDER.forEach((id, i) => {
-      const center = id === 'sentence' ? SENTENCE_CENTER : id === 'career' ? CAREER_OFFSET : CLAUDE_CENTER;
+      const center = GALAXY_CENTER_MAP[id] || CAREER_OFFSET;
       const gTheta = Math.atan2(center.x, center.z);
       let diff = ((camState.theta % (Math.PI*2)) - (gTheta % (Math.PI*2)));
       while (diff >  Math.PI) diff -= Math.PI * 2;
@@ -9225,646 +9470,6 @@ function mobileFit() {
 })();
 </script>
 
-<!-- ═══ EXPLORER LAYER — STATE MACHINE + CONSTELLATION ═══ -->
-<script>
-(function() {
-'use strict';
-
-// ── State ──────────────────────────────────────────────────
-let explorerState = 'idle';   // idle | planet-focus | tess-open | sphere-open
-let isExplorerFocused = false;
-let activeArchetype = null;
-let journeyRoute    = [];
-let journeyIdx      = 0;
-let idleTimer       = null;
-let idleSeconds     = 0;
-const IDLE_TRIGGER  = 55; // seconds before mission report fires
-
-const layer  = () => document.getElementById('explorer-layer');
-const fabEl  = () => document.getElementById('flight-fab');
-
-// ── Archetype journey data ──────────────────────────────────
-const ARCHETYPES = {
-  orbiter: {
-    emoji: '🛸',
-    label: 'Orbiter',
-    color: '#daa520',
-    title: 'The Strategic Horizon',
-    sub: 'Twenty years of systems thinking, compressed into one argument.',
-    nodes: [
-      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'Fifteen eras. One continuous thread of strategic elevation.' },
-      { id: 'rr',         title: 'Reason & Resolution',               why: 'An editorial redesign of Anthropic\'s RSP — the pitch as artifact.' },
-      { id: 'wolfie',     title: 'wolfie.love · Narrative Engine',    why: 'A publishing OS built to prove a thesis, not just describe one.' },
-      { id: 'presence',   title: 'Presence Designer',                 why: 'The title coined when no existing title fit the discipline.' },
-      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Cross-pollination as research method — six verticals, one grammar.' },
-      { id: 'frank',      title: 'ifimaybefrank.com',                 why: 'Product conviction at its most distilled: the sentence as the interface.' },
-      { id: 'cta',        title: 'wolfie.love',                       why: 'The full argument. Every artifact. One destination.', isCTA: true },
-    ]
-  },
-  lunar: {
-    emoji: '🚀',
-    label: 'Lunar Lander',
-    color: '#e8a030',
-    title: 'Built From Zero',
-    sub: 'Someone who ships, names things after their dog, and turns grief into infrastructure.',
-    nodes: [
-      { id: 'wolfgang',   title: 'Wolfgang · The Origin',             why: 'The brand is named after a dog. That\'s not a detail — it\'s the whole story.' },
-      { id: 'frank',      title: 'ifimaybefrank.com',                 why: '0-to-1 in a single HTML file. Sentence-as-primitive. Ships daily.' },
-      { id: 'reasonably', title: 'reasonably.cc',                     why: 'Personal knowledge management — built because nothing else was precise enough.' },
-      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'Spatial note-taking. Four clusters. No framework dependencies.' },
-      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'The full 20-year arc, rendered as an orbital system.' },
-      { id: 'thesis',     title: 'The Sentence Is The Interface',     why: 'A grammar invented before the applications — the right order.' },
-      { id: 'cta',        title: 'wolfie.love',                       why: 'Where it all lives. One link. No LinkedIn.', isCTA: true },
-    ]
-  },
-  satellite: {
-    emoji: '🛰️',
-    label: 'Satellite',
-    color: '#7ab0e8',
-    title: 'Grammar Before Applications',
-    sub: 'The sentence is the interface. Eight CSS variables. A rendering contract.',
-    nodes: [
-      { id: 'thesis',     title: 'The Sentence Is The Interface',     why: 'The founding grammar — typed node elements, pluggable rendering contract.' },
-      { id: 'frank',      title: 'ifimaybefrank.com',                 why: 'The application that most purely expresses the thesis.' },
-      { id: 'reasonably', title: 'reasonably.cc',                     why: 'Four content types. One cluster architecture. Interaction as the product.' },
-      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'A spatial canvas that treats notes as first-class design objects.' },
-      { id: 'variables',  title: 'Eight CSS Variables',               why: 'The rendering contract: decoupled from content, pluggable by vertical.' },
-      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Cross-pollination as methodology — no single tool would have invented all of it.' },
-      { id: 'cta',        title: 'wolfie.love',                       why: 'The full design system, live in production.', isCTA: true },
-    ]
-  },
-  station: {
-    emoji: '🌌',
-    label: 'Space Station',
-    color: '#50c898',
-    title: 'The Publishing Operating System',
-    sub: 'Six verticals. One grammar. Built before it was called that.',
-    nodes: [
-      { id: 'ecosystem',  title: 'Multi-Property Ecosystem',          why: 'Commerce, hospitality, real estate, events, recruiting, editorial — one system.' },
-      { id: 'cortex',     title: 'wolfie.life · Cortex',              why: 'The infrastructure layer: spatial, persistent, zero-framework.' },
-      { id: 'reasonably', title: 'reasonably.cc',                     why: 'The knowledge layer: four content types, cluster architecture.' },
-      { id: 'variables',  title: 'Pluggable Rendering Contract',      why: 'Eight CSS variables decoupled from content — the API surface of the system.' },
-      { id: 'rr',         title: 'Reason & Resolution',               why: 'Enterprise-grade editorial: Anthropic\'s RSP redesigned as a live artifact.' },
-      { id: 'dab',        title: 'D.A.B.CX · Career Spiral',         why: 'The platform that hosts and proves the system at scale.' },
-      { id: 'cta',        title: 'wolfie.love',                       why: 'The publishing OS. Deployed. In production.', isCTA: true },
-    ]
-  }
-};
-
-// ── Constellation node positions (shared library) ──────────
-// 900×540 viewBox. Nodes placed to feel like a star field.
-const NODE_POSITIONS = {
-  dab:        { x: 450, y: 120 },
-  rr:         { x: 680, y: 180 },
-  wolfie:     { x: 750, y: 340 },
-  presence:   { x: 580, y: 80  },
-  ecosystem:  { x: 820, y: 260 },
-  frank:      { x: 200, y: 160 },
-  wolfgang:   { x: 90,  y: 240 },
-  reasonably: { x: 300, y: 320 },
-  cortex:     { x: 160, y: 420 },
-  thesis:     { x: 380, y: 220 },
-  variables:  { x: 560, y: 380 },
-  cta:        { x: 450, y: 460 },
-};
-
-// ── Build constellation SVG ────────────────────────────────
-function buildConstellation(archKey) {
-  const svg = document.getElementById('expl-constellation');
-  if (!svg) return;
-  svg.innerHTML = '';
-
-  const arch   = ARCHETYPES[archKey];
-  const nodes  = arch ? arch.nodes : [];
-  const color  = arch ? arch.color : '#daa520';
-
-  // Draw all faint background node dots first
-  Object.entries(NODE_POSITIONS).forEach(([id, pos]) => {
-    if (id === 'cta') return;
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class','expl-node-group bg-node');
-    const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    ring.setAttribute('class','expl-node-ring'); ring.setAttribute('cx',pos.x); ring.setAttribute('cy',pos.y); ring.setAttribute('r','7');
-    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-    dot.setAttribute('class','expl-node-dot'); dot.setAttribute('cx',pos.x); dot.setAttribute('cy',pos.y); dot.setAttribute('r','3');
-    dot.setAttribute('fill','rgba(218,165,32,0.14)');
-    g.appendChild(ring); g.appendChild(dot); svg.appendChild(g);
-  });
-
-  if (!arch) return;
-
-  // Draw path lines between active nodes
-  const pathG = document.createElementNS('http://www.w3.org/2000/svg','g');
-  pathG.setAttribute('class','expl-paths');
-  for (let i = 0; i < nodes.length - 1; i++) {
-    const a = NODE_POSITIONS[nodes[i].id];
-    const b = NODE_POSITIONS[nodes[i+1].id];
-    if (!a || !b) continue;
-    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
-    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
-    line.setAttribute('class','expl-conn-path active');
-    line.setAttribute('stroke', color);
-    line.setAttribute('stroke-opacity','0.35');
-    line.setAttribute('stroke-width','1.2');
-    line.setAttribute('stroke-dasharray','none');
-    pathG.appendChild(line);
-  }
-  svg.appendChild(pathG);
-
-  // Draw active archetype nodes on top
-  nodes.forEach((node, i) => {
-    const pos = NODE_POSITIONS[node.id];
-    if (!pos) return;
-    const isCTA = node.isCTA;
-
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.setAttribute('class','expl-node-group active-node');
-    g.setAttribute('data-idx', i);
-    g.style.cursor = 'pointer';
-
-    if (isCTA) {
-      // CTA node — pulsing diamond
-      const diamond = document.createElementNS('http://www.w3.org/2000/svg','polygon');
-      const s = 8;
-      diamond.setAttribute('points',`${pos.x},${pos.y-s} ${pos.x+s},${pos.y} ${pos.x},${pos.y+s} ${pos.x-s},${pos.y}`);
-      diamond.setAttribute('fill', color); diamond.setAttribute('fill-opacity','0.85');
-      diamond.setAttribute('stroke', color); diamond.setAttribute('stroke-width','0.5');
-      g.appendChild(diamond);
-    } else {
-      const outerRing = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      outerRing.setAttribute('cx',pos.x); outerRing.setAttribute('cy',pos.y); outerRing.setAttribute('r','12');
-      outerRing.setAttribute('fill','none'); outerRing.setAttribute('stroke',color); outerRing.setAttribute('stroke-opacity','0.15'); outerRing.setAttribute('stroke-width','1');
-      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
-      dot.setAttribute('cx',pos.x); dot.setAttribute('cy',pos.y); dot.setAttribute('r','5');
-      dot.setAttribute('fill', color); dot.setAttribute('fill-opacity', i === 0 ? '0.90' : '0.55');
-      g.appendChild(outerRing); g.appendChild(dot);
-    }
-
-    // Index label
-    const idxText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    idxText.setAttribute('x',pos.x); idxText.setAttribute('y',pos.y - 14);
-    idxText.setAttribute('text-anchor','middle');
-    idxText.setAttribute('class','expl-node-label');
-    idxText.setAttribute('fill', color);
-    idxText.setAttribute('fill-opacity','0.55');
-    idxText.setAttribute('font-size','6');
-    idxText.textContent = String(i+1).padStart(2,'0');
-    g.appendChild(idxText);
-
-    // Title label
-    const titleText = document.createElementNS('http://www.w3.org/2000/svg','text');
-    titleText.setAttribute('x', pos.x); titleText.setAttribute('y', pos.y + 18);
-    titleText.setAttribute('text-anchor','middle');
-    titleText.setAttribute('class','expl-node-label');
-    titleText.setAttribute('fill', color);
-    titleText.setAttribute('fill-opacity','0.45');
-    titleText.setAttribute('font-size','5.5');
-    // Short title
-    const shortTitle = node.title.split('·')[0].trim().split('/')[0].trim();
-    titleText.textContent = shortTitle.length > 18 ? shortTitle.slice(0,17)+'…' : shortTitle;
-    g.appendChild(titleText);
-
-    g.addEventListener('click', () => { startJourneyAt(archKey, i); });
-    svg.appendChild(g);
-  });
-}
-
-// ── FAB click handler (replaces openLaunchpad) ────────────
-window.handleExplorerClick = function() {
-  if (explorerState === 'idle') {
-    openExplorerPlanet();
-  } else if (explorerState === 'planet-focus') {
-    openExplorerTesseract();
-  } else if (explorerState === 'tess-open') {
-    // click on planet hint area — ignore, handled by archetype cards
-  }
-};
-
-// ── State 1: Planet focus ─────────────────────────────────
-function openExplorerPlanet() {
-  explorerState = 'planet-focus';
-  isExplorerFocused = true;
-  document.body.classList.add('explorer-active');
-  const el = layer();
-  el.classList.add('active','planet-focus');
-  el.classList.remove('tess-open','sphere-open');
-  startIdleTimer();
-  // Mirror the FAB canvas into the larger expl-saturn-canvas
-  startExplPlanetRenderer();
-  // Scroll handler for sphere
-  el.addEventListener('wheel', onExplorerScroll, { passive:false });
-}
-
-// ── State 2: Tesseract ───────────────────────────────────
-function openExplorerTesseract(archKey) {
-  explorerState = 'tess-open';
-  const el = layer();
-  el.classList.add('active','tess-open');
-  el.classList.remove('planet-focus','sphere-open');
-  buildConstellation(archKey || null);
-  resetIdleTimer();
-}
-
-window.closeExplorerLayer = function() {
-  explorerState = 'idle';
-  isExplorerFocused = false;
-  document.body.classList.remove('explorer-active');
-  const el = layer();
-  el.classList.remove('active','planet-focus','tess-open','sphere-open');
-  el.removeEventListener('wheel', onExplorerScroll);
-  stopIdleTimer();
-  endExplorerJourney();
-  closeSphere();
-};
-
-// ── Scroll to open sphere ────────────────────────────────
-function onExplorerScroll(e) {
-  if (explorerState !== 'planet-focus') return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (e.deltaY > 0 || e.deltaY < 0) {
-    openSphere();
-  }
-}
-
-function openSphere() {
-  explorerState = 'sphere-open';
-  const el = layer();
-  el.classList.add('active','sphere-open');
-  el.classList.remove('planet-focus','tess-open');
-  resetIdleTimer();
-}
-
-window.closeSphere = function() {
-  if (explorerState !== 'sphere-open') return;
-  // Return to tesseract if we came from there, else planet-focus
-  explorerState = 'tess-open';
-  const el = layer();
-  el.classList.add('tess-open');
-  el.classList.remove('sphere-open','planet-focus');
-};
-
-// ── Archetype selection ──────────────────────────────────
-window.selectArchetype = function(archKey) {
-  activeArchetype = archKey;
-  // Highlight selected card
-  document.querySelectorAll('.expl-arch-card').forEach(c => {
-    c.classList.toggle('selected', c.dataset.arch === archKey);
-  });
-  buildConstellation(archKey);
-  startJourneyAt(archKey, 0);
-  resetIdleTimer();
-};
-
-// ── Journey navigation ───────────────────────────────────
-function startJourneyAt(archKey, startIdx) {
-  activeArchetype = archKey;
-  const arch = ARCHETYPES[archKey];
-  if (!arch) return;
-  journeyRoute = arch.nodes;
-  journeyIdx   = startIdx;
-  buildConstellation(archKey);
-  renderJourneyHUD();
-  showJourneyHUD();
-  resetIdleTimer();
-
-  // If this is the CTA node — open CTA overlay
-  if (journeyRoute[journeyIdx]?.isCTA) {
-    setTimeout(() => openExplorerCTA(archKey), 400);
-  }
-}
-
-window.explorJourneyStep = function(dir) {
-  const next = Math.max(0, Math.min(journeyRoute.length - 1, journeyIdx + dir));
-  if (next === journeyIdx) return;
-  journeyIdx = next;
-  renderJourneyHUD();
-  resetIdleTimer();
-  if (journeyRoute[journeyIdx]?.isCTA) {
-    setTimeout(() => openExplorerCTA(activeArchetype), 300);
-  }
-};
-
-window.endExplorerJourney = function() {
-  journeyRoute = []; journeyIdx = 0; activeArchetype = null;
-  hideJourneyHUD();
-  document.querySelectorAll('.expl-arch-card').forEach(c => c.classList.remove('selected'));
-};
-
-function showJourneyHUD() {
-  const hud = document.getElementById('expl-journey-hud');
-  if (!hud) return;
-  hud.style.display = 'flex';
-  requestAnimationFrame(() => hud.classList.add('vis'));
-}
-function hideJourneyHUD() {
-  const hud = document.getElementById('expl-journey-hud');
-  if (!hud) return;
-  hud.classList.remove('vis');
-  setTimeout(() => { hud.style.display = 'none'; }, 380);
-}
-
-function renderJourneyHUD() {
-  const hud = document.getElementById('expl-journey-hud');
-  if (!hud || !journeyRoute.length) return;
-  const step   = journeyRoute[journeyIdx];
-  const arch   = ARCHETYPES[activeArchetype];
-  const color  = arch?.color || '#daa520';
-  const total  = journeyRoute.length;
-
-  const accent = document.getElementById('expl-jhud-accent');
-  if (accent) accent.style.background = color;
-
-  document.getElementById('expl-jhud-idx').textContent   = String(journeyIdx+1).padStart(2,'0');
-  document.getElementById('expl-jhud-total').textContent  = String(total).padStart(2,'0');
-  document.getElementById('expl-jhud-title').textContent  = step.title;
-  document.getElementById('expl-jhud-why').textContent    = step.why;
-
-  const pips = document.getElementById('expl-jhud-pips');
-  pips.innerHTML = '';
-  journeyRoute.forEach((_,i) => {
-    const pip = document.createElement('div');
-    pip.className = 'expl-jhud-pip' + (i < journeyIdx ? ' done' : i === journeyIdx ? ' active' : '');
-    pips.appendChild(pip);
-  });
-
-  document.getElementById('expl-jhud-prev').disabled = (journeyIdx === 0);
-  document.getElementById('expl-jhud-next').disabled = (journeyIdx >= total - 1);
-
-  // Highlight active node on constellation
-  document.querySelectorAll('#expl-constellation .active-node').forEach((g,i) => {
-    const dot = g.querySelector('circle[r="5"]');
-    if (dot) dot.setAttribute('fill-opacity', i === journeyIdx ? '0.95' : '0.45');
-    const outerRing = g.querySelector('circle[r="12"]');
-    if (outerRing) outerRing.setAttribute('stroke-opacity', i === journeyIdx ? '0.50' : '0.15');
-  });
-}
-
-// ── CTA Overlay ─────────────────────────────────────────
-function openExplorerCTA(archKey) {
-  const arch = ARCHETYPES[archKey];
-  if (!arch) return;
-  const overlay = document.getElementById('expl-cta-overlay');
-  if (!overlay) return;
-  document.getElementById('expl-cta-vessel').textContent = arch.emoji;
-  document.getElementById('expl-cta-title').textContent  = arch.title;
-  document.getElementById('expl-cta-sub').textContent    = arch.sub;
-  overlay.classList.add('vis');
-  stopIdleTimer();
-}
-
-window.closeExplorerCTA = function() {
-  const overlay = document.getElementById('expl-cta-overlay');
-  if (overlay) overlay.classList.remove('vis');
-  resetIdleTimer();
-};
-
-// ── Idle timer / mission report ──────────────────────────
-function startIdleTimer() {
-  stopIdleTimer();
-  idleSeconds = 0;
-  idleTimer = setInterval(() => {
-    idleSeconds++;
-    if (idleSeconds >= IDLE_TRIGGER && explorerState !== 'idle') {
-      fireMissionReport();
-      stopIdleTimer();
-    }
-  }, 1000);
-}
-function resetIdleTimer() { idleSeconds = 0; }
-function stopIdleTimer()  { if (idleTimer) { clearInterval(idleTimer); idleTimer = null; } }
-
-function fireMissionReport() {
-  const report = document.getElementById('expl-mission-report');
-  const body   = document.getElementById('expl-report-body');
-  if (!report || !body) return;
-  const arch = activeArchetype ? ARCHETYPES[activeArchetype] : null;
-  const stopNum = journeyRoute.length ? journeyIdx + 1 : 0;
-  let text = '';
-  if (arch && stopNum > 0) {
-    text = `You've traveled ${stopNum} of ${journeyRoute.length} stops along the ${arch.label} path. Everything you've seen lives at wolfie.love.`;
-  } else {
-    text = 'You\'ve been orbiting for a while. The full universe lives at wolfie.love — whenever you\'re ready.';
-  }
-  body.textContent = text;
-  report.classList.add('vis');
-}
-
-window.dismissMissionReport = function() {
-  const report = document.getElementById('expl-mission-report');
-  if (report) report.classList.remove('vis');
-  resetIdleTimer();
-  startIdleTimer();
-};
-
-// ── JD auto-route from sphere ────────────────────────────
-window.computeExplorerMission = function() {
-  const jd = document.getElementById('expl-jd-input')?.value?.trim();
-  if (!jd || jd.length < 80) return;
-  // Simple keyword routing — same logic as VESSELS
-  const lower = jd.toLowerCase();
-  const scores = {
-    orbiter:  ['leader','director','head','vp','principal','strategic','vision','roadmap','stakeholder'].filter(t => lower.includes(t)).length,
-    lunar:    ['founder','startup','0-to-1','seed','operator','build','ship','fast'].filter(t => lower.includes(t)).length,
-    satellite:['craft','system','interaction','design system','component','accessibility','ia','research','prototype'].filter(t => lower.includes(t)).length,
-    station:  ['platform','infrastructure','scale','enterprise','architecture','api','cross-functional','program'].filter(t => lower.includes(t)).length,
-  };
-  let best = 'satellite', bestScore = 0;
-  Object.entries(scores).forEach(([k,v]) => { if (v > bestScore) { bestScore = v; best = k; } });
-  closeSphere();
-  setTimeout(() => {
-    openExplorerTesseract(best);
-    setTimeout(() => selectArchetype(best), 300);
-  }, 200);
-};
-
-// ── Sphere JD input wiring ────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const jdInput  = document.getElementById('expl-jd-input');
-  const charCount = document.getElementById('expl-char-count');
-  const launchBtn = document.getElementById('expl-launch-btn');
-  const dropzone  = document.getElementById('expl-sphere-dropzone');
-  if (jdInput) {
-    jdInput.addEventListener('input', () => {
-      const len = jdInput.value.trim().length;
-      if (charCount) charCount.textContent = len.toLocaleString() + ' characters';
-      if (launchBtn) launchBtn.disabled = len < 80;
-      if (dropzone) dropzone.classList.toggle('has-text', len > 0);
-    });
-  }
-  if (dropzone) {
-    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-    dropzone.addEventListener('drop', e => {
-      e.preventDefault(); dropzone.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        if (jdInput) { jdInput.value = ev.target.result; jdInput.dispatchEvent(new Event('input')); }
-      };
-      reader.readAsText(file);
-    });
-  }
-});
-
-// ── Click-away to reset planet focus ─────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-  const planetWrap = document.getElementById('expl-planet-wrap');
-  if (planetWrap) {
-    planetWrap.addEventListener('click', function(e) {
-      e.stopPropagation();
-      if (explorerState === 'planet-focus') {
-        openExplorerTesseract();
-      }
-    });
-  }
-  const explLayer = document.getElementById('explorer-layer');
-  if (explLayer) {
-    explLayer.addEventListener('click', function(e) {
-      if (e.target === this && explorerState === 'planet-focus') {
-        window.closeExplorerLayer();
-      }
-    });
-  }
-});
-
-// ESC closes explorer layer — pierces all sub-states
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  const ctaVis = document.getElementById('expl-cta-overlay')?.classList.contains('vis');
-  if (ctaVis) { window.closeExplorerCTA(); return; }
-  if (explorerState === 'sphere-open') { closeSphere(); return; }
-  if (explorerState === 'tess-open')   { window.closeExplorerLayer(); return; }
-  if (explorerState === 'planet-focus') { window.closeExplorerLayer(); return; }
-});
-
-// ── Nuke Acrobat / PDF plugin injection via MutationObserver ──
-(function nukePlugins() {
-  function killPlugins() {
-    document.querySelectorAll('embed, object, [id*="acrobat"], [class*="acrobat"], .nppdf').forEach(el => {
-      if (el.tagName === 'CANVAS' || el.tagName === 'VIDEO' || el.tagName === 'AUDIO') return;
-      el.style.cssText = 'display:none!important;visibility:hidden!important;pointer-events:none!important;';
-    });
-  }
-  killPlugins();
-  new MutationObserver(killPlugins).observe(document.body, { childList:true, subtree:true });
-})();
-
-// ── Expl planet canvas renderer (mirrors FAB) ────────────
-function startExplPlanetRenderer() {
-  const canvas = document.getElementById('expl-saturn-canvas');
-  if (!canvas || canvas._explorerRunning) return;
-  canvas._explorerRunning = true;
-  const ctx = canvas.getContext('2d');
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
-  const SIZE = 300;
-  canvas.width  = SIZE * DPR;
-  canvas.height = SIZE * DPR;
-  ctx.scale(DPR, DPR);
-
-  function gold(a)  { return 'rgba(218,165,32,'+a+')'; }
-  function cream(a) { return 'rgba(245,236,213,'+a+')'; }
-  function deep(a)  { return 'rgba(12,6,24,'+a+')'; }
-
-  let t = 0;
-  const RING_MOTTOS = ['Orbiter','Satellite','Lunar Lander','Space Station'];
-  const moons = [
-    { label:'A', r:5.5, orbitR:42, speed:0.009, phase:0,            glow:true  },
-    { label:'B', r:3.4, orbitR:28, speed:0.015, phase:Math.PI*1.35, glow:false },
-  ];
-
-  function drawPlanet(cx, cy) {
-    var R = 22;
-    var g = ctx.createRadialGradient(cx, cy, R*0.4, cx, cy, R*2.2);
-    g.addColorStop(0, gold(0.10)); g.addColorStop(1, gold(0));
-    ctx.beginPath(); ctx.arc(cx,cy,R*2.2,0,Math.PI*2);
-    ctx.fillStyle=g; ctx.fill();
-    var b = ctx.createRadialGradient(cx-R*0.28, cy-R*0.32, R*0.08, cx, cy, R);
-    b.addColorStop(0,  gold(0.92)); b.addColorStop(0.4,gold(0.65));
-    b.addColorStop(0.72,'rgba(155,100,5,0.78)'); b.addColorStop(1,'rgba(55,22,2,0.92)');
-    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
-    ctx.fillStyle=b; ctx.fill();
-    for (var i=0;i<4;i++) {
-      var by=cy-R*0.55+i*R*0.38;
-      var bw=Math.sqrt(Math.max(0,R*R-(by-cy)*(by-cy)));
-      ctx.beginPath(); ctx.ellipse(cx,by,bw,1.2,0,0,Math.PI*2);
-      ctx.fillStyle=i%2===0?gold(0.07):deep(0.05); ctx.fill();
-    }
-    var l=ctx.createRadialGradient(cx,cy,R*0.6,cx,cy,R);
-    l.addColorStop(0,deep(0)); l.addColorStop(1,deep(0.65));
-    ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
-    ctx.fillStyle=l; ctx.fill();
-  }
-
-  function drawRings(cx, cy, time) {
-    var tr=-22*Math.PI/180;
-    var rings=[{rx:44,ry:11,al:0.55,w:5},{rx:34,ry:8.5,al:0.36,w:2.8},{rx:54,ry:13,al:0.20,w:1.5,dash:true}];
-    var seg=RING_MOTTOS.length;
-    var activeIdx=Math.floor((time*0.009)%seg);
-    rings.forEach(function(ring){
-      ctx.save(); ctx.translate(cx,cy); ctx.rotate(tr);
-      for(var s=0;s<seg;s++){
-        var sa=(s/seg)*Math.PI*2; var ea=((s+1)/seg)*Math.PI*2;
-        var isAct=(s===activeIdx);
-        ctx.beginPath(); ctx.ellipse(0,0,ring.rx,ring.ry,0,sa,ea);
-        ctx.strokeStyle=isAct?gold(0.95):gold(ring.al);
-        ctx.lineWidth=isAct?ring.w*1.8:ring.w;
-        if(ring.dash)ctx.setLineDash([4,5]); else ctx.setLineDash([]);
-        ctx.stroke(); ctx.setLineDash([]);
-      }
-      ctx.restore();
-    });
-    // Active motto label
-    ctx.font='300 7px "DM Mono",monospace';
-    ctx.fillStyle=gold(0.65); ctx.textAlign='center';
-    ctx.fillText(RING_MOTTOS[activeIdx].toUpperCase(),cx,cy-42);
-  }
-
-  function drawMoon(cx, cy, moon, time) {
-    var angle=moon.phase+time*moon.speed;
-    var mx2=cx+Math.cos(angle)*moon.orbitR;
-    var my2=cy+Math.sin(angle)*moon.orbitR*0.36;
-    ctx.beginPath(); ctx.ellipse(cx,cy,moon.orbitR,moon.orbitR*0.36,0,0,Math.PI*2);
-    ctx.strokeStyle=gold(0.06); ctx.lineWidth=0.7; ctx.setLineDash([3,8]); ctx.stroke(); ctx.setLineDash([]);
-    if(moon.glow){
-      var pulse=1+Math.sin(time*0.04)*0.5;
-      var gg=ctx.createRadialGradient(mx2,my2,0,mx2,my2,moon.r*4*pulse);
-      gg.addColorStop(0,gold(0.50)); gg.addColorStop(1,gold(0));
-      ctx.beginPath(); ctx.arc(mx2,my2,moon.r*5*pulse,0,Math.PI*2);
-      ctx.fillStyle=gg; ctx.fill();
-    }
-    var mg=ctx.createRadialGradient(mx2-moon.r*0.3,my2-moon.r*0.3,0,mx2,my2,moon.r);
-    mg.addColorStop(0,moon.label==='A'?gold(0.96):cream(0.88));
-    mg.addColorStop(1,moon.label==='A'?gold(0.40):cream(0.25));
-    ctx.beginPath(); ctx.arc(mx2,my2,moon.r,0,Math.PI*2);
-    ctx.fillStyle=mg; ctx.fill();
-  }
-
-  function render() {
-    if (explorerState === 'idle') { canvas._explorerRunning = false; return; }
-    requestAnimationFrame(render);
-    t++;
-    ctx.clearRect(0,0,SIZE,SIZE);
-    var cx=SIZE/2, cy=SIZE/2;
-    // Back half rings
-    ctx.save(); ctx.beginPath(); ctx.rect(0,cy,SIZE,cy); ctx.clip();
-    drawRings(cx,cy,t); ctx.restore();
-    drawPlanet(cx,cy);
-    // Front half rings
-    ctx.save(); ctx.beginPath(); ctx.rect(0,0,SIZE,cy); ctx.clip();
-    drawRings(cx,cy,t); ctx.restore();
-    // Moons
-    var sorted=moons.slice().sort((a,b)=>Math.sin(a.phase+t*a.speed)-Math.sin(b.phase+t*b.speed));
-    sorted.forEach(m=>drawMoon(cx,cy,m,t));
-  }
-  render();
-}
-
-})();
-</script>
-
 <!-- ═══ SATURN FAB — MICRO-ORRERY RENDERER ═══ -->
 <script>
 (function() {
@@ -9978,6 +9583,76 @@ function startExplPlanetRenderer() {
     var hov=fab?fab.matches(':hover'):false;
     ctx.clearRect(0,0,SIZE,SIZE);
     var cx=SIZE/2, cy=SIZE/2;
+
+    // ── Journey mode: draw active vessel instead of Saturn ──
+    var jny=window._activeJourney;
+    if(jny&&jny.active&&jny.era){
+      var era=jny.era, col=era.color||0xff66cc;
+      var r2=(col>>16)&255, g2=(col>>8)&255, b2=col&255;
+      var pulse=1+Math.sin(t*0.04)*0.12;
+      var og=ctx.createRadialGradient(cx,cy,SIZE*0.15,cx,cy,SIZE*0.5);
+      og.addColorStop(0,'rgba('+r2+','+g2+','+b2+',0.22)');
+      og.addColorStop(1,'rgba('+r2+','+g2+','+b2+',0)');
+      ctx.beginPath(); ctx.arc(cx,cy,SIZE*0.5,0,Math.PI*2);
+      ctx.fillStyle=og; ctx.fill();
+      var vc=document.createElement('canvas'); vc.width=vc.height=SIZE;
+      var vx=vc.getContext('2d'); var vcx=SIZE/2,vcy=SIZE/2;
+      var vhex='rgb('+r2+','+g2+','+b2+')';
+      vx.shadowBlur=20; vx.shadowColor=vhex;
+      vx.strokeStyle=vhex; vx.lineWidth=2.5;
+      vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.22)';
+      var type=era.solarSystem;
+      if(type==='orbiter'){
+        vx.beginPath(); vx.ellipse(vcx,vcy+5,34,10,0,0,Math.PI*2); vx.fill();
+        vx.beginPath(); vx.ellipse(vcx,vcy+5,30,8,0,0,Math.PI*2); vx.stroke();
+        vx.beginPath(); vx.ellipse(vcx,vcy-3,15,11,0,Math.PI,0); vx.fill(); vx.stroke();
+        [-18,-6,6,18].forEach(function(dx,i){
+          vx.beginPath(); vx.arc(vcx+dx,vcy+5,2.5,0,Math.PI*2);
+          vx.fillStyle=i%2===0?vhex:'rgba(255,255,200,0.9)'; vx.shadowBlur=10; vx.fill();
+        });
+      } else if(type==='lunar'){
+        vx.beginPath(); vx.roundRect(vcx-13,vcy-18,26,24,4); vx.fill(); vx.stroke();
+        vx.beginPath();
+        vx.moveTo(vcx-10,vcy+6); vx.lineTo(vcx-12,vcy+18);
+        vx.lineTo(vcx+12,vcy+18); vx.lineTo(vcx+10,vcy+6);
+        vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.38)'; vx.fill(); vx.stroke();
+        var tg3=vx.createRadialGradient(vcx,vcy+25,2,vcx,vcy+25,16);
+        tg3.addColorStop(0,'rgba(255,220,100,0.75)'); tg3.addColorStop(1,'rgba(0,0,0,0)');
+        vx.beginPath(); vx.ellipse(vcx,vcy+25,10,16,0,0,Math.PI*2);
+        vx.fillStyle=tg3; vx.shadowBlur=0; vx.fill();
+      } else if(type==='satellite'){
+        vx.beginPath(); vx.roundRect(vcx-10,vcy-14,20,28,3); vx.fill(); vx.stroke();
+        vx.beginPath(); vx.roundRect(vcx-46,vcy-9,32,17,2); vx.fill(); vx.stroke();
+        vx.beginPath(); vx.roundRect(vcx+14,vcy-9,32,17,2); vx.fill(); vx.stroke();
+        vx.beginPath(); vx.arc(vcx,vcy-22,10,Math.PI,0); vx.stroke();
+        vx.beginPath(); vx.moveTo(vcx,vcy-22); vx.lineTo(vcx,vcy-14); vx.stroke();
+        vx.beginPath(); vx.arc(vcx,vcy-22,2.5,0,Math.PI*2);
+        vx.fillStyle='rgba(255,255,255,0.85)'; vx.shadowBlur=12; vx.fill();
+      } else {
+        vx.strokeStyle='rgba('+r2+','+g2+','+b2+',0.50)'; vx.lineWidth=3;
+        vx.beginPath(); vx.arc(vcx,vcy,36,0,Math.PI*2); vx.stroke();
+        [[0,-1],[1,0],[0,1],[-1,0]].forEach(function(d){
+          vx.strokeStyle=vhex; vx.lineWidth=2.5;
+          vx.beginPath(); vx.moveTo(vcx+d[0]*10,vcy+d[1]*10);
+          vx.lineTo(vcx+d[0]*36,vcy+d[1]*36); vx.stroke();
+        });
+        vx.beginPath(); vx.arc(vcx,vcy,10,0,Math.PI*2);
+        vx.fillStyle='rgba('+r2+','+g2+','+b2+',0.50)'; vx.fill(); vx.stroke();
+        vx.beginPath(); vx.arc(vcx,vcy,4,0,Math.PI*2);
+        vx.fillStyle='rgba(255,255,255,0.80)'; vx.shadowBlur=16; vx.fill();
+      }
+      ctx.save(); ctx.globalAlpha=0.92*pulse;
+      ctx.drawImage(vc,0,0,SIZE,SIZE); ctx.restore();
+      if(hov){
+        ctx.font='300 5.5px "DM Mono",monospace';
+        ctx.fillStyle='rgba('+r2+','+g2+','+b2+',0.80)';
+        ctx.textAlign='center';
+        ctx.fillText('TRACK VESSEL ›',cx,cy+SIZE*0.37);
+      }
+      return;
+    }
+
+    // ── Default: Saturn micro-orrery ─────────────────────
     drawRingArc(cx,cy,hov,t,Math.PI,Math.PI*2);
     drawPlanet(cx,cy,hov);
     drawRingArc(cx,cy,hov,t,0,Math.PI);
@@ -10002,5 +9677,71 @@ function startExplPlanetRenderer() {
     }
   }
   render();
+})();
+</script>
+
+<!-- ═══ FAB PROXIMITY EXPANSION ═══ -->
+<script>
+(function() {
+  'use strict';
+  var fab = document.getElementById('flight-fab');
+  if (!fab) return;
+
+  var currentScale = 1.0;
+  var targetScale  = 1.0;
+  var raf = null;
+
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  function tick() {
+    currentScale = lerp(currentScale, targetScale, 0.12);
+    var diff = Math.abs(currentScale - targetScale);
+    // Apply via CSS custom property so it composes with the CSS :hover scale
+    fab.style.setProperty('--prox-scale', currentScale.toFixed(4));
+    if (diff > 0.0003) {
+      raf = requestAnimationFrame(tick);
+    } else {
+      raf = null;
+    }
+  }
+
+  function startTick() {
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+
+  document.addEventListener('mousemove', function(e) {
+    var rect = fab.getBoundingClientRect();
+    var cx = rect.left + rect.width  / 2;
+    var cy = rect.top  + rect.height / 2;
+    var dx = e.clientX - cx;
+    var dy = e.clientY - cy;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    // Full expansion within 60px of edge, fade out by 200px
+    var edgeDist = dist - (rect.width / 2);
+    var raw = 1 - Math.min(1, Math.max(0, (edgeDist - 8) / 170));
+    // Maps 0→1 proximity to scale 1.0→1.20
+    targetScale = 1.0 + raw * 0.20;
+    startTick();
+  }, { passive: true });
+
+  document.addEventListener('mouseleave', function() {
+    targetScale = 1.0;
+    startTick();
+  }, { passive: true });
+
+  // Inject CSS to consume the custom property alongside :hover scale
+  var style = document.createElement('style');
+  style.textContent = [
+    '#flight-fab {',
+    '  transform: translateX(-50%) scale(var(--prox-scale, 1.0));',
+    '}',
+    '#flight-fab:hover {',
+    '  transform: translateX(-50%) scale(calc(var(--prox-scale, 1.0) * 1.10));',
+    '}',
+    '#flight-fab:active {',
+    '  transform: translateX(-50%) scale(calc(var(--prox-scale, 1.0) * 0.95));',
+    '}',
+  ].join('\n');
+  document.head.appendChild(style);
 })();
 </script>
