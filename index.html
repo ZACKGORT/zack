@@ -2613,8 +2613,10 @@ EXPLORER_ERAS.forEach((era, i) => {
   const t = i / Math.max(EXPLORER_ERAS.length - 1, 1);
   era._t = t;
   era._pos = new THREE.Vector3();
+  // Spiral and arc computed here — _flatPos (orrery ellipse) set in buildExplorerScene
+  era._spiralPos = spiralPos(t, 'spiral', EXPLORER_CENTER);
+  era._arcPos    = spiralPos(t, 'arc',    EXPLORER_CENTER);
   ERA_BY_ID[era.id] = era;
-  // _spiralPos / _arcPos set inside buildExplorerScene after EXPLORER_ELLIPSES is defined
 });
 
 const MANIFESTO_ERAS = [
@@ -3180,7 +3182,8 @@ const CLAUDE_ERAS = [
       (yb + t * 2 - 1),
       CLAUDE_CENTER.z + Math.sin(angle) * r
     );
-    era._arcPos = era._spiralPos.clone();
+    // Arc/timeline: bowed vertical sweep centered on CLAUDE_CENTER
+    era._arcPos = spiralPos(t, 'arc', CLAUDE_CENTER);
     era._pos    = era._spiralPos.clone();
     ERA_BY_ID[era.id] = era;
   });
@@ -3507,7 +3510,8 @@ PLATFORM_ERAS.forEach((era, i) => {
     (i % 2 === 0 ? 0.8 : -0.8),
     SENTENCE_CENTER.z + Math.sin(spAngle) * spR
   );
-  era._arcPos = era._spiralPos.clone();
+  // Arc/timeline: bowed vertical sweep centered on SENTENCE_CENTER
+  era._arcPos = spiralPos(t, 'arc', SENTENCE_CENTER);
   era._pos    = era._spiralPos.clone();
   ERA_BY_ID[era.id] = era;
 });
@@ -4293,7 +4297,7 @@ function swoopToGalaxyOverview(galaxyId) {
     currentView = 'spiral';
     morphing = true; morphT = 0;
     const layoutBtn = document.getElementById('rhud-layout-toggle');
-    if (layoutBtn) { layoutBtn.classList.remove('active'); layoutBtn.title = 'Switch to orrery'; }
+    if (layoutBtn) { layoutBtn.classList.remove('active'); layoutBtn.title = 'Switch to timeline'; }
   }
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
 }
@@ -4811,18 +4815,11 @@ function buildExplorerScene() {
 
   EXPLORER_ERAS.forEach((era, i) => {
     const tier = era.tier || tierMap[era.solarSystem] || 'inner';
-    era._flatPos   = ellipsePos(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t);
-    // Helix spiral pos — stacked vertically like Career, centered on EXPLORER_CENTER
-    const helixR = 8 + era._t * 6;
-    const helixA = era._t * Math.PI * 3.2;
-    era._spiralPos = new THREE.Vector3(
-      EXPLORER_CENTER.x + Math.cos(helixA) * helixR,
-      era._t * 10 - 5,
-      EXPLORER_CENTER.z + Math.sin(helixA) * helixR
-    );
-    era._arcPos    = era._flatPos.clone();
-    era._pos.copy(era._flatPos);
-    const pos = era._flatPos;
+    // _flatPos = orrery ellipse ring position (computed here after EXPLORER_ELLIPSES defined)
+    era._flatPos = ellipsePos(EXPLORER_CENTER, EXPLORER_ELLIPSES, tier, era.angle || era._t);
+    // _spiralPos and _arcPos already set in init forEach — use them directly
+    era._pos.copy(era._spiralPos);
+    const pos = era._spiralPos;
     const nodeSize = 0.28 + (era._t || 0) * 0.10;
 
     // spoke from axis to node
@@ -4869,11 +4866,11 @@ function buildExplorerScene() {
     buildMoons(era, pos, nodeSize);
   });
 
-  // ── Orbital connection arc linking all 4 archetype nodes ──
+  // ── Connection arcs linking archetype nodes (spiral view) ──
   for (let i = 0; i < EXPLORER_ERAS.length - 1; i++) {
     const a = EXPLORER_ERAS[i], b = EXPLORER_ERAS[i+1];
-    const mid = a._flatPos.clone().add(b._flatPos).multiplyScalar(0.5); mid.y += 0.5;
-    const pts = new THREE.QuadraticBezierCurve3(a._flatPos, mid, b._flatPos).getPoints(16);
+    const mid = a._spiralPos.clone().add(b._spiralPos).multiplyScalar(0.5); mid.y += 0.5;
+    const pts = new THREE.QuadraticBezierCurve3(a._spiralPos, mid, b._spiralPos).getPoints(16);
     const conn = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color: 0xff66cc, transparent: true, opacity: 0.14 }));
     scene.add(conn);
@@ -6034,7 +6031,7 @@ function switchView(view) {
   document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
   const _vBtn = document.querySelector(`[data-view="${view}"]`);
   if (_vBtn) _vBtn.classList.add('active');
-  if (view === 'arc') { camTarget.phi = Math.PI * 0.06; camTarget.theta = 0; camTarget.radius = 48; }
+  if (view === 'arc') { camTarget.phi = Math.PI * 0.10; camTarget.radius = 55; }
   else { camTarget.phi = Math.PI * 0.28; camTarget.radius = 68; }
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
 }
@@ -7562,31 +7559,31 @@ if (window.innerWidth <= 768) {
 }
 
 // ─────────────────────────────────────────────────────────
-// NODE MORPH (spiral ↔ arc/flat)
+// NODE MORPH (spiral ↔ timeline arc)
 // ─────────────────────────────────────────────────────────
-// Each galaxy morphs between _spiralPos (helix) and _flatPos (orrery ellipse).
-// Only nodes belonging to the currently focused galaxy morph.
-// Per-node glow and labelSpr stored on nodeObjects entries for O(1) sync.
+// All galaxies: spiral = helix/scatter, arc = bowed vertical timeline.
+// _arcPos computed via spiralPos(t, 'arc', CENTER) for every galaxy.
+// Per-node glow and labelSpr stored on nodeObjects for O(1) sync.
 function tickMorph() {
   if (!morphing) return;
   morphT = Math.min(morphT + 0.04, 1);
   const ease = morphT < 0.5 ? 2*morphT*morphT : 1 - Math.pow(-2*morphT+2,2)/2;
 
   nodeObjects.forEach(({ mesh, hitMesh, era, glow, labelSpr, _explorerMoon }) => {
-    // Skip moon sub-nodes — they have no independent orrery position
+    // Skip moon sub-nodes — they have no independent timeline position
     if (_explorerMoon || era._isMoonNode) return;
-    // Skip if no flat position computed yet
-    if (!era._flatPos || !era._spiralPos) return;
+    // Skip if positions not computed
+    if (!era._arcPos || !era._spiralPos) return;
 
-    const toFlat = currentView === 'arc';
-    const from = toFlat ? era._spiralPos : era._flatPos;
-    const to   = toFlat ? era._flatPos   : era._spiralPos;
+    const toArc = currentView === 'arc';
+    const from  = toArc ? era._spiralPos : era._arcPos;
+    const to    = toArc ? era._arcPos    : era._spiralPos;
 
     mesh.position.lerpVectors(from, to, ease);
     era._pos.copy(mesh.position);
-    if (hitMesh) hitMesh.position.copy(mesh.position);
-    if (glow)    glow.position.copy(mesh.position);
-    if (labelSpr) labelSpr.position.set(mesh.position.x + 0.6, mesh.position.y + 0.5, mesh.position.z);
+    if (hitMesh)   hitMesh.position.copy(mesh.position);
+    if (glow)      glow.position.copy(mesh.position);
+    if (labelSpr)  labelSpr.position.set(mesh.position.x + 0.6, mesh.position.y + 0.5, mesh.position.z);
   });
 
   if (morphT >= 1) morphing = false;
@@ -7801,14 +7798,15 @@ function animate(ts) {
   if (zoomIn)  zoomIn.addEventListener('click',  () => { camTarget.radius = Math.max(ORRERY_RADIUS_MIN, camTarget.radius * 0.75); });
   if (zoomOut) zoomOut.addEventListener('click',  () => { camTarget.radius = Math.min(340, camTarget.radius * 1.35); });
 
-  // Right HUD: spiral ↔ orrery (flat ellipse) toggle
+  // Right HUD: spiral ↔ timeline toggle
   const layoutBtn = document.getElementById('rhud-layout-toggle');
   if (layoutBtn) {
+    layoutBtn.title = 'Switch to timeline';
     layoutBtn.addEventListener('click', () => {
       const next = currentView === 'arc' ? 'spiral' : 'arc';
       switchView(next);
       layoutBtn.classList.toggle('active', next === 'arc');
-      layoutBtn.title = next === 'arc' ? 'Switch to spiral' : 'Switch to orrery';
+      layoutBtn.title = next === 'arc' ? 'Switch to spiral' : 'Switch to timeline';
     });
   }
 
