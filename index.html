@@ -86,9 +86,13 @@ body.light .hud-btn{color:rgba(0,0,0,0.50);border-right-color:rgba(0,0,0,0.08);}
 body.light .hud-btn:hover{color:#000;}
 body.light .hud-btn.active{color:#000;background:rgba(0,0,0,0.08);}
 
-/* ── BRAND — hidden; identity lives in FAB ── */
-#brand{ display:none !important; }
+/* ── BRAND — restored, top-left on desktop only ── */
+#brand{ display:block !important; }
 #era-label{ display:none !important; }
+@media(max-width:768px){
+  /* On mobile: hide full brand block (FAB replaces logo mark) */
+  #brand{ display:none !important; }
+}
 
 /* ── SENTENCE GHOST IMAGE — top toast banner ── */
 #sent-ghost{
@@ -406,9 +410,21 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
   95% { opacity:1; }
 }
 
-/* DETAIL PANEL */
-#ghost{position:fixed;z-index:700;width:360px;pointer-events:none;opacity:0;right:28px;top:50%;transform:translateY(-50%) translateX(18px) scale(0.97);transition:opacity 0.30s,transform 0.30s;}
-#ghost.on{opacity:1;transform:translateY(-50%) translateX(0) scale(1);pointer-events:all;}
+/* DETAIL PANEL — desktop: right rail, vertically centered but clears bottom chrome */
+#ghost{
+  position:fixed;z-index:700;width:360px;pointer-events:none;opacity:0;
+  right:28px;
+  top:64px; /* clear HUD */
+  bottom:90px; /* clear bottom FAB area */
+  display:flex; flex-direction:column; justify-content:center;
+  transform:translateX(18px) scale(0.97);
+  transition:opacity 0.30s,transform 0.30s;
+}
+#ghost.on{opacity:1;transform:translateX(0) scale(1);pointer-events:all;}
+/* When archetype strip is open, push ghost up */
+body.arch-strip-open #ghost {
+  bottom: calc(var(--strip-h, 160px) + 90px);
+}
 .gc{background:rgba(5,3,10,0.98);border:1px solid rgba(218,165,32,0.12);border-radius:6px;box-shadow:0 18px 62px rgba(0,0,0,0.9);backdrop-filter:blur(26px);overflow:hidden;transition:background 0.3s,border-color 0.3s,box-shadow 0.3s;}
 .gc:hover{background:rgba(14,10,28,0.99);border-color:rgba(218,165,32,0.28);box-shadow:0 20px 70px rgba(0,0,0,0.85),0 0 0 1px rgba(218,165,32,0.08);}
 .gc:hover .gctitle{color:#fff;}
@@ -417,7 +433,7 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
 .gc:hover .gcrole{color:rgba(218,165,32,0.55);}
 .gc:hover .gc-moons-label{color:rgba(218,165,32,0.45);}
 .gc:hover .gctag{color:rgba(218,165,32,0.75);border-color:rgba(218,165,32,0.45);}
-.gcscroll{max-height:82vh;overflow-y:auto;scrollbar-width:none;}
+.gcscroll{flex:1;overflow-y:auto;scrollbar-width:none;}
 .gcscroll::-webkit-scrollbar{display:none;}
 .gcbar{height:2px;width:100%;background:rgba(218,165,32,0.55);}
 .gchead{
@@ -551,40 +567,67 @@ body.light .gc-moons-label{color:rgba(0,0,0,0.38);}
 body.light .gc-moon-pill{color:rgba(0,0,0,0.50);border-color:rgba(0,0,0,0.18);}
 body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 
-/* MOBILE SHEET */
-/* Mobile sheet — slides up behind the fixed nav bar */
+/* MOBILE SHEET — slides up, compact by default (title + images only) */
 #msheet{
   display:none;position:fixed;
-  bottom:44px;  /* sits above the global nav chrome (44px) */
+  bottom:48px; /* sits above nav chrome */
   left:0;right:0;
   z-index:700;
   background:rgba(5,3,10,0.98);
   border-top:1px solid rgba(218,165,32,0.10);
   border-radius:14px 14px 0 0;
-  max-height:calc(72vh - 80px);
+  max-height:48vh; /* compact — leaves top space for the node */
   overflow-y:auto;scrollbar-width:none;
   transform:translateY(calc(100% + 80px));
-  transition:transform 0.38s cubic-bezier(0.22,1,0.36,1), background 0.3s, border-color 0.3s;
+  transition:transform 0.38s cubic-bezier(0.22,1,0.36,1), max-height 0.38s cubic-bezier(0.22,1,0.36,1), background 0.3s, border-color 0.3s;
   backdrop-filter:blur(28px);
 }
-#msheet:hover {
-  background: rgba(14,10,28,0.99);
-  border-top-color: rgba(218,165,32,0.26);
-}
-#msheet:hover .mstitle { color: #fff; }
-#msheet:hover .msbody  { color: rgba(245,236,213,0.85); }
-#msheet:hover .msera   { color: rgba(218,165,32,0.65); }
-#msheet::-webkit-scrollbar{display:none;}
 #msheet.on{transform:translateY(0);}
-.mshandle{width:36px;height:4px;background:rgba(218,165,32,0.20);border-radius:2px;margin:12px auto 6px;}
-.mshead{padding:16px 20px 12px;border-bottom:1px solid rgba(218,165,32,0.08);}
-.msera{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.40);margin-bottom:6px;}
-.mstitle{font-family:'Crimson Text',serif;font-size:22px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:4px;}
-.ms-images{display:flex;gap:4px;padding:10px 20px;overflow-x:auto;scrollbar-width:none;}
+/* Expanded: show full content including description */
+#msheet.expanded {
+  max-height:82vh;
+}
+#msheet.expanded .msbody { display:block; }
+/* Compact: hide body text */
+#msheet:not(.expanded) .msbody { display:none; }
+#msheet::-webkit-scrollbar{display:none;}
+.mshandle{
+  width:36px;height:4px;background:rgba(218,165,32,0.20);border-radius:2px;
+  margin:12px auto 6px;cursor:pointer;
+  transition:background 0.2s;
+}
+.mshandle:hover { background:rgba(218,165,32,0.45); }
+.mshead{padding:12px 20px 10px;border-bottom:1px solid rgba(218,165,32,0.08);}
+.msera{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.40);margin-bottom:5px;}
+.mstitle{font-family:'Crimson Text',serif;font-size:20px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:3px;}
+/* Tags row in mobile sheet */
+.ms-tags { display:flex; flex-wrap:wrap; gap:5px; padding:8px 20px 4px; }
+.ms-tag {
+  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.12em;
+  text-transform:uppercase; padding:3px 8px; border-radius:10px;
+  border:1px solid rgba(218,165,32,0.22); color:rgba(218,165,32,0.45);
+}
+/* Expand hint */
+.ms-expand-hint {
+  text-align:center; padding:4px 0 8px;
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.20em;
+  text-transform:uppercase; color:rgba(218,165,32,0.22);
+  cursor:pointer; transition:color 0.15s;
+}
+.ms-expand-hint:hover { color:rgba(218,165,32,0.55); }
+#msheet.expanded .ms-expand-hint { display:none; }
+.ms-images{display:flex;gap:5px;padding:8px 16px;overflow-x:auto;scrollbar-width:none;}
 .ms-images::-webkit-scrollbar{display:none;}
-.ms-img-frame{width:80px;height:60px;flex-shrink:0;border-radius:3px;overflow:hidden;background:rgba(218,165,32,0.06);border:1px solid rgba(218,165,32,0.10);}
-.ms-img-frame img{width:100%;height:100%;object-fit:cover;opacity:0.80;}
-.msbody{padding:13px 20px 20px;font-family:'Crimson Text',serif;font-size:15px;line-height:1.72;color:rgba(245,236,213,0.60);}
+.ms-img-frame{width:88px;height:64px;flex-shrink:0;border-radius:3px;overflow:hidden;background:rgba(218,165,32,0.06);border:1px solid rgba(218,165,32,0.10);}
+.ms-img-frame img{width:100%;height:100%;object-fit:cover;opacity:0.82;}
+.msbody{padding:10px 20px 18px;font-family:'Crimson Text',serif;font-size:14.5px;line-height:1.70;color:rgba(245,236,213,0.62);}
+
+body.light #msheet{background:rgba(255,255,255,0.99);border-top-color:rgba(0,0,0,0.08);}
+body.light .mstitle{color:#000;}
+body.light .msera{color:rgba(0,0,0,0.42);}
+body.light .msbody{color:rgba(0,0,0,0.75);}
+body.light .ms-tag{border-color:rgba(0,0,0,0.15);color:rgba(0,0,0,0.45);}
+body.light .ms-expand-hint{color:rgba(0,0,0,0.28);}
 
 /* ── MOBILE HUB — 3-row bottom dock ── */
 /* ── GLOBAL BOTTOM CHROME — mobile-only, 3-button nav ───────── */
@@ -795,10 +838,6 @@ body.light #brand-saturn circle.node{fill:rgba(0,0,0,0.65)!important;stroke:none
 
 /* ── ARCHETYPE FILMSTRIP ─────────────────────────────────── */
 /* When filmstrip is open, ghost panel sits above the strip */
-body.arch-strip-open #ghost {
-  bottom: calc(var(--strip-h, 160px) + 12px);
-  max-height: calc(100vh - var(--strip-h, 160px) - 80px);
-}
 body.arch-strip-open #msheet {
   bottom: var(--strip-h, 160px);
 }
@@ -1452,12 +1491,12 @@ body.light .rhud-btn.active { color: #000; }
 
 /* ── MISSION LAUNCHPAD ─────────────────────────────────── */
 
-/* ── SATURN FAB — top-left logo + primary nav anchor ──────── */
+/* ── SATURN FAB — bottom-center desktop, top-left mobile ──────── */
 #flight-fab {
   position:fixed;
-  top:8px; left:14px;
-  bottom:auto;
-  left:14px; transform:none;
+  bottom:28px; left:50%;
+  transform:translateX(-50%);
+  top:auto;
   z-index:850;
   width:52px; height:52px; border-radius:50%;
   background:transparent; border:none;
@@ -1466,8 +1505,39 @@ body.light .rhud-btn.active { color: #000; }
   padding:0; overflow:visible;
   opacity:1 !important;
 }
-#flight-fab:hover { transform:scale(1.12); }
-#flight-fab:active { transform:scale(0.94); }
+#flight-fab:hover { transform:translateX(-50%) scale(1.12); }
+#flight-fab:active { transform:translateX(-50%) scale(0.94); }
+
+@media(max-width:768px){
+  /* Mobile: FAB replaces logo mark — top-left, small */
+  #flight-fab {
+    top:6px; left:8px; bottom:auto;
+    transform:none;
+    width:38px; height:38px;
+  }
+  #flight-fab:hover { transform:scale(1.10); }
+  #flight-fab:active { transform:scale(0.92); }
+}
+
+/* Mobile brand-text next to FAB */
+#mobile-brand-text {
+  display:none;
+  position:fixed;
+  top:14px; left:52px;
+  z-index:850;
+  font-family:'DM Mono',monospace;
+}
+#mobile-brand-name {
+  font-size:9px; letter-spacing:0.22em; text-transform:uppercase;
+  color:rgba(218,165,32,0.65); line-height:1;
+}
+#mobile-brand-sub {
+  font-size:6.5px; letter-spacing:0.14em; text-transform:uppercase;
+  color:rgba(218,165,32,0.28); margin-top:2px;
+}
+@media(max-width:768px){
+  #mobile-brand-text { display:block; }
+}
 
 /* The canvas lives inside the button */
 #saturn-canvas {
@@ -1476,10 +1546,10 @@ body.light .rhud-btn.active { color: #000; }
   border-radius:50%; pointer-events:none;
 }
 
-/* Tooltip that drifts down on hover (FAB is now top-left) */
+/* Tooltip that drifts UP on hover (FAB is now bottom-center) */
 #fab-tooltip {
-  position:absolute; top:calc(100% + 10px); left:50%;
-  transform:translateX(-50%) translateY(-4px);
+  position:absolute; bottom:calc(100% + 10px); left:50%;
+  transform:translateX(-50%) translateY(4px);
   font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.22em;
   text-transform:uppercase; color:rgba(218,165,32,0.75);
   background:rgba(5,3,10,0.95); border:1px solid rgba(218,165,32,0.14);
@@ -1489,10 +1559,10 @@ body.light .rhud-btn.active { color: #000; }
 }
 #flight-fab:hover #fab-tooltip { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* Moon-A beacon label — below FAB */
+/* Moon-A beacon label — above FAB on hover */
 #fab-moon-label {
-  position:absolute; top:calc(100% + 22px); left:50%;
-  transform:translateX(-50%) translateY(-4px);
+  position:absolute; bottom:calc(100% + 22px); left:50%;
+  transform:translateX(-50%) translateY(4px);
   font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.22em;
   text-transform:uppercase; color:rgba(218,165,32,0.0);
   white-space:nowrap; pointer-events:none;
@@ -1503,9 +1573,7 @@ body.light .rhud-btn.active { color: #000; }
   transform:translateX(-50%) translateY(0px);
 }
 
-@media(max-width:768px){
-  #flight-fab { top:6px; left:8px; width:44px; height:44px; }
-}
+
 
 #flight-launchpad {
   position:fixed; inset:0; z-index:860;
@@ -1933,12 +2001,14 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
 </div></div>
 
 <div id="msheet">
-  <div class="mshandle"></div>
+  <div class="mshandle" id="ms-handle" onclick="toggleMsheetExpand()"></div>
   <div class="mshead">
     <div class="msera" id="ms-era"></div>
     <div class="mstitle" id="ms-title"></div>
+    <div class="ms-tags" id="ms-tags"></div>
   </div>
   <div class="ms-images" id="ms-images"></div>
+  <div class="ms-expand-hint" onclick="toggleMsheetExpand()">tap to expand ↑</div>
   <div class="msbody" id="ms-body"></div>
 </div>
 
@@ -6486,20 +6556,17 @@ brandEl.addEventListener('click', () => {
   if (!brandLongPressTimer && brandLongPressTimer !== null) return; // was a long-press, skip click
   clearTimeout(brandLongPressTimer);
   brandLongPressTimer = null;
-  // Close any open panel and zoom out to a side view of the full spiral
+  // Brand logo → reset to black hole / galaxy overview
   closePanel(true);
-  
   isFocused = false; focusedEra = null;
-  swoop.active = false;
+  swoop.active = false; isBlackHoleFocused = false;
   activeNodeNebulaIdx = -1;
   resetHighlights();
-  scenePivotTgt.copy(CAREER_OFFSET);
-  // Side view: theta=0 looks along -Z, slight tilt to see Y spread of spiral
-  // radius=58 fits all 9 nodes comfortably within FOV 52°
-  swoopTo(Math.PI * 0.22, Math.PI * 0.08, 58, new THREE.Vector3(0, 0, 0));
-  camTarget.phi    = Math.PI * 0.22;
-  camTarget.theta  = Math.PI * 0.08;
-  camTarget.radius = 58;
+  scenePivotTgt.set(0, 0, 0);
+  galaxyMode = true;
+  const phi = Math.PI * 0.18, theta = Math.PI * 0.25, radius = 270;
+  swoopTo(phi, theta, radius, new THREE.Vector3(0, 0, 0));
+  camTarget.phi = phi; camTarget.theta = theta; camTarget.radius = radius;
 });
 // theme-toggle-hud wired in HUD_WIRE IIFE below
 
@@ -6625,6 +6692,26 @@ function openPanel(era) {
   document.getElementById('ms-era').textContent = era.era;
   document.getElementById('ms-title').textContent = era.title;
   document.getElementById('ms-body').textContent = era.body;
+  // Populate mobile tags from moons
+  const tagsEl = document.getElementById('ms-tags');
+  if (tagsEl) {
+    tagsEl.innerHTML = '';
+    const moons = era.moons || [];
+    moons.slice(0, 5).forEach(m => {
+      const t = document.createElement('span');
+      t.className = 'ms-tag';
+      t.textContent = m.label;
+      tagsEl.appendChild(t);
+    });
+    if (era.domain) {
+      const d = document.createElement('span');
+      d.className = 'ms-tag';
+      d.textContent = era.domain;
+      tagsEl.appendChild(d);
+    }
+  }
+  // Reset to compact on new node open
+  document.getElementById('msheet').classList.remove('expanded');
   document.getElementById('ms-prev').disabled = idx === 0;
   document.getElementById('ms-next').disabled = idx === _list.length - 1;
   document.getElementById('msheet').classList.add('on');
@@ -6638,12 +6725,21 @@ function openPanel(era) {
 
 window.closePanel = function (forceCloseStrip) {
   document.getElementById('ghost').classList.remove('on');
-  document.getElementById('msheet').classList.remove('on');
+  const ms = document.getElementById('msheet');
+  ms.classList.remove('on');
+  ms.classList.remove('expanded');
   document.body.classList.remove('panel-open');
   hideSentGhost();
   // Only close filmstrip if explicitly requested (not during keyframe navigation)
   if (forceCloseStrip) closeArchStrip();
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
+};
+
+// Mobile sheet expand/collapse toggle
+window.toggleMsheetExpand = function() {
+  const ms = document.getElementById('msheet');
+  if (!ms) return;
+  ms.classList.toggle('expanded');
 };
 
 // ── Ghost panel size: compact vs expanded ────────────────
@@ -8261,12 +8357,18 @@ window.addEventListener('resize', () => {
 
 <!-- ── MISSION LAUNCHPAD ── -->
 
-<!-- SATURN FAB — Micro-Orrery -->
-<button id="flight-fab" onclick="swoopToGalaxyOverview('explorer')" title="Sol X · Explorer">
+<!-- SATURN FAB — Micro-Orrery — bottom-center desktop, top-left mobile (logo-fab) -->
+<button id="flight-fab" onclick="handleFabClick()" title="Sol X · Explorer">
   <canvas id="saturn-canvas" width="144" height="144"></canvas>
   <span id="fab-moon-label">Sol X</span>
   <span id="fab-tooltip">Sol X · Explorer ›</span>
 </button>
+
+<!-- Mobile brand text — sits next to FAB logo on mobile -->
+<div id="mobile-brand-text">
+  <div id="mobile-brand-name">ZACK.CX</div>
+  <div id="mobile-brand-sub">Wolfgang &amp; Co.</div>
+</div>
 
 <!-- Launchpad overlay -->
 <div id="flight-launchpad">
@@ -8519,6 +8621,25 @@ function openLaunchpad() {
 }
 function closeLaunchpad() {
   document.getElementById('flight-launchpad').classList.remove('vis');
+}
+
+// FAB click — desktop: Explorer archetype | mobile: return to archetype galaxy overview
+function handleFabClick() {
+  if (window.innerWidth <= 768) {
+    // Mobile FAB → return to archetype position (Sol X galaxy overview)
+    // This acts as the "home" / archetype navigator
+    const el = document.getElementById('msheet');
+    if (el) el.classList.remove('on');
+    const ghost = document.getElementById('ghost');
+    if (ghost) ghost.classList.remove('on');
+    isFocused = false; focusedEra = null;
+    galaxyMode = true;
+    // Swoop to galaxy overview centered on Sol X (explorer)
+    swoopToGalaxyOverview('explorer');
+  } else {
+    // Desktop FAB → Explorer archetype (original behavior)
+    swoopToGalaxyOverview('explorer');
+  }
 }
 
 // ── JD input wiring ──
@@ -8911,7 +9032,10 @@ document.addEventListener('keydown', e => {
 })();
 
 // ─────────────────────────────────────────────────────────
-// TESSERACT — 3-D grid of all nodes across all galaxies
+// TESSERACT — DNA HELIX · interconnected strand of all nodes
+// Categorized and connected through color.
+// Ghost overlays on hover. View modes:
+//   helix (default) | grid-orbits | spiral | timeline
 // ─────────────────────────────────────────────────────────
 let tesseractOpen = false;
 let tesseractRAF = null;
@@ -8920,6 +9044,54 @@ let tesseractTheta = 0.4, tesseractPhi = Math.PI * 0.32;
 let tesseractDrag = false, tesseractLastX = 0, tesseractLastY = 0;
 let tesseractHovered = null;
 const tesseractNodeObjs = [];
+
+let dnaViewMode = 'helix';
+let dnaMorphT = 1, dnaMorphing = false;
+let dnaMorphFromPos = [], dnaMorphToPos = [];
+
+const DNA_GALAXY_COLORS = {
+  career:   { hex3: 0xdaa520, r:218, g:165, b:32  },
+  sentence: { hex3: 0xffe066, r:255, g:224, b:102 },
+  claude:   { hex3: 0x6699ff, r:102, g:153, b:255 },
+  manifesto:{ hex3: 0xff9944, r:255, g:153, b:68  },
+};
+
+function dnaHelixPos(idx, total) {
+  const HELIX_PITCH = 6.5, HELIX_R = 14;
+  const strand = idx % 2;
+  const t = idx / Math.max(total - 1, 1);
+  const turns = Math.max(total / 6, 4);
+  const y = (t - 0.5) * HELIX_PITCH * turns * 2;
+  const angle = t * Math.PI * 2 * turns + (strand === 1 ? Math.PI : 0);
+  return new THREE.Vector3(Math.cos(angle) * HELIX_R, y, Math.sin(angle) * HELIX_R);
+}
+
+function dnaGridPos(idx, total) {
+  const rings = [1, 8, 16, 24, 32, 48];
+  let ring = 0, pos = idx;
+  for (let r = 0; r < rings.length; r++) {
+    if (pos < rings[r]) { ring = r; break; }
+    pos -= rings[r];
+    if (r === rings.length - 1) ring = r;
+  }
+  const orbitR = ring * 13;
+  const count = rings[Math.min(ring, rings.length - 1)] || 8;
+  const angle = ring === 0 ? 0 : (pos / count) * Math.PI * 2;
+  return new THREE.Vector3(Math.cos(angle) * orbitR, 0, Math.sin(angle) * orbitR);
+}
+
+function dnaSpiralPos(idx, total) {
+  const t = idx / Math.max(total - 1, 1);
+  const angle = t * Math.PI * 10;
+  const radius = 4 + t * 28;
+  return new THREE.Vector3(Math.cos(angle) * radius, (t - 0.5) * 80, Math.sin(angle) * radius);
+}
+
+function dnaTimelinePos(idx, total, galaxy) {
+  const laneX = { career: -27, sentence: -9, claude: 9, manifesto: 27 };
+  const t = idx / Math.max(total - 1, 1);
+  return new THREE.Vector3(laneX[galaxy] || 0, (t - 0.5) * 90, 0);
+}
 
 function buildTesseractScene(galaxyFilter) {
   const cvs = document.getElementById('tesseract-canvas');
@@ -8932,258 +9104,407 @@ function buildTesseractScene(galaxyFilter) {
   tesseractRenderer.setClearColor(0x000000, 0);
 
   tesseractScene = new THREE.Scene();
-  tesseractScene.fog = new THREE.FogExp2(0x000000, 0.0035);
+  tesseractScene.fog = new THREE.FogExp2(0x010208, 0.004);
 
-  tesseractCam = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 800);
+  tesseractCam = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 1200);
+  window._tesseractR = 85;
 
-  tesseractScene.add(new THREE.AmbientLight(0xffffff, 0.15));
-  const pl1 = new THREE.PointLight(0xdaa520, 8, 200); pl1.position.set(-20, 30, 20); tesseractScene.add(pl1);
-  const pl2 = new THREE.PointLight(0x4466ff, 6, 180); pl2.position.set(30, -20, -10); tesseractScene.add(pl2);
-  const pl3 = new THREE.PointLight(0xff8833, 5, 160); pl3.position.set(0, 0, 40); tesseractScene.add(pl3);
+  // Lighting
+  tesseractScene.add(new THREE.AmbientLight(0xffffff, 0.12));
+  const pl1 = new THREE.PointLight(0xdaa520, 6, 220); pl1.position.set(-25, 40, 20); tesseractScene.add(pl1);
+  const pl2 = new THREE.PointLight(0x4466ff, 5, 180); pl2.position.set(30, -20, -15); tesseractScene.add(pl2);
+  const pl3 = new THREE.PointLight(0xff6633, 4, 160); pl3.position.set(0,  0,  45); tesseractScene.add(pl3);
 
+  // Collect all nodes
   const _allNodes = [
-    ...ERAS.map(e          => ({ era: e, galaxy: 'career'   })),
-    ...PLATFORM_ERAS.map(e => ({ era: e, galaxy: 'sentence' })),
-    ...CLAUDE_ERAS.map(e   => ({ era: e, galaxy: 'claude'   })),
-    ...MANIFESTO_ERAS.map(e=> ({ era: e, galaxy: 'manifesto'})),
+    ...ERAS.map(e           => ({ era: e, galaxy: 'career'   })),
+    ...PLATFORM_ERAS.map(e  => ({ era: e, galaxy: 'sentence' })),
+    ...CLAUDE_ERAS.map(e    => ({ era: e, galaxy: 'claude'   })),
+    ...MANIFESTO_ERAS.map(e => ({ era: e, galaxy: 'manifesto'})),
   ];
   const allNodes = galaxyFilter ? _allNodes.filter(n => n.galaxy === galaxyFilter) : _allNodes;
 
-  const GALAXY_COLORS = {
-    career:   0xdaa520,
-    sentence: 0xffe066,
-    claude:   0x6699ff,
-    manifesto:0xff9944,
-  };
-
-  const total = allNodes.length;
-  const cols  = Math.ceil(Math.cbrt(total * 1.4));
-  const deps  = cols;
-  const rows  = Math.ceil(total / (cols * deps));
-  const spacing = 9.5;
-  const offsetX =  -(cols - 1) * spacing * 0.5;
-  const offsetY =  -(rows - 1) * spacing * 0.5;
-  const offsetZ =   (deps - 1) * spacing * 0.85 * 0.5;
+  // Sort: grouped by galaxy for helix coloring
+  const galOrder = { career: 0, sentence: 1, claude: 2, manifesto: 3 };
+  const sorted = [...allNodes].sort((a, b) => (galOrder[a.galaxy]||0) - (galOrder[b.galaxy]||0));
+  const total  = sorted.length;
 
   tesseractNodeObjs.length = 0;
 
-  const sorted = [...allNodes].sort((a, b) => {
-    const order = { career: 0, sentence: 1, claude: 2, manifesto: 3 };
-    return (order[a.galaxy] || 0) - (order[b.galaxy] || 0);
-  });
+  // ── Glow sprite factory ─────────────────────────────────
+  function makeGlowSprite(cr, cg, cb, scale, alpha) {
+    const sz = 128, gc = document.createElement('canvas');
+    gc.width = gc.height = sz;
+    const gctx = gc.getContext('2d');
+    const grad = gctx.createRadialGradient(sz/2,sz/2,0,sz/2,sz/2,sz/2);
+    grad.addColorStop(0,   `rgba(${cr},${cg},${cb},${alpha})`);
+    grad.addColorStop(0.45,`rgba(${cr},${cg},${cb},${alpha*0.25})`);
+    grad.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
+    gctx.fillStyle = grad; gctx.fillRect(0,0,sz,sz);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(gc), transparent: true,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    }));
+    spr.scale.setScalar(scale); spr.material.opacity = 0;
+    return spr;
+  }
 
-  const tesseractMoonData = [];
-  window._tesseractMoonData = tesseractMoonData;
+  // ── Ghost overlay canvas factory (hover card) ───────────
+  function makeGhostOverlay(era, cr, cg, cb) {
+    const W = 280, H = 100;
+    const gc2 = document.createElement('canvas'); gc2.width = W; gc2.height = H;
+    const ctx2 = gc2.getContext('2d');
+    ctx2.fillStyle = `rgba(2,1,10,0.85)`; ctx2.fillRect(0,0,W,H);
+    ctx2.strokeStyle = `rgba(${cr},${cg},${cb},0.55)`;
+    ctx2.lineWidth = 1; ctx2.strokeRect(0.5,0.5,W-1,H-1);
+    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.75)`;
+    ctx2.font = '600 13px "Crimson Text",serif';
+    const title = era.title || '';
+    ctx2.fillText(title.length > 28 ? title.slice(0,28)+'…' : title, 12, 26);
+    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.42)`;
+    ctx2.font = '300 9px "DM Mono",monospace';
+    ctx2.fillText((era.era || '').toUpperCase(), 12, 44);
+    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.30)`;
+    ctx2.font = '300 8px "DM Mono",monospace';
+    const role = (era.role || '');
+    ctx2.fillText(role.length > 38 ? role.slice(0,38)+'…' : role, 12, 60);
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(gc2), transparent: true, depthWrite: false
+    }));
+    spr.scale.set(22, 8, 1); spr.material.opacity = 0;
+    return spr;
+  }
 
+  // ── Build each node ─────────────────────────────────────
+  // Store initial positions for morph source
   sorted.forEach((node, idx) => {
-    const col   = idx % cols;
-    const depth = Math.floor(idx / cols) % deps;
-    const row   = Math.floor(idx / (cols * deps));
+    const col = DNA_GALAXY_COLORS[node.galaxy] || DNA_GALAXY_COLORS.career;
+    const { hex3, r: cr, g: cg, b: cb } = col;
+    const nodeR = 0.55;
 
-    const x = offsetX + col   * spacing;
-    const y = offsetY + row   * spacing;
-    const z = offsetZ - depth * spacing * 0.85;
+    // Base position: helix
+    const pos = dnaHelixPos(idx, total);
 
-    const col3 = GALAXY_COLORS[node.galaxy] || 0xffffff;
-    const r = 0.45;
-
-    const geo = new THREE.SphereGeometry(r, 14, 14);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: col3, emissive: col3, emissiveIntensity: 1.4,
-      metalness: 0.1, roughness: 0.1, clearcoat: 1.0,
-      transparent: true, opacity: 0.0,
+    // Node sphere
+    const geo  = new THREE.SphereGeometry(nodeR, 14, 14);
+    const mat  = new THREE.MeshPhysicalMaterial({
+      color: hex3, emissive: hex3, emissiveIntensity: 1.6,
+      metalness: 0.05, roughness: 0.08, clearcoat: 1.0,
+      transparent: true, opacity: 0
     });
     const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, y, z);
+    mesh.position.copy(pos);
     mesh.userData = { node, idx };
     tesseractScene.add(mesh);
 
-    const glowSz = 128;
-    const gc = document.createElement('canvas'); gc.width = glowSz; gc.height = glowSz;
-    const gctx = gc.getContext('2d');
-    const gr = (col3>>16)&255, gg = (col3>>8)&255, gb = col3&255;
-    const grad = gctx.createRadialGradient(glowSz/2,glowSz/2,0,glowSz/2,glowSz/2,glowSz/2);
-    grad.addColorStop(0, `rgba(${gr},${gg},${gb},0.55)`);
-    grad.addColorStop(0.5,`rgba(${gr},${gg},${gb},0.12)`);
-    grad.addColorStop(1, `rgba(${gr},${gg},${gb},0)`);
-    gctx.fillStyle = grad; gctx.fillRect(0,0,glowSz,glowSz);
-    const glowSpr = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(gc), transparent: true, depthWrite: false,
-      blending: THREE.AdditiveBlending
-    }));
-    glowSpr.scale.setScalar(r * 10);
-    glowSpr.position.set(x, y, z);
-    glowSpr.material.opacity = 0;
-    tesseractScene.add(glowSpr);
+    // Glow halo
+    const glow = makeGlowSprite(cr, cg, cb, nodeR * 14, 0.60);
+    glow.position.copy(pos);
+    tesseractScene.add(glow);
 
-    const hitGeo = new THREE.SphereGeometry(r * 3, 6, 6);
-    const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    hitMesh.position.set(x, y, z);
+    // Outer bloom (larger, dimmer)
+    const bloom = makeGlowSprite(cr, cg, cb, nodeR * 32, 0.22);
+    bloom.position.copy(pos);
+    tesseractScene.add(bloom);
+
+    // Invisible hit sphere
+    const hitGeo  = new THREE.SphereGeometry(nodeR * 3.5, 6, 6);
+    const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false }));
+    hitMesh.position.copy(pos);
     hitMesh.userData = { node, idx };
     tesseractScene.add(hitMesh);
 
-    const moonArr = node.era.moons || [];
-    const moonCount = Math.min(moonArr.length, 5);
+    // Ghost overlay card (hidden until hover)
+    const ghost = makeGhostOverlay(node.era, cr, cg, cb);
+    ghost.position.set(pos.x + 12, pos.y + 4, pos.z);
+    tesseractScene.add(ghost);
+
+    // Luminous orbit ring (shown in grid mode, subtle in helix)
+    const orbitPts = [];
+    for (let k = 0; k <= 64; k++) {
+      const a = (k/64) * Math.PI * 2;
+      orbitPts.push(new THREE.Vector3(Math.cos(a) * nodeR * 3, Math.sin(a) * nodeR * 1.4, 0));
+    }
+    const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPts);
+    const orbitMat = new THREE.LineBasicMaterial({ color: hex3, transparent: true, opacity: 0, depthWrite: false });
+    const orbitRing = new THREE.Line(orbitGeo, orbitMat);
+    orbitRing.position.copy(pos);
+    tesseractScene.add(orbitRing);
+
+    // Moon sub-nodes (orbiting dots per moon in era.moons)
     const moonObjs = [];
+    const moons = (node.era.moons || []).slice(0, 4);
+    moons.forEach((moon, mi) => {
+      const mR = nodeR * 0.26;
+      const mOrbitR = nodeR * 2.6 + mi * nodeR * 0.5;
+      const tiltSeed = idx * 0.618 + mi * 1.1;
+      const tiltX = Math.sin(tiltSeed) * Math.PI * 0.35 + Math.PI * 0.5;
+      const tiltY = Math.cos(tiltSeed * 0.7) * Math.PI * 0.25;
 
-    if (moonCount > 0) {
-      const tiltSeed = idx * 0.618 + { career: 0, sentence: 1.1, claude: 2.2, manifesto: 3.3 }[node.galaxy] || 0;
-      for (let mi = 0; mi < moonCount; mi++) {
-        const orbitR = r * 2.8 + mi * r * 0.6;
-        const ringPts = [];
-        const segments = 48;
-        const tiltX = Math.sin(tiltSeed + mi * 0.9) * Math.PI * 0.35 + Math.PI * 0.5;
-        const tiltY = Math.cos(tiltSeed + mi * 0.7) * Math.PI * 0.25;
-        for (let k = 0; k <= segments; k++) {
-          const a = (k / segments) * Math.PI * 2;
-          ringPts.push(new THREE.Vector3(
-            Math.cos(a) * orbitR,
-            Math.sin(a) * orbitR * 0.55,
-            Math.sin(a) * orbitR * 0.30
-          ));
-        }
-        const ringGeo = new THREE.BufferGeometry().setFromPoints(ringPts);
-        const ringMat = new THREE.LineBasicMaterial({ color: col3, transparent: true, opacity: 0, depthWrite: false });
-        const ringLine = new THREE.Line(ringGeo, ringMat);
-        ringLine.rotation.x = tiltX;
-        ringLine.rotation.y = tiltY;
-        ringLine.position.set(x, y, z);
-        tesseractScene.add(ringLine);
+      const mGeo = new THREE.SphereGeometry(mR, 8, 8);
+      const mMat = new THREE.MeshPhysicalMaterial({
+        color: hex3, emissive: hex3, emissiveIntensity: 1.8,
+        metalness: 0, roughness: 0.1, transparent: true, opacity: 0
+      });
+      const mMesh = new THREE.Mesh(mGeo, mMat);
+      tesseractScene.add(mMesh);
 
-        const moonR = r * 0.28;
-        const moonGeo = new THREE.SphereGeometry(moonR, 8, 8);
-        const moonMat = new THREE.MeshPhysicalMaterial({
-          color: col3, emissive: col3, emissiveIntensity: 1.8,
-          metalness: 0, roughness: 0.1, transparent: true, opacity: 0
-        });
-        const moonMesh = new THREE.Mesh(moonGeo, moonMat);
-        tesseractScene.add(moonMesh);
-
-        moonObjs.push({
-          ringLine, moonMesh,
-          orbitR, tiltX, tiltY,
-          baseAngle: (mi / moonCount) * Math.PI * 2,
-          speed: 0.18 + mi * 0.09 + (idx % 3) * 0.04,
-          cx: x, cy: y, cz: z
-        });
+      // Orbit ring
+      const rPts = [];
+      for (let k = 0; k <= 48; k++) {
+        const a = (k/48) * Math.PI * 2;
+        rPts.push(new THREE.Vector3(Math.cos(a) * mOrbitR, Math.sin(a) * mOrbitR * 0.55, Math.sin(a) * mOrbitR * 0.30));
       }
-    }
+      const rLine = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(rPts),
+        new THREE.LineBasicMaterial({ color: hex3, transparent: true, opacity: 0, depthWrite: false })
+      );
+      rLine.rotation.x = tiltX; rLine.rotation.y = tiltY;
+      rLine.position.copy(pos);
+      tesseractScene.add(rLine);
 
-    tesseractNodeObjs.push({ mesh, hitMesh, glow: glowSpr, node, galaxy: node.galaxy, moonObjs });
-    tesseractMoonData.push(...moonObjs);
-  });
+      moonObjs.push({
+        mesh: mMesh, ring: rLine,
+        orbitR: mOrbitR, tiltX, tiltY,
+        baseAngle: (mi / moons.length) * Math.PI * 2,
+        speed: 0.20 + mi * 0.08 + (idx % 3) * 0.03,
+        cx: pos.x, cy: pos.y, cz: pos.z
+      });
+    });
 
-  const LINE_COLOR = 0x2a2050;
-  const lineMat = () => new THREE.LineBasicMaterial({ color: LINE_COLOR, transparent: true, opacity: 0.18, depthWrite: false });
-
-  sorted.forEach((_, idx) => {
-    const col  = idx % cols;
-    const depth= Math.floor(idx / cols) % deps;
-    const row  = Math.floor(idx / (cols * deps));
-    const x = offsetX + col   * spacing;
-    const y = offsetY + row   * spacing;
-    const z = offsetZ - depth * spacing * 0.85;
-
-    const nextCol  = idx + 1;
-    const nextRow  = idx + cols;
-    const nextDepth= idx + cols * deps;
-
-    [[nextCol, col < cols-1], [nextRow, true], [nextDepth, true]].forEach(([nIdx, cond]) => {
-      if (!cond || nIdx >= sorted.length) return;
-      const nc = nIdx % cols;
-      const nd = Math.floor(nIdx / cols) % deps;
-      const nr = Math.floor(nIdx / (cols * deps));
-      const nx = offsetX + nc * spacing;
-      const ny = offsetY + nr * spacing;
-      const nz = offsetZ - nd * spacing * 0.85;
-      const pts = [new THREE.Vector3(x,y,z), new THREE.Vector3(nx,ny,nz)];
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat());
-      tesseractScene.add(line);
+    tesseractNodeObjs.push({
+      mesh, hitMesh, glow, bloom, ghost, orbitRing, moonObjs,
+      node, galaxy: node.galaxy,
+      basePos: pos.clone(),       // helix position
+      currentPos: pos.clone(),
     });
   });
 
-  const axPts = [new THREE.Vector3(0, offsetY - 5, 0), new THREE.Vector3(0, -offsetY + 5, 0)];
-  const axLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(axPts),
-    new THREE.LineBasicMaterial({ color: 0x4433aa, transparent: true, opacity: 0.12 }));
-  tesseractScene.add(axLine);
-
-  const systemLabel = galaxyFilter
-    ? sorted.length + ' nodes  ·  ' + (galaxyFilter === 'career' ? 'Career' : galaxyFilter === 'sentence' ? 'Sentence Primitive' : galaxyFilter === 'claude' ? 'Claude Code' : 'Manifesto')
-    : sorted.length + ' nodes  ·  4 systems';
-  document.getElementById('tesseract-count').textContent =
-    systemLabel + '  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
-
-  // Grid room
-  (function buildGridRoom() {
-    const GRID_COL   = 0x1a1440;
-    const GRID_ACCENT= 0x2a2060;
-    const GRID_STEPS = 32;
-    const GRID_SIZE  = 280;
-    const GRID_STEP  = GRID_SIZE / GRID_STEPS;
-    const HALF       = GRID_SIZE / 2;
-    const floorY = offsetY - 5;
-
-    for (let i = 0; i <= GRID_STEPS; i++) {
-      const t = -HALF + i * GRID_STEP;
-      const isMain = i % 4 === 0;
-      const col = isMain ? GRID_ACCENT : GRID_COL;
-      const op  = isMain ? 0.22 : 0.09;
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-HALF, floorY, t), new THREE.Vector3(HALF, floorY, t)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(t, floorY, -HALF), new THREE.Vector3(t, floorY, HALF)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-    }
-    const backZ = -HALF;
-    for (let i = 0; i <= GRID_STEPS; i++) {
-      const t = -HALF + i * GRID_STEP;
-      const isMain = i % 4 === 0;
-      const col = isMain ? GRID_ACCENT : GRID_COL;
-      const op  = isMain ? 0.18 : 0.07;
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-HALF, t, backZ), new THREE.Vector3(HALF, t, backZ)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(t, -HALF, backZ), new THREE.Vector3(t, HALF, backZ)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-    }
-    [-HALF, HALF].forEach(wx => {
-      for (let i = 0; i <= GRID_STEPS; i++) {
-        const t = -HALF + i * GRID_STEP;
-        const isMain = i % 4 === 0;
-        const col = isMain ? GRID_ACCENT : GRID_COL;
-        const op  = isMain ? 0.14 : 0.05;
-        tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wx, t, -HALF), new THREE.Vector3(wx, t, HALF * 0.5)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-        tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(wx, -HALF, t), new THREE.Vector3(wx, HALF, t)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-      }
+  // ── DNA backbone strands ────────────────────────────────
+  // Two colored tubes connecting consecutive nodes on each strand
+  function buildBackboneStrand(strandParity, colorHex) {
+    const pts = [];
+    tesseractNodeObjs.forEach((obj, i) => {
+      if (i % 2 === strandParity) pts.push(obj.basePos.clone());
     });
-    const ceilY = HALF * 0.5;
-    for (let i = 0; i <= GRID_STEPS; i++) {
-      const t = -HALF + i * GRID_STEP;
-      const isMain = i % 4 === 0;
-      const col = isMain ? GRID_ACCENT : GRID_COL;
-      const op  = isMain ? 0.10 : 0.04;
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-HALF, ceilY, t), new THREE.Vector3(HALF, ceilY, t)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(t, ceilY, -HALF), new THREE.Vector3(t, ceilY, HALF)]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op, depthWrite: false })));
-    }
-    [[-HALF,-HALF],[-HALF,HALF*0.4],[HALF,-HALF],[HALF,HALF*0.4],[0,-HALF],[0,HALF*0.4],[-HALF*0.5,-HALF],[HALF*0.5,-HALF]].forEach(([cx,cz]) => {
-      tesseractScene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(cx, floorY, cz), new THREE.Vector3(cx, ceilY, cz)]), new THREE.LineBasicMaterial({ color: GRID_ACCENT, transparent: true, opacity: 0.12, depthWrite: false })));
+    if (pts.length < 2) return;
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
+    const linePoints = curve.getPoints(pts.length * 12);
+    const geo = new THREE.BufferGeometry().setFromPoints(linePoints);
+    const mat = new THREE.LineBasicMaterial({
+      color: colorHex, transparent: true, opacity: 0.22, depthWrite: false
     });
-    const sparkGeo = new THREE.BufferGeometry();
-    const sparkPos = [];
-    for (let i = 0; i < 120; i++) { sparkPos.push((Math.random()-0.5)*GRID_SIZE, floorY+0.05, (Math.random()-0.5)*GRID_SIZE); }
-    sparkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sparkPos), 3));
-    tesseractScene.add(new THREE.Points(sparkGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.25, transparent: true, opacity: 0.35, sizeAttenuation: true, depthWrite: false })));
-  })();
+    const line = new THREE.Line(geo, mat);
+    tesseractScene.add(line);
+    return { line, pts, curve };
+  }
 
-  tesseractNodeObjs.forEach(({ mesh, glow, moonObjs }, i) => {
+  // ── Cross-rungs connecting the two strands ──────────────
+  function buildRungs() {
+    const strandA = tesseractNodeObjs.filter((_,i) => i % 2 === 0);
+    const strandB = tesseractNodeObjs.filter((_,i) => i % 2 === 1);
+    const count = Math.min(strandA.length, strandB.length);
+    for (let i = 0; i < count; i++) {
+      const pA = strandA[i].basePos;
+      const pB = strandB[i].basePos;
+      // Color rung by category of galaxy
+      const galaxy = strandA[i].galaxy;
+      const col = (DNA_GALAXY_COLORS[galaxy] || DNA_GALAXY_COLORS.career).hex3;
+      const geo = new THREE.BufferGeometry().setFromPoints([pA.clone(), pB.clone()]);
+      const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.35, depthWrite: false });
+      tesseractScene.add(new THREE.Line(geo, mat));
+    }
+  }
+
+  // Build backbone strands with galaxy color gradient
+  buildBackboneStrand(0, 0xdaa520); // strand A — gold
+  buildBackboneStrand(1, 0x6699ff); // strand B — blue
+  buildRungs();
+
+  // ── Category-colored inter-node connection arcs ─────────
+  // Connect nodes of same galaxy with thin arcs
+  const galaxyGroups = {};
+  tesseractNodeObjs.forEach(obj => {
+    if (!galaxyGroups[obj.galaxy]) galaxyGroups[obj.galaxy] = [];
+    galaxyGroups[obj.galaxy].push(obj);
+  });
+  Object.entries(galaxyGroups).forEach(([gal, objs]) => {
+    const col = (DNA_GALAXY_COLORS[gal] || DNA_GALAXY_COLORS.career).hex3;
+    for (let i = 0; i < objs.length - 1; i++) {
+      const pA = objs[i].basePos, pB = objs[i+1].basePos;
+      const mid = pA.clone().add(pB).multiplyScalar(0.5);
+      mid.x += (Math.random() - 0.5) * 4;
+      mid.z += (Math.random() - 0.5) * 4;
+      const arc = new THREE.QuadraticBezierCurve3(pA.clone(), mid, pB.clone());
+      const pts = arc.getPoints(20);
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.12, depthWrite: false });
+      tesseractScene.add(new THREE.Line(geo, mat));
+    }
+  });
+
+  // ── Ambient star field ──────────────────────────────────
+  const starGeo = new THREE.BufferGeometry();
+  const starPos = new Float32Array(600 * 3);
+  for (let i = 0; i < 600; i++) {
+    starPos[i*3]   = (Math.random() - 0.5) * 280;
+    starPos[i*3+1] = (Math.random() - 0.5) * 240;
+    starPos[i*3+2] = (Math.random() - 0.5) * 280;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+  tesseractScene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+    color: 0xffffff, size: 0.3, transparent: true, opacity: 0.22,
+    sizeAttenuation: true, depthWrite: false
+  })));
+
+  // ── Fade in all node objects ────────────────────────────
+  tesseractNodeObjs.forEach(({ mesh, glow, bloom, orbitRing, moonObjs }, i) => {
     setTimeout(() => {
-      const t2 = { v: 0 };
-      (function fadeStep() {
-        t2.v = Math.min(t2.v + 0.06, 1);
-        if (mesh.material) mesh.material.opacity = t2.v * 0.92;
-        if (glow.material) glow.material.opacity = t2.v * 0.45;
+      let t2 = 0;
+      (function step() {
+        t2 = Math.min(t2 + 0.07, 1);
+        if (mesh.material) mesh.material.opacity = t2 * 0.95;
+        if (glow.material) glow.material.opacity = t2 * 0.55;
+        if (bloom.material) bloom.material.opacity = t2 * 0.18;
+        if (orbitRing.material) orbitRing.material.opacity = dnaViewMode === 'grid' ? t2 * 0.45 : t2 * 0.06;
         moonObjs.forEach(m => {
-          if (m.ringLine && m.ringLine.material) m.ringLine.material.opacity = t2.v * 0.28;
-          if (m.moonMesh && m.moonMesh.material) m.moonMesh.material.opacity = t2.v * 0.80;
+          if (m.mesh && m.mesh.material) m.mesh.material.opacity = t2 * 0.80;
+          if (m.ring && m.ring.material) m.ring.material.opacity = t2 * 0.22;
         });
-        if (t2.v < 1) requestAnimationFrame(fadeStep);
+        if (t2 < 1) requestAnimationFrame(step);
       })();
-    }, i * 18);
+    }, i * 14 + 80);
   });
+
+  // ── View mode switcher UI ───────────────────────────────
+  injectDnaViewModes();
+}
+
+// ── DNA view mode: morph node positions to target layout ──
+function dnaSetViewMode(mode) {
+  if (!tesseractNodeObjs.length) return;
+  dnaViewMode = mode;
+  const total = tesseractNodeObjs.length;
+
+  // Update legend text
+  const countEl = document.getElementById('tesseract-count');
+  const labels = { helix:'DNA Helix', grid:'Luminous Orbits', spiral:'Spiral', timeline:'Timeline' };
+  if (countEl) countEl.textContent = total + ' nodes  ·  ' + (labels[mode]||mode) + '  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
+
+  // Compute target positions
+  const galGroups = {};
+  tesseractNodeObjs.forEach((obj, i) => {
+    if (!galGroups[obj.galaxy]) galGroups[obj.galaxy] = [];
+    galGroups[obj.galaxy].push({ obj, globalIdx: i });
+  });
+
+  dnaMorphFromPos = tesseractNodeObjs.map(obj => obj.currentPos.clone());
+  dnaMorphToPos   = tesseractNodeObjs.map((obj, i) => {
+    switch (mode) {
+      case 'helix':    return dnaHelixPos(i, total);
+      case 'grid':     return dnaGridPos(i, total);
+      case 'spiral':   return dnaSpiralPos(i, total);
+      case 'timeline': {
+        const g = galGroups[obj.galaxy] || [];
+        const localIdx = g.findIndex(x => x.globalIdx === i);
+        return dnaTimelinePos(localIdx < 0 ? i : localIdx, g.length, obj.galaxy);
+      }
+      default:         return dnaHelixPos(i, total);
+    }
+  });
+
+  // Toggle orbit ring visibility
+  tesseractNodeObjs.forEach(obj => {
+    if (obj.orbitRing && obj.orbitRing.material)
+      obj.orbitRing.material.opacity = mode === 'grid' ? 0.50 : 0.06;
+  });
+
+  // Adjust camera distance for mode
+  const targetR = mode === 'grid' ? 120 : mode === 'timeline' ? 100 : 85;
+  window._tesseractR = targetR;
+
+  dnaMorphT = 0; dnaMorphing = true;
+
+  // Update active button
+  document.querySelectorAll('.dna-mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+}
+
+// ── Inject view-mode switcher bar into tesseract overlay ──
+function injectDnaViewModes() {
+  const existing = document.getElementById('dna-mode-bar');
+  if (existing) existing.remove();
+
+  const bar = document.createElement('div');
+  bar.id = 'dna-mode-bar';
+  bar.style.cssText = `
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; gap:0; z-index:3; pointer-events:all;
+    background:rgba(5,3,10,0.90); border:1px solid rgba(218,165,32,0.18);
+    border-radius:4px; overflow:hidden; backdrop-filter:blur(16px);
+  `;
+
+  const modes = [
+    { mode:'helix',    label:'DNA HELIX' },
+    { mode:'grid',     label:'ORBITS' },
+    { mode:'spiral',   label:'SPIRAL' },
+    { mode:'timeline', label:'TIMELINE' },
+  ];
+
+  modes.forEach(({ mode, label }) => {
+    const btn = document.createElement('button');
+    btn.className = 'dna-mode-btn';
+    btn.dataset.mode = mode;
+    btn.textContent = label;
+    btn.style.cssText = `
+      background:none; border:none; border-right:1px solid rgba(218,165,32,0.12);
+      color:rgba(218,165,32,0.40); font-family:'DM Mono',monospace;
+      font-size:7px; letter-spacing:0.18em; text-transform:uppercase;
+      padding:9px 16px; cursor:pointer; transition:color 0.15s, background 0.15s;
+    `;
+    if (mode === 'helix') {
+      btn.style.color = '#daa520';
+      btn.style.background = 'rgba(218,165,32,0.10)';
+      btn.classList.add('active');
+    }
+    btn.addEventListener('click', () => dnaSetViewMode(mode));
+    btn.addEventListener('mouseover', () => {
+      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.88)';
+    });
+    btn.addEventListener('mouseout', () => {
+      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.40)';
+    });
+    bar.appendChild(btn);
+  });
+
+  // Legend dots
+  const legend = document.createElement('div');
+  legend.style.cssText = `
+    position:absolute; bottom:70px; left:28px; display:flex; flex-direction:column; gap:6px; pointer-events:none;
+  `;
+  const galaxyLabels = [
+    { id:'career',   label:'Career',           color:'#daa520' },
+    { id:'sentence', label:'Sentence Primitive',color:'#ffe066' },
+    { id:'claude',   label:'Claude Code',       color:'#6699ff' },
+    { id:'manifesto',label:'Manifesto',         color:'#ff9944' },
+  ];
+  galaxyLabels.forEach(({ label, color }) => {
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex; align-items:center; gap:8px; font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.14em; text-transform:uppercase; color:rgba(245,236,213,0.38);`;
+    row.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 6px ${color}88;"></span>${label}`;
+    legend.appendChild(row);
+  });
+
+  const overlay = document.getElementById('tesseract-overlay');
+  if (overlay) {
+    overlay.appendChild(bar);
+    overlay.appendChild(legend);
+  }
+
+  // Update count label
+  const countEl = document.getElementById('tesseract-count');
+  if (countEl) countEl.textContent = tesseractNodeObjs.length + ' nodes  ·  DNA Helix  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
 }
 
 function applyTesseractCam() {
@@ -9203,21 +9524,42 @@ let tesseractElapsed = 0;
 let tesseractLastTS = 0;
 
 function tickTesseractMoons(elapsed) {
-  const moons = window._tesseractMoonData;
-  if (!moons) return;
-  moons.forEach(m => {
-    const angle = m.baseAngle + elapsed * m.speed;
-    const lx = Math.cos(angle) * m.orbitR;
-    const ly = Math.sin(angle) * m.orbitR * 0.55;
-    const lz = Math.sin(angle) * m.orbitR * 0.30;
-    const cosX = Math.cos(m.tiltX), sinX = Math.sin(m.tiltX);
-    const cosY = Math.cos(m.tiltY), sinY = Math.sin(m.tiltY);
-    const rx_y = ly * cosX - lz * sinX;
-    const rx_z = ly * sinX + lz * cosX;
-    const ry_x = lx * cosY + rx_z * sinY;
-    const ry_z = -lx * sinY + rx_z * cosY;
-    if (m.moonMesh) m.moonMesh.position.set(m.cx + ry_x, m.cy + rx_y, m.cz + ry_z);
+  tesseractNodeObjs.forEach(obj => {
+    obj.moonObjs.forEach(m => {
+      const angle = m.baseAngle + elapsed * m.speed;
+      const lx = Math.cos(angle) * m.orbitR;
+      const ly = Math.sin(angle) * m.orbitR * 0.55;
+      const lz = Math.sin(angle) * m.orbitR * 0.30;
+      const cosX = Math.cos(m.tiltX), sinX = Math.sin(m.tiltX);
+      const cosY = Math.cos(m.tiltY), sinY = Math.sin(m.tiltY);
+      const rx_y = ly * cosX - lz * sinX;
+      const rx_z = ly * sinX + lz * cosX;
+      const ry_x = lx * cosY + rx_z * sinY;
+      // Update moon position relative to parent's currentPos
+      const cx = obj.currentPos.x, cy = obj.currentPos.y, cz = obj.currentPos.z;
+      if (m.mesh) m.mesh.position.set(cx + ry_x, cy + rx_y, cz + (-lx * sinY + rx_z * cosY));
+      if (m.ring) m.ring.position.copy(obj.currentPos);
+    });
   });
+}
+
+// Morph tick: lerp all node positions toward target
+function tickDnaMorph() {
+  if (!dnaMorphing) return;
+  dnaMorphT = Math.min(dnaMorphT + 0.045, 1);
+  const ease = dnaMorphT < 0.5 ? 2*dnaMorphT*dnaMorphT : 1-Math.pow(-2*dnaMorphT+2,2)/2;
+  tesseractNodeObjs.forEach((obj, i) => {
+    const from = dnaMorphFromPos[i], to = dnaMorphToPos[i];
+    if (!from || !to) return;
+    obj.currentPos.lerpVectors(from, to, ease);
+    obj.mesh.position.copy(obj.currentPos);
+    obj.hitMesh.position.copy(obj.currentPos);
+    obj.glow.position.copy(obj.currentPos);
+    obj.bloom.position.copy(obj.currentPos);
+    obj.orbitRing.position.copy(obj.currentPos);
+    obj.ghost.position.set(obj.currentPos.x + 12, obj.currentPos.y + 4, obj.currentPos.z);
+  });
+  if (dnaMorphT >= 1) dnaMorphing = false;
 }
 
 function animateTesseract(ts) {
@@ -9227,11 +9569,29 @@ function animateTesseract(ts) {
   const dt = Math.min((ts - tesseractLastTS) / 1000, 0.05);
   tesseractLastTS = ts;
   tesseractElapsed += dt;
+
   if (!tesseractDrag) {
-    tesseractAutoTheta += 0.0006;
+    tesseractAutoTheta += 0.0005;
     tesseractTheta += (tesseractAutoTheta - tesseractTheta) * 0.01;
   }
+
+  tickDnaMorph();
   tickTesseractMoons(tesseractElapsed);
+
+  // Pulse glow on all nodes; expand hovered node ghost
+  tesseractNodeObjs.forEach((obj, i) => {
+    const pulse = 1 + Math.sin(tesseractElapsed * 1.4 + i * 0.42) * 0.12;
+    if (obj.glow.material) obj.glow.material.opacity = 0.45 * pulse;
+    // Ghost overlay: fade in on hover, out otherwise
+    const isHov = (tesseractHovered === obj);
+    const ghostTarget = isHov ? 0.92 : 0;
+    if (obj.ghost.material)
+      obj.ghost.material.opacity += (ghostTarget - obj.ghost.material.opacity) * 0.14;
+    // Expand mesh scale on hover
+    const scaleTgt = isHov ? 1.6 : 1.0;
+    obj.mesh.scale.setScalar(obj.mesh.scale.x + (scaleTgt - obj.mesh.scale.x) * 0.14);
+  });
+
   applyTesseractCam();
   if (tesseractRenderer && tesseractScene && tesseractCam)
     tesseractRenderer.render(tesseractScene, tesseractCam);
@@ -9240,24 +9600,30 @@ function animateTesseract(ts) {
 function disposeTesseractScene() {
   if (!tesseractScene) return;
   tesseractScene.traverse(obj => {
-    if (obj.geometry) { obj.geometry.dispose(); }
+    if (obj.geometry) obj.geometry.dispose();
     if (obj.material) {
       const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
       mats.forEach(m => {
-        if (m.map) { m.map.dispose(); }
-        if (m.emissiveMap) { m.emissiveMap.dispose(); }
+        if (m.map) m.map.dispose();
+        if (m.emissiveMap) m.emissiveMap.dispose();
         m.dispose();
       });
     }
   });
   tesseractScene = null;
   tesseractNodeObjs.length = 0;
-  if (window._tesseractMoonData) window._tesseractMoonData.length = 0;
+  dnaMorphFromPos = []; dnaMorphToPos = [];
+  const bar = document.getElementById('dna-mode-bar');
+  if (bar) bar.remove();
+  // Remove injected legend
+  const overlay = document.getElementById('tesseract-overlay');
+  if (overlay) overlay.querySelectorAll('div[style*="flex-direction:column;gap:6px"]').forEach(el => el.remove());
 }
 
 window.openTesseract = function(galaxyFilter) {
   if (tesseractOpen) return;
   tesseractOpen = true;
+  dnaViewMode = 'helix';
   const overlay = document.getElementById('tesseract-overlay');
   overlay.style.display = 'block';
   requestAnimationFrame(() => overlay.classList.add('on'));
@@ -9753,15 +10119,22 @@ function mobileFit() {
 
   // Inject CSS to consume the custom property alongside :hover scale
   var style = document.createElement('style');
+  var isMob = window.innerWidth <= 768;
+  var baseT = isMob ? '' : 'translateX(-50%)';
   style.textContent = [
     '#flight-fab {',
-    '  transform: scale(var(--prox-scale, 1.0));',
+    '  transform: ' + baseT + ' scale(var(--prox-scale, 1.0));',
     '}',
     '#flight-fab:hover {',
-    '  transform: scale(calc(var(--prox-scale, 1.0) * 1.10));',
+    '  transform: ' + baseT + ' scale(calc(var(--prox-scale, 1.0) * 1.10));',
     '}',
     '#flight-fab:active {',
-    '  transform: scale(calc(var(--prox-scale, 1.0) * 0.95));',
+    '  transform: ' + baseT + ' scale(calc(var(--prox-scale, 1.0) * 0.95));',
+    '}',
+    '@media(max-width:768px){',
+    '  #flight-fab { transform: scale(var(--prox-scale, 1.0)); }',
+    '  #flight-fab:hover { transform: scale(calc(var(--prox-scale, 1.0) * 1.10)); }',
+    '  #flight-fab:active { transform: scale(calc(var(--prox-scale, 1.0) * 0.95)); }',
     '}',
   ].join('\n');
   document.head.appendChild(style);
