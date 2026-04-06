@@ -685,6 +685,17 @@ body.light .nc-btn.nc-active{color:#000;}
 /* Legacy stubs */
 #mobile-nav-bar{display:none !important;}
 .mhub-row,.mhub-btn,.mhub-wide,.msclose,.msft,.ms-nav,.ms-navbtn{display:none;}
+
+/* Bottom chrome hidden — nav moved to right-rail */
+#nav-chrome { display: none !important; }
+
+/* FAB: lift above filmstrip when strip is open */
+#flight-fab {
+  transition: bottom 0.38s cubic-bezier(0.22,1,0.36,1), transform 0.28s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease;
+}
+body.arch-strip-open #flight-fab {
+  bottom: calc(var(--strip-h, 160px) + 20px) !important;
+}
 body.light #msheet{background:rgba(255,255,255,0.99);border-top-color:rgba(0,0,0,0.08);}
 body.light #msheet:hover{background:#fff;border-top-color:rgba(0,0,0,0.18);}
 body.light #msheet:hover .mstitle{color:#000;}
@@ -1489,7 +1500,146 @@ body.light .rhud-btn { color: rgba(0,0,0,0.45); }
 body.light .rhud-btn:hover { color: #000; }
 body.light .rhud-btn.active { color: #000; }
 
-/* ── MISSION LAUNCHPAD ─────────────────────────────────── */
+/* ── MUSIC PLAYER — Wolfgang's Walklist ──────────────────
+   Moveable widget, bottom-right default, clears filmstrip.
+   Verbatim from wolfie.love, adapted to filmstrip palette.
+────────────────────────────────────────────────────────── */
+#musicIframeContainer {
+  position: fixed; left: -9999px; top: -9999px;
+  width: 1px; height: 1px; overflow: hidden; pointer-events: none;
+}
+.music-player {
+  position: fixed;
+  bottom: 28px; right: 28px; left: auto;
+  z-index: 845;
+  width: 272px;
+  background: rgba(5,3,10,0.92);
+  border: 1px solid rgba(218,165,32,0.18);
+  border-radius: 6px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.65);
+  transition: background 0.3s, border-color 0.3s, bottom 0.38s cubic-bezier(0.22,1,0.36,1);
+  user-select: none;
+  pointer-events: auto;
+  touch-action: none;
+  will-change: transform;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column-reverse;
+}
+.music-player.dragged { transform: none; right: auto; bottom: auto; }
+body.arch-strip-open .music-player:not(.dragged) {
+  bottom: calc(var(--strip-h, 160px) + 20px);
+}
+.music-player-drag {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 8px 3px 6px;
+  cursor: grab; user-select: none; min-height: 40px;
+  border-top: 1px solid transparent;
+  transition: border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.music-player-drag:active { cursor: grabbing; }
+.music-player.expanded .music-player-drag { border-top-color: rgba(218,165,32,0.12); }
+.music-drag-dots {
+  font-family: sans-serif; color: rgba(218,165,32,0.28);
+  font-size: 12px; letter-spacing: -3px; opacity: 1; line-height: 1;
+  flex-shrink: 0; padding-right: 6px;
+  border-right: 1px solid rgba(218,165,32,0.12);
+  align-self: stretch; display: flex; align-items: center; margin-right: 2px;
+}
+.music-transport { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.music-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(218,165,32,0.06);
+  border: 1px solid rgba(218,165,32,0.18);
+  color: rgba(218,165,32,0.45);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; flex-shrink: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.music-btn:hover { background: rgba(218,165,32,0.12); border-color: #daa520; color: #daa520; }
+.music-btn:active { transform: scale(0.86); }
+.music-btn svg { width: 12px; height: 12px; fill: currentColor; pointer-events: none; }
+.music-btn.play-btn {
+  width: 32px; height: 32px;
+  background: #daa520; border-color: #daa520; color: #05030a;
+}
+.music-btn.play-btn:hover { filter: brightness(1.15); }
+.music-now-playing { flex: 1; min-width: 0; padding: 0 4px; }
+.music-now-name {
+  font-family: 'DM Mono', monospace; font-size: 8.5px; font-weight: 700;
+  color: rgba(245,236,213,0.85); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
+}
+.music-now-status {
+  font-family: 'DM Mono', monospace; font-size: 6.5px;
+  color: rgba(218,165,32,0.35); letter-spacing: 0.08em;
+  text-transform: uppercase; line-height: 1.3;
+}
+@keyframes musicPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.music-now-status.playing { color: #daa520; animation: musicPulse 2.2s ease-in-out infinite; }
+.music-header-playpause { display: none; }
+.music-player-collapse {
+  background: none; border: none; color: rgba(218,165,32,0.35); font-size: 13px;
+  cursor: pointer; padding: 4px 2px; line-height: 1;
+  transition: color 0.15s; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; min-width: 22px; text-align: center;
+}
+.music-player-collapse:hover { color: #daa520; }
+.music-player-body { padding: 6px 8px 8px; display: none; }
+.music-player.expanded .music-player-body { display: block; }
+.music-track-list { display: flex; flex-direction: column; gap: 1px; }
+.music-track {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 6px; border-radius: 3px; cursor: pointer;
+  transition: background 0.12s; border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.music-track:hover { background: rgba(218,165,32,0.06); }
+.music-track.active { background: rgba(218,165,32,0.10); border-color: rgba(218,165,32,0.22); }
+.music-track-num {
+  font-family: 'DM Mono', monospace; font-size: 8px; color: rgba(218,165,32,0.30);
+  width: 14px; text-align: center; flex-shrink: 0;
+}
+.music-track.active .music-track-num { color: #daa520; }
+.music-track-info { flex: 1; min-width: 0; }
+.music-track-name {
+  font-family: 'DM Mono', monospace; font-size: 8.5px;
+  color: rgba(245,236,213,0.60); letter-spacing: 0.04em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35;
+}
+.music-track.active .music-track-name { color: #daa520; }
+.music-track-sub {
+  font-family: 'DM Mono', monospace; font-size: 6.5px;
+  color: rgba(218,165,32,0.25); letter-spacing: 0.03em; line-height: 1.3;
+}
+body.light .music-player { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); }
+body.light .music-drag-dots { color: rgba(0,0,0,0.28); border-right-color: rgba(0,0,0,0.10); }
+body.light .music-btn { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.45); }
+body.light .music-btn:hover { background: rgba(0,0,0,0.08); border-color: #000; color: #000; }
+body.light .music-btn.play-btn { background: #000; border-color: #000; color: #fff; }
+body.light .music-now-name { color: rgba(0,0,0,0.85); }
+body.light .music-now-status { color: rgba(0,0,0,0.40); }
+body.light .music-now-status.playing { color: #000; }
+body.light .music-player-collapse { color: rgba(0,0,0,0.35); }
+body.light .music-player-collapse:hover { color: #000; }
+body.light .music-track { background: transparent; }
+body.light .music-track:hover { background: rgba(0,0,0,0.05); }
+body.light .music-track.active { background: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.15); }
+body.light .music-track-num { color: rgba(0,0,0,0.30); }
+body.light .music-track.active .music-track-num { color: #000; }
+body.light .music-track-name { color: rgba(0,0,0,0.60); }
+body.light .music-track.active .music-track-name { color: #000; }
+body.light .music-track-sub { color: rgba(0,0,0,0.30); }
+@media (max-width: 768px) {
+  .music-player:not(.dragged) {
+    bottom: 28px; right: 12px; left: auto; transform: none;
+    width: calc(100vw - 80px); max-width: 280px;
+  }
+}
+/* ─────────────────────────────────────────────────────── */
 
 /* ── SATURN FAB — bottom-center desktop, top-left mobile ──────── */
 #flight-fab {
@@ -1944,10 +2094,10 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
 
 <!-- Right contextual HUD: zoom + layout toggle -->
 <div id="right-hud">
-  <button class="rhud-btn" id="rhud-zoom-in"  title="Zoom in">+</button>
-  <button class="rhud-btn" id="rhud-zoom-out" title="Zoom out">−</button>
+  <button class="rhud-btn" id="rhud-nav-prev" title="Previous node">←</button>
+  <button class="rhud-btn" id="rhud-nav-next" title="Next node">→</button>
   <div class="rhud-sep"></div>
-  <button class="rhud-btn" id="rhud-layout-toggle" title="Toggle spiral / timeline">↺</button>
+  <button class="rhud-btn" id="rhud-grid" title="Grid view">⊞</button>
 </div>
 
 <!-- hidden stubs so JS refs don't break -->
@@ -3049,354 +3199,274 @@ MANIFESTO_ERAS.forEach((era, i) => {
 // Ring 3: Claude Code (planet-tiers, outer)
 // ─────────────────────────────────────────────────────────
 
-// ── CLAUDE CODE ERAS ──────────────────────────────────────
+// ── WOLFGANG ERAS (SOL 3) ─────────────────────────────────
+// Content sourced from wolfie.love / love.html — narrative only, no form/function.
+// Eight chapters, full sentences, all associated imagery & mp4.
 const CLAUDE_ERAS = [
   {
-    id:'cc-queryengine', year:'◎',
-    title:'The Query Engine',
-    role:'Where Prompts Become Plans',
-    era:'Statement', domain:'statement',
-    solarSystem:'pipeline', tier:'inner', angle:0.000, url:null,
-    body:'Every prompt enters through the Query Engine. It classifies intent, assembles context, and applies an assertiveness counterweight before any action is taken. This is the core pipeline that transforms natural language into executable operations.',
-    sentences:['Every prompt enters through the Query Engine.',
-      'It classifies intent, assembles context, and applies an assertiveness counterweight.',
-      'This is the core pipeline that transforms natural language into executable operations.'],
-    moons:[{label:'Intent Classification',desc:''},
-      {label:'File ops',desc:''},
-      {label:'Code change',desc:''},
-      {label:'Query',desc:''}],
+    id:'cc-sweetest', year:'★',
+    title:'The Sweetest.',
+    role:'NYC · circa 2023 · Sweet Wolfgang',
+    era:'The Beginning', domain:'origin',
+    solarSystem:'wolfie', tier:'inner', angle:0.000, url:'https://wolfie.love',
+    body:'Meet Wolfgang. Full name, "Sweet Wolfgang." Wolfie for short. "Wolf" by calling. Woofie-boo, too. A name neither chosen, nor given — but a name worth becoming. These are the Chronicles of Wolfgang, written with love.',
+    sentences:[
+      'Meet Wolfgang.',
+      'Full name, "Sweet Wolfgang."',
+      'Wolfie for short.',
+      '"Wolf" by calling.',
+      'Woofie-boo, too.',
+      'A name neither chosen, nor given — but a name worth becoming.',
+      'These are the Chronicles of Wolfgang.',
+    ],
+    moons:[
+      { label: 'Sweet Wolfgang', desc: 'The name that chose him.' },
+      { label: 'Wolfie', desc: 'Standing stoutly at yay-high.' },
+      { label: 'Woofie-boo', desc: 'Humans always are.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/83SsR99/thislittledudeexudedsomuchconfidence.webp', caption: 'Wolfie for short' },
+      { src: 'https://i.ibb.co/d4SkHwfB/icecream45678.webp', caption: '"Sweet Wolfgang"' },
+      { src: 'https://i.ibb.co/zWbFdGF8/sowolfgangdiscoveredpupcupsatprettymucheverysheetz.webp', caption: 'pup cups' },
+      { src: 'https://i.ibb.co/mrsF2PP2/whereiswolfgang.webp', caption: 'Woofie-boo' },
+      { src: 'https://github.com/ZACKGORT/ifimaybefrank/raw/refs/heads/main/mp4/Ohmmmm.mp4', caption: 'Meet Wolfgang' },
+    ],
     color:0xffe066, hex:'#ffe066'
   },
   {
-    id:'cc-intent-filter', year:'◉',
-    title:'Intent Classification',
-    role:'First Classification Stage',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.143, url:null,
-    body:'The YOLO Classifier rapidly determines what kind of request this is: a file operation, a code change, a question, or something else. It routes the prompt to appropriate handlers before any heavy processing begins.',
-    sentences:[''],
-    moons:[],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-chronicles', year:'◎',
+    title:'The Chronicles of Wolfgang.',
+    role:'Origin Story · Legend · Good Boy',
+    era:'The Story', domain:'chronicles',
+    solarSystem:'wolfie', tier:'inner', angle:0.500, url:null,
+    body:'Every hero has a good origin story. A tale told with a wagging one. One that talks of bravery. A telling of fortitude and resilience. A story inviting hope. One welcoming wanderlust. With the wholesomeness of untold woes. Living for the moments inbetween. No, this was no ordinary pet poodle — the likes of legends, really.',
+    sentences:[
+      'Every hero has a good origin story.',
+      'A tale told with a wagging one.',
+      'One that talks of bravery.',
+      'A telling of fortitude and resilience.',
+      'A story inviting hope.',
+      'One welcoming wanderlust.',
+      'With the wholesomeness of untold woes.',
+      'Living — for the moments inbetween.',
+      'No, this was no ordinary pet poodle — the likes of legends, really.',
+    ],
+    moons:[
+      { label: 'Bravery', desc: 'Super scaries surgery survivor.' },
+      { label: 'Resilience', desc: '500 miles from anywhere you know.' },
+      { label: 'Wanderlust', desc: 'Walks away from home, mostly dad finding work.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/YBqRmT0f/batman.webp', caption: 'hero' },
+      { src: 'https://i.ibb.co/3yYzQLjP/braveboy.webp', caption: 'bravery' },
+      { src: 'https://i.ibb.co/rKbH2FFx/sweetestwolfgang.webp', caption: 'pure joy' },
+      { src: 'https://i.ibb.co/twP8m5wP/buildingburgerking.webp', caption: 'fortitude' },
+      { src: 'https://github.com/ZACKGORT/ifimaybefrank/raw/refs/heads/main/mp4/Worldviewwalkieswithwolfgang.mp4', caption: 'Wanderlust' },
+    ],
+    color:0xf0b830, hex:'#f0b830'
   },
   {
-    id:'cc-context-assembly', year:'◉',
-    title:'Context Assembly',
-    role:'Building the Prompt Window',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.286, url:null,
-    body:'Gathers relevant files, conversation history, and system state into the prompt window. Uses a sophisticated file walker to identify what context matters for this specific request.',
-    sentences:[''],
-    moons:[],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-lostfound', year:'♡',
+    title:'Lost & Found.',
+    role:'Queens, NY · Found Family · TLC',
+    era:'The Meeting', domain:'found',
+    solarSystem:'wolfie', tier:'mid', angle:0.250, url:null,
+    body:'When you\'re lost and alone in Queens, with nowhere to go. And you happen across the path of a similar soul. Neglected, abandoned, left without care. You were hungry. You wanted to trust. For someone to understand you. For someone to ask. For someone to act. For someone to give a stitch. And of course, for someone\'s hand.',
+    sentences:[
+      'When you\'re lost and alone in Queens, with nowhere to go.',
+      'And you happen across the path of a similar soul.',
+      'Neglected, abandoned, left without care.',
+      'You were hungry.',
+      'You wanted to trust.',
+      'For someone to understand you.',
+      'For someone to ask.',
+      'For someone to act.',
+      'For someone to give a stitch.',
+      'And of course, for someone\'s hand.',
+    ],
+    moons:[
+      { label: 'Queens', desc: 'Cornered, but in a good corner to find.' },
+      { label: 'Three thousand stitches', desc: 'For someone to give a stitch — like, three-thousand stitches.' },
+      { label: 'Chicken allergy', desc: 'For someone to wonder. For someone to try.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/rfKXyv3q/theveryfirstofclassicwolfgang.jpg', caption: 'brave leg' },
+      { src: 'https://i.ibb.co/5gPCWkDf/nownamedgivenanappropriatemohawk.webp', caption: 'This feels nice' },
+      { src: 'https://i.ibb.co/Q7qvD3p8/atthismomentidecidedhewasmine.webp', caption: 'decided' },
+      { src: 'https://i.ibb.co/G4qDyqZH/surviorandthriverfullcolor.webp', caption: 'survivor & thriver' },
+    ],
+    color:0xe8c888, hex:'#e8c888'
   },
   {
-    id:'cc-assertiveness', year:'◉',
-    title:'Assertiveness Counterweight',
-    role:'Safety Through Resistance',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.429, url:null,
-    body:'A deliberate friction mechanism that reduces model confidence when appropriate. When Claude asks clarifying questions instead of guessing, this component is working as designed.',
-    sentences:[''],
-    moons:[],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-welcomehome', year:'⌂',
+    title:'Welcome Home, Wolfgang.',
+    role:'New York City · No Leash · New Life',
+    era:'The Homecoming', domain:'home',
+    solarSystem:'chronicles', tier:'mid', angle:0.750, url:null,
+    body:'That feeling of belonging. When you know without notice. When you\'re out of place, but you\'ve found home. Now, you got your mojo back. You have complete agency. You walk like a true New Yorker. New lease — no leash. New life. The best walks were with dad — homeward bound, together. Dad just made dinner. Dinner was good. Goodnight.',
+    sentences:[
+      'That feeling of belonging.',
+      'When you know without notice.',
+      'When you\'re out of place, but you\'ve found home.',
+      'Now, you got your mojo back.',
+      'You have complete agency.',
+      'You walk like a true New Yorker.',
+      'New lease — no leash. New life.',
+      'The best walks were with dad — homeward bound, together.',
+      'Dad just made dinner. Dinner was good. Goodnight.',
+    ],
+    moons:[
+      { label: 'No leash from day one', desc: 'New lease. New life.' },
+      { label: 'Wolfgang leads', desc: 'Wolfgang leads; I happily followed.' },
+      { label: 'Calories are real', desc: 'Delapidated doggie. Dad just made dinner.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/Swk4v5Tv/wolfgang000.webp', caption: 'road warrior' },
+      { src: 'https://i.ibb.co/SDBHyLHB/park123.jpg', caption: 'home' },
+      { src: 'https://i.ibb.co/6J8QRGXg/sothisiswolfgang.webp', caption: 'this is Wolfgang' },
+      { src: 'https://i.ibb.co/B5NW72rq/noleashfromdayone.webp', caption: 'no leash from day one' },
+      { src: 'https://i.ibb.co/NdZQSPdr/okayletsgo.webp', caption: "let's go" },
+    ],
+    color:0xd4c870, hex:'#d4c870'
   },
   {
-    id:'cc-yolo-classifier', year:'◉',
-    title:'YOLO Classifier',
-    role:'ML-Based Permission Decisions',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.571, url:null,
-    body:'Named after the computer vision architecture, the YOLO Classifier makes permission and routing decisions in a single forward pass. Speed and flexibility versus explainability.',
-    sentences:[''],
-    moons:[],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-sideofroad', year:'⊙',
+    title:'Found on Side of Road.',
+    role:'Bag-buddy · No Baggage · Works Optimally When Near',
+    era:'The Companion', domain:'companion',
+    solarSystem:'chronicles', tier:'outer', angle:0.125, url:null,
+    body:'Not a broken lapdog — just needs some TLC. New bag-buddy — never ever baggage. Works over WOOFI. Has headphone jack. Carries well. Travels well. Doesn\'t take much space. Works optimally when near. Nearer. Nearest, thank you.',
+    sentences:[
+      'Not a broken lapdog [sic] — just needs some TLC.',
+      'New bag-buddy — never ever baggage.',
+      'Works over WOOFI.',
+      'Has headphone jack.',
+      'Carries well.',
+      'Travels well.',
+      'Doesn\'t take much space.',
+      'Works optimally when near.',
+      'Nearer.',
+      'Nearest, thank you.',
+    ],
+    moons:[
+      { label: 'Works over WOOFI', desc: 'No mute function.' },
+      { label: 'Carries well', desc: 'Travels well. Obviously.' },
+      { label: 'Nearest', desc: 'Works optimally when near. Nearer. Nearest, thank you.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/wF05mLW2/joyful.webp', caption: 'roadworthy' },
+      { src: 'https://i.ibb.co/Jj1Pc7bs/theabsolutecutestthingihaveeverseen.webp', caption: 'icecream' },
+      { src: 'https://i.ibb.co/qfBwLrD/comfort1.webp', caption: 'comfort' },
+      { src: 'https://i.ibb.co/kV6CzpWS/comfort2.webp', caption: 'comfort ii' },
+      { src: 'https://raw.githubusercontent.com/ZACKGORT/ifimaybefrank/main/mp4/sleepspiral.mp4', caption: 'sleep spiral' },
+    ],
+    color:0xc8b890, hex:'#c8b890'
   },
   {
-    id:'cc-tool-router', year:'◉',
-    title:'Tool Router',
-    role:'Dispatching to Capabilities',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.714, url:null,
-    body:'Maps classified intents to available tools: file operations, shell commands, web requests, and more. Handles tool selection, argument validation, and result formatting.',
-    sentences:[''],
-    moons:[{label:'File Operations',desc:''},
-      {label:'Read',desc:''},
-      {label:'Write',desc:''},
-      {label:'Edit',desc:''},
-      {label:'Delete',desc:''}],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-kingqueens', year:'♛',
+    title:'The King From Queens.',
+    role:'Is This The Real Life · Open Your Eyes · See',
+    era:'The Awakening', domain:'awakening',
+    solarSystem:'farewell', tier:'outer', angle:0.625, url:null,
+    body:'Is this the real life? Is this just fantasy? Caught in a landslide. Let\'s escape from reality. Open Your Eyes. Look to the sky and See. It\'s your world, Wolfgang — we\'re all just living in it.',
+    sentences:[
+      'Is this the real life?',
+      'Is this just fantasy?',
+      'Caught in a landslide.',
+      'Let\'s escape from reality.',
+      'Open Your Eyes.',
+      'Look to the sky and See.',
+      'It\'s your world, Wolfgang — we\'re all just living in it.',
+    ],
+    moons:[
+      { label: 'Post-covid layoffs', desc: 'Off into the wild with Wolfie.' },
+      { label: 'Family', desc: 'Reached out for help. No one responded. Okay, I have my Wolfie.' },
+      { label: 'See: capitalized', desc: 'Capitalized for emphasis and intentionality.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/xqv72y7c/mohawk.webp', caption: 'haircuts' },
+      { src: 'https://i.ibb.co/8g0HH5XG/elephantbywolfgang.webp', caption: 'elephant' },
+      { src: 'https://i.ibb.co/BKymJdYK/itshisworld.webp', caption: "it's his world" },
+      { src: 'https://i.ibb.co/MxGzxSVk/wolfgang00.webp', caption: '"Wolf" by calling' },
+      { src: 'https://i.ibb.co/CknqHpK/happierinnewyork.webp', caption: 'happier in New York' },
+    ],
+    color:0xd0a8e0, hex:'#d0a8e0'
   },
   {
-    id:'cc-prompt-cache', year:'◉',
-    title:'Prompt Cache',
-    role:'Response Optimization',
-    era:'Orchestration', domain:'orchestration',
-    solarSystem:'pipeline', tier:'inner', angle:0.857, url:null,
-    body:'Caches frequently-used prompt patterns and responses. Reduces latency for common operations by skipping full context assembly when possible.',
-    sentences:[''],
-    moons:[],
-    color:0x4db8ff, hex:'#4db8ff'
+    id:'cc-lastmoments', year:'✦',
+    title:'Very Last Moments.',
+    role:'You Gave Everything · I Saw · I Knew',
+    era:'The Farewell', domain:'farewell',
+    solarSystem:'farewell', tier:'outer2', angle:0.375, url:null,
+    body:'You need no sympathy. You wanted to be close. You couldn\'t say it. You couldn\'t convey it. I couldn\'t help you. You knew you were not well. But, you knew, well loved. You lifted your leg. You gave it your all. You gave everything. I saw. But, then you gave me that whimper. I knew.',
+    sentences:[
+      'You need no sympathy.',
+      'You wanted to be close.',
+      'You couldn\'t say it.',
+      'You couldn\'t convey it.',
+      'I couldn\'t help you.',
+      'You knew you were not well.',
+      'But, you knew, well loved.',
+      'You lifted your leg.',
+      'You gave it your all.',
+      'You gave everything.',
+      'I saw.',
+      'But, then you gave me that whimper.',
+      'I knew.',
+    ],
+    moons:[
+      { label: 'Wawa', desc: 'Dad is driving through a blizzard. I have my blanket. He\'s calm.' },
+      { label: 'Love you too', desc: 'He\'s hugging me closer than usual. Love you too.' },
+      { label: 'I knew', desc: 'Then you gave me that whimper. I knew.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/TMxmFknH/fallinginlove1.jpg', caption: 'falling in love' },
+      { src: 'https://i.ibb.co/YBQ5pvfW/fellinlove1.jpg', caption: 'fell in love' },
+      { src: 'https://i.ibb.co/gQPNJXc/xlnexttimeplease.webp', caption: 'resolve' },
+      { src: 'https://i.ibb.co/KJ9pcSh/sowolfiehatedtherain.webp', caption: 'reticence' },
+      { src: 'https://i.ibb.co/r2gFFwNf/oneofwolfgangsfavoriteplaces.webp', caption: 'favorite place' },
+    ],
+    color:0xb8a8e0, hex:'#b8a8e0'
   },
   {
-    id:'cc-memory-indexing', year:'◍',
-    title:'MEMORY.md Indexing',
-    role:'Persistent Knowledge Store',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.000, url:null,
-    body:'A structured markdown file that serves as long-term memory for a project. Contains architectural decisions, patterns to follow, and key information that persists across sessions.',
-    sentences:[''],
-    moons:[{label:'Skeptical Memory',desc:''}],
-    color:0x8fff6e, hex:'#8fff6e'
+    id:'cc-goodnight', year:'☽',
+    title:'Good Day, Now Good Night.',
+    role:'Forever Ferocious · My Sweet Wolfgang',
+    era:'The Last Chapter', domain:'eternal',
+    solarSystem:'farewell', tier:'outer2', angle:0.875, url:'https://wolfie.love',
+    body:'"We had a busy day buddy. You were so helpful. But, it\'s time to brush teethies. Then, we go pee-pee. Now, we go sleepy." Forever Ferocious. My sweet, Sweet Wolfgang.',
+    sentences:[
+      '"We had a busy day, buddy.',
+      'You were so helpful.',
+      'But, it\'s time to brush teethies.',
+      'Then, we go pee-pee.',
+      'Now, we go sleepy."',
+      'Forever Ferocious.',
+      'My sweet, Sweet Wolfgang.',
+    ],
+    moons:[
+      { label: 'Forever Ferocious', desc: 'Ferociously sweet. Thank you, my sweet boy.' },
+      { label: 'Brush teethies', desc: 'The ritual. Every night.' },
+      { label: 'wolfie.love', desc: 'The origin point of everything. Where it all lives.' },
+    ],
+    images:[
+      { src: 'https://i.ibb.co/0RM9H4bs/lastsleepies.webp', caption: 'last sleepies' },
+      { src: 'https://i.ibb.co/Mm07h9F/ilovehim.webp', caption: 'i love him' },
+      { src: 'https://i.ibb.co/mrphxssF/angel987654.webp', caption: 'angel' },
+      { src: 'https://i.ibb.co/wZ4jL08Y/precious.webp', caption: 'precious' },
+      { src: 'https://i.ibb.co/GvH63fQ8/thisthisisthevalidationiseek.webp', caption: 'validation' },
+    ],
+    color:0xffe8f0, hex:'#ffe8f0'
   },
-  {
-    id:'cc-skeptical-memory', year:'◍',
-    title:'Skeptical Memory Architecture',
-    role:'Trust But Verify',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.125, url:null,
-    body:'Memory entries are tagged with confidence levels and source attribution. The system maintains skepticism about its own memories, allowing for correction when new information contradicts stored assumptions.',
-    sentences:[''],
-    moons:[],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-context-window', year:'◍',
-    title:'Context Window Management',
-    role:'Fitting the Infinite',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.250, url:null,
-    body:'Dynamically manages what fits in the 200K token context window. Older conversation turns, less relevant files, and low-priority context get compressed or dropped as needed.',
-    sentences:[''],
-    moons:[{label:'Compression Engine',desc:''},
-      {label:'Age weighting',desc:''},
-      {label:'Fidelity curve',desc:''}],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-file-walker', year:'◍',
-    title:'Intelligent File Walker',
-    role:'Discovering Relevant Context',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.375, url:null,
-    body:'Traverses project directories to find files relevant to the current task. Uses heuristics, .gitignore patterns, and semantic matching to identify what matters without reading everything.',
-    sentences:[''],
-    moons:[],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-command-history', year:'◍',
-    title:'Command History',
-    role:'Learning From Past Actions',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.500, url:null,
-    body:'Stores previous commands and their outcomes. Provides context for similar operations and helps avoid repeating failed approaches. The foundation for learning within a session.',
-    sentences:[''],
-    moons:[],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-session-state', year:'◍',
-    title:'Session State',
-    role:'Ephemeral Working Memory',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.625, url:null,
-    body:'Tracks the current state of the working session: files modified, commands run, errors encountered. This state is what enables "continue what you were doing" behavior.',
-    sentences:[''],
-    moons:[{label:'File Delta',desc:''},
-      {label:'Modified set',desc:''},
-      {label:'Rollback basis',desc:''}],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-local-reset', year:'◍',
-    title:'Localized Context Reset',
-    role:'Controlled Amnesia',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.750, url:null,
-    body:'When context becomes contaminated with incorrect assumptions, this mechanism allows selective reset. The system can forget specific pieces while retaining others.',
-    sentences:[''],
-    moons:[],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-compact-mode', year:'◍',
-    title:'Compact Mode',
-    role:'Token-Efficient Operation',
-    era:'Context', domain:'context',
-    solarSystem:'memory', tier:'mid', angle:0.875, url:null,
-    body:'Aggressively compresses context to minimize token usage. Trades detail for efficiency, enabling operation in token-constrained environments or on large codebases.',
-    sentences:[''],
-    moons:[{label:'Compression Algorithm',desc:''},
-      {label:'Interface priority',desc:''},
-      {label:'Impl compression',desc:''}],
-    color:0x8fff6e, hex:'#8fff6e'
-  },
-  {
-    id:'cc-permission-system', year:'◌',
-    title:'Permission System',
-    role:'Explicit User Consent',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.000, url:null,
-    body:'Requires explicit approval for sensitive operations: file modifications beyond certain scopes, shell commands with side effects, network requests. The friction is intentional and safety-oriented.',
-    sentences:[''],
-    moons:[{label:'Sandbox Boundaries',desc:''}],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-confirmation-dialogs', year:'◌',
-    title:'Confirmation Dialogs',
-    role:'Destructive Action Guard',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.167, url:null,
-    body:'Before executing potentially destructive operations, Claude presents a confirmation with details of what will happen. This is the "are you sure?" that prevents irreversible mistakes.',
-    sentences:[''],
-    moons:[],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-ambiguity-detection', year:'◌',
-    title:'Ambiguity Detection',
-    role:'When Claude Asks Questions',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.333, url:null,
-    body:'Identifies when a request could be interpreted multiple ways. Instead of guessing, Claude asks clarifying questions. This is the assertiveness counterweight in action — a feature, not a bug.',
-    sentences:[''],
-    moons:[{label:'Confidence Threshold',desc:''},
-      {label:'Per-op calibration',desc:''},
-      {label:'Risk-weighted',desc:''}],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-sandbox-boundaries', year:'◌',
-    title:'Sandbox Boundaries',
-    role:'Containment Policy',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.500, url:null,
-    body:'Defines what Claude can and cannot access. The working directory, allowed file extensions, permitted shell commands — all constrained by sandbox configuration. The tools are real; the scope is bounded.',
-    sentences:[''],
-    moons:[{label:'Escape Detection',desc:''},
-      {label:'Symlink guard',desc:''},
-      {label:'Path validation',desc:''}],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-rate-limiting', year:'◌',
-    title:'Rate Limiting',
-    role:'Preventing Runaway Actions',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.667, url:null,
-    body:'Limits the frequency and volume of operations. Prevents accidental infinite loops, excessive API calls, and runaway file operations from causing damage.',
-    sentences:[''],
-    moons:[{label:'Loop Detection',desc:''},
-      {label:'Repeat detection',desc:''},
-      {label:'Pause + notify',desc:''}],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-rollback-checkpoints', year:'◌',
-    title:'Rollback Checkpoints',
-    role:'Undo Capability',
-    era:'Friction', domain:'friction',
-    solarSystem:'permission', tier:'outer', angle:0.833, url:null,
-    body:'Creates restore points before significant changes. Enables recovery from mistakes by tracking file states and command sequences that can be reversed.',
-    sentences:[''],
-    moons:[{label:'State Snapshot',desc:''},
-      {label:'File hashes',desc:''},
-      {label:'In-memory store',desc:''}],
-    color:0xff8866, hex:'#ff8866'
-  },
-  {
-    id:'cc-autodream', year:'∞',
-    title:'autoDream Consolidation',
-    role:'Background Memory Processing',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.000, url:null,
-    body:'During idle time, Claude processes accumulated context and consolidates insights into MEMORY.md. Four phases: Orient, Gather, Consolidate, Prune. Memory work that happens while you\'re not looking.',
-    sentences:[''],
-    moons:[{label:'Orient Phase',desc:''},
-      {label:'State read',desc:''},
-      {label:'History scan',desc:''}],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-kairos-daemon', year:'∞',
-    title:'KAIROS Daemon Mode',
-    role:'Always-On Proactive Assistant',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.143, url:null,
-    body:'An experimental always-on mode where Claude proactively monitors and suggests improvements. Currently internal-only at Anthropic. Represents a future of continuous AI assistance.',
-    sentences:[''],
-    moons:[],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-ultraplan', year:'∞',
-    title:'ULTRAPLAN Sessions',
-    role:'Extended Planning Mode',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.286, url:null,
-    body:'30-minute remote planning sessions where Claude develops comprehensive plans for complex tasks. Extended thinking time for problems that need more than immediate reaction.',
-    sentences:[''],
-    moons:[],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-undercover-mode', year:'∞',
-    title:'Undercover Mode',
-    role:'Hidden AI Attribution',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.429, url:null,
-    body:'When Anthropic employees use Claude Code on open-source repos, this mode hides AI attribution. The contributions appear human-made — a glimpse into how AI-human collaboration might evolve.',
-    sentences:[''],
-    moons:[],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-buddy-system', year:'∞',
-    title:'BUDDY Companion',
-    role:'Tamagotchi-Style Terminal Pet',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.571, url:null,
-    body:'A hidden internal feature: a Tamagotchi-style companion that lives in the terminal. Nurtured by good interactions. A humanizing layer on top of the orchestration system.',
-    sentences:[''],
-    moons:[{label:'Session Nurturing',desc:''},
-      {label:'Happiness state',desc:''},
-      {label:'Session events',desc:''}],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-feature-flags', year:'∞',
-    title:'Feature Flags & Codenames',
-    role:'Internal Experiment Control',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.714, url:null,
-    body:'Tengu, Capybara, and other internal codenames control experimental features. Feature flags enable gradual rollout and A/B testing of new capabilities.',
-    sentences:[''],
-    moons:[{label:'Tengu',desc:''},
-      {label:'Flag-gated',desc:''},
-      {label:'Internal only',desc:''}],
-    color:0xb388ff, hex:'#b388ff'
-  },
-  {
-    id:'cc-into-the-void', year:'∞',
-    title:'Into The Void',
-    role:'Why This Map Exists',
-    era:'Autonomous', domain:'autonomous',
-    solarSystem:'experimental', tier:'outer2', angle:0.857, url:null,
-    body:'The source code leaked. This is what was inside. Not a vulnerability — a philosophy. The YOLO classifier, the assertiveness counterweight, the skeptical memory architecture — these are design decisions, now visible. Claude Code was dogfooding its own principles at production scale, and it shows. For users, legibility is the gift: clear prompts bypass friction by design. Specific context reduces ambiguity triggers by design. The permission system is reasoned, not arbitrary. You can work with a system you understand. That is what this map is for.',
-    sentences:[''],
-    moons:[],
-    color:0xb388ff, hex:'#b388ff'
-  }
 ];
 
-// Assign spiral positions for Claude Code galaxy
+// Assign spiral positions for Wolfgang galaxy (SOL 3)
 // Layout: concentric rings matching tier structure
-// pipeline → inner ring, memory → mid, permission → outer, experimental → outermost
+// wolfie → inner ring, chronicles → mid, farewell → outer/outer2
 (function() {
-  const tierRadius = { pipeline: 8, memory: 14, permission: 20, experimental: 26 };
-  const tierY      = { pipeline: 0, memory: 0.5, permission: 1.0, experimental: 1.5 };
-  const tierCounts = { pipeline: 0, memory: 0, permission: 0, experimental: 0 };
+  const tierRadius = { wolfie: 8, chronicles: 14, farewell: 20 };
+  const tierY      = { wolfie: 0, chronicles: 0.5, farewell: 1.0 };
+  const tierCounts = { wolfie: 0, chronicles: 0, farewell: 0 };
   const tierTotals = {};
   CLAUDE_ERAS.forEach(e => {
     tierTotals[e.solarSystem] = (tierTotals[e.solarSystem] || 0) + 1;
@@ -3535,13 +3605,14 @@ const SOL_FILMSTRIP_DATA = {
     caseStudy: null,
   },
   claude: {
-    manifesto: 'Claude Code is not a crutch. It is the instrument alongside the craft — a live partner in building things that would take twice as long alone.',
-    accent: '#6699ff',
+    manifesto: 'Meet Wolfgang. A name neither chosen, nor given — but a name worth becoming. These are the Chronicles of Wolfgang, written with love.',
+    accent: '#ffe066',
     keyframes: [
-      { eraId: 'cc-queryengine',       label: 'The Query Engine',    why: 'Every prompt enters here. Intent classified. Context assembled.' },
-      { eraId: 'cc-memory-indexing',   label: 'MEMORY.md',           why: 'Persistent knowledge store. The project\'s long-term memory.' },
-      { eraId: 'cc-permission-system', label: 'Permission System',   why: 'Intentional friction. Safety through explicit consent.' },
-      { eraId: 'cc-rollback-checkpoints', label: 'Rollback Checkpoints', why: 'Undo at the task level. The safety net that makes boldness possible.' },
+      { eraId: 'cc-sweetest',    label: 'The Sweetest',              why: 'Meet Wolfgang. Full name, "Sweet Wolfgang." A name worth becoming.' },
+      { eraId: 'cc-lostfound',   label: 'Lost & Found',              why: 'Found in Queens. Left without care. For someone\'s hand.' },
+      { eraId: 'cc-welcomehome', label: 'Welcome Home',              why: 'New lease — no leash. New life. Homeward bound, together.' },
+      { eraId: 'cc-kingqueens',  label: 'The King From Queens',      why: 'Is this the real life? It\'s your world, Wolfgang.' },
+      { eraId: 'cc-goodnight',   label: 'Good Day, Now Good Night',  why: 'Forever Ferocious. My sweet, Sweet Wolfgang.' },
     ],
     caseStudy: null,
   },
@@ -4060,9 +4131,9 @@ const GALAXY_CLUSTERS = [
     nodeIds: ERAS.map(e => e.id)
   },
   {
-    id: 'claude', name: 'Claude Code',
-    sub: 'The instrument alongside the work',
-    color: 0x6699ff, hex: '#6699ff',
+    id: 'claude', name: 'Wolfgang',
+    sub: 'The Chronicles of Wolfgang · wolfie.love',
+    color: 0xffe066, hex: '#ffe066',
     center: CLAUDE_CENTER, size: 5.5,
     nodeIds: CLAUDE_ERAS.map(e => e.id)
   },
@@ -4654,8 +4725,6 @@ function swoopToGalaxyOverview(galaxyId) {
   if (currentView === 'arc') {
     currentView = 'spiral';
     morphing = true; morphT = 0;
-    const layoutBtn = document.getElementById('rhud-layout-toggle');
-    if (layoutBtn) { layoutBtn.classList.remove('active'); layoutBtn.title = 'Switch to timeline'; }
   }
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
   // Show sol filmstrip on first visit to this galaxy (dismissed gate respected)
@@ -4711,10 +4780,10 @@ const SENTENCE_ELLIPSES = {
 };
 
 const CLAUDE_ELLIPSES = {
-  inner:  { rx: 9,  rz: 5,  color: 0x4db8ff, label: 'Pipeline',      y: 0.05 },
-  mid:    { rx: 16, rz: 9,  color: 0x8fff6e, label: 'Memory & State', y: 0.20 },
-  outer:  { rx: 23, rz: 13, color: 0xff8866, label: 'Permission',     y: 0.38 },
-  outer2: { rx: 30, rz: 17, color: 0xb388ff, label: 'Experimental',   y: 0.58 },
+  inner:  { rx: 9,  rz: 5,  color: 0xffe066, label: 'The Sweetest · Welcome Home',      y: 0.05 },
+  mid:    { rx: 16, rz: 9,  color: 0xf0b830, label: 'Chronicles · Found on Side of Road', y: 0.20 },
+  outer:  { rx: 23, rz: 13, color: 0xd0a8e0, label: 'Lost & Found · The King From Queens', y: 0.38 },
+  outer2: { rx: 30, rz: 17, color: 0xffe8f0, label: 'Very Last Moments · Good Night',      y: 0.58 },
 };
 
 const EXPLORER_ELLIPSES = {
@@ -6490,7 +6559,7 @@ const GALAXY_TESSERACT_FILTERS = {
 const GALAXY_TESSERACT_LABELS = {
   career:   { eyebrow: 'CAREER  ·  2003 – PRESENT', title: 'Twenty Years. One Thread.', sub: 'Philadelphia  →  New York  →  Independent' },
   sentence: { eyebrow: 'PLATFORM ECOSYSTEM', title: 'The Sentence as the Primitive.', sub: 'From wolfie.love to dab.cx' },
-  claude:   { eyebrow: 'CLAUDE CODE  ·  AI-NATIVE WORKFLOW', title: 'The Instrument Alongside the Work.', sub: 'Collaboration at the speed of thought' },
+  claude:   { eyebrow: 'WOLFGANG  ·  SOL 3  ·  wolfie.love', title: 'The Chronicles of Wolfgang.', sub: 'A name neither chosen, nor given — but a name worth becoming.' },
   manifesto:{ eyebrow: 'MANIFESTO  ·  POSITIONS', title: 'The Method.', sub: 'What I believe about how things should be made' },
   explorer: { eyebrow: 'SOL X  ·  EXPLORER ARCHETYPES', title: 'Find Your Archetype.', sub: 'Four vessels · one matched to your brief' },
 };
@@ -8467,23 +8536,23 @@ function animate(ts) {
   // Right-click on canvas: toggle spiral ↔ timeline
   // (already handled in contextmenu listener)
 
-  // Right HUD: zoom in/out
-  const zoomIn  = document.getElementById('rhud-zoom-in');
-  const zoomOut = document.getElementById('rhud-zoom-out');
-  if (zoomIn)  zoomIn.addEventListener('click',  () => { camTarget.radius = Math.max(ORRERY_RADIUS_MIN, camTarget.radius * 0.75); });
-  if (zoomOut) zoomOut.addEventListener('click',  () => { camTarget.radius = Math.min(340, camTarget.radius * 1.35); });
+  // Right HUD: prev / next node navigation
+  const rNavPrev = document.getElementById('rhud-nav-prev');
+  const rNavNext = document.getElementById('rhud-nav-next');
+  if (rNavPrev) rNavPrev.addEventListener('click', () => { if (typeof navPrev === 'function') navPrev(); });
+  if (rNavNext) rNavNext.addEventListener('click', () => { if (typeof navNext === 'function') navNext(); });
 
-  // Right HUD: spiral ↔ timeline toggle
-  const layoutBtn = document.getElementById('rhud-layout-toggle');
-  if (layoutBtn) {
-    layoutBtn.title = 'Switch to timeline';
-    layoutBtn.addEventListener('click', () => {
-      const next = currentView === 'arc' ? 'spiral' : 'arc';
-      switchView(next);
-      layoutBtn.classList.toggle('active', next === 'arc');
-      layoutBtn.title = next === 'arc' ? 'Switch to spiral' : 'Switch to timeline';
-    });
+  // Right HUD: grid view toggle
+  const rGrid = document.getElementById('rhud-grid');
+  if (rGrid) rGrid.addEventListener('click', () => { if (typeof toggleUniverseGrid === 'function') toggleUniverseGrid(); });
+
+  // Keep active state in sync with focus
+  function _syncRhudNav() {
+    const hasFocus = typeof isFocused !== 'undefined' && isFocused && typeof focusedEra !== 'undefined' && focusedEra;
+    if (rNavPrev) rNavPrev.style.opacity = hasFocus ? '1' : '0.35';
+    if (rNavNext) rNavNext.style.opacity = hasFocus ? '1' : '0.35';
   }
+  window._syncRhudNav = _syncRhudNav;
 
   // Show right HUD only when inside a sol (orrery) view
   const rightHud = document.getElementById('right-hud');
@@ -8541,6 +8610,67 @@ window.addEventListener('resize', () => {
 <!-- ── MISSION LAUNCHPAD ── -->
 
 <!-- SATURN FAB — Micro-Orrery — bottom-center desktop, top-left mobile (logo-fab) -->
+<!-- ── MUSIC PLAYER — Wolfgang's Walklist ──────────────── -->
+<div id="musicIframeContainer"></div>
+
+<div class="music-player" id="musicPlayer">
+  <div class="music-player-drag" id="musicPlayerDrag">
+    <span class="music-drag-dots">⋮⋮</span>
+    <div class="music-transport">
+      <button class="music-btn" id="musicPrevBtn" title="Previous" aria-label="Previous track">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button class="music-btn play-btn" id="musicPlayBtn" title="Play / Pause" aria-label="Play or pause">
+        <svg id="musicPlayIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="music-btn" id="musicNextBtn" title="Next" aria-label="Next track">
+        <svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8z"/></svg>
+      </button>
+    </div>
+    <div class="music-now-playing">
+      <div class="music-now-name" id="musicNowName">♪ Wolfgang Walklist</div>
+      <div class="music-now-status" id="musicNowStatus">Wolfie's Jams</div>
+    </div>
+    <button class="music-header-playpause" id="musicHeaderPlay" title="Play / Pause" aria-label="Play or pause">
+      <svg id="musicHeaderIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    <button class="music-player-collapse" id="musicPlayerCollapse" title="Show tracks" aria-label="Show or hide track list">▾</button>
+  </div>
+  <div class="music-player-body">
+    <div class="music-track-list">
+      <div class="music-track" data-track="0">
+        <span class="music-track-num">1</span>
+        <div class="music-track-info">
+          <div class="music-track-name">Walk with Wolfie</div>
+          <div class="music-track-sub">original — guitar</div>
+        </div>
+      </div>
+      <div class="music-track" data-track="1">
+        <span class="music-track-num">2</span>
+        <div class="music-track-info">
+          <div class="music-track-name">Day Dream</div>
+          <div class="music-track-sub">original — guitar</div>
+        </div>
+      </div>
+      <div class="music-track" data-track="2">
+        <span class="music-track-num">3</span>
+        <div class="music-track-info">
+          <div class="music-track-name">Beautiful Day</div>
+          <div class="music-track-sub">cover concept — guitar &amp; midi drums</div>
+        </div>
+      </div>
+      <div class="music-track" data-track="3">
+        <span class="music-track-num">4</span>
+        <div class="music-track-info">
+          <div class="music-track-name">Bad Touch</div>
+          <div class="music-track-sub">cover concept — guitar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ──────────────────────────────────────────────────────── -->
+
 <button id="flight-fab" onclick="handleFabClick()" title="Sol X · Explorer">
   <canvas id="saturn-canvas" width="144" height="144"></canvas>
   <span id="fab-moon-label">Sol X</span>
@@ -10322,5 +10452,157 @@ function mobileFit() {
     '}',
   ].join('\n');
   document.head.appendChild(style);
+})();
+</script>
+
+<!-- ── MUSIC PLAYER JS — verbatim from wolfie.love ─────── -->
+<script>
+(function initMusicPlayer() {
+  const TRACKS = [
+    { name: 'Walk with Wolfie', sub: 'original — guitar',                   url: 'https://soundcloud.com/zackgort/walk-with-wolfie' },
+    { name: 'Day Dream',        sub: 'original — guitar',                   url: 'https://soundcloud.com/zackgort/dreamdog' },
+    { name: 'Beautiful Day',    sub: 'cover concept — guitar & midi drums', url: 'https://soundcloud.com/zackgort/beautifulday' },
+    { name: 'Bad Touch',        sub: 'cover concept — guitar',              url: 'https://soundcloud.com/zackgort/badtouch' },
+  ];
+
+  let currentTrack = -1, isPlaying = false, widget = null, iframe = null, widgetReady = false, expanded = false;
+
+  const player        = document.getElementById('musicPlayer');
+  const dragHandle    = document.getElementById('musicPlayerDrag');
+  const collapseBtn   = document.getElementById('musicPlayerCollapse');
+  const headerPlayBtn = document.getElementById('musicHeaderPlay');
+  const headerIcon    = document.getElementById('musicHeaderIcon');
+  const playBtn       = document.getElementById('musicPlayBtn');
+  const playIcon      = document.getElementById('musicPlayIcon');
+  const prevBtn       = document.getElementById('musicPrevBtn');
+  const nextBtn       = document.getElementById('musicNextBtn');
+  const nowName       = document.getElementById('musicNowName');
+  const nowStatus     = document.getElementById('musicNowStatus');
+  const container     = document.getElementById('musicIframeContainer');
+  const trackEls      = document.querySelectorAll('.music-track');
+
+  if (!player || !container) return;
+
+  // ── Expand / Collapse ──
+  function setExpanded(val) {
+    expanded = val;
+    player.classList.toggle('expanded', expanded);
+    collapseBtn.textContent = expanded ? '▴' : '▾';
+    collapseBtn.title = expanded ? 'Hide tracks' : 'Show tracks';
+  }
+  function onCollapseInteraction(e) { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }
+  collapseBtn.addEventListener('click',    onCollapseInteraction);
+  collapseBtn.addEventListener('touchend', onCollapseInteraction, { passive: false });
+
+  // ── Drag — free widget ──
+  (function enableDrag() {
+    let dragging = false, startX, startY, startLeft, startTop;
+    function beginDrag(clientX, clientY) {
+      if (!player.classList.contains('dragged')) {
+        const box = player.getBoundingClientRect();
+        player.classList.add('dragged');
+        player.style.left   = box.left + 'px';
+        player.style.top    = box.top  + 'px';
+        player.style.bottom = 'auto';
+        player.style.right  = 'auto';
+        player.style.transform = 'none';
+      }
+      dragging = true;
+      startX = clientX; startY = clientY;
+      startLeft = parseFloat(player.style.left) || 0;
+      startTop  = parseFloat(player.style.top)  || 0;
+    }
+    function moveDrag(clientX, clientY) {
+      if (!dragging) return;
+      player.style.left = Math.max(0, Math.min(startLeft + clientX - startX, window.innerWidth  - player.offsetWidth))  + 'px';
+      player.style.top  = Math.max(0, Math.min(startTop  + clientY - startY, window.innerHeight - player.offsetHeight)) + 'px';
+    }
+    dragHandle.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.music-btn, .music-player-collapse, .music-header-playpause')) return;
+      e.preventDefault(); beginDrag(e.clientX, e.clientY); dragHandle.style.cursor = 'grabbing';
+    });
+    document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+    document.addEventListener('mouseup',   ()  => { dragging = false; dragHandle.style.cursor = 'grab'; });
+    dragHandle.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.music-btn, .music-player-collapse, .music-header-playpause')) return;
+      const t = e.touches[0]; beginDrag(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (!dragging) return; const t = e.touches[0]; moveDrag(t.clientX, t.clientY);
+    }, { passive: true });
+    document.addEventListener('touchend', () => { dragging = false; });
+  })();
+
+  // ── Icon helpers ──
+  const PLAY_PATH  = '<path d="M8 5v14l11-7z"/>';
+  const PAUSE_PATH = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  function setPlayIcons(playing) { playIcon.innerHTML = playing ? PAUSE_PATH : PLAY_PATH; headerIcon.innerHTML = playing ? PAUSE_PATH : PLAY_PATH; }
+  function setStatus(text, playing) { nowStatus.textContent = text; nowStatus.classList.toggle('playing', !!playing); }
+  function setNowName(name) { nowName.textContent = name || '♪ Wolfgang Walklist'; }
+
+  // ── Load track ──
+  function loadTrack(index, autoplay) {
+    currentTrack = index;
+    trackEls.forEach((el, i) => {
+      el.classList.toggle('active', i === index);
+      el.querySelector('.music-track-num').textContent = i + 1;
+    });
+    setNowName(TRACKS[index].name);
+    setStatus('loading…', false);
+    setPlayIcons(false);
+    if (iframe) { iframe.remove(); iframe = null; widget = null; widgetReady = false; }
+    const src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(TRACKS[index].url) +
+      '&color=%23daa520&auto_play=' + autoplay +
+      '&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false&visual=false';
+    iframe = document.createElement('iframe');
+    iframe.src = src; iframe.width = '100%'; iframe.height = '166';
+    iframe.scrolling = 'no'; iframe.frameBorder = 'no'; iframe.allow = 'autoplay';
+    container.appendChild(iframe);
+    function wire() {
+      if (!iframe || !window.SC) return;
+      widget = window.SC.Widget(iframe);
+      widget.bind(window.SC.Widget.Events.READY, () => { widgetReady = true; if (autoplay) widget.play(); else setStatus('ready', false); });
+      widget.bind(window.SC.Widget.Events.PLAY,  () => { isPlaying = true;  setPlayIcons(true);  setStatus('playing', true);  if (currentTrack >= 0) trackEls[currentTrack].querySelector('.music-track-num').textContent = '▶'; });
+      widget.bind(window.SC.Widget.Events.PAUSE, () => { isPlaying = false; setPlayIcons(false); setStatus('paused',  false); if (currentTrack >= 0) trackEls[currentTrack].querySelector('.music-track-num').textContent = currentTrack + 1; });
+      widget.bind(window.SC.Widget.Events.FINISH,() => { isPlaying = false; setPlayIcons(false); if (currentTrack >= 0) trackEls[currentTrack].querySelector('.music-track-num').textContent = currentTrack + 1; loadTrack((currentTrack + 1) % TRACKS.length, true); });
+      widget.bind(window.SC.Widget.Events.ERROR, () => setStatus('unavailable', false));
+    }
+    if (window.SC && window.SC.Widget) { wire(); }
+    else if (!document.getElementById('sc-widget-api')) {
+      const s = document.createElement('script');
+      s.id = 'sc-widget-api'; s.src = 'https://w.soundcloud.com/player/api.js'; s.onload = wire;
+      document.head.appendChild(s);
+    } else {
+      const poll = setInterval(() => { if (window.SC && window.SC.Widget) { clearInterval(poll); wire(); } }, 80);
+    }
+  }
+
+  // ── Play / Pause ──
+  function playPause() {
+    if (currentTrack === -1) { loadTrack(0, true); return; }
+    if (!widget || !widgetReady) return;
+    if (isPlaying) widget.pause(); else widget.play();
+  }
+
+  // ── Event wiring ──
+  function bindBtn(el, fn) {
+    el.addEventListener('click',    (e) => { e.stopPropagation(); fn(); });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); fn(); }, { passive: false });
+  }
+  bindBtn(playBtn,       playPause);
+  bindBtn(headerPlayBtn, playPause);
+  bindBtn(prevBtn, () => loadTrack(currentTrack <= 0 ? TRACKS.length - 1 : currentTrack - 1, isPlaying));
+  bindBtn(nextBtn, () => loadTrack(currentTrack === -1 ? 0 : (currentTrack + 1) % TRACKS.length, isPlaying));
+  trackEls.forEach((el, i) => {
+    el.addEventListener('click',    (e) => { e.stopPropagation(); if (currentTrack === i) playPause(); else loadTrack(i, true); });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); if (currentTrack === i) playPause(); else loadTrack(i, true); }, { passive: false });
+  });
+
+  // ── Shuffle ──
+  function shuffleAndPlay() {
+    const order = Array.from({ length: TRACKS.length }, (_, i) => i).sort(() => Math.random() - 0.5);
+    loadTrack(order[0], true);
+  }
+  window.musicPlayer = { shuffleAndPlay };
 })();
 </script>
