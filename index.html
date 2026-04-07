@@ -578,17 +578,7 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
 }
 
 #ghost{
-  position:fixed;z-index:700;width:360px;pointer-events:none;opacity:0;
-  right:28px;
-  top:80px;   /* clear topbar widget (~48px tall) + 32px breathing room */
-  bottom:90px;
-  display:flex; flex-direction:column; justify-content:center;
-  transform:translateX(18px) scale(0.97);
-  transition:opacity 0.30s,transform 0.30s;
-}
-#ghost.on{opacity:1;transform:translateX(0) scale(1);pointer-events:all;}
-body.arch-strip-open #ghost {
-  bottom: calc(var(--strip-h, 160px) + 90px);
+  display:none !important;  /* nixed — msheet is the single panel */
 }
 .gc{background:rgba(5,3,10,0.98);border:1px solid rgba(218,165,32,0.12);border-radius:6px;box-shadow:0 18px 62px rgba(0,0,0,0.9);backdrop-filter:blur(26px);overflow:hidden;transition:background 0.3s,border-color 0.3s,box-shadow 0.3s;}
 .gc:hover{background:rgba(14,10,28,0.99);border-color:rgba(218,165,32,0.28);box-shadow:0 20px 70px rgba(0,0,0,0.85),0 0 0 1px rgba(218,165,32,0.08);}
@@ -854,6 +844,12 @@ body.light .mstitle-role{color:rgba(0,0,0,0.38);}
 body.light .msbody{color:rgba(0,0,0,0.70);}
 body.light .ms-tag{border-color:rgba(0,0,0,0.14);color:rgba(0,0,0,0.42);}
 body.light .ms-expand-hint{color:rgba(0,0,0,0.28);}
+
+/* Desktop: msheet always shows expanded content (body + images) */
+@media(min-width:769px){
+  #msheet:not(.expanded) .msbody  { display:block; }
+  #msheet:not(.expanded) .ms-images { display:flex; }
+}
 
 /* mobile: full-width bottom sheet, canvas shrinks above it */
 @media(max-width:768px){
@@ -7233,8 +7229,8 @@ function openPanel(era, suppressMobileSheet) {
     return;
   }
 
-  // If filmstrip is open (navigating keyframes), only sync the strip highlight
-  // and scroll the active cell into view — do NOT open the ghost/msheet panel.
+  // If filmstrip is open, sync the strip highlight and scroll active cell into view,
+  // but continue to open the ghost panel so both coexist (ghost clears strip via bottom offset).
   if (_activeArchStripId) {
     syncArchStripHighlight(era.id);
     const rail = document.getElementById('arch-strip-rail');
@@ -7243,7 +7239,7 @@ function openPanel(era, suppressMobileSheet) {
         if (c.dataset.eraId === era.id) c.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       });
     }
-    return;
+    // fall through — open ghost alongside filmstrip
   }
 
   const _list = activeList(era);
@@ -11511,3 +11507,4 @@ window.closeTesseractGrid = closeTesseractGrid;
 
 })();
 </script>
+  
