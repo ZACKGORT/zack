@@ -12,7 +12,14 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 html,body{width:100%;height:100%;overflow:hidden;background:#05030a;transition:background 0.6s;user-select:none;-webkit-user-select:none;}
 body.light{background:#ffffff;}
-canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-action:none;}
+canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);position:relative;z-index:1;touch-action:none;}
+@media(max-width:768px){
+  canvas{
+    position:fixed;
+    top:52px; /* below topbar */
+    height:var(--canvas-h, calc(100vh - 52px));
+  }
+}
 #bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;}
 
 /* ── LEGACY STUBS hidden ─────────────────────────────────── */
@@ -719,55 +726,162 @@ body.light .gc-moon-pill{color:rgba(0,0,0,0.50);border-color:rgba(0,0,0,0.18);}
 body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 
 #msheet{
-  display:none;position:fixed;
-  bottom:48px;
-  left:0;right:0;
-  z-index:700;
-  background:rgba(5,3,10,0.98);
-  border-top:1px solid rgba(218,165,32,0.10);
-  border-radius:14px 14px 0 0;
-  max-height:48vh;
-  overflow-y:auto;
+  display:flex; flex-direction:column;
+  position:fixed;
+  /* default anchor: bottom-right, clears galaxy center + RRW widget */
+  bottom:28px;
+  right:80px;
+  left:auto;
   transform:translateY(calc(100% + 80px));
-  transition:transform 0.38s cubic-bezier(0.22,1,0.36,1), max-height 0.38s cubic-bezier(0.22,1,0.36,1), background 0.3s, border-color 0.3s;
+  opacity:0;
+  pointer-events:none;
+  z-index:700;
+  width:300px;
+  background:rgba(5,3,10,0.96);
+  border:1px solid rgba(218,165,32,0.14);
+  border-radius:8px;
+  overflow:hidden;
+  box-shadow:0 18px 62px rgba(0,0,0,0.90);
   backdrop-filter:blur(28px);
+  -webkit-backdrop-filter:blur(28px);
+  transition:
+    transform 0.38s cubic-bezier(0.22,1,0.36,1),
+    width 0.32s cubic-bezier(0.22,1,0.36,1),
+    opacity 0.28s,
+    background 0.3s, border-color 0.3s;
+  will-change:transform;
+  user-select:none;
+  touch-action:none;
 }
-#msheet.on{transform:translateY(0);}
+/* snapped: re-enable position transition briefly */
+#msheet.snapping {
+  transition:
+    left 0.28s cubic-bezier(0.22,1,0.36,1),
+    top 0.28s cubic-bezier(0.22,1,0.36,1),
+    transform 0.28s cubic-bezier(0.22,1,0.36,1),
+    width 0.32s cubic-bezier(0.22,1,0.36,1),
+    background 0.3s, border-color 0.3s;
+}
+/* visible (collapsed) */
+#msheet.on {
+  transform:translateY(0);
+  opacity:1;
+  pointer-events:all;
+}
+/* once dragged — use top/left, kill transform centering */
+#msheet.ms-dragged {
+  left:auto; bottom:auto; right:auto;
+  transform:none !important;
+  transition:width 0.32s cubic-bezier(0.22,1,0.36,1), opacity 0.22s, background 0.3s, border-color 0.3s;
+}
+#msheet.ms-dragged:not(.on) {
+  opacity: 0;
+  pointer-events: none;
+}
+#msheet.ms-dragged.on {
+  opacity: 1;
+  pointer-events: all;
+}
+/* expanded: wider */
 #msheet.expanded {
-  max-height:82vh;
+  width:420px;
 }
 #msheet.expanded .msbody { display:block; }
 #msheet:not(.expanded) .msbody { display:none; }
+#msheet:not(.expanded) .ms-images { display:none; }
+
+/* drag handle — full-width top bar */
 .mshandle{
-  width:36px;height:4px;background:rgba(218,165,32,0.20);border-radius:2px;
-  margin:12px auto 6px;cursor:pointer;
+  width:100%;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px 7px 12px;
+  cursor:grab;
+  border-bottom:1px solid rgba(218,165,32,0.07);
+  gap:8px;
+  box-sizing:border-box;
+  flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.mshandle:active{cursor:grabbing;}
+/* drag pip */
+.mshandle-pip{
+  width:28px;height:3px;border-radius:2px;
+  background:rgba(218,165,32,0.22);
+  flex-shrink:0;
   transition:background 0.2s;
 }
-.mshandle:hover { background:rgba(218,165,32,0.45); }
-.mshead{padding:12px 20px 10px;border-bottom:1px solid rgba(218,165,32,0.08);}
-.msera{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.40);margin-bottom:5px;}
-.mstitle{font-family:'Crimson Text',serif;font-size:20px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:3px;}
-.ms-tags { display:flex; flex-wrap:wrap; gap:5px; padding:8px 20px 4px; }
+.mshandle:hover .mshandle-pip{background:rgba(218,165,32,0.50);}
+/* handle nav row */
+.mshandle-nav{display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;}
+.mshandle-btn{
+  background:none;border:1px solid rgba(218,165,32,0.14);border-radius:3px;
+  color:rgba(218,165,32,0.42);cursor:pointer;
+  font-family:'DM Mono',monospace;font-size:9px;
+  padding:2px 6px;line-height:1.4;
+  transition:color 0.15s,border-color 0.15s,background 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mshandle-btn:hover{color:#daa520;border-color:rgba(218,165,32,0.45);background:rgba(218,165,32,0.06);}
+.mshandle-btn:disabled{opacity:0.18;pointer-events:none;}
+.mshandle-btn.ms-expand-btn{font-size:8px;letter-spacing:0.08em;}
+
+.mshead{padding:10px 14px 8px;border-bottom:1px solid rgba(218,165,32,0.06);}
+.msera{font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:4px;}
+.mstitle{font-family:'Crimson Text',serif;font-size:18px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:2px;}
+.mstitle-role{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(218,165,32,0.30);}
+.ms-tags { display:flex; flex-wrap:wrap; gap:4px; padding:7px 14px 4px; }
 .ms-tag {
-  font-family:'DM Mono',monospace; font-size:6.5px; letter-spacing:0.12em;
-  text-transform:uppercase; padding:3px 8px; border-radius:10px;
-  border:1px solid rgba(218,165,32,0.22); color:rgba(218,165,32,0.45);
+  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.12em;
+  text-transform:uppercase; padding:2px 7px; border-radius:10px;
+  border:1px solid rgba(218,165,32,0.20); color:rgba(218,165,32,0.42);
 }
-.ms-expand-hint {
-  text-align:center; padding:4px 0 8px;
-  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.20em;
-  text-transform:uppercase; color:rgba(218,165,32,0.22);
-  cursor:pointer; transition:color 0.15s;
-}
-.ms-expand-hint:hover { color:rgba(218,165,32,0.55); }
-#msheet.expanded .ms-expand-hint { display:none; }
-.ms-images{display:flex;gap:5px;padding:8px 16px;overflow-x:auto;}
+.ms-expand-hint { display:none; } /* replaced by handle button */
+.ms-images{display:flex;gap:5px;padding:8px 14px;overflow-x:auto;}
 .ms-img-frame{width:88px;height:64px;flex-shrink:0;border-radius:3px;overflow:hidden;background:rgba(218,165,32,0.06);border:1px solid rgba(218,165,32,0.10);}
 .ms-img-frame img{width:100%;height:100%;object-fit:cover;opacity:0.82;}
-.msbody{padding:10px 20px 18px;font-family:'Crimson Text',serif;font-size:14.5px;line-height:1.70;color:rgba(245,236,213,0.62);}
+.msbody{padding:10px 14px 16px;font-family:'Crimson Text',serif;font-size:14px;line-height:1.70;color:rgba(245,236,213,0.60);max-height:28vh;overflow-y:auto;}
 
-body.light #msheet{background:rgba(255,255,255,0.99);border-top-color:rgba(0,0,0,0.08);}
+/* light mode */
+body.light #msheet{background:rgba(255,255,255,0.99);border-color:rgba(0,0,0,0.12);box-shadow:0 18px 62px rgba(0,0,0,0.14);}
+body.light .mshandle{border-bottom-color:rgba(0,0,0,0.07);}
+body.light .mshandle-pip{background:rgba(0,0,0,0.18);}
+body.light .mshandle:hover .mshandle-pip{background:rgba(0,0,0,0.40);}
+body.light .mshandle-btn{border-color:rgba(0,0,0,0.14);color:rgba(0,0,0,0.42);}
+body.light .mshandle-btn:hover{color:#000;border-color:rgba(0,0,0,0.40);background:rgba(0,0,0,0.04);}
 body.light .mstitle{color:#000;}
+body.light .msera{color:rgba(0,0,0,0.40);}
+body.light .mstitle-role{color:rgba(0,0,0,0.38);}
+body.light .msbody{color:rgba(0,0,0,0.70);}
+body.light .ms-tag{border-color:rgba(0,0,0,0.14);color:rgba(0,0,0,0.42);}
+body.light .ms-expand-hint{color:rgba(0,0,0,0.28);}
+
+/* mobile: full-width bottom sheet, canvas shrinks above it */
+@media(max-width:768px){
+  #msheet{
+    width:100% !important;
+    left:0 !important; right:0 !important; bottom:0 !important;
+    border-radius:14px 14px 0 0;
+    border-left:none;border-right:none;border-bottom:none;
+    transform:translateY(calc(100% + 80px)) !important;
+    touch-action:auto;
+    /* smooth bottom transition when filmstrip opens/closes */
+    transition:
+      transform 0.38s cubic-bezier(0.22,1,0.36,1),
+      bottom 0.32s cubic-bezier(0.22,1,0.36,1),
+      width 0.32s cubic-bezier(0.22,1,0.36,1),
+      opacity 0.28s,
+      background 0.3s, border-color 0.3s !important;
+  }
+  #msheet.on{ transform:translateY(0) !important; }
+  #msheet.ms-dragged{ transform:translateY(0) !important; }
+  .mshandle{ cursor:default; }
+  #msheet.expanded{ width:100% !important; }
+
+  /* When filmstrip is open, bump msheet bottom up so the strip bar doesn't cover it */
+  body.arch-strip-open #msheet {
+    bottom: var(--strip-h, 56px) !important;
+  }
+}
 body.light .msera{color:rgba(0,0,0,0.42);}
 body.light .msbody{color:rgba(0,0,0,0.75);}
 body.light .ms-tag{border-color:rgba(0,0,0,0.15);color:rgba(0,0,0,0.45);}
@@ -833,7 +947,7 @@ body.arch-strip-open #msheet {
   bottom: var(--strip-h, 160px);
 }
 
-@media(max-width:768px){#ghost{display:none;}#msheet{display:block;}}
+@media(max-width:768px){#ghost{display:none;}#msheet{display:flex;}}
 
 #spine-indicator{display:none;}
 #moon-ghost{display:none;}
@@ -1095,9 +1209,55 @@ body.arch-strip-open #msheet {
 body.light #arch-strip-close { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.50); }
 body.light #arch-strip-close:hover { color: #000; border-color: rgba(0,0,0,0.40); }
 @media (max-width: 768px) {
-  .arch-kf { width: clamp(120px, 38vw, 158px); padding: 8px 10px 14px; }
-  #arch-strip-header { padding: 8px 12px 0; }
-  #arch-strip-manifesto { font-size: 12px; }
+  /* ── Compact filmstrip bar on mobile ─────────────────────────
+     Strip becomes a slim single-row scrollable pill bar so the
+     msheet panel overlay is not obscured when it bumps up.
+  ────────────────────────────────────────────────────────────── */
+
+  /* Hide the manifesto/header entirely — just the rail */
+  #arch-strip-header { display: none; }
+
+  /* Rail: single horizontal row, no gradient fade overhead */
+  #arch-strip-rail {
+    padding: 0;
+    border-top: 1px solid var(--arch-accent-dim, rgba(218,165,32,0.14));
+    background: rgba(3,2,8,0.97);
+  }
+
+  /* Each keyframe cell: compact pill — label only, no "why" blurb */
+  .arch-kf {
+    width: clamp(96px, 28vw, 136px);
+    padding: 10px 12px 10px;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+  }
+
+  /* Hide the description blurb and index number */
+  .arch-kf-why { display: none; }
+  .arch-kf-idx { display: none; }
+
+  /* Label: single line, no wrap */
+  .arch-kf-label {
+    font-size: 7.5px;
+    letter-spacing: 0.11em;
+    margin-bottom: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Active pip: left edge instead of top edge */
+  .arch-kf.active::before {
+    top: 0; bottom: 0; left: 0; right: auto;
+    width: 2px; height: auto;
+    border-radius: 0 1px 1px 0;
+  }
+
+  /* Case study cell: shrink too */
+  .arch-kf-cs { padding: 10px 12px; min-width: 56px; }
+  .arch-kf-cs-icon { font-size: 14px; }
+  .arch-kf-cs-label { font-size: 5.5px; }
 }
 
 #cs-panel {
@@ -2367,15 +2527,23 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
 </div></div>
 
 <div id="msheet">
-  <button class="panel-esc-btn" onclick="closePanel(true)" title="Close (Esc)" style="position:absolute;top:8px;right:10px;">ESC</button>
-  <div class="mshandle" id="ms-handle" onclick="toggleMsheetExpand()"></div>
-  <div class="mshead">
-    <div class="msera" id="ms-era"></div>
-    <div class="mstitle" id="ms-title"></div>
-    <div class="ms-tags" id="ms-tags"></div>
+  <!-- Drag handle bar: pip · era · nav · expand · close -->
+  <div class="mshandle" id="ms-handle">
+    <div class="mshandle-pip"></div>
+    <div class="msera" id="ms-era" style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin:0;font-size:6.5px;"></div>
+    <div class="mshandle-nav">
+      <button class="mshandle-btn" id="ms-prev" onclick="navPrev()" title="Previous">←</button>
+      <button class="mshandle-btn" id="ms-next" onclick="navNext()" title="Next">→</button>
+      <button class="mshandle-btn ms-expand-btn" id="ms-expand-toggle" onclick="toggleMsheetExpand()" title="Expand">⊞</button>
+      <button class="mshandle-btn" onclick="closePanel(true)" title="Close">×</button>
+    </div>
   </div>
+  <div class="mshead">
+    <div class="mstitle" id="ms-title"></div>
+    <div class="mstitle-role" id="ms-role"></div>
+  </div>
+  <div class="ms-tags" id="ms-tags"></div>
   <div class="ms-images" id="ms-images"></div>
-  <div class="ms-expand-hint" onclick="toggleMsheetExpand()">tap to expand ↑</div>
   <div class="msbody" id="ms-body"></div>
 </div>
 
@@ -7083,6 +7251,8 @@ function openPanel(era, suppressMobileSheet) {
 
   document.getElementById('ms-era').textContent = era.era;
   document.getElementById('ms-title').textContent = era.title;
+  const msRole = document.getElementById('ms-role');
+  if (msRole) msRole.textContent = era.role || '';
   document.getElementById('ms-body').textContent = era.body;
   // Populate mobile tags from moons
   const tagsEl = document.getElementById('ms-tags');
@@ -7122,6 +7292,9 @@ window.closePanel = function (forceCloseStrip) {
   const ms = document.getElementById('msheet');
   ms.classList.remove('on');
   ms.classList.remove('expanded');
+  // Reset expand button icon
+  const expandBtn = document.getElementById('ms-expand-toggle');
+  if (expandBtn) expandBtn.textContent = '⊞';
   document.body.classList.remove('panel-open');
   hideSentGhost();
   // Only close filmstrip if explicitly requested (not during keyframe navigation)
@@ -7135,7 +7308,112 @@ window.toggleMsheetExpand = function() {
   const ms = document.getElementById('msheet');
   if (!ms) return;
   ms.classList.toggle('expanded');
+  const btn = document.getElementById('ms-expand-toggle');
+  if (btn) btn.textContent = ms.classList.contains('expanded') ? '⊟' : '⊞';
 };
+
+// ── Msheet draggable widget (desktop only) ──────────────
+(function initMsheetDrag() {
+  const ms = document.getElementById('ms-handle');
+  const panel = document.getElementById('msheet');
+  if (!ms || !panel) return;
+  const isMob = () => window.innerWidth <= 768;
+
+  // ── Mobile canvas resize ──────────────────────────────
+  // When sheet opens on mobile, shrink canvas so galaxy isn't occluded.
+  function updateMobileCanvas() {
+    if (!isMob()) {
+      document.documentElement.style.removeProperty('--canvas-h');
+      return;
+    }
+    const topbarH = 52;
+    if (panel.classList.contains('on')) {
+      requestAnimationFrame(() => {
+        const sheetH = panel.getBoundingClientRect().height;
+        const available = Math.max(120, window.innerHeight - topbarH - sheetH);
+        document.documentElement.style.setProperty('--canvas-h', available + 'px');
+      });
+    } else {
+      const available = window.innerHeight - topbarH;
+      document.documentElement.style.setProperty('--canvas-h', available + 'px');
+    }
+  }
+
+  // Observe .on class changes on msheet
+  const _observer = new MutationObserver(() => updateMobileCanvas());
+  _observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('resize', updateMobileCanvas);
+  panel.addEventListener('transitionend', () => { if (isMob()) updateMobileCanvas(); });
+  updateMobileCanvas(); // set correct height on load
+
+  let dragging = false, startX, startY, startLeft, startTop;
+
+  function snapToPosition(clientX, clientY) {
+    if (panel.classList.contains('ms-dragged')) return;
+    const box = panel.getBoundingClientRect();
+    // Convert current CSS-positioned center-bottom to top-left coords
+    panel.style.left   = box.left + 'px';
+    panel.style.top    = box.top  + 'px';
+    panel.style.bottom = 'auto';
+    panel.style.right  = 'auto';
+    panel.classList.add('ms-dragged');
+  }
+
+  function beginDrag(clientX, clientY) {
+    if (isMob()) return;
+    if (!panel.classList.contains('ms-dragged')) {
+      snapToPosition(clientX, clientY);
+    }
+    dragging  = true;
+    startX    = clientX; startY = clientY;
+    startLeft = parseFloat(panel.style.left) || 0;
+    startTop  = parseFloat(panel.style.top)  || 0;
+    ms.style.cursor = 'grabbing';
+  }
+
+  function moveDrag(clientX, clientY) {
+    if (!dragging) return;
+    const maxL = window.innerWidth  - panel.offsetWidth;
+    const maxT = window.innerHeight - panel.offsetHeight;
+    panel.style.left = Math.max(0, Math.min(startLeft + clientX - startX, maxL)) + 'px';
+    panel.style.top  = Math.max(0, Math.min(startTop  + clientY - startY, maxT)) + 'px';
+  }
+
+  function endDrag() {
+    dragging = false;
+    ms.style.cursor = '';
+  }
+
+  ms.addEventListener('mousedown', e => {
+    // Don't initiate drag on button clicks inside handle
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    beginDrag(e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
+  document.addEventListener('mouseup',   endDrag);
+
+  ms.addEventListener('touchstart', e => {
+    if (isMob() || e.target.closest('button')) return;
+    const t = e.touches[0];
+    beginDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    moveDrag(t.clientX, t.clientY);
+  }, { passive: true });
+  document.addEventListener('touchend', endDrag);
+
+  // On resize to mobile, reset to sheet mode
+  window.addEventListener('resize', () => {
+    if (isMob() && panel.classList.contains('ms-dragged')) {
+      panel.classList.remove('ms-dragged');
+      panel.style.left = ''; panel.style.top = '';
+      panel.style.bottom = ''; panel.style.right = '';
+    }
+  });
+})();
 
 // ── Ghost panel size: compact vs expanded ────────────────
 // Default: compact. Remembered across node cycles.
