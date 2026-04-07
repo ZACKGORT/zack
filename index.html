@@ -1822,10 +1822,12 @@ body.light .rrw-sep { background: rgba(0,0,0,0.08); }
 }
 .music-player {
   position: fixed;
-  bottom: 28px;
-  left: 50%;
-  transform: translateX(-50%);
-  right: auto;
+  /* Desktop default: top-right corner */
+  top: 56px;
+  right: 16px;
+  bottom: auto;
+  left: auto;
+  transform: none;
   z-index: 845;
   width: 272px;
   background: rgba(5,3,10,0.92);
@@ -1847,6 +1849,12 @@ body.light .rrw-sep { background: rgba(0,0,0,0.08); }
 body.arch-strip-open .music-player:not(.dragged) {
   bottom: calc(var(--strip-h, 160px) + 20px);
 }
+/* On desktop (top-anchored), filmstrip doesn't affect position */
+@media (min-width: 769px) {
+  body.arch-strip-open .music-player:not(.dragged) {
+    bottom: auto;
+  }
+}
 .music-player-drag {
   display: flex; align-items: center; gap: 6px;
   padding: 3px 8px 3px 6px;
@@ -1857,6 +1865,12 @@ body.arch-strip-open .music-player:not(.dragged) {
 }
 .music-player-drag:active { cursor: grabbing; }
 .music-player.expanded .music-player-drag { border-top-color: rgba(218,165,32,0.12); }
+/* When list opens downward (flex-direction:column set inline), border moves to bottom of drag bar */
+.music-player.expanded[style*="flex-direction: column"] .music-player-drag,
+.music-player.expanded[style*="flex-direction:column"] .music-player-drag {
+  border-top-color: transparent;
+  border-bottom: 1px solid rgba(218,165,32,0.12);
+}
 .music-drag-dots {
   font-family: sans-serif; color: rgba(218,165,32,0.28);
   font-size: 12px; letter-spacing: -3px; opacity: 1; line-height: 1;
@@ -1950,9 +1964,10 @@ body.light .music-track.active .music-track-name { color: #000; }
 body.light .music-track-sub { color: rgba(0,0,0,0.30); }
 @media (max-width: 768px) {
   .music-player:not(.dragged) {
-    bottom: 28px; right: 12px; left: auto;
-    transform: none;
-    width: calc(100vw - 80px); max-width: 280px;
+    bottom: 28px; left: 50%; right: auto;
+    transform: translateX(-50%);
+    top: auto;
+    width: calc(100vw - 48px); max-width: 320px;
   }
 }
 
@@ -4370,7 +4385,7 @@ const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x000000, 0.0015); // reduced for multi-galaxy scene scale
 const cam = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 2000);
 
-let camState = { phi: Math.PI * 0.22, theta: Math.PI * 0.72, radius: 210 };
+let camState = { phi: Math.PI * 0.18, theta: Math.PI * 0.25, radius: 270 };
 let camTarget = { ...camState };
 // scenePivot initialised to CAREER_OFFSET after that constant is defined (post-spiralPos)
 const scenePivot = new THREE.Vector3();
@@ -7218,17 +7233,17 @@ function openPanel(era, suppressMobileSheet) {
     return;
   }
 
-  // If filmstrip is open (navigating keyframes), update the strip highlight
-  // but still open the ghost panel so the full content is readable
+  // If filmstrip is open (navigating keyframes), only sync the strip highlight
+  // and scroll the active cell into view — do NOT open the ghost/msheet panel.
   if (_activeArchStripId) {
     syncArchStripHighlight(era.id);
-    // Update the 'why' preview in the active keyframe cell
     const rail = document.getElementById('arch-strip-rail');
     if (rail) {
       rail.querySelectorAll('.arch-kf').forEach(c => {
         if (c.dataset.eraId === era.id) c.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       });
     }
+    return;
   }
 
   const _list = activeList(era);
@@ -11023,6 +11038,28 @@ window.closeTesseractGrid = closeTesseractGrid;
     player.classList.toggle('expanded', expanded);
     collapseBtn.textContent = expanded ? '▴' : '▾';
     collapseBtn.title = expanded ? 'Hide tracks' : 'Show tracks';
+
+    if (expanded) {
+      // After DOM updates, check if the expanded list would overflow the top of the viewport.
+      // If so, flip flex-direction so the list opens downward instead of upward.
+      requestAnimationFrame(() => {
+        const box = player.getBoundingClientRect();
+        const topClear = 56; // headroom for fixed topbar
+        if (box.top < topClear) {
+          player.style.flexDirection = 'column';
+          // If dragged to near the top, also nudge it down so controls stay reachable
+          if (player.classList.contains('dragged')) {
+            const curTop = parseFloat(player.style.top) || 0;
+            if (curTop < topClear) player.style.top = topClear + 'px';
+          }
+        } else {
+          player.style.flexDirection = '';
+        }
+      });
+    } else {
+      // Reset direction when collapsed so next open re-evaluates
+      player.style.flexDirection = '';
+    }
   }
   function onCollapseInteraction(e) { e.preventDefault(); e.stopPropagation(); setExpanded(!expanded); }
   collapseBtn.addEventListener('click',    onCollapseInteraction);
