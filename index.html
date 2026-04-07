@@ -63,13 +63,14 @@ canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-
     touch-action: auto;   /* re-enable scroll */
     z-index: 720;
   }
-  #topbar-widget-bar { cursor: default; justify-content: center; flex-wrap: nowrap; overflow-x: auto; }
+  #topbar-widget-bar { cursor: default; justify-content: center; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  #topbar-widget-bar::-webkit-scrollbar { display: none; }
   #topbar-widget-bar:active { cursor: default; }
   /* hide the menu drawer on mobile — buttons are visible in the bar */
   #topbar-widget-menu { display: none !important; }
   /* account for affixed topbar height in panel/sheet positioning */
-  #ghost { top: 48px !important; }
-  #msheet { bottom: 48px; }
+  #ghost { top: 52px !important; }
+  #msheet { bottom: 0; top: 52px; }  /* clears mobile topbar at top, full bottom */
 }
 
 /* black-hole logo button */
@@ -131,6 +132,86 @@ canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-
   background: currentColor; opacity: 0.55;
 }
 
+/* ── CUSTOM SCROLL INDICATORS ──────────────────────────────
+   Thin 2px orbital-gold track with gliding thumb.
+   Applied to all scrollable panels: ghost, msheet, toc, case-study.
+   Light mode: desaturated ink variant.
+────────────────────────────────────────────────────────── */
+.gcscroll,
+#msheet,
+#toc-inner,
+#cs-body-wrap,
+.ms-images,
+#arch-strip-rail {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(218,165,32,0.28) transparent;
+}
+.gcscroll::-webkit-scrollbar,
+#msheet::-webkit-scrollbar,
+#toc-inner::-webkit-scrollbar,
+#cs-body-wrap::-webkit-scrollbar {
+  width: 2px;
+  background: transparent;
+}
+.ms-images::-webkit-scrollbar,
+#arch-strip-rail::-webkit-scrollbar {
+  height: 2px;
+  background: transparent;
+}
+.gcscroll::-webkit-scrollbar-track,
+#msheet::-webkit-scrollbar-track,
+#toc-inner::-webkit-scrollbar-track,
+#cs-body-wrap::-webkit-scrollbar-track,
+.ms-images::-webkit-scrollbar-track,
+#arch-strip-rail::-webkit-scrollbar-track {
+  background: rgba(218,165,32,0.05);
+  border-radius: 1px;
+}
+.gcscroll::-webkit-scrollbar-thumb,
+#msheet::-webkit-scrollbar-thumb,
+#toc-inner::-webkit-scrollbar-thumb,
+#cs-body-wrap::-webkit-scrollbar-thumb {
+  background: rgba(218,165,32,0.30);
+  border-radius: 1px;
+  transition: background 0.2s;
+}
+.ms-images::-webkit-scrollbar-thumb,
+#arch-strip-rail::-webkit-scrollbar-thumb {
+  background: rgba(218,165,32,0.25);
+  border-radius: 1px;
+}
+.gcscroll::-webkit-scrollbar-thumb:hover,
+#msheet::-webkit-scrollbar-thumb:hover,
+#toc-inner::-webkit-scrollbar-thumb:hover,
+#cs-body-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(218,165,32,0.60);
+}
+/* light mode scrollbar variant */
+body.light .gcscroll,
+body.light #msheet,
+body.light #toc-inner,
+body.light #cs-body-wrap {
+  scrollbar-color: rgba(0,0,0,0.20) transparent;
+}
+body.light .gcscroll::-webkit-scrollbar-thumb,
+body.light #msheet::-webkit-scrollbar-thumb,
+body.light #toc-inner::-webkit-scrollbar-thumb,
+body.light #cs-body-wrap::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.18);
+}
+body.light .gcscroll::-webkit-scrollbar-thumb:hover,
+body.light #msheet::-webkit-scrollbar-thumb:hover,
+body.light #toc-inner::-webkit-scrollbar-thumb:hover,
+body.light #cs-body-wrap::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.38);
+}
+body.light .gcscroll::-webkit-scrollbar-track,
+body.light #msheet::-webkit-scrollbar-track,
+body.light #toc-inner::-webkit-scrollbar-track,
+body.light #cs-body-wrap::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.04);
+}
+
 /* light theme */
 body.light #topbar-widget { background: rgba(255,255,255,0.97); border-color: rgba(0,0,0,0.12); box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
 body.light .tbw-btn { color: rgba(0,0,0,0.50); border-right-color: rgba(0,0,0,0.07); }
@@ -142,6 +223,10 @@ body.light .tbw-menu-item:hover { background: rgba(0,0,0,0.04); color: #000; }
 body.light .tbw-menu-item.active { color: #000; }
 body.light #tbw-logo svg .bh-ring { stroke: rgba(0,0,0,0.30) !important; }
 body.light #tbw-logo svg .bh-glow { stroke: rgba(0,0,0,0.18) !important; }
+body.light #tbw-logo svg .bh-planet { fill: #000 !important; }
+body.light #tbw-logo svg .bh-photon { stroke: rgba(0,0,0,0.10) !important; }
+body.light #tbw-logo svg .bh-singularity { fill: rgba(0,0,0,0.75) !important; }
+body.light #tbw-logo svg .bh-node { fill: rgba(0,0,0,0.38) !important; }
 
 /* ── ESC corner on panels ────────────────────────────────── */
 .panel-esc-btn {
@@ -488,7 +573,7 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
 #ghost{
   position:fixed;z-index:700;width:360px;pointer-events:none;opacity:0;
   right:28px;
-  top:72px;   /* clear topbar widget (~48px) + breathing room */
+  top:80px;   /* clear topbar widget (~48px tall) + 32px breathing room */
   bottom:90px;
   display:flex; flex-direction:column; justify-content:center;
   transform:translateX(18px) scale(0.97);
@@ -506,8 +591,7 @@ body.arch-strip-open #ghost {
 .gc:hover .gcrole{color:rgba(218,165,32,0.55);}
 .gc:hover .gc-moons-label{color:rgba(218,165,32,0.45);}
 .gc:hover .gctag{color:rgba(218,165,32,0.75);border-color:rgba(218,165,32,0.45);}
-.gcscroll{flex:1;overflow-y:auto;scrollbar-width:none;}
-.gcscroll::-webkit-scrollbar{display:none;}
+.gcscroll{flex:1;overflow-y:auto;}
 .gcbar{height:2px;width:100%;background:rgba(218,165,32,0.55);}
 .gchead{
   padding:12px 14px 12px;
@@ -643,7 +727,7 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
   border-top:1px solid rgba(218,165,32,0.10);
   border-radius:14px 14px 0 0;
   max-height:48vh;
-  overflow-y:auto;scrollbar-width:none;
+  overflow-y:auto;
   transform:translateY(calc(100% + 80px));
   transition:transform 0.38s cubic-bezier(0.22,1,0.36,1), max-height 0.38s cubic-bezier(0.22,1,0.36,1), background 0.3s, border-color 0.3s;
   backdrop-filter:blur(28px);
@@ -654,7 +738,6 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 }
 #msheet.expanded .msbody { display:block; }
 #msheet:not(.expanded) .msbody { display:none; }
-#msheet::-webkit-scrollbar{display:none;}
 .mshandle{
   width:36px;height:4px;background:rgba(218,165,32,0.20);border-radius:2px;
   margin:12px auto 6px;cursor:pointer;
@@ -678,8 +761,7 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 }
 .ms-expand-hint:hover { color:rgba(218,165,32,0.55); }
 #msheet.expanded .ms-expand-hint { display:none; }
-.ms-images{display:flex;gap:5px;padding:8px 16px;overflow-x:auto;scrollbar-width:none;}
-.ms-images::-webkit-scrollbar{display:none;}
+.ms-images{display:flex;gap:5px;padding:8px 16px;overflow-x:auto;}
 .ms-img-frame{width:88px;height:64px;flex-shrink:0;border-radius:3px;overflow:hidden;background:rgba(218,165,32,0.06);border:1px solid rgba(218,165,32,0.10);}
 .ms-img-frame img{width:100%;height:100%;object-fit:cover;opacity:0.82;}
 .msbody{padding:10px 20px 18px;font-family:'Crimson Text',serif;font-size:14.5px;line-height:1.70;color:rgba(245,236,213,0.62);}
@@ -776,7 +858,6 @@ body.light #toc{background:rgba(255,255,255,0.94);}
   border-radius:8px;
   box-shadow:0 24px 80px rgba(0,0,0,0.9);
 }
-#toc-inner::-webkit-scrollbar{display:none;}
 body.light #toc-inner{background:#fff;border-color:rgba(0,0,0,0.10);}
 #toc-header{
   padding:20px 24px 16px;
@@ -923,7 +1004,7 @@ body.arch-strip-open #msheet {
 #arch-strip-rail {
   display: flex; align-items: stretch; gap: 0;
   padding: 10px 0 0;
-  overflow-x: auto; scrollbar-width: none;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
   border-top: 1px solid var(--arch-accent-dim, rgba(218,165,32,0.10));
@@ -950,7 +1031,6 @@ body.arch-strip-open #msheet {
 #arch-strip:hover .arch-kf.active .arch-kf-label {
   color: var(--arch-accent, #daa520);
 }
-#arch-strip-rail::-webkit-scrollbar { display: none; }
 .arch-kf {
   flex: 0 0 auto;
   width: clamp(140px, 17vw, 196px);
@@ -1080,11 +1160,10 @@ body.light #arch-strip-close:hover { color: #000; border-color: rgba(0,0,0,0.40)
 .cs-close:hover { color: #f5ecd5; border-color: rgba(218,165,32,0.60); }
 
 #cs-body-wrap {
-  flex: 1; overflow-y: auto; scrollbar-width: none;
+  flex: 1; overflow-y: auto;
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 0;
 }
-#cs-body-wrap::-webkit-scrollbar { display: none; }
 
 #cs-left {
   padding: 20px 22px 20px;
@@ -2173,15 +2252,15 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
         <ellipse class="bh-glow" cx="13" cy="13" rx="12" ry="4.2" stroke="rgba(218,165,32,0.12)" stroke-width="1" transform="rotate(-18,13,13)"/>
         <ellipse class="bh-ring" cx="13" cy="13" rx="10.5" ry="3.5" stroke="rgba(218,165,32,0.28)" stroke-width="0.8" transform="rotate(-18,13,13)"/>
         <!-- event horizon -->
-        <circle cx="13" cy="13" r="5.5" fill="rgba(5,3,10,0.98)" stroke="rgba(218,165,32,0.45)" stroke-width="0.75"/>
+        <circle class="bh-planet" cx="13" cy="13" r="5.5" fill="rgba(5,3,10,0.98)" stroke="rgba(218,165,32,0.45)" stroke-width="0.75"/>
         <!-- photon ring shimmer -->
-        <circle cx="13" cy="13" r="5.5" fill="none" stroke="rgba(218,165,32,0.18)" stroke-width="2.5"/>
+        <circle class="bh-photon" cx="13" cy="13" r="5.5" fill="none" stroke="rgba(218,165,32,0.18)" stroke-width="2.5"/>
         <!-- singularity -->
-        <circle cx="13" cy="13" r="2.2" fill="rgba(218,165,32,0.85)"/>
+        <circle class="bh-singularity" cx="13" cy="13" r="2.2" fill="rgba(218,165,32,0.85)"/>
         <!-- accretion nodes -->
-        <circle class="bh-ring" cx="3.5"  cy="11"   r="1.1" fill="rgba(218,165,32,0.55)" transform="rotate(-18,13,13)"/>
-        <circle class="bh-ring" cx="22.5" cy="15"   r="0.9" fill="rgba(218,165,32,0.45)" transform="rotate(-18,13,13)"/>
-        <circle class="bh-glow" cx="8"    cy="5.5"  r="0.8" fill="rgba(218,165,32,0.30)" transform="rotate(-18,13,13)"/>
+        <circle class="bh-ring bh-node" cx="3.5"  cy="11"   r="1.1" fill="rgba(218,165,32,0.55)" transform="rotate(-18,13,13)"/>
+        <circle class="bh-ring bh-node" cx="22.5" cy="15"   r="0.9" fill="rgba(218,165,32,0.45)" transform="rotate(-18,13,13)"/>
+        <circle class="bh-glow bh-node" cx="8"    cy="5.5"  r="0.8" fill="rgba(218,165,32,0.30)" transform="rotate(-18,13,13)"/>
       </svg>
     </button>
     <!-- Sol nav + galaxy + theme -->
@@ -11109,4 +11188,3 @@ window.closeTesseractGrid = closeTesseractGrid;
 
 })();
 </script>
-                                         
