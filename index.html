@@ -809,12 +809,23 @@ body.arch-strip-open #msheet {
               transform 0.45s cubic-bezier(0.22,1,0.36,1);
 }
 #arch-strip.on { opacity: 1; transform: translateY(0); pointer-events: all; }
+/* Filmstrip header row: manifesto text + close button side by side */
+#arch-strip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 0;
+  gap: 12px;
+  min-height: 0;
+}
 #arch-strip-manifesto {
-  text-align: center; padding: 14px 64px 0;
+  flex: 1;
+  text-align: center;
   font-family: 'Crimson Text', serif;
-  font-size: clamp(13px, 1.5vw, 15px); line-height: 1.7;
+  font-size: clamp(12px, 1.4vw, 14px); line-height: 1.6;
   color: rgba(245,236,213,0.50); letter-spacing: 0.01em;
   pointer-events: none;
+  padding: 0;
 }
 #arch-strip-rail {
   display: flex; align-items: stretch; gap: 0;
@@ -825,7 +836,8 @@ body.arch-strip-open #msheet {
   border-top: 1px solid var(--arch-accent-dim, rgba(218,165,32,0.10));
   background: linear-gradient(to top, rgba(3,2,8,0.97) 55%, rgba(3,2,8,0.0));
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* OS-chrome: respect home indicator / taskbar */
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 6px);
   transition: background 0.3s, border-color 0.3s;
 }
 #arch-strip:hover #arch-strip-rail {
@@ -895,18 +907,24 @@ body.arch-strip-open #msheet {
   letter-spacing: 0.20em; text-transform: uppercase; text-align: center;
 }
 #arch-strip-close {
-  position: absolute; top: -34px; right: 16px;
-  background: rgba(3,2,8,0.80);
+  flex-shrink: 0;
+  background: rgba(5,3,10,0.80);
   border: 1px solid rgba(218,165,32,0.18);
-  color: rgba(218,165,32,0.40); cursor: pointer;
-  font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.14em;
-  padding: 5px 12px; border-radius: 2px;
-  transition: color 0.15s, border-color 0.15s;
+  color: rgba(218,165,32,0.45); cursor: pointer;
+  font-family: 'DM Mono', monospace; font-size: 7px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 5px 11px; border-radius: 2px;
+  backdrop-filter: blur(10px);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
 }
-#arch-strip-close:hover { color: #daa520; border-color: rgba(218,165,32,0.50); }
+#arch-strip-close:hover { color: #daa520; border-color: rgba(218,165,32,0.55); background: rgba(218,165,32,0.06); }
+body.light #arch-strip-close { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.50); }
+body.light #arch-strip-close:hover { color: #000; border-color: rgba(0,0,0,0.40); }
 @media (max-width: 768px) {
   .arch-kf { width: clamp(120px, 38vw, 158px); padding: 8px 10px 14px; }
-  #arch-strip-manifesto { padding: 10px 24px 0; font-size: 12px; }
+  #arch-strip-header { padding: 8px 12px 0; }
+  #arch-strip-manifesto { font-size: 12px; }
 }
 
 #cs-panel {
@@ -1274,45 +1292,12 @@ body.light #mf-close:hover{color:#000;}
   pointer-events:none;
 }
 
-#mobile-zoom-rail {
-  display: none;
-  position: fixed;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 200;
-  flex-direction: column;
-  gap: 3px;
-  align-items: center;
-}
-@media(max-width:768px) {
-  #mobile-zoom-rail { display: flex; }
-}
-.mzr-btn {
-  width: 36px; height: 36px;
-  background: rgba(5,3,10,0.82);
-  border: 1px solid rgba(218,165,32,0.20);
-  border-radius: 4px;
-  color: rgba(218,165,32,0.65);
-  font-family: 'DM Mono', monospace;
-  font-size: 16px; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  backdrop-filter: blur(10px);
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-  user-select: none; -webkit-user-select: none;
-}
-.mzr-btn:active { color: #daa520; background: rgba(218,165,32,0.12); border-color: rgba(218,165,32,0.50); }
-.mzr-sep { width: 1px; height: 10px; background: rgba(218,165,32,0.12); }
-.mzr-fit-icon { font-size: 11px; letter-spacing: 0; }
-body.light #mobile-zoom-rail .mzr-btn {
-  background: rgba(255,255,255,0.90); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.55);
-}
+/* mobile-zoom-rail merged into #right-rail-widget */
+#mobile-zoom-rail { display: none !important; }
 
 html, body, canvas, button, a, [onclick], .hud-btn, .gc-moon-pill,
 .cs-nav-btn, .gcclose, .gcnav-btn, .gcexpand, .toc-row, .grid-card,
+.rrw-btn, #arch-strip-close,
 #brand { cursor: none !important; }
 #cursor-outer, #cursor-inner {
   position:fixed; top:0; left:0; pointer-events:none;
@@ -1400,36 +1385,104 @@ body.light .toast-role{color:rgba(0,0,0,0.40);}
 .tess-grid-title { font-family: 'Crimson Text',serif; font-size: 14px; color: #f5ecd5; line-height: 1.2; }
 .tess-grid-domain { font-family: 'DM Mono',monospace; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(218,165,32,0.28); margin-top: 4px; }
 
-#right-hud {
-  position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
-  display: none; flex-direction: column; gap: 2px;
-  z-index: 100;
+/* ── UNIFIED RIGHT RAIL WIDGET ── */
+#right-hud { display: none !important; } /* old element hidden, replaced by #rrw */
+
+#rrw {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right, 0px) + 8px);
+  /* vertical center accounting for filmstrip: midpoint of available viewport */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   background: rgba(5,3,10,0.88);
-  border: 1px solid rgba(218,165,32,0.12);
-  border-radius: 4px; overflow: hidden;
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(218,165,32,0.13);
+  border-radius: 5px;
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 4px 28px rgba(0,0,0,0.65);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s, top 0.38s cubic-bezier(0.22,1,0.36,1);
 }
-#right-hud.vis { display: flex; }
-.rhud-btn {
-  background: none; border: none; cursor: pointer;
+/* When filmstrip is open, raise widget so it sits in the viewport above the strip */
+body.arch-strip-open #rrw {
+  top: calc(50% - var(--strip-h, 160px) / 2);
+}
+#rrw.vis {
+  opacity: 1;
+  pointer-events: all;
+}
+.rrw-btn {
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(218,165,32,0.08);
+  cursor: pointer;
   color: rgba(218,165,32,0.40);
-  font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.10em;
-  padding: 10px 12px; border-bottom: 1px solid rgba(218,165,32,0.08);
+  font-family: 'DM Mono', monospace;
+  font-size: 15px;
+  line-height: 1;
+  padding: 11px 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
   transition: color 0.15s, background 0.15s;
-  text-align: center; min-width: 38px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  position: relative;
 }
-.rhud-btn:last-child { border-bottom: none; }
-.rhud-btn:hover, .rhud-btn:active { color: #daa520; background: rgba(218,165,32,0.07); }
-.rhud-btn.active { color: #daa520; }
-.rhud-sep { height: 1px; background: rgba(218,165,32,0.10); margin: 1px 0; }
-@media(max-width:768px){
-  #right-hud { right: 8px; }
-  .rhud-btn { padding: 12px 14px; font-size: 10px; }
+.rrw-btn:last-child { border-bottom: none; }
+.rrw-btn:hover { color: #daa520; background: rgba(218,165,32,0.07); }
+.rrw-btn:active { color: #daa520; background: rgba(218,165,32,0.12); }
+.rrw-btn.active { color: #daa520; }
+.rrw-btn:disabled { opacity: 0.22; pointer-events: none; }
+/* tooltip labels — appear to the left of the widget */
+.rrw-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(5,3,10,0.92);
+  border: 1px solid rgba(218,165,32,0.14);
+  border-radius: 2px;
+  font-size: 6.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(218,165,32,0.70);
+  padding: 4px 9px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
 }
-body.light #right-hud { background: rgba(255,255,255,0.96); border-color: rgba(0,0,0,0.10); }
-body.light .rhud-btn { color: rgba(0,0,0,0.45); }
-body.light .rhud-btn:hover { color: #000; }
-body.light .rhud-btn.active { color: #000; }
+.rrw-btn:hover::after { opacity: 1; }
+.rrw-sep {
+  height: 1px;
+  background: rgba(218,165,32,0.10);
+  flex-shrink: 0;
+}
+
+/* mobile: slightly larger tap targets, right-edge safe area */
+@media(max-width:768px) {
+  #rrw { right: max(8px, env(safe-area-inset-right, 0px) + 4px); }
+  .rrw-btn { padding: 13px 15px; font-size: 17px; min-width: 46px; }
+  .rrw-btn::after { display: none; } /* no tooltips on touch */
+}
+
+/* light theme */
+body.light #rrw { background: rgba(255,255,255,0.96); border-color: rgba(0,0,0,0.10); box-shadow: 0 4px 20px rgba(0,0,0,0.10); }
+body.light .rrw-btn { color: rgba(0,0,0,0.42); border-bottom-color: rgba(0,0,0,0.07); }
+body.light .rrw-btn:hover { color: #000; background: rgba(0,0,0,0.04); }
+body.light .rrw-btn.active { color: #000; }
+body.light .rrw-btn::after { background: #fff; border-color: rgba(0,0,0,0.12); color: rgba(0,0,0,0.70); }
+body.light .rrw-sep { background: rgba(0,0,0,0.08); }
 
 #musicIframeContainer {
   position: fixed; left: -9999px; top: -9999px;
@@ -1987,12 +2040,20 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   <span class="toast-role" id="tt-role"></span>
 </div>
 
-<!-- MOBILE ZOOM RAIL -->
-<div id="mobile-zoom-rail">
-  <button class="mzr-btn" id="mzr-in"  ontouchend="mobileZoom(-1)" onclick="mobileZoom(-1)">+</button>
-  <button class="mzr-btn" id="mzr-out" ontouchend="mobileZoom(1)"  onclick="mobileZoom(1)">−</button>
-  <div class="mzr-sep"></div>
-  <button class="mzr-btn" id="mzr-fit" ontouchend="mobileFit()" onclick="mobileFit()"><span class="mzr-fit-icon">⊙</span></button>
+<!-- MOBILE ZOOM RAIL (legacy stub, hidden) -->
+<div id="mobile-zoom-rail" style="display:none!important"></div>
+
+<!-- UNIFIED RIGHT RAIL WIDGET -->
+<div id="rrw" aria-label="View controls">
+  <button class="rrw-btn" id="rrw-fit"  data-tip="Reset View"  onclick="mobileFit()"            ontouchend="mobileFit()">⊙</button>
+  <div class="rrw-sep"></div>
+  <button class="rrw-btn" id="rrw-in"   data-tip="Zoom In"     onclick="mobileZoom(-1)"         ontouchend="mobileZoom(-1)">+</button>
+  <button class="rrw-btn" id="rrw-out"  data-tip="Zoom Out"    onclick="mobileZoom(1)"          ontouchend="mobileZoom(1)">−</button>
+  <div class="rrw-sep"></div>
+  <button class="rrw-btn" id="rrw-grid" data-tip="Grid View"   onclick="toggleUniverseGrid()">⊞</button>
+  <div class="rrw-sep"></div>
+  <button class="rrw-btn" id="rrw-prev" data-tip="Previous"    onclick="navPrev()">←</button>
+  <button class="rrw-btn" id="rrw-next" data-tip="Next"        onclick="navNext()">→</button>
 </div>
 <canvas id="bg-mesh"></canvas>
 <canvas id="canvas"></canvas>
@@ -2047,13 +2108,8 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   <button class="hud-btn" id="theme-toggle-hud">LGHT</button>
 </div>
 
-<!-- Right contextual HUD: zoom + layout toggle -->
-<div id="right-hud">
-  <button class="rhud-btn" id="rhud-nav-prev" title="Previous node">←</button>
-  <button class="rhud-btn" id="rhud-nav-next" title="Next node">→</button>
-  <div class="rhud-sep"></div>
-  <button class="rhud-btn" id="rhud-grid" title="Grid view">⊞</button>
-</div>
+<!-- Right HUD replaced by #rrw unified rail widget -->
+<div id="right-hud" style="display:none!important"></div>
 
 <!-- hidden stubs so JS refs don't break -->
 <button id="theme-toggle" style="display:none">Light</button>
@@ -6359,6 +6415,8 @@ function openGridView() {
   document.querySelectorAll('.hud-btn[data-view]').forEach(b => b.classList.remove('active'));
   const mhubList = document.getElementById('mhub-list');
   if (mhubList) mhubList.classList.add('active');
+  const rrwGrid = document.getElementById('rrw-grid');
+  if (rrwGrid) rrwGrid.classList.add('active');
   el.addEventListener('pointerdown', function handler(ev) {
     if (!ev.target.closest('.grid-card')) {
       closeGridView();
@@ -6376,6 +6434,8 @@ function closeGridView() {
   if (mhubList) mhubList.classList.remove('active');
   const btn = document.getElementById('nc-grid');
   if (btn) btn.classList.remove('nc-active');
+  const rrwGrid = document.getElementById('rrw-grid');
+  if (rrwGrid) rrwGrid.classList.remove('active');
   setTimeout(() => { el.style.display = 'none'; }, 420);
 }
 
@@ -6564,16 +6624,32 @@ function openGalaxyTesseract(galaxyId) {
 // Opens the tesseract overlay with a specific set of eras
 
 function navPrev() {
-  if (!focusedEra) { focusEra(ERAS[0]); return; }
+  if (!focusedEra) {
+    // At overview: cycle to the previous galaxy star
+    const galaxyIds = ['career', 'sentence', 'claude', 'explorer'];
+    const cur = galaxyIds.indexOf(lastFocusedGalaxyId || focusedStarGalaxyId || 'career');
+    const prev = galaxyIds[(cur - 1 + galaxyIds.length) % galaxyIds.length];
+    swoopToGalaxyOverview(prev);
+    return;
+  }
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx > 0) focusEra(list[idx - 1], -1);
+  // Wrap continuously
+  focusEra(list[(idx - 1 + list.length) % list.length], -1);
 }
 function navNext() {
-  if (!focusedEra) { focusEra(ERAS[0]); return; }
+  if (!focusedEra) {
+    // At overview: cycle to the next galaxy star
+    const galaxyIds = ['career', 'sentence', 'claude', 'explorer'];
+    const cur = galaxyIds.indexOf(lastFocusedGalaxyId || focusedStarGalaxyId || 'career');
+    const next = galaxyIds[(cur + 1) % galaxyIds.length];
+    swoopToGalaxyOverview(next);
+    return;
+  }
   const list = activeList(focusedEra);
   const idx = list.findIndex(e => e.id === focusedEra.id);
-  if (idx < list.length - 1) focusEra(list[idx + 1], 1);
+  // Wrap continuously
+  focusEra(list[(idx + 1) % list.length], 1);
 }
 
 // ── MOBILE HUB FUNCTIONS ──────────────────────────────────────
@@ -6843,6 +6919,7 @@ window.closePanel = function (forceCloseStrip) {
   // Only close filmstrip if explicitly requested (not during keyframe navigation)
   if (forceCloseStrip) closeArchStrip();
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
+  if (window._syncRhudNav) setTimeout(window._syncRhudNav, 80);
 };
 
 // Mobile sheet expand/collapse toggle
@@ -7057,6 +7134,7 @@ function focusEra(era, navDir) {
   highlightConnections(era); updateLineVisibility(getGalaxyFromEra(era));
   updateLayoutToggleBar(era);
   if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
+  if (window._syncRhudNav) setTimeout(window._syncRhudNav, 80);
 }
 
 function highlightConnections(era) {
@@ -7426,9 +7504,92 @@ cvs.addEventListener('pointerup', e => {
   }
 
   if (isMobileDevice()) {
-    // Touch gestures are handled entirely by the canvas touch engine above.
-    // pointerup on mobile is a no-op to avoid double-firing.
-    drag = false;
+    // During momentum decay, ignore pointer events
+    if (mobileMomentumActive) { mobileMomentumActive = false; return; }
+    const SWIPE_THRESHOLD = 48;
+    const AXIS_RATIO = 1.4;
+
+    if (isFocused && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
+      // Horizontal swipe → navigate nodes
+      if (dx < 0) {
+        navNext();
+      } else {
+        navPrev();
+      }
+      return;
+    }
+
+    // Short tap: open panel for current focused node, or jump to tapped node
+    // Only process as tap if we didn't drag significantly
+    if (dist < 16 && !wasDragging) {
+      // Black hole tap → focus first, then click opens tesseract (check regardless of galaxyAlpha)
+      raycaster.setFromCamera(mouse, cam);
+      const bhHitMesh = bhGroup.userData.bhHit;
+      if (bhHitMesh) {
+        const bhHits = raycaster.intersectObject(bhHitMesh);
+        if (bhHits.length) {
+          // If already focused on black hole, open tesseract
+          if (isBlackHoleFocused) {
+            window.openTesseract();
+          } else {
+            focusBlackHole();
+          }
+          return;
+        }
+      }
+      // Reset black hole focus if clicking elsewhere
+      if (isBlackHoleFocused) {
+        isBlackHoleFocused = false;
+      }
+      if (handleStarClick && handleStarClick(mouse)) return;
+      // Galaxy cluster click
+      if (galaxyAlpha > 0.15) {
+        raycaster.setFromCamera(mouse, cam);
+        const clMeshes = galaxyClusterObjects.map(o => o.mesh);
+        const clHits = raycaster.intersectObjects(clMeshes);
+        if (clHits.length) {
+          const cl = clHits[0].object.userData.galaxyCluster;
+          if (cl) {
+            tooltip.classList.remove('vis');
+            let targetEra;
+            if (cl.id === 'sentence') { targetEra = PLATFORM_ERAS[0]; }
+            else if (cl.id === 'career') { targetEra = ERAS[0]; }
+            else { targetEra = CLAUDE_ERAS[0]; }
+            isFocused = true; focusedEra = targetEra;
+            const preset = eraPreset(targetEra);
+            scenePivotTgt.copy(preset.pivot);
+            swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
+            camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
+            setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
+            return;
+          }
+        }
+      }
+      if (handleStarClick && handleStarClick(mouse)) return;
+      if (handleGalaxyClick(mouse)) return;
+      raycaster.setFromCamera(mouse, cam);
+      const hits = raycaster.intersectObjects(getAllHittable());
+      if (hits.length) {
+        const hit = hits[0].object;
+        // Case study moon tap?
+        if (hit.userData.isCaseStudy) { openCaseStudy(hit.userData.caseStudy); return; }
+        const nodeObj = nodeObjects.find(o => (o.mesh === hit || o.hitMesh === hit) && isInActiveGalaxy(o.era));
+        if (nodeObj) {
+          if (focusedEra && nodeObj.era.id === focusedEra.id) {
+            openPanel(focusedEra);
+          } else {
+            focusEra(nodeObj.era);
+          }
+        }
+      } else if (focusedEra) {
+        const sheet = document.getElementById('msheet');
+        if (sheet.classList.contains('on')) {
+          document.getElementById('msheet').classList.remove('on');
+        } else {
+          openPanel(focusedEra);
+        }
+      }
+    }
     return;
   }
 
@@ -7546,258 +7707,49 @@ cvs.addEventListener('wheel', e => {
 }, { passive: true });
 cvs.addEventListener('contextmenu', e => {
   e.preventDefault();
-  // Right-click (desktop only): toggle spiral ↔ arc
-  if (!isMobileDevice()) {
-    const next = currentView === 'arc' ? 'spiral' : 'arc';
-    switchView(next);
-  }
+  // Right-click (desktop) or long-press (mobile): toggle spiral ↔ arc
+  const next = currentView === 'arc' ? 'spiral' : 'arc';
+  switchView(next);
 });
 
-// Suppress native long-press context menu everywhere
+// Suppress native long-press context menu on mobile everywhere
 document.addEventListener('contextmenu', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
 
-// Override all OS-level touch gestures — canvas owns touch entirely
-document.addEventListener('touchstart',  e => { if (e.target === cvs || cvs.contains(e.target)) e.preventDefault(); }, { passive: false });
-document.addEventListener('touchmove',   e => { if (e.target === cvs || cvs.contains(e.target)) e.preventDefault(); }, { passive: false });
-document.addEventListener('touchend',    e => { if (e.target === cvs || cvs.contains(e.target)) e.preventDefault(); }, { passive: false });
-document.addEventListener('touchcancel', e => { if (e.target === cvs || cvs.contains(e.target)) e.preventDefault(); }, { passive: false });
-
-// ── MOBILE GESTURE ENGINE ────────────────────────────────
-// Velocity-classified: tap | flick-up | flick-down | flick-left | flick-right | drag | longpress
-// All thresholds tuned for one-handed thumb navigation.
-
-let _tStart = 0, _tX0 = 0, _tY0 = 0;
-let _tLastX = 0, _tLastY = 0, _tVX = 0, _tVY = 0;
-let _tLongPressTimer = null;
-let _tLongPressTriggered = false;
-let _tDragActive = false;
-let _pinchDist = 0, _pinchActive = false;
-
-const FLICK_VEL       = 0.38;  // px/ms minimum velocity for a flick
-const FLICK_MAX_MS    = 320;   // flick must complete within this duration
-const FLICK_MIN_PX    = 28;    // minimum displacement to count as flick
-const FLICK_AXIS      = 1.6;   // dominant axis ratio (prevents diagonal misfires)
-const TAP_MAX_PX      = 14;    // maximum movement for a tap
-const TAP_MAX_MS      = 260;   // maximum duration for a tap
-const DRAG_THRESHOLD  = 10;    // px before drag mode activates
-const LONG_PRESS_MS   = 480;   // ms hold before longpress fires
-const ZOOM_STEP       = 0.26;  // fraction of current radius per flick-zoom
+let longPressTimer = null;
+let pinchDist = 0;
 
 cvs.addEventListener('touchstart', e => {
   if (e.touches.length === 2) {
-    // Two-finger pinch init
-    _pinchActive = true;
-    _tDragActive = false;
-    clearTimeout(_tLongPressTimer);
-    const t0 = e.touches[0], t1 = e.touches[1];
-    const dx = t0.clientX - t1.clientX, dy = t0.clientY - t1.clientY;
-    _pinchDist = Math.sqrt(dx*dx + dy*dy);
+    clearTimeout(longPressTimer);
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchDist = Math.sqrt(dx*dx + dy*dy);
     return;
   }
-  _pinchActive = false;
-
-  const t = e.touches[0];
-  _tStart = performance.now();
-  _tX0 = _tLastX = t.clientX;
-  _tY0 = _tLastY = t.clientY;
-  _tVX = 0; _tVY = 0;
-  _tDragActive = false;
-  _tLongPressTriggered = false;
-
-  // Longpress timer — fires into camera drag mode
-  _tLongPressTimer = setTimeout(() => {
-    _tLongPressTriggered = true;
-    // Haptic hint if available
-    if (navigator.vibrate) navigator.vibrate(18);
-  }, LONG_PRESS_MS);
-}, { passive: false });
+  // Long press → toggle spiral / arc view
+  longPressTimer = setTimeout(() => {
+    const next = currentView === 'arc' ? 'spiral' : 'arc';
+    switchView(next);
+  }, 600);
+}, { passive: true });
 
 cvs.addEventListener('touchmove', e => {
-  e.preventDefault();
-
-  if (_pinchActive && e.touches.length === 2) {
-    const t0 = e.touches[0], t1 = e.touches[1];
-    const dx = t0.clientX - t1.clientX, dy = t0.clientY - t1.clientY;
+  clearTimeout(longPressTimer);
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
     const dist = Math.sqrt(dx*dx + dy*dy);
-    const delta = _pinchDist - dist;
-    const mn = typeof ORRERY_RADIUS_MIN !== 'undefined' ? ORRERY_RADIUS_MIN : 1;
+    const delta = pinchDist - dist;
+    const mn = galaxyAlpha > 0.5 ? 8 : ORRERY_RADIUS_MIN;
+    const mx = 340;
     const pinchSens = Math.max(0.03, camTarget.radius * 0.004);
-    camTarget.radius = Math.max(mn, Math.min(340, camTarget.radius + delta * pinchSens));
-    if (typeof lockPivotToFocus === 'function') lockPivotToFocus();
-    _pinchDist = dist;
-    return;
+    camTarget.radius = Math.max(mn, Math.min(mx, camTarget.radius + delta * pinchSens));
+    lockPivotToFocus();
+    pinchDist = dist;
   }
-  if (e.touches.length !== 1) return;
+}, { passive: true });
 
-  const t = e.touches[0];
-  const dx = t.clientX - _tLastX;
-  const dy = t.clientY - _tLastY;
-  const totalDx = t.clientX - _tX0;
-  const totalDy = t.clientY - _tY0;
-  const totalDist = Math.sqrt(totalDx*totalDx + totalDy*totalDy);
-
-  // Once movement exceeds threshold, cancel longpress and enter drag
-  if (!_tDragActive && totalDist > DRAG_THRESHOLD) {
-    clearTimeout(_tLongPressTimer);
-    if (!_tLongPressTriggered) _tDragActive = true;
-  }
-
-  // Rolling velocity (exponential moving average)
-  const now = performance.now();
-  const dt = Math.max(1, now - _tStart);
-  _tVX = totalDx / dt;
-  _tVY = totalDy / dt;
-
-  // Camera drag (either longpress-held or regular drag)
-  if (_tDragActive || _tLongPressTriggered) {
-    const sens = 0.008;
-    const dTheta = -dx * sens;
-    const dPhi   =  dy * sens;
-    camState.theta  += dTheta; camTarget.theta += dTheta;
-    const newPhi = Math.max(0.04, Math.min(Math.PI * 0.48, camState.phi + dPhi));
-    camState.phi = newPhi; camTarget.phi = newPhi;
-    // Velocity for momentum
-    mobileVelX = dx * 0.5;
-    mobileVelY = dy * 0.5;
-  }
-
-  _tLastX = t.clientX;
-  _tLastY = t.clientY;
-}, { passive: false });
-
-cvs.addEventListener('touchend', e => {
-  e.preventDefault();
-  clearTimeout(_tLongPressTimer);
-  if (_pinchActive) { _pinchActive = false; return; }
-
-  const elapsed = performance.now() - _tStart;
-  const totalDx = _tLastX - _tX0;
-  const totalDy = _tLastY - _tY0;
-  const totalDist = Math.sqrt(totalDx*totalDx + totalDy*totalDy);
-  const absX = Math.abs(totalDx), absY = Math.abs(totalDy);
-  const velX = Math.abs(_tVX), velY = Math.abs(_tVY);
-
-  // If we were in drag/camera mode, apply momentum and exit
-  if (_tDragActive || _tLongPressTriggered) {
-    if (_tDragActive && (Math.abs(mobileVelX) > 0.5 || Math.abs(mobileVelY) > 0.5)) {
-      mobileMomentumActive = true;
-    }
-    _tDragActive = false;
-    return;
-  }
-
-  // ── TAP ──────────────────────────────────────────────────
-  if (totalDist < TAP_MAX_PX && elapsed < TAP_MAX_MS) {
-    // Update raycaster mouse coords from touch position
-    const rect = cvs.getBoundingClientRect();
-    mouse.x = (_tLastX - rect.left) / rect.width  *  2 - 1;
-    mouse.y = -((_tLastY - rect.top)  / rect.height) * 2 + 1;
-
-    // Black hole tap
-    raycaster.setFromCamera(mouse, cam);
-    const bhHitMesh = bhGroup.userData.bhHit;
-    if (bhHitMesh) {
-      const bhHits = raycaster.intersectObject(bhHitMesh);
-      if (bhHits.length) {
-        if (isBlackHoleFocused) { window.openTesseract(); }
-        else { focusBlackHole(); }
-        return;
-      }
-    }
-    if (isBlackHoleFocused) isBlackHoleFocused = false;
-    if (handleStarClick && handleStarClick(mouse)) return;
-
-    // Galaxy cluster tap
-    if (galaxyAlpha > 0.15) {
-      raycaster.setFromCamera(mouse, cam);
-      const clMeshes = galaxyClusterObjects.map(o => o.mesh);
-      const clHits = raycaster.intersectObjects(clMeshes);
-      if (clHits.length) {
-        const cl = clHits[0].object.userData.galaxyCluster;
-        if (cl) {
-          tooltip.classList.remove('vis');
-          let targetEra;
-          if (cl.id === 'sentence') { targetEra = PLATFORM_ERAS[0]; }
-          else if (cl.id === 'career') { targetEra = ERAS[0]; }
-          else { targetEra = CLAUDE_ERAS[0]; }
-          isFocused = true; focusedEra = targetEra;
-          const preset = eraPreset(targetEra);
-          scenePivotTgt.copy(preset.pivot);
-          swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-          camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
-          setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
-          return;
-        }
-      }
-    }
-
-    if (handleGalaxyClick(mouse)) return;
-    raycaster.setFromCamera(mouse, cam);
-    const hits = raycaster.intersectObjects(getAllHittable());
-    if (hits.length) {
-      const hit = hits[0].object;
-      if (hit.userData.isCaseStudy) { openCaseStudy(hit.userData.caseStudy); return; }
-      const nodeObj = nodeObjects.find(o => (o.mesh === hit || o.hitMesh === hit) && isInActiveGalaxy(o.era));
-      if (nodeObj) {
-        if (focusedEra && nodeObj.era.id === focusedEra.id) {
-          openPanel(focusedEra);
-        } else {
-          focusEra(nodeObj.era);
-        }
-      }
-    } else if (focusedEra) {
-      const sheet = document.getElementById('msheet');
-      if (sheet && sheet.classList.contains('on')) {
-        sheet.classList.remove('on');
-      } else {
-        openPanel(focusedEra);
-      }
-    }
-    return;
-  }
-
-  // ── FLICK CLASSIFICATION ─────────────────────────────────
-  // Must be fast enough, short enough, and axis-dominant enough
-  const isFlick = elapsed < FLICK_MAX_MS && totalDist > FLICK_MIN_PX;
-  if (!isFlick) return;
-
-  const horizDominant = absX > absY * FLICK_AXIS && velX > FLICK_VEL;
-  const vertDominant  = absY > absX * FLICK_AXIS && velY > FLICK_VEL;
-
-  if (vertDominant) {
-    // Flick up (negative dy) → zoom in; flick down → zoom out
-    const mn = typeof ORRERY_RADIUS_MIN !== 'undefined' ? ORRERY_RADIUS_MIN : 1;
-    const step = camTarget.radius * ZOOM_STEP;
-    if (totalDy < 0) {
-      // Flick up → zoom in
-      camTarget.radius = Math.max(mn, camTarget.radius - step);
-    } else {
-      // Flick down → zoom out
-      camTarget.radius = Math.min(340, camTarget.radius + step);
-    }
-    if (typeof lockPivotToFocus === 'function') lockPivotToFocus();
-    return;
-  }
-
-  if (horizDominant && isFocused && focusedEra) {
-    // Flick left → next node; flick right → previous node
-    if (totalDx < 0) {
-      navNext();
-    } else {
-      navPrev();
-    }
-    return;
-  }
-  // No node focused + horizontal flick → do nothing (camera already handled above)
-}, { passive: false });
-
-cvs.addEventListener('touchcancel', e => {
-  clearTimeout(_tLongPressTimer);
-  _tDragActive = false; _tLongPressTriggered = false; _pinchActive = false;
-}, { passive: false });
-
-let longPressTimer = null; // kept for legacy compatibility
-let pinchDist = 0;         // kept for legacy compatibility
+cvs.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
@@ -8273,8 +8225,67 @@ function _allErasMap() {
   return m;
 }
 
-// SOL_FILMSTRIP_DATA — reserved for future per-sol filmstrip content.
-const SOL_FILMSTRIP_DATA = {};
+// ── SOL FILMSTRIP DATA — one entry per galaxy star ────────
+const SOL_FILMSTRIP_DATA = {
+  career: {
+    accent: '#daa520',
+    manifesto: 'Twenty years. One thread. Philadelphia to New York to independent — every role a proof, not a credential.',
+    keyframes: [
+      { eraId: 'origin',         label: 'Miller Designworks', why: 'The beginning of the thread. Print, identity, suburban Philly.' },
+      { eraId: 'turn5',          label: 'Turn5',              why: 'A garage startup. $10M → $40M. Built the photo studio from nothing.' },
+      { eraId: 'leadnomics',     label: 'Leadnomics',         why: '95.8% CVR. Mobile-first before it was mandated.' },
+      { eraId: '160over90',      label: '160/90',             why: 'The culture demanded we dare. Enterprise interaction design.' },
+      { eraId: 'o3world',        label: 'O3 World',           why: 'Certified Scrum Master. Lean UX in practice.' },
+      { eraId: 'livearea',       label: 'Livearea',           why: 'IC → Manager. Invented Cards Against Bad UX.' },
+      { eraId: 'elva',           label: 'GNC',                why: 'Post-bankruptcy rebuild. ~$500M revenue recovery in 12 weeks.' },
+      { eraId: 'publicis',       label: 'BNY Mellon',         why: 'Principal lead. $2T+ AUM platform. Became the lead.' },
+      { eraId: 'wolfco',         label: 'Wolfgang & Co.',     why: 'Founder. Six verticals. One grammar. Ongoing.' },
+      { eraId: 'seek',           label: 'What\'s Next',       why: 'Director / VP / Head of Design — remote, ambitious, real.' },
+    ],
+    caseStudy: 'bny',
+  },
+  sentence: {
+    accent: '#a0c8ff',
+    manifesto: 'The sentence is the primitive. Every platform, every product, every piece of writing begins with one irreducible unit.',
+    keyframes: [
+      { eraId: 'p-origin',              label: 'The Sentence',        why: 'The thesis. The origin. The irreducible grammar.' },
+      { eraId: 'p-wolfie-love',         label: 'wolfie.love',         why: 'Progressive reading, Flow Mode, four themes. The first proof.' },
+      { eraId: 'p-wolfie-life',         label: 'wolfie.life',         why: 'Life documentation as narrative system.' },
+      { eraId: 'p-intoview',            label: 'intoview.pro',        why: 'JD → narrative journey. The thesis made interactive.' },
+      { eraId: 'p-emdash',              label: '—',                   why: 'The em-dash as product. Pause as interface.' },
+      { eraId: 'p-rsp',                 label: 'anthropic.html',      why: 'RSP 3.0 — live behavioral telemetry, editorial platform.' },
+      { eraId: 'p-reasonandresolution', label: 'Reason & Resolution', why: 'Anthropic RSP reframed as editorial artifact.' },
+      { eraId: 'p-ifimaybefrank',       label: 'ifimaybefrank',       why: 'Sentence-as-primitive writing engine. Custom everything.' },
+    ],
+    caseStudy: null,
+  },
+  claude: {
+    accent: '#ffe066',
+    manifesto: 'The source code leaked. This is what was inside — a philosophy made visible. You can work with a system you understand.',
+    keyframes: [
+      { eraId: 'cc-queryengine',       label: 'Query Engine',         why: 'The core pipeline. Intent → plan. Every prompt starts here.' },
+      { eraId: 'cc-yolo-classifier',   label: 'YOLO Classifier',      why: 'Single-pass ML permission decisions. Speed vs explainability.' },
+      { eraId: 'cc-assertiveness',     label: 'Assertiveness Weight', why: 'Deliberate friction. Asking beats guessing.' },
+      { eraId: 'cc-memory-indexing',   label: 'MEMORY.md',            why: 'Long-term memory as structured markdown. Persists across sessions.' },
+      { eraId: 'cc-skeptical-memory',  label: 'Skeptical Memory',     why: 'Trust but verify — even your own memories.' },
+      { eraId: 'cc-permission-system', label: 'Permission System',    why: 'Reasoned, not arbitrary. Legibility is the safety model.' },
+      { eraId: 'cc-autodream',         label: 'AutoDream',            why: 'Autonomous off-hours problem solving. The system thinks while you sleep.' },
+      { eraId: 'cc-into-the-void',     label: 'Into The Void',        why: 'Why this map exists. Legibility is the gift.' },
+    ],
+    caseStudy: null,
+  },
+  explorer: {
+    accent: '#c084fc',
+    manifesto: 'Four archetypes. One question: which vessel fits the mission? The Explorer galaxy maps the shape of how I work.',
+    keyframes: [
+      { eraId: 'x-orbiter',   label: 'The Orbiter',  why: 'Senior IC → Lead. The roadmap is the argument. The design is the proof.' },
+      { eraId: 'x-lunar',     label: 'The Lunar',    why: '0-to-1. Founding designer. The north star is yours to set.' },
+      { eraId: 'x-satellite', label: 'The Satellite', why: 'Systems builder. Design technologist. No framework dependency.' },
+      { eraId: 'x-station',   label: 'The Station',  why: 'Platform scale. Cross-functional. Judgment that multiplies.' },
+    ],
+    caseStudy: null,
+  },
+};
 
 // ── SOL FILMSTRIP: open for a whole sol system galaxy ─────
 function openSolFilmstrip(galaxyId, force) {
@@ -8645,31 +8656,41 @@ function animate(ts) {
   // Right-click on canvas: toggle spiral ↔ timeline
   // (already handled in contextmenu listener)
 
-  // Right HUD: prev / next node navigation
-  const rNavPrev = document.getElementById('rhud-nav-prev');
-  const rNavNext = document.getElementById('rhud-nav-next');
-  if (rNavPrev) rNavPrev.addEventListener('click', () => { if (typeof navPrev === 'function') navPrev(); });
-  if (rNavNext) rNavNext.addEventListener('click', () => { if (typeof navNext === 'function') navNext(); });
+  // ── Unified Right Rail Widget (#rrw) ──────────────────────
+  const rrw      = document.getElementById('rrw');
+  const rrwPrev  = document.getElementById('rrw-prev');
+  const rrwNext  = document.getElementById('rrw-next');
+  const rrwGrid  = document.getElementById('rrw-grid');
+  const rrwFit   = document.getElementById('rrw-fit');
+  const rrwIn    = document.getElementById('rrw-in');
+  const rrwOut   = document.getElementById('rrw-out');
 
-  // Right HUD: grid view toggle
-  const rGrid = document.getElementById('rhud-grid');
-  if (rGrid) rGrid.addEventListener('click', () => { if (typeof toggleUniverseGrid === 'function') toggleUniverseGrid(); });
+  // Nav buttons wired (onclick already set in HTML; also add listeners for robustness)
+  if (rrwPrev) rrwPrev.addEventListener('click', () => { if (typeof navPrev === 'function') navPrev(); });
+  if (rrwNext) rrwNext.addEventListener('click', () => { if (typeof navNext === 'function') navNext(); });
+  // rrw-grid: onclick attr in HTML is sufficient — no duplicate addEventListener
+  if (rrwFit)  rrwFit.addEventListener('click',  () => { if (typeof mobileFit  === 'function') mobileFit(); });
+  if (rrwIn)   rrwIn.addEventListener('click',   () => { if (typeof mobileZoom === 'function') mobileZoom(-1); });
+  if (rrwOut)  rrwOut.addEventListener('click',  () => { if (typeof mobileZoom === 'function') mobileZoom(1); });
 
-  // Keep active state in sync with focus
+  // Sync nav button dimming when focus changes
   function _syncRhudNav() {
     const hasFocus = typeof isFocused !== 'undefined' && isFocused && typeof focusedEra !== 'undefined' && focusedEra;
-    if (rNavPrev) rNavPrev.style.opacity = hasFocus ? '1' : '0.35';
-    if (rNavNext) rNavNext.style.opacity = hasFocus ? '1' : '0.35';
+    if (rrwPrev) rrwPrev.disabled = !hasFocus;
+    if (rrwNext) rrwNext.disabled = !hasFocus;
   }
   window._syncRhudNav = _syncRhudNav;
 
-  // Show right HUD only when inside a sol (orrery) view
-  const rightHud = document.getElementById('right-hud');
+  // Show/hide — visible whenever the canvas is the primary surface (galaxy or node view)
+  // Replaces the old _showRightHud(inSol) — now shown in ALL canvas states
   window._showRightHud = function(inSol) {
-    if (!rightHud) return;
-    if (inSol) rightHud.classList.add('vis');
-    else rightHud.classList.remove('vis');
+    if (!rrw) return;
+    // Always visible while canvas is active (galaxy overview AND focused node)
+    rrw.classList.add('vis');
   };
+
+  // Show immediately on load (canvas always active)
+  if (rrw) rrw.classList.add('vis');
 })();
 
 // ── Page Visibility: pause all RAF loops when tab is hidden ──
@@ -8896,8 +8917,12 @@ function mobileFit() {
       if (typeof swoopTo === 'function') swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
       camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
     }
+  } else if (typeof galaxyMode !== 'undefined' && !galaxyMode && typeof focusedStarGalaxyId !== 'undefined' && focusedStarGalaxyId) {
+    // In sol-view with no era focused: reset to the galaxy's central sun node
+    isFocused = false; focusedEra = null;
+    swoopToGalaxyOverview(focusedStarGalaxyId);
   } else {
-    // Fit to galaxy overview
+    // Fit to universe overview
     if (typeof swoopTo === 'function') swoopTo(Math.PI*0.22, Math.PI*1.55, 260, {x:0,y:0,z:0});
     camTarget.phi = Math.PI*0.22; camTarget.theta = Math.PI*1.55; camTarget.radius = 260;
     if (typeof scenePivotTgt !== 'undefined') scenePivotTgt.set(0,0,0);
@@ -9854,16 +9879,57 @@ function dnaSetViewMode(mode) {
   });
 }
 
-// ── Tesseract view locked to 3D GRID (cube) — no switcher bar ──
+// ── Inject view-mode switcher bar into tesseract overlay ──
 function injectDnaViewModes() {
   const existing = document.getElementById('dna-mode-bar');
   if (existing) existing.remove();
 
-  dnaSetViewMode('cube');
+  const bar = document.createElement('div');
+  bar.id = 'dna-mode-bar';
+  bar.style.cssText = `
+    position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; gap:0; z-index:3; pointer-events:all;
+    background:rgba(5,3,10,0.90); border:1px solid rgba(218,165,32,0.18);
+    border-radius:4px; overflow:hidden; backdrop-filter:blur(16px);
+  `;
 
+  const modes = [
+    { mode:'cube',     label:'3D GRID' },
+    { mode:'grid',     label:'ORBITS' },
+    { mode:'spiral',   label:'SPIRAL' },
+    { mode:'timeline', label:'TIMELINE' },
+  ];
+
+  modes.forEach(({ mode, label }) => {
+    const btn = document.createElement('button');
+    btn.className = 'dna-mode-btn';
+    btn.dataset.mode = mode;
+    btn.textContent = label;
+    btn.style.cssText = `
+      background:none; border:none; border-right:1px solid rgba(218,165,32,0.12);
+      color:rgba(218,165,32,0.40); font-family:'DM Mono',monospace;
+      font-size:7px; letter-spacing:0.18em; text-transform:uppercase;
+      padding:9px 16px; cursor:pointer; transition:color 0.15s, background 0.15s;
+    `;
+    if (mode === 'cube') {
+      btn.style.color = '#daa520';
+      btn.style.background = 'rgba(218,165,32,0.10)';
+      btn.classList.add('active');
+    }
+    btn.addEventListener('click', () => dnaSetViewMode(mode));
+    btn.addEventListener('mouseover', () => {
+      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.88)';
+    });
+    btn.addEventListener('mouseout', () => {
+      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.40)';
+    });
+    bar.appendChild(btn);
+  });
+
+  // Legend dots
   const legend = document.createElement('div');
   legend.style.cssText = `
-    position:absolute; bottom:24px; left:28px; display:flex; flex-direction:column; gap:6px; pointer-events:none;
+    position:absolute; bottom:70px; left:28px; display:flex; flex-direction:column; gap:6px; pointer-events:none;
   `;
   const galaxyLabels = [
     { id:'career',   label:'Career',           color:'#daa520' },
@@ -9879,10 +9945,14 @@ function injectDnaViewModes() {
   });
 
   const overlay = document.getElementById('tesseract-overlay');
-  if (overlay) overlay.appendChild(legend);
+  if (overlay) {
+    overlay.appendChild(bar);
+    overlay.appendChild(legend);
+  }
 
+  // Update count label
   const countEl = document.getElementById('tesseract-count');
-  if (countEl) countEl.textContent = tesseractNodeObjs.length + ' nodes  ·  3D Grid  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
+  if (countEl) countEl.textContent = tesseractNodeObjs.length + ' nodes  ·  3D Cube Grid  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
 }
 
 function applyTesseractCam() {
@@ -10179,8 +10249,10 @@ window.closeTesseractGrid = closeTesseractGrid;
 <!-- ═══ CASE STUDY PANEL ═══ -->
 <!-- ── ARCHETYPE FILMSTRIP ─────────────────────────────── -->
 <div id="arch-strip">
-  <button id="arch-strip-close" onclick="closeArchStrip()">✕ close</button>
-  <div id="arch-strip-manifesto"></div>
+  <div id="arch-strip-header">
+    <div id="arch-strip-manifesto"></div>
+    <button id="arch-strip-close" onclick="closeArchStrip()">✕ close</button>
+  </div>
   <div id="arch-strip-rail"></div>
 </div>
 
@@ -10218,29 +10290,6 @@ window.closeTesseractGrid = closeTesseractGrid;
 </div>
 
 <script>
-// ── MOBILE ZOOM RAIL ─────────────────────────────────────
-function mobileZoom(dir) {
-  if (typeof camTarget === 'undefined') return;
-  const step = camTarget.radius * 0.22;
-  const mn = typeof ORRERY_RADIUS_MIN !== 'undefined' ? ORRERY_RADIUS_MIN : 1;
-  camTarget.radius = Math.max(mn, Math.min(340, camTarget.radius + dir * step));
-  if (typeof lockPivotToFocus === 'function') lockPivotToFocus();
-}
-function mobileFit() {
-  if (typeof camTarget === 'undefined') return;
-  if (typeof isFocused !== 'undefined' && isFocused && typeof focusedEra !== 'undefined' && focusedEra) {
-    if (typeof eraPreset === 'function') {
-      const preset = eraPreset(focusedEra);
-      if (typeof swoopTo === 'function') swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-      camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
-    }
-  } else {
-    if (typeof swoopTo === 'function') swoopTo(Math.PI*0.22, Math.PI*1.55, 260, {x:0,y:0,z:0});
-    camTarget.phi = Math.PI*0.22; camTarget.theta = Math.PI*1.55; camTarget.radius = 260;
-    if (typeof scenePivotTgt !== 'undefined') scenePivotTgt.set(0,0,0);
-  }
-}
-
 // ── CUSTOM ELLIPTICAL CURSOR ─────────────────────────────
 (function() {
   var outerEl = document.getElementById('cursor-outer');
