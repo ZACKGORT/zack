@@ -70,7 +70,7 @@ canvas{display:block;width:100vw;height:100vh;position:relative;z-index:1;touch-
   #topbar-widget-menu { display: none !important; }
   /* account for affixed topbar height in panel/sheet positioning */
   #ghost { top: 52px !important; }
-  #msheet { bottom: 0; top: 52px; }  /* clears mobile topbar at top, full bottom */
+  #msheet { bottom: 0; }  /* anchor to real bottom edge */
 }
 
 /* black-hole logo button */
@@ -1673,7 +1673,7 @@ body.light .rrw-sep { background: rgba(0,0,0,0.08); }
   border-radius: 6px;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.65);
+  box-shadow: 0 18px 62px rgba(0,0,0,0.90);
   transition: background 0.3s, border-color 0.3s, bottom 0.38s cubic-bezier(0.22,1,0.36,1);
   user-select: none;
   pointer-events: auto;
@@ -7042,7 +7042,7 @@ function buildIframeHero(era) {
   wrap.appendChild(badge);
 }
 
-function openPanel(era) {
+function openPanel(era, suppressMobileSheet) {
   // Archetype nodes (x-*) get the filmstrip, not the ghost overlay
   if (era.id && (era.id.startsWith('x-') || (era._isMoonNode && era._parentEraId && era._parentEraId.startsWith('x-')))) {
     const archetypeId = era.id.startsWith('x-') ? era.id : era._parentEraId;
@@ -7106,8 +7106,10 @@ function openPanel(era) {
   document.getElementById('msheet').classList.remove('expanded');
   document.getElementById('ms-prev').disabled = idx === 0;
   document.getElementById('ms-next').disabled = idx === _list.length - 1;
-  document.getElementById('msheet').classList.add('on');
-  document.body.classList.add('panel-open');
+  if (!suppressMobileSheet) {
+    document.getElementById('msheet').classList.add('on');
+    document.body.classList.add('panel-open');
+  }
 
   document.getElementById('era-year').textContent = era.year;
   document.getElementById('era-name').textContent = era.era;
@@ -7304,7 +7306,7 @@ function eraPreset(era) {
   return { theta, phi, radius, pivot };
 }
 
-function focusEra(era, navDir) {
+function focusEra(era, navDir, skipPanel) {
   // Track which galaxy we last visited + sync HUD active state
   if (era.id.startsWith('cc-')) { lastFocusedGalaxyId = 'claude';   document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-3'); if(b) b.classList.add('active'); }
   else if (era.id.startsWith('p-')) { lastFocusedGalaxyId = 'sentence'; document.querySelectorAll('#hud .hud-btn').forEach(b=>b.classList.remove('active')); const b=document.getElementById('hud-sol-2'); if(b) b.classList.add('active'); }
@@ -7334,7 +7336,7 @@ function focusEra(era, navDir) {
   // Set per-node nebula
   activeNodeNebulaIdx = ERAS.findIndex(e => e.id === era.id);
 
-  openPanel(era);
+  openPanel(era, skipPanel && window.innerWidth <= 768);
   // If a filmstrip is open and we just navigated to one of its keyframes, highlight it
   if (typeof syncArchStripHighlight === 'function') syncArchStripHighlight(era.id);
   highlightConnections(era); updateLineVisibility(getGalaxyFromEra(era));
@@ -7624,6 +7626,10 @@ let pointerDownX = 0, pointerDownY = 0;
 let _lastCX = 0, _lastCY = 0;
 const isMobileDevice = () => window.innerWidth <= 768;
 
+// Ignore tap events fired during the first 600ms (prevents ghost panel open on page load)
+const _startupTime = Date.now();
+const _startupGrace = () => isMobileDevice() && (Date.now() - _startupTime) < 600;
+
 // Mobile momentum tracking
 let mobileVelX = 0, mobileVelY = 0;
 let mobileMomentumActive = false;
@@ -7712,6 +7718,8 @@ cvs.addEventListener('pointerup', e => {
   if (isMobileDevice()) {
     // During momentum decay, ignore pointer events
     if (mobileMomentumActive) { mobileMomentumActive = false; return; }
+    // Ignore touches fired during page-load startup (prevents panel auto-open)
+    if (_startupGrace()) return;
     const SWIPE_THRESHOLD = 48;
     const AXIS_RATIO = 1.4;
 
