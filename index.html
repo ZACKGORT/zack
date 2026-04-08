@@ -1030,6 +1030,8 @@ body.light .mstitle-role{color:rgba(0,0,0,0.38);}
 body.light .msbody{color:rgba(0,0,0,0.70);}
 body.light .ms-tag{border-color:rgba(0,0,0,0.14);color:rgba(0,0,0,0.42);}
 body.light .ms-expand-hint{color:rgba(0,0,0,0.28);}
+body.light .ms-img-frame{background:rgba(0,0,0,0.05);border-color:rgba(0,0,0,0.10);}
+body.light .ms-img-frame img{opacity:0.90;}
 
 /* Desktop: msheet always shows expanded content (body + images) */
 @media(min-width:769px){
@@ -1390,6 +1392,33 @@ body.arch-strip-open #msheet {
 #arch-strip-close:hover { color: #daa520; border-color: rgba(218,165,32,0.55); background: rgba(218,165,32,0.06); }
 body.light #arch-strip-close { background: rgba(255,255,255,0.92); border-color: rgba(0,0,0,0.14); color: rgba(0,0,0,0.50); }
 body.light #arch-strip-close:hover { color: #000; border-color: rgba(0,0,0,0.40); }
+
+/* ── Light theme: filmstrip is white, all text black ── */
+body.light #arch-strip-rail {
+  background: linear-gradient(to top, rgba(255,255,255,0.99) 55%, rgba(255,255,255,0.0));
+  border-top-color: rgba(0,0,0,0.09);
+}
+body.light #arch-strip:hover #arch-strip-rail {
+  background: linear-gradient(to top, rgba(248,248,248,1.0) 55%, rgba(248,248,248,0.0));
+  border-top-color: rgba(0,0,0,0.18);
+}
+body.light #arch-strip-manifesto { color: rgba(0,0,0,0.50); }
+body.light #arch-strip:hover #arch-strip-manifesto { color: rgba(0,0,0,0.75); }
+body.light .arch-kf { border-right-color: rgba(0,0,0,0.07); }
+body.light .arch-kf:hover { background: rgba(0,0,0,0.03); }
+body.light .arch-kf.active { background: rgba(0,0,0,0.05); }
+body.light .arch-kf.active::before { background: #000; }
+body.light .arch-kf-idx { color: rgba(0,0,0,0.28); }
+body.light .arch-kf-label { color: rgba(0,0,0,0.72); }
+body.light .arch-kf.active .arch-kf-label { color: #000; }
+body.light .arch-kf-why { color: rgba(0,0,0,0.40); }
+body.light #arch-strip:hover .arch-kf-why { color: rgba(0,0,0,0.52); }
+body.light #arch-strip:hover .arch-kf-label { color: rgba(0,0,0,0.88); }
+body.light #arch-strip:hover .arch-kf.active .arch-kf-label { color: #000; }
+body.light .arch-kf-cs { color: #000; border-left-color: rgba(0,0,0,0.12); }
+@media (max-width: 768px) {
+  body.light #arch-strip-rail { background: rgba(255,255,255,0.99); border-top-color: rgba(0,0,0,0.10); }
+}
 @media (max-width: 768px) {
   /* ── Compact filmstrip bar on mobile ─────────────────────────
      Strip becomes a slim single-row scrollable pill bar so the
@@ -7206,7 +7235,7 @@ function buildGridView() {
     bar.style.background = era.hex || meta.color;
     card.appendChild(bar);
     card.innerHTML += `
-      <div class="grid-card-year" style="color:${meta.color};opacity:0.6;">${meta.label}</div>
+      <div class="grid-card-year" style="color:${isLight ? 'rgba(0,0,0,0.45)' : meta.color};opacity:${isLight ? 1 : 0.6};">${meta.label}</div>
       <div class="grid-card-title">${era.title}</div>
       <div class="grid-card-role">${era.role || ''}</div>
       <div class="grid-card-body">${era.body ? era.body.slice(0,120) + (era.body.length > 120 ? '…' : '') : ''}</div>`;
@@ -7364,7 +7393,11 @@ function handleStarClick(mouseVec) {
   // Sol X exception: second click opens the Mission Launchpad.
   // Never jump straight to tesseract — starDirectClickId gates it.
 
-  const alreadyFocused = starDirectClickId === gid && !galaxyMode && galaxyAlpha < 0.5;
+  // On mobile, drop the galaxyAlpha guard: the camera swoop transition means
+  // galaxyAlpha may still be > 0.5 when the user taps the star a second time.
+  // We rely solely on starDirectClickId + !galaxyMode to confirm "already focused".
+  const _isMob = typeof isMobileDevice === 'function' ? isMobileDevice() : window.innerWidth <= 768;
+  const alreadyFocused = starDirectClickId === gid && !galaxyMode && (_isMob || galaxyAlpha < 0.5);
 
   if (alreadyFocused) {
     if (gid === 'explorer') {
@@ -8463,9 +8496,9 @@ cvs.addEventListener('pointerup', e => {
       if (bhHitMesh) {
         const bhHits = raycaster.intersectObject(bhHitMesh);
         if (bhHits.length) {
-          // If already focused on black hole, open tesseract
+          // If already focused on black hole, open manifesto tesseract
           if (isBlackHoleFocused) {
-            window.openTesseract();
+            openGalaxyTesseract('manifesto');
           } else {
             focusBlackHole();
           }
@@ -8500,7 +8533,6 @@ cvs.addEventListener('pointerup', e => {
           }
         }
       }
-      if (handleStarClick && handleStarClick(mouse)) return;
       if (handleGalaxyClick(mouse)) return;
       raycaster.setFromCamera(mouse, cam);
       const hits = raycaster.intersectObjects(getAllHittable());
@@ -8793,7 +8825,7 @@ function buildTOC() {
   });
 
   const platHdr = document.createElement('div');
-  platHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,224,102,0.42);border-top:1px solid rgba(218,165,32,0.08);margin-top:8px;';
+  platHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:' + (isLight ? 'rgba(0,0,0,0.38)' : 'rgba(255,224,102,0.42)') + ';border-top:1px solid ' + (isLight ? 'rgba(0,0,0,0.07)' : 'rgba(218,165,32,0.08)') + ';margin-top:8px;';
   platHdr.textContent = 'Wolfgang & Co. · The Platform';
   list.appendChild(platHdr);
 
@@ -8809,7 +8841,7 @@ function buildTOC() {
   });
 
   const ccHdr = document.createElement('div');
-  ccHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(102,153,255,0.50);border-top:1px solid rgba(218,165,32,0.08);margin-top:8px;';
+  ccHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:' + (isLight ? 'rgba(0,0,0,0.38)' : 'rgba(102,153,255,0.50)') + ';border-top:1px solid ' + (isLight ? 'rgba(0,0,0,0.07)' : 'rgba(218,165,32,0.08)') + ';margin-top:8px;';
   ccHdr.textContent = 'Claude Code · The Instrument';
   list.appendChild(ccHdr);
 
@@ -8822,7 +8854,7 @@ function buildTOC() {
   });
 
   const mfHdr = document.createElement('div');
-  mfHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.50);border-top:1px solid rgba(218,165,32,0.08);margin-top:8px;';
+  mfHdr.style.cssText = 'padding:16px 24px 4px;font-family:"DM Mono",monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:' + (isLight ? 'rgba(0,0,0,0.38)' : 'rgba(218,165,32,0.50)') + ';border-top:1px solid ' + (isLight ? 'rgba(0,0,0,0.07)' : 'rgba(218,165,32,0.08)') + ';margin-top:8px;';
   mfHdr.textContent = 'The Black Hole · Manifesto';
   list.appendChild(mfHdr);
 
@@ -11505,7 +11537,8 @@ function renderScene(ctx, w, h, sceneType, color, phase, elapsed) {
   const cx = w * 0.50, cy = h * 0.42;
   const t = elapsed;
 
-  ctx.fillStyle = '#05030a';
+  // Light mode: parchment card background so colored nodes remain legible
+  ctx.fillStyle = document.body.classList.contains('light') ? '#f5f1ea' : '#05030a';
   ctx.fillRect(0, 0, w, h);
 
   const seed = r * 3 + g * 7 + b * 13;
@@ -11541,7 +11574,7 @@ function renderScene(ctx, w, h, sceneType, color, phase, elapsed) {
     ctx.fillStyle = disk;
     ctx.beginPath(); ctx.arc(cx, cy, 46, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(cx, cy, 9.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#05030a'; ctx.fill();
+    ctx.fillStyle = document.body.classList.contains('light') ? '#f5f1ea' : '#05030a'; ctx.fill();
     ctx.save();
     ctx.translate(cx, cy); ctx.rotate(t * 0.18); ctx.scale(1, 0.36);
     ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2);
