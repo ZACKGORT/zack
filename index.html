@@ -941,6 +941,70 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 .msera{font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:4px;}
 .mstitle{font-family:'Crimson Text',serif;font-size:18px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:2px;}
 .mstitle-role{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(218,165,32,0.30);}
+/* ── UNIVERSE HERO CANVAS ─────────────────────────────────────
+   Full-width live-rendered universe snapshot baked into each
+   section panel. Compositionally framed per galaxy / era.
+────────────────────────────────────────────────────────────── */
+#ms-hero-wrap {
+  position: relative;
+  width: 100%;
+  height: 148px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(218,165,32,0.08);
+}
+#ms-hero-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
+}
+/* Vignette overlays — left+right fade into dark, bottom gradient into panel */
+#ms-hero-wrap::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(5,3,10,0.18) 0%, rgba(5,3,10,0.72) 100%),
+    linear-gradient(to right, rgba(5,3,10,0.42) 0%, transparent 22%, transparent 78%, rgba(5,3,10,0.42) 100%);
+  pointer-events: none; z-index: 2;
+}
+/* Thin gold horizon line at bottom of hero */
+#ms-hero-wrap::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(218,165,32,0.22) 30%, rgba(218,165,32,0.22) 70%, transparent);
+  pointer-events: none; z-index: 3;
+}
+/* Coordinate readout badge */
+#ms-hero-coords {
+  position: absolute;
+  top: 9px; right: 10px;
+  font-family: 'DM Mono', monospace; font-size: 6px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: rgba(218,165,32,0.38);
+  z-index: 4; pointer-events: none;
+  text-shadow: 0 1px 4px rgba(5,3,10,0.90);
+}
+/* Era label bottom-left of hero */
+#ms-hero-label {
+  position: absolute;
+  bottom: 10px; left: 12px;
+  font-family: 'Crimson Text', serif; font-style: italic; font-size: 11px;
+  color: rgba(218,165,32,0.55);
+  z-index: 4; pointer-events: none;
+  text-shadow: 0 1px 6px rgba(5,3,10,0.95);
+  letter-spacing: 0.01em;
+}
+body.light #ms-hero-wrap::before {
+  background:
+    linear-gradient(to bottom, rgba(248,246,240,0.10) 0%, rgba(248,246,240,0.68) 100%),
+    linear-gradient(to right, rgba(248,246,240,0.38) 0%, transparent 22%, transparent 78%, rgba(248,246,240,0.38) 100%);
+}
+body.light #ms-hero-wrap::after {
+  background: linear-gradient(to right, transparent, rgba(0,0,0,0.10) 30%, rgba(0,0,0,0.10) 70%, transparent);
+}
+body.light #ms-hero-coords { color: rgba(0,0,0,0.32); text-shadow: none; }
+body.light #ms-hero-label  { color: rgba(0,0,0,0.45); text-shadow: none; }
+
 .ms-tags { display:flex; flex-wrap:wrap; gap:4px; padding:7px 14px 4px; }
 .ms-tag {
   font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.12em;
@@ -2914,6 +2978,12 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   <div class="mshead">
     <div class="mstitle" id="ms-title"></div>
     <div class="mstitle-role" id="ms-role"></div>
+  </div>
+  <!-- Universe hero preview — live canvas snapshot per section -->
+  <div id="ms-hero-wrap">
+    <canvas id="ms-hero-canvas"></canvas>
+    <div id="ms-hero-coords"></div>
+    <div id="ms-hero-label"></div>
   </div>
   <div class="ms-tags" id="ms-tags"></div>
   <div class="ms-images" id="ms-images"></div>
@@ -11669,6 +11739,437 @@ if (whClose) whClose.addEventListener('click', closeWormhole);
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape' && beltOpen) closeWormhole();
 }, false);
+
+})();
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// UNIVERSE HERO CANVAS — Live compositional universe previews per section
+// Renders a wide-angle astronomical scene into the msheet hero slot.
+// Each era/galaxy maps to a unique camera angle, zoom, and scene ensemble.
+// ═══════════════════════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
+var heroCanvas  = document.getElementById('ms-hero-canvas');
+var heroCoords  = document.getElementById('ms-hero-coords');
+var heroLabel   = document.getElementById('ms-hero-label');
+if (!heroCanvas) return;
+
+// ── Canvas setup (2× HiDPI) ───────────────────────────────────────────────
+var W = 0, H = 0;
+function resizeHero() {
+  var rect = heroCanvas.parentElement.getBoundingClientRect();
+  W = Math.round(rect.width  || 300);
+  H = Math.round(rect.height || 148);
+  heroCanvas.width  = W * 2;
+  heroCanvas.height = H * 2;
+  heroCanvas.style.width  = W + 'px';
+  heroCanvas.style.height = H + 'px';
+}
+resizeHero();
+window.addEventListener('resize', resizeHero);
+
+var ctx = heroCanvas.getContext('2d');
+ctx.scale(2, 2);
+
+// ── Scene state ───────────────────────────────────────────────────────────
+var elapsed    = 0;
+var heroRafId  = null;
+var currentEra = null;
+var heroActive = false;
+
+// ── Composition presets ───────────────────────────────────────────────────
+var GOLD   = [218, 165, 32];
+var BLUE   = [102, 153, 255];
+var PINK   = [255, 153, 221];
+var AMBER  = [255, 180, 60];
+var WHITE  = [245, 242, 235];
+var TEAL   = [80, 210, 195];
+var VIOLET = [170, 120, 255];
+
+var GALAXY_COMPOSITIONS = {
+  career: [
+    { bodies: [
+      { rx: 0.18, ry: 0.52, scale: 2.8, type: 'giant',  color: [210, 130, 40],  phase: 0.0 },
+      { rx: 0.55, ry: 0.48, scale: 1.0, type: 'ringed', color: [180, 145, 90],  phase: 1.2 },
+      { rx: 0.78, ry: 0.55, scale: 0.6, type: 'pulsar', color: AMBER,            phase: 2.1 },
+      { rx: 0.88, ry: 0.42, scale: 0.35,type: 'default',color: WHITE,            phase: 0.7 },
+      { rx: 0.65, ry: 0.72, scale: 0.22,type: 'default',color: GOLD,             phase: 3.1 },
+    ] },
+    { bodies: [
+      { rx: 0.28, ry: 0.44, scale: 1.4, type: 'binary', color: AMBER,           phase: 0.5 },
+      { rx: 0.60, ry: 0.50, scale: 2.2, type: 'giant',  color: [160, 90, 30],   phase: 1.8 },
+      { rx: 0.82, ry: 0.45, scale: 0.9, type: 'nebula', color: GOLD,            phase: 2.6 },
+      { rx: 0.44, ry: 0.68, scale: 0.3, type: 'default',color: WHITE,           phase: 4.0 },
+    ] },
+  ],
+  sentence: [
+    { bodies: [
+      { rx: 0.40, ry: 0.50, scale: 1.8, type: 'ringed', color: [140, 200, 180], phase: 0.3 },
+      { rx: 0.22, ry: 0.46, scale: 0.9, type: 'moons',  color: TEAL,            phase: 1.0 },
+      { rx: 0.62, ry: 0.52, scale: 1.1, type: 'default',color: [100, 180, 160], phase: 2.2 },
+      { rx: 0.77, ry: 0.44, scale: 0.5, type: 'pulsar', color: WHITE,           phase: 3.5 },
+      { rx: 0.15, ry: 0.60, scale: 0.4, type: 'nebula', color: TEAL,            phase: 0.8 },
+      { rx: 0.85, ry: 0.58, scale: 0.25,type: 'default',color: GOLD,            phase: 1.4 },
+    ] },
+    { bodies: [
+      { rx: 0.50, ry: 0.45, scale: 2.4, type: 'giant',  color: [80, 180, 160],  phase: 0.6 },
+      { rx: 0.20, ry: 0.50, scale: 0.8, type: 'binary', color: TEAL,            phase: 1.5 },
+      { rx: 0.76, ry: 0.48, scale: 0.6, type: 'moons',  color: WHITE,           phase: 2.8 },
+      { rx: 0.88, ry: 0.60, scale: 0.3, type: 'default',color: TEAL,            phase: 0.2 },
+    ] },
+  ],
+  claude: [
+    { bodies: [
+      { rx: 0.35, ry: 0.48, scale: 1.6, type: 'binary', color: BLUE,            phase: 0.0 },
+      { rx: 0.65, ry: 0.50, scale: 1.2, type: 'pulsar', color: [120, 170, 255], phase: 1.7 },
+      { rx: 0.12, ry: 0.52, scale: 2.0, type: 'giant',  color: [60, 90, 180],   phase: 2.4 },
+      { rx: 0.80, ry: 0.44, scale: 0.7, type: 'nebula', color: BLUE,            phase: 3.1 },
+      { rx: 0.88, ry: 0.62, scale: 0.32,type: 'default',color: WHITE,           phase: 0.5 },
+    ] },
+    { bodies: [
+      { rx: 0.55, ry: 0.44, scale: 2.6, type: 'giant',  color: [50, 80, 200],   phase: 1.1 },
+      { rx: 0.25, ry: 0.52, scale: 0.9, type: 'pulsar', color: BLUE,            phase: 2.2 },
+      { rx: 0.78, ry: 0.50, scale: 1.0, type: 'binary', color: [100, 140, 240], phase: 0.8 },
+      { rx: 0.90, ry: 0.42, scale: 0.4, type: 'default',color: BLUE,            phase: 3.8 },
+    ] },
+  ],
+  manifesto: [
+    { bodies: [
+      { rx: 0.50, ry: 0.46, scale: 2.0, type: 'ringed', color: VIOLET,          phase: 0.4 },
+      { rx: 0.22, ry: 0.50, scale: 1.0, type: 'nebula', color: [140, 100, 220], phase: 1.6 },
+      { rx: 0.75, ry: 0.52, scale: 0.8, type: 'pulsar', color: VIOLET,          phase: 2.9 },
+      { rx: 0.88, ry: 0.44, scale: 0.35,type: 'default',color: WHITE,           phase: 0.9 },
+      { rx: 0.10, ry: 0.55, scale: 0.5, type: 'default',color: VIOLET,          phase: 3.3 },
+    ] },
+  ],
+  explorer: [
+    { bodies: [
+      { rx: 0.45, ry: 0.48, scale: 2.2, type: 'giant',  color: [220, 100, 160], phase: 0.2 },
+      { rx: 0.20, ry: 0.50, scale: 0.9, type: 'moons',  color: PINK,            phase: 1.4 },
+      { rx: 0.70, ry: 0.46, scale: 1.1, type: 'nebula', color: [240, 120, 180], phase: 2.6 },
+      { rx: 0.84, ry: 0.56, scale: 0.5, type: 'ringed', color: PINK,            phase: 3.2 },
+      { rx: 0.10, ry: 0.45, scale: 0.3, type: 'default',color: WHITE,           phase: 0.6 },
+    ] },
+    { bodies: [
+      { rx: 0.25, ry: 0.48, scale: 1.8, type: 'ringed', color: [200, 90, 150],  phase: 0.9 },
+      { rx: 0.58, ry: 0.50, scale: 2.0, type: 'giant',  color: PINK,            phase: 1.8 },
+      { rx: 0.80, ry: 0.46, scale: 0.7, type: 'moons',  color: [240, 160, 200], phase: 2.5 },
+      { rx: 0.92, ry: 0.55, scale: 0.3, type: 'default',color: WHITE,           phase: 3.8 },
+    ] },
+  ],
+};
+
+var DEFAULT_COMP = { bodies: [
+  { rx: 0.22, ry: 0.50, scale: 2.0, type: 'giant',  color: GOLD,  phase: 0.0 },
+  { rx: 0.60, ry: 0.48, scale: 1.0, type: 'ringed', color: AMBER, phase: 1.5 },
+  { rx: 0.82, ry: 0.52, scale: 0.6, type: 'pulsar', color: WHITE, phase: 2.8 },
+] };
+
+// ── Star field (stable) ───────────────────────────────────────────────────
+var STAR_COUNT = 300;
+var stars = [];
+(function genStars() {
+  for (var i = 0; i < STAR_COUNT; i++) {
+    stars.push({
+      x: Math.random(), y: Math.random(),
+      r: 0.2 + Math.random() * 1.1,
+      op: 0.12 + Math.random() * 0.50,
+      drift: (Math.random() - 0.5) * 0.00015,
+      twinkle: Math.random() * Math.PI * 2,
+      twinkleSpeed: 0.7 + Math.random() * 2.2,
+    });
+  }
+})();
+
+var GALAXY_STAR_TINT = {
+  career:   [1.0, 0.92, 0.75],
+  sentence: [0.80, 1.0, 0.95],
+  claude:   [0.75, 0.85, 1.0],
+  manifesto:[0.88, 0.80, 1.0],
+  explorer: [1.0, 0.82, 0.90],
+};
+
+function eraToGalaxy(era) {
+  if (!era) return 'career';
+  var id = era.id || '';
+  if (id.startsWith('cc-')) return 'claude';
+  if (id.startsWith('p-'))  return 'sentence';
+  if (id.startsWith('m-'))  return 'manifesto';
+  if (id.startsWith('x-') || era._isMoonNode) return 'explorer';
+  return 'career';
+}
+
+function pickComposition(era) {
+  var gid = eraToGalaxy(era);
+  var comps = GALAXY_COMPOSITIONS[gid] || [DEFAULT_COMP];
+  var hash = 0;
+  var id = (era && era.id) ? era.id : 'x';
+  for (var i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0x7fffffff;
+  return comps[hash % comps.length];
+}
+
+function eraPhase(era) {
+  var id = (era && era.id) ? era.id : 'x';
+  var h = 0;
+  for (var i = 0; i < id.length; i++) h = (h * 17 + id.charCodeAt(i)) & 0x7fffffff;
+  return h * 0.00000023;
+}
+
+function drawDustClouds(ctx, W, H, tint, t, phaseOff) {
+  var clouds = [
+    { cx:0.22,cy:0.55,rx:0.32,ry:0.28,op:0.055 },
+    { cx:0.68,cy:0.45,rx:0.28,ry:0.22,op:0.045 },
+    { cx:0.50,cy:0.70,rx:0.40,ry:0.20,op:0.038 },
+    { cx:0.12,cy:0.35,rx:0.18,ry:0.15,op:0.030 },
+    { cx:0.88,cy:0.60,rx:0.20,ry:0.16,op:0.030 },
+  ];
+  clouds.forEach(function(c, ci) {
+    var drift = Math.sin(t*0.04 + phaseOff + ci*1.4) * 0.015;
+    var cx2 = (c.cx + drift) * W, cy2 = c.cy * H;
+    var rx2 = c.rx * W, ry2 = c.ry * H;
+    var op2 = c.op * (0.7 + 0.3 * Math.sin(t*0.08 + phaseOff + ci*2.1));
+    var maxR = Math.max(rx2, ry2);
+    var g2 = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, maxR);
+    g2.addColorStop(0, 'rgba(' + Math.round(tint[0]*60) + ',' + Math.round(tint[1]*45) + ',' + Math.round(tint[2]*35) + ',' + op2 + ')');
+    g2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.scale(rx2/maxR, ry2/maxR);
+    ctx.fillStyle = g2;
+    ctx.beginPath(); ctx.arc(cx2*(maxR/rx2), cy2*(maxR/ry2), maxR, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawBody(ctx, W, H, body, t) {
+  var cx = body.rx * W, cy = body.ry * H;
+  var baseR = body.scale * Math.min(W, H) * 0.08;
+  var r = body.color[0], g = body.color[1], b = body.color[2];
+  var phase = body.phase, type = body.type;
+
+  // Outer glow halo
+  var glowR = baseR * 2.8;
+  var glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+  glow.addColorStop(0,   'rgba('+r+','+g+','+b+',0.14)');
+  glow.addColorStop(0.55,'rgba('+r+','+g+','+b+',0.05)');
+  glow.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, glowR, 0, Math.PI*2); ctx.fill();
+
+  if (type === 'giant') {
+    var gr = ctx.createRadialGradient(cx-baseR*0.3, cy-baseR*0.35, baseR*0.05, cx, cy, baseR);
+    gr.addColorStop(0,  'rgba('+Math.min(r+55,255)+','+Math.min(g+40,255)+','+Math.min(b+25,255)+',0.95)');
+    gr.addColorStop(0.55,'rgba('+r+','+g+','+b+',0.90)');
+    gr.addColorStop(1,  'rgba('+Math.max(r-60,0)+','+Math.max(g-50,0)+','+Math.max(b-40,0)+',0.80)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI*2); ctx.fill();
+    var atm = ctx.createRadialGradient(cx, cy, baseR*0.85, cx, cy, baseR*1.18);
+    atm.addColorStop(0, 'rgba('+r+','+g+','+b+',0.18)');
+    atm.addColorStop(1, 'rgba('+r+','+g+','+b+',0)');
+    ctx.fillStyle = atm; ctx.beginPath(); ctx.arc(cx, cy, baseR*1.18, 0, Math.PI*2); ctx.fill();
+
+  } else if (type === 'ringed') {
+    ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.78)'; ctx.fill();
+    [[1.9,0.28,9],[2.6,0.16,6],[3.2,0.09,4]].forEach(function(band,bi) {
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.26+bi*0.05); ctx.scale(1, 0.28);
+      ctx.beginPath(); ctx.arc(0, 0, baseR*band[0], 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba('+r+','+g+','+b+','+band[1]+')'; ctx.lineWidth = band[2]; ctx.stroke();
+      ctx.restore();
+    });
+
+  } else if (type === 'binary') {
+    var ba = t*0.55 + phase;
+    [[1, baseR*0.85],[-1, baseR*0.65]].forEach(function(pair) {
+      var bx = cx + pair[0]*baseR*2.0*Math.cos(ba);
+      var by = cy + pair[0]*baseR*2.0*0.38*Math.sin(ba);
+      var bg2 = ctx.createRadialGradient(bx,by,0,bx,by,pair[1]*2.2);
+      bg2.addColorStop(0, 'rgba('+r+','+g+','+b+',0.72)');
+      bg2.addColorStop(1, 'rgba(5,3,10,0)');
+      ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(bx,by,pair[1]*2.2,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx,by,pair[1],0,Math.PI*2);
+      ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.90)'; ctx.fill();
+    });
+
+  } else if (type === 'nebula') {
+    for (var ni=0; ni<7; ni++) {
+      var nx = cx + Math.sin(ni*1.3+phase+t*0.04)*baseR*3.2;
+      var ny = cy + Math.cos(ni*0.9+phase)*baseR*2.4;
+      var nr = baseR*(1.0+ni*0.35);
+      var ng2 = ctx.createRadialGradient(nx,ny,0,nx,ny,nr);
+      ng2.addColorStop(0, 'rgba('+r+','+g+','+b+',0.13)');
+      ng2.addColorStop(1, 'rgba(5,3,10,0)');
+      ctx.fillStyle = ng2; ctx.beginPath(); ctx.arc(nx,ny,nr,0,Math.PI*2); ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, baseR*0.55, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.88)'; ctx.fill();
+
+  } else if (type === 'pulsar') {
+    var pulse = 0.45 + 0.55*Math.abs(Math.sin(t*2.0+phase));
+    ctx.save(); ctx.globalAlpha = pulse*0.50;
+    ctx.strokeStyle = 'rgba('+r+','+g+','+b+',0.72)'; ctx.lineWidth = 0.9;
+    for (var pa=0; pa<Math.PI*2; pa+=Math.PI/4) {
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      ctx.lineTo(cx+Math.cos(pa+t*0.09)*baseR*4.5, cy+Math.sin(pa+t*0.09)*baseR*4.5); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx, cy, baseR*0.8, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba('+r+','+g+','+b+','+(0.75+0.25*pulse)+')'; ctx.fill();
+
+  } else if (type === 'moons') {
+    ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.80)'; ctx.fill();
+    [baseR*2.2,baseR*3.2,baseR*4.4].forEach(function(orbitR, oi) {
+      var ma = t*(0.85-oi*0.20)+oi*2.1+phase;
+      ctx.beginPath(); ctx.arc(cx, cy, orbitR, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba('+r+','+g+','+b+',0.07)'; ctx.lineWidth = 0.5; ctx.stroke();
+      var mR = baseR*(0.28-oi*0.06);
+      ctx.beginPath(); ctx.arc(cx+orbitR*Math.cos(ma), cy+orbitR*0.42*Math.sin(ma), mR, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.70)'; ctx.fill();
+    });
+
+  } else {
+    var pr = ctx.createRadialGradient(cx-baseR*0.28, cy-baseR*0.28, 0, cx, cy, baseR);
+    pr.addColorStop(0, 'rgba('+Math.min(r+40,255)+','+Math.min(g+30,255)+','+Math.min(b+20,255)+',0.88)');
+    pr.addColorStop(1, 'rgba('+Math.max(r-50,0)+','+Math.max(g-40,0)+','+Math.max(b-30,0)+',0.80)');
+    ctx.fillStyle = pr; ctx.beginPath(); ctx.arc(cx, cy, baseR, 0, Math.PI*2); ctx.fill();
+    var oa = t*0.85+phase;
+    ctx.beginPath(); ctx.arc(cx+baseR*2.8*Math.cos(oa), cy+baseR*1.1*Math.sin(oa), baseR*0.28, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba('+r+','+g+','+b+',0.55)'; ctx.fill();
+  }
+}
+
+function formatCoords(era) {
+  if (!era) return '';
+  var id = era.id || '';
+  var h = 0;
+  for (var i=0; i<id.length; i++) h = (h*31 + id.charCodeAt(i)) & 0x7fffffff;
+  var ra_h = h % 24, ra_m = (h >> 4) % 60;
+  var dec_d = ((h >> 8) % 90) - 45, dec_m = (h >> 12) % 60;
+  var sign = dec_d >= 0 ? '+' : '';
+  return ra_h + 'h' + String(ra_m).padStart(2,'0') + 'm  ' + sign + dec_d + '°' + String(Math.abs(dec_m)).padStart(2,'0') + "'";
+}
+
+function renderHero(t) {
+  if (!W || !H) return;
+  ctx.save();
+  ctx.setTransform(2, 0, 0, 2, 0, 0);
+
+  var isLight = document.body.classList.contains('light');
+  var comp = currentEra ? pickComposition(currentEra) : DEFAULT_COMP;
+  var gid  = eraToGalaxy(currentEra);
+  var tint = GALAXY_STAR_TINT[gid] || [1,1,1];
+  var phOff = eraPhase(currentEra);
+
+  // Background
+  if (isLight) {
+    ctx.fillStyle = '#f0eee8';
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    var bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, 'rgb('+Math.round(4*tint[0])+','+Math.round(3*tint[1])+','+Math.round(10*tint[2])+')');
+    bg.addColorStop(0.5, 'rgb(6,4,12)');
+    bg.addColorStop(1, 'rgb('+Math.round(8*tint[0])+','+Math.round(5*tint[1])+','+Math.round(14*tint[2])+')');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // Milky way band
+    var mwG = ctx.createLinearGradient(0, H*0.3, W, H*0.7);
+    mwG.addColorStop(0, 'rgba(0,0,0,0)');
+    mwG.addColorStop(0.4,'rgba('+Math.round(20*tint[0])+','+Math.round(15*tint[1])+','+Math.round(30*tint[2])+',0.12)');
+    mwG.addColorStop(0.6,'rgba('+Math.round(15*tint[0])+','+Math.round(12*tint[1])+','+Math.round(25*tint[2])+',0.08)');
+    mwG.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = mwG; ctx.fillRect(0, 0, W, H);
+  }
+
+  // Stars
+  if (!isLight) {
+    stars.forEach(function(s) {
+      var sx = ((s.x + s.drift*t) % 1.0) * W;
+      var sy = s.y * H;
+      var twinkle = s.op * (0.6 + 0.4*Math.sin(s.twinkle + t*s.twinkleSpeed + phOff));
+      ctx.globalAlpha = twinkle;
+      ctx.fillStyle = 'rgb('+Math.round(245*tint[0])+','+Math.round(242*tint[1])+','+Math.round(235*tint[2])+')';
+      ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    drawDustClouds(ctx, W, H, tint, t, phOff);
+  }
+
+  // Bodies (small to large so large ones appear on top)
+  var sorted = (comp.bodies || []).slice().sort(function(a,b) { return a.scale - b.scale; });
+  sorted.forEach(function(body) { drawBody(ctx, W, H, body, t + phOff); });
+
+  // Subtle spatial grid
+  ctx.globalAlpha = isLight ? 0.06 : 0.05;
+  ctx.strokeStyle = isLight ? '#000' : 'rgba(218,165,32,0.8)';
+  ctx.lineWidth = 0.5;
+  [0.25, 0.50, 0.75].forEach(function(fy) {
+    ctx.beginPath(); ctx.moveTo(0, fy*H); ctx.lineTo(W, fy*H); ctx.stroke();
+  });
+  ctx.beginPath(); ctx.moveTo(W*0.5, 0); ctx.lineTo(W*0.5, H); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function heroFrame() {
+  if (!heroActive) return;
+  elapsed += 0.012;
+  renderHero(elapsed);
+  heroRafId = requestAnimationFrame(heroFrame);
+}
+
+function startHero() {
+  if (heroRafId) return;
+  heroActive = true;
+  heroRafId = requestAnimationFrame(heroFrame);
+}
+
+function stopHero() {
+  heroActive = false;
+  if (heroRafId) { cancelAnimationFrame(heroRafId); heroRafId = null; }
+}
+
+window.setHeroEra = function(era) {
+  currentEra = era;
+  resizeHero();
+  elapsed = eraPhase(era) * 80;
+  var gid = eraToGalaxy(era);
+  if (heroCoords) heroCoords.textContent = era ? formatCoords(era) : '';
+  if (heroLabel) {
+    var galaxyNames = { career:'SOL 1', sentence:'SOL 2', claude:'SOL 3', manifesto:'METHOD', explorer:'SOL X' };
+    heroLabel.textContent = era ? ((galaxyNames[gid] || gid.toUpperCase()) + (era.year ? '  ·  ' + era.year : '')) : '';
+  }
+  startHero();
+};
+
+window.clearHeroEra = function() { currentEra = null; stopHero(); };
+
+// Observe msheet class changes
+var msheetEl = document.getElementById('msheet');
+if (msheetEl) {
+  new MutationObserver(function(muts) {
+    muts.forEach(function(m) {
+      if (m.attributeName === 'class') {
+        if (!msheetEl.classList.contains('on')) stopHero();
+      }
+    });
+  }).observe(msheetEl, { attributes: true });
+}
+
+// Poll focusedEra (local var in main scope) and update hero
+setInterval(function() {
+  try {
+    if (typeof focusedEra !== 'undefined' && focusedEra !== window._heroLastEra) {
+      window._heroLastEra = focusedEra;
+      if (focusedEra && msheetEl && msheetEl.classList.contains('on')) {
+        window.setHeroEra(focusedEra);
+      }
+    }
+  } catch(e) {}
+}, 150);
+
+// Idle boot render
+startHero();
 
 })();
 </script>
