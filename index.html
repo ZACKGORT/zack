@@ -1059,6 +1059,11 @@ body.light .ms-expand-hint{color:rgba(0,0,0,0.28);}
   .mshandle{ cursor:default; }
   #msheet.expanded{ width:100% !important; }
 
+  /* Hero: hidden in compact (default) mode so title is never clipped;
+     shown at reduced height only when user expands the panel */
+  #ms-hero-wrap { display: none; }
+  #msheet.expanded #ms-hero-wrap { display: block; height: 110px; }
+
   /* When filmstrip is open, bump msheet bottom up so the strip bar doesn't cover it */
   body.arch-strip-open #msheet {
     bottom: var(--strip-h, 56px) !important;
@@ -5588,6 +5593,9 @@ function swoopToGalaxyOverview(galaxyId) {
 
 // Returns true if era belongs to the currently focused galaxy (or any if unfocused)
 function isInActiveGalaxy(era) {
+  // When black hole is focused, isFocused=true but focusedEra=null.
+  // All regular nodes should be inactive — don't let the nearest geometry win.
+  if (isBlackHoleFocused) return false;
   if (!isFocused || !focusedEra) return true;
   const fid = focusedEra.id;
   if (fid.startsWith('cc-') || fid === 'claude-star') return era.id.startsWith('cc-');
@@ -8475,6 +8483,10 @@ cvs.addEventListener('pointerup', e => {
       // Reset black hole focus if clicking elsewhere
       if (isBlackHoleFocused) {
         isBlackHoleFocused = false;
+        // Tap missed the black hole hit mesh — open tesseract rather than
+        // falling through to node hit-testing (which misfires with focusedEra=null)
+        window.openTesseract();
+        return;
       }
       if (handleStarClick && handleStarClick(mouse)) return;
       // Galaxy cluster click
@@ -8550,9 +8562,11 @@ cvs.addEventListener('pointerup', e => {
     // Reset black hole focus if clicking elsewhere
     if (isBlackHoleFocused) {
       isBlackHoleFocused = false;
+      // Tap missed the hit mesh — open tesseract rather than falling through
+      // to node hit-testing where focusedEra=null would misfire
+      window.openTesseract();
+      return;
     }
-
-    // Star checked FIRST — direct star click takes priority over cluster mesh
     if (handleStarClick && handleStarClick(mouse)) return;
 
     if (galaxyAlpha > 0.15) {
