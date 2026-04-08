@@ -730,16 +730,29 @@ body.light .tt-role{color:rgba(0,0,0,0.55);}
   overflow:hidden;
 }
 .gc-iframe-wrap iframe{
-  width:160%;height:160%;
-  transform:scale(0.625);transform-origin:top left;
+  /* 180% gives slack for parallax travel without edge bleed.
+     Centred via translate(-50%,-50%) so parallax shifts are symmetric. */
+  width:180%;height:180%;
   border:none;pointer-events:none;
-  position:absolute;top:0;left:0;
+  position:absolute;top:50%;left:50%;
   opacity:0.88;
+  will-change:transform;
+  transform:translate(-50%,-50%) scale(0.5555);
 }
 .gc-iframe-cover{
   position:absolute;inset:0;z-index:2;
   background:linear-gradient(to bottom, transparent 55%, rgba(5,3,10,0.80) 100%);
   cursor:pointer;
+}
+/* Lens edge-blur overlay — blurs toward all four edges via radial mask */
+.gc-iframe-lens{
+  position:absolute;inset:0;z-index:3;
+  pointer-events:none;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  /* Radial mask: fully transparent in centre, opaque at edges */
+  -webkit-mask-image:radial-gradient(ellipse 68% 60% at 50% 46%, transparent 38%, rgba(0,0,0,0.55) 62%, black 82%);
+  mask-image:radial-gradient(ellipse 68% 60% at 50% 46%, transparent 38%, rgba(0,0,0,0.55) 62%, black 82%);
 }
 .gc-iframe-badge{
   position:absolute;bottom:10px;right:12px;z-index:3;
@@ -5586,6 +5599,9 @@ const galaxyLayout = {
 
 // Swoop camera to a galaxy's orrery overview (centered on the galaxy star)
 function swoopToGalaxyOverview(galaxyId) {
+  // Close any open panel + stop parallax when navigating to a different sol/galaxy
+  if (typeof closePanel === 'function') closePanel(true);
+  if (window._iframeParallaxStop) window._iframeParallaxStop();
   const centerMap = { career: CAREER_OFFSET, sentence: SENTENCE_CENTER, claude: CLAUDE_CENTER, explorer: EXPLORER_CENTER };
   const p = (centerMap[galaxyId] || CAREER_OFFSET).clone();
   const angle = Math.atan2(p.z, p.x);
@@ -5617,6 +5633,8 @@ function swoopToGalaxyOverview(galaxyId) {
 
 // Returns true if era belongs to the currently focused galaxy (or any if unfocused)
 function isInActiveGalaxy(era) {
+  // Black hole focus: no era node belongs to this "galaxy"
+  if (isBlackHoleFocused) return false;
   if (!isFocused || !focusedEra) return true;
   const fid = focusedEra.id;
   if (fid.startsWith('cc-') || fid === 'claude-star') return era.id.startsWith('cc-');
@@ -7082,8 +7100,11 @@ function updateGalaxyAlpha() {
     if (window._updateSSFilter) window._updateSSFilter(null);
     if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
   }
-  // Reset star direct-click gate when user has returned to full galaxy view
-  if (galaxyAlpha > 0.85) starDirectClickId = null;
+  // Reset star direct-click gate when user has returned to full galaxy view.
+  // Guard against the swoop-in path: during a zoom-in swoop, galaxyAlpha starts
+  // high and falls — we must NOT clear the gate while the swoop is still active,
+  // otherwise the second tap never sees starDirectClickId set.
+  if (galaxyAlpha > 0.85 && !swoop.active) starDirectClickId = null;
 
   const ga = Math.pow(galaxyAlpha, 1.6); // steeper drop-off: galaxy fades fast as you zoom in
   const oa = 1 - ga; // orrery alpha (inverse)
@@ -7319,6 +7340,9 @@ let galaxyMode = true;  // start in galaxy overview
 function switchView(view) {
   if (window._syncLayoutToggle) setTimeout(window._syncLayoutToggle, 10);
   if (view === 'overview') {
+    // Close any open panel when returning to galaxy overview
+    if (typeof closePanel === 'function') closePanel(true);
+    if (window._iframeParallaxStop) window._iframeParallaxStop();
     focusedStarGalaxyId = null; // reset star focus on overview
     starDirectClickId   = null;
     // Overview = zoom out to see all three orreries around the black hole
@@ -7653,12 +7677,83 @@ function buildMoonPills(era) {
   });
 }
 
+// ── Iframe parallax engine ───────────────────────────────────────────────────
+// Tracks mouse (desktop) or device tilt (mobile) and smoothly shifts the
+// iframe within its oversized container, giving a floating depth illusion.
+// The iframe is rendered at 180%/scale(0.5555), so the slack in each axis is
+// (180% - 100%) * 0.5555 / 2 ≈ 22px at container width ~300px.  We cap travel
+// to ±14px so the edge is never exposed.
+(function() {
+  const MAX_X = 14, MAX_Y = 10;   // max pixel travel from centre
+  let targetX = 0, targetY = 0;   // desired position (set by input)
+  let currentX = 0, currentY = 0; // smoothed position
+  let rafId = null;
+  let activeIframe = null;
+  let activeWrap = null;
+
+  // Input: mouse over the ghost panel
+  function onGhostMouse(e) {
+    const ghost = document.getElementById('ghost');
+    if (!ghost || !activeWrap) return;
+    const wr = activeWrap.getBoundingClientRect();
+    // Normalise to [-1, 1] relative to the wrap centre
+    const nx = ((e.clientX - wr.left) / wr.width  - 0.5) * 2;
+    const ny = ((e.clientY - wr.top)  / wr.height - 0.5) * 2;
+    targetX = -nx * MAX_X;   // invert: mouse right → frame shifts left (looks deep)
+    targetY = -ny * MAX_Y;
+  }
+
+  // Input: device tilt (mobile)
+  let _gyroBase = null;
+  function onOrientation(e) {
+    if (_gyroBase === null) { _gyroBase = { beta: e.beta, gamma: e.gamma }; return; }
+    const dx = Math.max(-30, Math.min(30, (e.gamma - _gyroBase.gamma)));
+    const dy = Math.max(-30, Math.min(30, (e.beta  - _gyroBase.beta )));
+    targetX = -(dx / 30) * MAX_X;
+    targetY = -(dy / 30) * MAX_Y;
+  }
+
+  function tick() {
+    if (!activeIframe) { rafId = null; return; }
+    const LERP = 0.07;
+    currentX += (targetX - currentX) * LERP;
+    currentY += (targetY - currentY) * LERP;
+    // The iframe's base transform is scale(0.5555) from top-left.
+    // We add a translate BEFORE scale so pixel values are in scaled space.
+    // Base: centred (-50%,-50%) + parallax offset + scale
+    // translate(-50%,-50%) centres the oversized iframe; px offset shifts for parallax
+    activeIframe.style.transform = `translate(calc(-50% + ${currentX}px), calc(-50% + ${currentY}px)) scale(0.5555)`;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  window._iframeParallaxStart = function(iframeEl, wrapEl) {
+    // Clean up previous session
+    window._iframeParallaxStop();
+    activeIframe = iframeEl;
+    activeWrap   = wrapEl;
+    targetX = 0; targetY = 0; currentX = 0; currentY = 0;
+    _gyroBase = null;
+    const ghost = document.getElementById('ghost');
+    if (ghost) ghost.addEventListener('mousemove', onGhostMouse);
+    if (window.DeviceOrientationEvent) window.addEventListener('deviceorientation', onOrientation);
+    rafId = requestAnimationFrame(tick);
+  };
+
+  window._iframeParallaxStop = function() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    activeIframe = null; activeWrap = null;
+    const ghost = document.getElementById('ghost');
+    if (ghost) ghost.removeEventListener('mousemove', onGhostMouse);
+    window.removeEventListener('deviceorientation', onOrientation);
+  };
+})();
+
 function buildIframeHero(era) {
   const wrap = document.getElementById('gc-iframe-wrap');
   const none = document.getElementById('gc-iframe-none');
   // Remove old iframe if present
   const old = wrap.querySelector('iframe');
-  if (old) old.remove();
+  if (old) { old.remove(); if (window._iframeParallaxStop) window._iframeParallaxStop(); }
   const oldBadge = wrap.querySelector('.gc-iframe-badge');
   if (oldBadge) oldBadge.remove();
   const oldCover = wrap.querySelector('.gc-iframe-cover');
@@ -7684,6 +7779,14 @@ function buildIframeHero(era) {
   badge.target = '_blank';
   badge.rel = 'noopener';
   wrap.appendChild(badge);
+
+  // ── Lens edge-blur layer ─────────────────────────────────────────────────
+  const lens = document.createElement('div');
+  lens.className = 'gc-iframe-lens';
+  wrap.appendChild(lens);
+
+  // ── Parallax ─────────────────────────────────────────────────────────────
+  _iframeParallaxStart(iframe, wrap);
 }
 
 function openPanel(era, suppressMobileSheet) {
@@ -8505,9 +8608,12 @@ cvs.addEventListener('pointerup', e => {
           return;
         }
       }
-      // Reset black hole focus if clicking elsewhere
+      // If black hole is focused and tap missed the hit mesh, still open tesseract
+      // rather than falling through to node hit-testing (which spuriously matches
+      // a nearby node like Miller Designworks whose angle is nearly 0).
       if (isBlackHoleFocused) {
-        isBlackHoleFocused = false;
+        openGalaxyTesseract('manifesto');
+        return;
       }
       if (handleStarClick && handleStarClick(mouse)) return;
       // Galaxy cluster click
@@ -8579,9 +8685,11 @@ cvs.addEventListener('pointerup', e => {
       }
     }
     
-    // Reset black hole focus if clicking elsewhere
+    // If black hole is focused and click missed the hit mesh, still open tesseract
+    // rather than resetting state and falling through to node hit-testing.
     if (isBlackHoleFocused) {
-      isBlackHoleFocused = false;
+      window.openTesseract();
+      return;
     }
 
     // Star checked FIRST — direct star click takes priority over cluster mesh
