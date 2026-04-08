@@ -7082,8 +7082,11 @@ function updateGalaxyAlpha() {
     if (window._updateSSFilter) window._updateSSFilter(null);
     if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
   }
-  // Reset star direct-click gate when user has returned to full galaxy view
-  if (galaxyAlpha > 0.85) starDirectClickId = null;
+  // Reset star direct-click gate when user has returned to full galaxy view.
+  // Guard against the swoop-in path: during a zoom-in swoop, galaxyAlpha starts
+  // high and falls — we must NOT clear the gate while the swoop is still active,
+  // otherwise the second tap never sees starDirectClickId set.
+  if (galaxyAlpha > 0.85 && !swoop.active) starDirectClickId = null;
 
   const ga = Math.pow(galaxyAlpha, 1.6); // steeper drop-off: galaxy fades fast as you zoom in
   const oa = 1 - ga; // orrery alpha (inverse)
