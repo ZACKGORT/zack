@@ -1886,18 +1886,22 @@ body.light #mf-close:hover{color:#000;}
   position: absolute; top: 46px; left: 0; right: 0; bottom: 0;
   overflow: hidden; background: #05030a;
 }
+#tess-canvas-wrap::after {
+  content: '';
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%,
+    transparent 42%,
+    rgba(0,0,0,0.45) 68%,
+    rgba(0,0,0,0.88) 88%,
+    rgba(0,0,0,0.98) 100%
+  );
+}
 @media(max-width:640px) { #tess-canvas-wrap { top: 44px; } }
 #tess-canvas-wrap canvas {
   display: block; position: absolute; inset: 0;
   touch-action: none; cursor: grab;
 }
-#tg-zoom-bar {
-  position: absolute; bottom: 20px; right: 20px; z-index: 10;
-  display: flex; flex-direction: column;
-  background: rgba(5,3,10,0.90); border: 1px solid rgba(218,165,32,0.16);
-  border-radius: 4px; overflow: hidden; backdrop-filter: blur(12px);
-  box-shadow: 0 4px 18px rgba(0,0,0,0.70);
-}
+#tg-zoom-bar { display: none !important; }
 .tg-zbtn {
   background: none; border: none; cursor: pointer;
   color: rgba(218,165,32,0.42); font-size: 14px; line-height: 1;
@@ -10613,7 +10617,7 @@ document.addEventListener('keydown', e => {
     </div>
     <div id="tg-meta">
       <div id="tg-count-badge"><span id="tg-count-num">—</span><span>nodes</span></div>
-      <div id="tg-drag-hint">drag · scroll · click to enter</div>
+      <div id="tg-drag-hint">drag to explore · click to enter</div>
     </div>
   </div>
 
@@ -10857,7 +10861,7 @@ var TGAL = {
   manifesto: { r:255, g:112, b:67,  label:'Manifesto'          },
 };
 
-// ── Card world-space dimensions (zero gap → grid lines drawn in scene) ─
+// ── Card world-space dimensions (large, tight gap) ───────────
 var CW = 2.72, CH = 1.68, CGAP = 0.0;
 var SX = CW + CGAP, SY = CH + CGAP;
 
@@ -10953,7 +10957,10 @@ function makeCardTex(item, isHov) {
     ctx.fillRect(0,0,TW,TH);
   }
 
-  // ── Border: removed — grid lines drawn as scene geometry ─
+  // ── Border ────────────────────────────────────────────────
+  ctx.strokeStyle = isHov
+    ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.12)';
+  ctx.lineWidth=1.5; ctx.strokeRect(1,1,TW-2,TH-2);
 
   // ── Left accent bar ───────────────────────────────────────
   ctx.fillStyle = isHov ? 'rgb('+r+','+g+','+b+')' : 'rgba('+r+','+g+','+b+',0.55)';
@@ -11021,57 +11028,29 @@ function getCols(camZ) {
   return best;
 }
 
-// ── Build / rebuild mesh grid ────────────────────────────────
-var TGLines = null;  // Three.Group holding scene-level grid LineSegments
-
+// ── Scene-level grid lines ────────────────────────────────────
+var TGLines = null;
 function buildGridLines() {
-  // Remove old line group
   if (TGLines) { TS.remove(TGLines); TGLines.children.forEach(function(m){m.geometry.dispose();m.material.dispose();}); }
   TGLines = new THREE.Group();
-
-  var c = TCols;
-  var rows = Math.ceil(TItems.length / c);
-  var totalW = c * SX, totalH = rows * SY;
-
-  // We tile 3×3 copies of the grid so the infinite-scroll seam is never visible
-  var TILE = 3;
-  var verts = [];
-
-  // Line material — solid white, low opacity (phantom.land style)
-  var lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.13, depthWrite: false });
-
-  // Helper: add a line segment
-  function seg(x0,y0,x1,y1) { verts.push(x0,y0,0, x1,y1,0); }
-
-  for (var tx = -1; tx <= 1; tx++) {
-    for (var ty = -1; ty <= 1; ty++) {
-      var ox = tx * totalW;
-      var oy = ty * totalH;
-
-      // Centered offset matches card positioning
-      var left  = -(c * SX) * 0.5;
-      var top   =  (rows * SY) * 0.5;
-
-      // Vertical lines (columns + right edge)
-      for (var col = 0; col <= c; col++) {
-        var x = ox + left + col * SX;
-        seg(x, oy + top, x, oy + top - rows * SY);
-      }
-      // Horizontal lines (rows + bottom edge)
-      for (var row = 0; row <= rows; row++) {
-        var y = oy + top - row * SY;
-        seg(ox + left, y, ox + left + c * SX, y);
-      }
-    }
-  }
-
-  var geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  var lines = new THREE.LineSegments(geo, lineMat);
-  TGLines.add(lines);
+  var c=TCols, rows=Math.ceil(TItems.length/c);
+  var totalW=c*SX, totalH=rows*SY;
+  var verts=[];
+  var lineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.55,depthWrite:false});
+  function seg(x0,y0,x1,y1){verts.push(x0,y0,0,x1,y1,0);}
+  for(var tx=-1;tx<=1;tx++){for(var ty=-1;ty<=1;ty++){
+    var ox=tx*totalW, oy=ty*totalH;
+    var left=-(c*SX)*0.5, top=(rows*SY)*0.5;
+    for(var col2=0;col2<=c;col2++){var x=ox+left+col2*SX;seg(x,oy+top,x,oy+top-rows*SY);}
+    for(var row2=0;row2<=rows;row2++){var y=oy+top-row2*SY;seg(ox+left,y,ox+left+c*SX,y);}
+  }}
+  var geo2=new THREE.BufferGeometry();
+  geo2.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  TGLines.add(new THREE.LineSegments(geo2,lineMat));
   TS.add(TGLines);
 }
 
+// ── Build / rebuild mesh grid ────────────────────────────────
 function buildGrid() {
   var toRemove=TG.children.slice();
   toRemove.forEach(function(m){
@@ -11215,22 +11194,14 @@ function tAttachEvents(cv) {
 
   cv.addEventListener('wheel',function(e){
     e.preventDefault();
-    TN.baseCamZ=Math.max(3,Math.min(28,TN.baseCamZ*(e.deltaY>0?1.10:0.91)));
   },{passive:false});
 
-  // Pinch
-  var pts=new Map(),pD0=null,pZ0=10;
-  cv.addEventListener('pointerdown',function(e){
-    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pts.size===2){var a=Array.from(pts.values());pD0=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);pZ0=TN.baseCamZ;TN.isDragging=false;}
-  },{capture:true,passive:true});
-  cv.addEventListener('pointermove',function(e){
-    if(!pts.has(e.pointerId))return;
-    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pts.size===2&&pD0){var a=Array.from(pts.values());var d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);TN.baseCamZ=Math.max(3,Math.min(28,pZ0*(pD0/d)));}
-  },{capture:true,passive:true});
-  cv.addEventListener('pointerup',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
-  cv.addEventListener('pointercancel',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
+  // Pinch zoom disabled
+  var pts=new Map();
+  cv.addEventListener('pointerdown',function(e){pts.set(e.pointerId,{x:e.clientX,y:e.clientY});},{capture:true,passive:true});
+  cv.addEventListener('pointermove',function(e){if(pts.has(e.pointerId))pts.set(e.pointerId,{x:e.clientX,y:e.clientY});},{capture:true,passive:true});
+  cv.addEventListener('pointerup',function(e){pts.delete(e.pointerId);},{capture:true,passive:true});
+  cv.addEventListener('pointercancel',function(e){pts.delete(e.pointerId);},{capture:true,passive:true});
 
   // Galaxy filter links
   document.querySelectorAll('.tess-nav-link[data-galaxy]').forEach(function(btn){
@@ -11273,8 +11244,8 @@ function tAnimate() {
     TN.panX+=TN.dragDX; TN.panY+=TN.dragDY;
     TN.velX=lerp(TN.velX,TN.dragDX,0.80);
     TN.velY=lerp(TN.velY,TN.dragDY,0.80);
-    TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.055,0.07);
-    TN.distT=0.04;   // subtle even when dragging (phantom.land style)
+    TC.position.z=lerp(TC.position.z,TN.baseCamZ,0.07);  // no drag zoom
+    TN.distT=0.04;   // subtle even when dragging
   } else {
     TN.panX+=TN.velX; TN.panY+=TN.velY;
     TN.velX=lerp(TN.velX,0,0.10);
@@ -11300,16 +11271,10 @@ function tAnimate() {
   TN.panY=((TN.panY%totalH)+totalH)%totalH;
 
   TG.position.set(0,0,0);  // group stays at origin; meshes move
-  // Sync grid lines: use same modular-wrapped pan as cards
-  // The lines tile 3×3, so we only need the fractional pan offset
   if (TGLines) {
-    var _c2=TCols, _rows2=Math.ceil(TItems.length/_c2);
-    var _tw2=_c2*SX, _th2=_rows2*SY;
-    var lx = ((TN.panX % _tw2) + _tw2) % _tw2;
-    var ly = ((TN.panY % _th2) + _th2) % _th2;
-    // Offset by half-tile so centre tile is always the visible one
-    lx -= _tw2; ly -= _th2;
-    TGLines.position.set(lx + ambX, ly + ambY, -0.01);
+    var lx=((TN.panX%totalW)+totalW)%totalW - totalW;
+    var ly=((TN.panY%totalH)+totalH)%totalH - totalH;
+    TGLines.position.set(lx+ambX, ly+ambY, -0.01);
   }
   for (var _i=0;_i<TMeshes.length;_i++) {
     var _m=TMeshes[_i];
@@ -11335,7 +11300,6 @@ function tAnimate() {
   // ── Pincushion distortion lerp ────────────────────────────
   TN.distC=lerp(TN.distC,TN.distT,0.04);
   TPDM.uniforms.uDist.value=TN.distC;
-  TPDM.uniforms.uVig.value=0.62;  // slightly softer vignette
 
   // ── Render → RT → post ───────────────────────────────────
   TR.setRenderTarget(TRT); TR.render(TS,TC);
@@ -11385,12 +11349,9 @@ window._tgInit=function(){
   if(window._snapQueueEras) window._snapQueueEras(TItems.map(function(i){return i.era;}));
 };
 window._tgStop=function(){ if(TRaf){cancelAnimationFrame(TRaf);TRaf=null;} };
-window.tgZoomIn  =function(){TN.baseCamZ=Math.max(3, TN.baseCamZ*0.84);};
-window.tgZoomOut =function(){TN.baseCamZ=Math.min(28,TN.baseCamZ*1.19);};
-window.tgZoomFit =function(){
-  TN.baseCamZ=7;TN.panX=TN.panY=TN.velX=TN.velY=0;
-  TCols=getCols();buildGrid();
-};
+window.tgZoomIn  =function(){};
+window.tgZoomOut =function(){};
+window.tgZoomFit =function(){TN.panX=TN.panY=TN.velX=TN.velY=0;TCols=getCols();buildGrid();};
 
 // Resize observer
 var _tw=document.getElementById('tess-canvas-wrap');
