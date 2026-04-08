@@ -1661,85 +1661,360 @@ body.light #mf-close:hover{color:#000;}
   text-transform:uppercase; color:rgba(218,165,32,0.38);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   TESSERACT  —  raw data environment
+   Minimal B&W web UI. Standard website conventions.
+   Apple / Google aesthetic. Scroll to exit (top), X/ESC exit.
+═══════════════════════════════════════════════════════════ */
 #tesseract-overlay {
-  --galaxy-accent: #daa520;
-  position:fixed; inset:0; z-index:960;
-  background:radial-gradient(ellipse at 50% 50%, rgba(2,1,12,0.97) 0%, rgba(0,0,6,0.99) 100%);
-  display:none; opacity:0; transition:opacity 0.5s;
-  pointer-events:none;
+  position: fixed; inset: 0; z-index: 960;
+  background: #fff;
+  display: none; opacity: 0;
+  transition: opacity 0.38s cubic-bezier(0.22,1,0.36,1);
+  pointer-events: none;
+  overflow: hidden;
 }
-#tesseract-overlay.on { opacity:1; pointer-events:all; display:block; }
-#tesseract-canvas {
-  position:absolute; inset:0; width:100%; height:100%;
+#tesseract-overlay.on {
+  opacity: 1; pointer-events: all; display: block;
 }
-#tesseract-header {
-  position:absolute; top:0; left:0; right:0;
-  padding:24px 28px 0;
-  display:flex; align-items:flex-start; justify-content:space-between;
-  z-index:2; pointer-events:none;
+
+/* ── NAV BAR ── */
+#tess-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 970;
+  height: 52px;
+  background: rgba(255,255,255,0.96);
+  border-bottom: 1px solid #e5e5e5;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex; align-items: center;
+  padding: 0 24px;
+  gap: 0;
 }
-#tesseract-title-block { pointer-events:none; }
-#tesseract-eyebrow {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.30em;
-  text-transform:uppercase; color:rgba(218,165,32,0.30); margin-bottom:6px;
+#tess-nav-logo {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #000;
+  font-weight: 400; flex-shrink: 0; margin-right: 32px;
+  text-decoration: none;
 }
-#tesseract-title {
-  font-family:'Crimson Text',serif; font-size:28px; letter-spacing:-0.02em;
-  color:#f5ecd5; line-height:1.1;
+#tess-nav-links {
+  display: flex; align-items: center; gap: 0;
+  flex: 1; overflow-x: auto;
+  scrollbar-width: none; -ms-overflow-style: none;
 }
-#tesseract-sub {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.16em;
-  text-transform:uppercase; color:rgba(218,165,32,0.28); margin-top:5px;
+#tess-nav-links::-webkit-scrollbar { display: none; }
+.tess-nav-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(0,0,0,0.45);
+  text-decoration: none; padding: 6px 14px;
+  border-radius: 3px;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap; cursor: pointer;
+  background: none; border: none;
 }
-#tesseract-close {
-  background:none; border:1px solid rgba(218,165,32,0.20);
-  color:rgba(218,165,32,0.45); width:30px; height:30px;
-  border-radius:2px; cursor:pointer; font-size:13px;
-  display:flex; align-items:center; justify-content:center;
-  font-family:'DM Mono',monospace; transition:all 0.18s;
-  pointer-events:all; flex-shrink:0;
+.tess-nav-link:hover { color: #000; background: rgba(0,0,0,0.05); }
+.tess-nav-link.active { color: #000; background: rgba(0,0,0,0.07); }
+#tess-nav-close {
+  flex-shrink: 0; margin-left: 12px;
+  background: none; border: 1px solid rgba(0,0,0,0.18);
+  color: rgba(0,0,0,0.50); width: 30px; height: 30px;
+  border-radius: 3px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'DM Mono', monospace; transition: all 0.15s;
 }
-#tesseract-close:hover { color:#f5ecd5; border-color:rgba(218,165,32,0.65); }
-#tesseract-tooltip {
-  position:absolute; left:0; top:0;
-  pointer-events:none; z-index:3;
-  opacity:0; transition:opacity 0.15s;
+#tess-nav-close:hover { color: #000; border-color: #000; background: rgba(0,0,0,0.04); }
+#tess-exit-hint {
+  flex-shrink: 0; margin-left: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 7px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: rgba(0,0,0,0.22);
+  white-space: nowrap;
 }
-#tesseract-tooltip.vis { opacity:1; }
-#tesseract-tt-inner {
-  background:rgba(5,3,10,0.97); border:1px solid rgba(218,165,32,0.16);
-  border-radius:4px; padding:10px 14px; backdrop-filter:blur(12px);
-  max-width:220px;
+@media(max-width:640px) {
+  #tess-exit-hint { display: none; }
+  #tess-nav { padding: 0 12px; }
+  #tess-nav-logo { margin-right: 12px; font-size: 10px; }
+  .tess-nav-link { padding: 6px 10px; font-size: 8px; }
 }
-#tesseract-tt-era {
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.18em;
-  text-transform:uppercase; color:rgba(218,165,32,0.40); margin-bottom:4px;
+
+/* ── SCROLL BODY ── */
+#tess-body {
+  position: absolute; inset: 0;
+  overflow-y: auto; overflow-x: hidden;
+  padding-top: 52px;
+  scroll-behavior: smooth;
 }
-#tesseract-tt-title {
-  font-family:'Crimson Text',serif; font-size:15px; color:#f5ecd5;
-  line-height:1.2; margin-bottom:3px;
+#tess-body::-webkit-scrollbar { width: 4px; }
+#tess-body::-webkit-scrollbar-track { background: transparent; }
+#tess-body::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+#tess-body::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.30); }
+
+/* ── HERO ── */
+#tess-hero {
+  padding: 72px 48px 64px;
+  border-bottom: 1px solid #e8e8e8;
+  max-width: 960px; margin: 0 auto;
 }
-#tesseract-tt-domain {
-  font-family:'DM Mono',monospace; font-size:6px; letter-spacing:0.12em;
-  text-transform:uppercase; color:rgba(218,165,32,0.30);
+#tess-hero-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 9px; letter-spacing: 0.30em;
+  text-transform: uppercase; color: rgba(0,0,0,0.35);
+  margin-bottom: 20px;
 }
-#tesseract-legend {
-  position:absolute; bottom:28px; left:28px; z-index:2;
-  display:flex; flex-direction:column; gap:6px; pointer-events:none;
+#tess-hero-title {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: clamp(36px, 5vw, 60px);
+  letter-spacing: -0.03em; line-height: 1.05;
+  color: #000; font-weight: 600;
+  margin-bottom: 20px;
 }
-.tess-legend-row {
-  display:flex; align-items:center; gap:8px;
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.14em;
-  text-transform:uppercase;
+#tess-hero-sub {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 18px; line-height: 1.7;
+  color: rgba(0,0,0,0.50);
+  max-width: 560px;
 }
-.tess-legend-dot {
-  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+#tess-hero-meta {
+  margin-top: 32px;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
 }
-#tesseract-count {
-  position:absolute; bottom:28px; right:28px; z-index:2;
-  font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.18em;
-  text-transform:uppercase; color:rgba(218,165,32,0.22); text-align:right;
-  pointer-events:none;
+.tess-hero-stat {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.tess-hero-stat-n {
+  font-family: 'Crimson Text', serif; font-size: 28px;
+  font-weight: 600; letter-spacing: -0.02em; color: #000;
+}
+.tess-hero-stat-l {
+  font-family: 'DM Mono', monospace; font-size: 7px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: rgba(0,0,0,0.38);
+}
+.tess-hero-div {
+  width: 1px; height: 40px; background: #e0e0e0; flex-shrink: 0;
+}
+@media(max-width:640px) {
+  #tess-hero { padding: 40px 20px 40px; }
+  #tess-hero-title { font-size: 32px; }
+}
+
+/* ── SECTION ── */
+.tess-section {
+  max-width: 960px; margin: 0 auto;
+  padding: 48px 48px 56px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.tess-section:last-child { border-bottom: none; padding-bottom: 80px; }
+.tess-section-header {
+  display: flex; align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  border-bottom: 1.5px solid #000;
+  padding-bottom: 12px;
+  gap: 16px;
+}
+.tess-section-title {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.28em;
+  text-transform: uppercase; color: #000;
+  font-weight: 400;
+}
+.tess-section-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(0,0,0,0.28);
+}
+@media(max-width:640px) {
+  .tess-section { padding: 32px 20px 40px; }
+}
+
+/* ── CARD GRID ── */
+.tess-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: #e8e8e8;
+  border: 1px solid #e8e8e8;
+}
+@media(max-width:860px) { .tess-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(max-width:520px) { .tess-grid { grid-template-columns: 1fr; } }
+
+.tess-card {
+  background: #fff;
+  padding: 22px 22px 20px;
+  cursor: pointer;
+  transition: background 0.12s;
+  display: flex; flex-direction: column; gap: 8px;
+  position: relative;
+}
+.tess-card:hover { background: #f7f7f7; }
+.tess-card:active { background: #f0f0f0; }
+.tess-card-tag {
+  font-family: 'DM Mono', monospace;
+  font-size: 7px; letter-spacing: 0.20em;
+  text-transform: uppercase; color: rgba(0,0,0,0.35);
+}
+.tess-card-title {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 17px; letter-spacing: -0.01em;
+  color: #000; line-height: 1.25;
+}
+.tess-card-role {
+  font-family: 'DM Mono', monospace;
+  font-size: 7.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(0,0,0,0.40);
+  line-height: 1.5;
+}
+.tess-card-body {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 13px; line-height: 1.6;
+  color: rgba(0,0,0,0.55);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.tess-card-arrow {
+  position: absolute; bottom: 18px; right: 18px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: rgba(0,0,0,0.18);
+  transition: color 0.12s, transform 0.12s;
+}
+.tess-card:hover .tess-card-arrow { color: #000; transform: translateX(3px); }
+
+/* ── LIST LAYOUT (manifesto) ── */
+.tess-list { display: flex; flex-direction: column; }
+.tess-list-row {
+  display: flex; align-items: flex-start; gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.tess-list-row:first-child { border-top: none; }
+.tess-list-row:last-child { border-bottom: none; }
+.tess-list-row:hover { background: #fafafa; }
+.tess-list-idx {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px; letter-spacing: 0.18em;
+  color: rgba(0,0,0,0.28); flex-shrink: 0; width: 28px;
+  padding-top: 3px;
+}
+.tess-list-content { flex: 1; min-width: 0; }
+.tess-list-title {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 18px; letter-spacing: -0.01em;
+  color: #000; line-height: 1.2; margin-bottom: 5px;
+}
+.tess-list-sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 7.5px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(0,0,0,0.38);
+}
+.tess-list-body {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 14px; line-height: 1.65;
+  color: rgba(0,0,0,0.55); margin-top: 7px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.tess-list-chevron {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: rgba(0,0,0,0.18); flex-shrink: 0; padding-top: 3px;
+  transition: color 0.12s, transform 0.12s;
+}
+.tess-list-row:hover .tess-list-chevron { color: #000; transform: translateX(3px); }
+
+/* ── FEATURED POSTER (Claude section) ── */
+.tess-poster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media(max-width:640px) { .tess-poster-grid { grid-template-columns: 1fr; } }
+.tess-poster {
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  padding: 28px 24px 24px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative; overflow: hidden;
+}
+.tess-poster:hover {
+  border-color: #bbb;
+  background: #f0f0f0;
+  transform: translateY(-1px);
+}
+.tess-poster::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: #000;
+}
+.tess-poster-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 7px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: rgba(0,0,0,0.35);
+}
+.tess-poster-title {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 20px; letter-spacing: -0.02em;
+  color: #000; line-height: 1.2; font-weight: 600;
+}
+.tess-poster-sub {
+  font-family: 'Crimson Text', Georgia, serif;
+  font-size: 14px; line-height: 1.65;
+  color: rgba(0,0,0,0.55);
+}
+.tess-poster-footer {
+  margin-top: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 7.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(0,0,0,0.35);
+  display: flex; align-items: center; gap: 6px;
+}
+.tess-poster-footer::after { content: '→'; }
+
+/* ── SCROLL EXIT HINT ── */
+#tess-scroll-hint {
+  position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+  z-index: 971; pointer-events: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 7px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: rgba(0,0,0,0.25);
+  opacity: 0; transition: opacity 0.4s;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.90);
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 20px; padding: 5px 14px;
+  backdrop-filter: blur(8px);
+}
+#tess-scroll-hint.vis { opacity: 1; }
+
+/* ── FOOTER ── */
+#tess-footer {
+  max-width: 960px; margin: 0 auto;
+  padding: 32px 48px 48px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+}
+#tess-footer-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 7.5px; letter-spacing: 0.20em;
+  text-transform: uppercase; color: rgba(0,0,0,0.28);
+}
+#tess-back-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 8px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: #000; color: #fff;
+  border: none; border-radius: 3px;
+  padding: 9px 18px; cursor: pointer;
+  transition: opacity 0.15s;
+}
+#tess-back-btn:hover { opacity: 0.75; }
+@media(max-width:640px) {
+  #tess-footer { padding: 24px 20px 40px; }
 }
 
 /* mobile-zoom-rail merged into #right-rail-widget */
@@ -1783,57 +2058,8 @@ body.light .toast-title{color:#000;}
 body.light .toast-role{color:rgba(0,0,0,0.40);}
 #tooltip{display:none;}
 
-#tesseract-grid-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 961;
-  background: rgba(2,1,12,0.95);
-  display: none;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: all;
-}
-#tesseract-grid-overlay.on { opacity: 1; display: flex; }
-#tesseract-grid-inner {
-  margin: auto;
-  display: grid;
-  gap: 8px;
-  padding: 24px;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-#tesseract-grid-close {
-  position: fixed;
-  top: 28px;
-  right: 28px;
-  z-index: 962;
-  background: none;
-  border: 1px solid rgba(218,165,32,0.20);
-  color: rgba(218,165,32,0.45);
-  width: 30px;
-  height: 30px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'DM Mono', monospace;
-  transition: all 0.18s;
-}
-#tesseract-grid-close:hover { color: #f5ecd5; border-color: rgba(218,165,32,0.65); }
-.tess-grid-card {
-  background: rgba(5,3,10,0.94);
-  border: 1px solid rgba(218,165,32,0.12);
-  border-radius: 5px;
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.tess-grid-card:hover { border-color: rgba(218,165,32,0.40); background: rgba(10,6,20,0.97); }
-.tess-grid-era { font-family: 'DM Mono',monospace; font-size: 7px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(218,165,32,0.40); margin-bottom: 4px; }
-.tess-grid-title { font-family: 'Crimson Text',serif; font-size: 14px; color: #f5ecd5; line-height: 1.2; }
-.tess-grid-domain { font-family: 'DM Mono',monospace; font-size: 6px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(218,165,32,0.28); margin-top: 4px; }
+/* tesseract-grid-overlay retired — superseded by new tesseract web UI */
+#tesseract-grid-overlay { display: none !important; }
 
 /* ── UNIFIED RIGHT RAIL WIDGET ── */
 #right-hud { display: none !important; } /* old element hidden, replaced by #rrw */
@@ -10040,38 +10266,107 @@ document.addEventListener('keydown', e => {
 </script>
 
 
-<!-- ═══ TESSERACT OVERLAY ═══ -->
+<!-- ═══ TESSERACT OVERLAY — RAW DATA ENVIRONMENT ═══
+     Standard web UI. Same data, different lens.
+     ESC / X / scroll past top = exit back to black hole.
+════════════════════════════════════════════════════ -->
 <div id="tesseract-overlay">
-  <canvas id="tesseract-canvas"></canvas>
-  <div id="tesseract-header">
-    <div id="tesseract-title-block">
-      <div id="tesseract-eyebrow">The Black Hole · All Nodes · All Galaxies</div>
-      <div id="tesseract-title">Tesseract</div>
-      <div id="tesseract-sub">Every node in this universe · arranged in a 3D cube grid</div>
-    </div>
-    <button id="tesseract-close" onclick="closeTesseract()">✕</button>
-  </div>
-  <div id="tesseract-tooltip">
-    <div id="tesseract-tt-inner">
-      <div id="tesseract-tt-era"></div>
-      <div id="tesseract-tt-title"></div>
-      <div id="tesseract-tt-domain"></div>
-    </div>
-  </div>
-  <div id="tesseract-legend">
-    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#daa520"></div><span style="color:rgba(218,165,32,0.55)">Career</span></div>
-    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#ffe066"></div><span style="color:rgba(255,224,102,0.55)">Sentence Primitive</span></div>
-    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#6699ff"></div><span style="color:rgba(102,153,255,0.55)">Claude Code</span></div>
-    <div class="tess-legend-row"><div class="tess-legend-dot" style="background:#ff9944"></div><span style="color:rgba(255,153,68,0.55)">Manifesto</span></div>
-  </div>
-  <div id="tesseract-count"></div>
-</div>
 
-<!-- Tesseract 2D Grid Overlay -->
-<div id="tesseract-grid-overlay">
-  <div id="tesseract-grid-close" onclick="closeTesseractGrid()">✕</div>
-  <div id="tesseract-grid-inner"></div>
-</div>
+  <!-- ── Navbar ── -->
+  <nav id="tess-nav">
+    <span id="tess-nav-logo">Raw Data</span>
+    <div id="tess-nav-links">
+      <button class="tess-nav-link" data-section="tess-sec-career">Career</button>
+      <button class="tess-nav-link" data-section="tess-sec-platform">Sentence Primitive</button>
+      <button class="tess-nav-link" data-section="tess-sec-claude">Claude</button>
+      <button class="tess-nav-link" data-section="tess-sec-manifesto">Manifesto</button>
+    </div>
+    <span id="tess-exit-hint">↑ scroll out · esc</span>
+    <button id="tess-nav-close" onclick="closeTesseract()" title="Exit (Esc)">✕</button>
+  </nav>
+
+  <!-- ── Scroll exit hint (appears when at top) ── -->
+  <div id="tess-scroll-hint">↑ keep scrolling to exit</div>
+
+  <!-- ── Body ── -->
+  <div id="tess-body">
+
+    <!-- Hero -->
+    <div id="tess-hero">
+      <div id="tess-hero-eyebrow">The Black Hole · Raw Data Environment</div>
+      <h1 id="tess-hero-title">Every node.<br>All galaxies.</h1>
+      <p id="tess-hero-sub">The same data that powers the spatial universe, reorganised into a familiar interface. Browse, navigate, select — then return to the cosmos.</p>
+      <div id="tess-hero-meta">
+        <div class="tess-hero-stat">
+          <span class="tess-hero-stat-n" id="tess-count-career">—</span>
+          <span class="tess-hero-stat-l">Career nodes</span>
+        </div>
+        <div class="tess-hero-div"></div>
+        <div class="tess-hero-stat">
+          <span class="tess-hero-stat-n" id="tess-count-platform">—</span>
+          <span class="tess-hero-stat-l">Platform nodes</span>
+        </div>
+        <div class="tess-hero-div"></div>
+        <div class="tess-hero-stat">
+          <span class="tess-hero-stat-n" id="tess-count-claude">—</span>
+          <span class="tess-hero-stat-l">Claude nodes</span>
+        </div>
+        <div class="tess-hero-div"></div>
+        <div class="tess-hero-stat">
+          <span class="tess-hero-stat-n" id="tess-count-manifesto">—</span>
+          <span class="tess-hero-stat-l">Manifesto nodes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Career section — card grid -->
+    <section class="tess-section" id="tess-sec-career">
+      <div class="tess-section-header">
+        <span class="tess-section-title">Career</span>
+        <span class="tess-section-count" id="tess-label-career"></span>
+      </div>
+      <div class="tess-grid" id="tess-grid-career"></div>
+    </section>
+
+    <!-- Platform section — card grid -->
+    <section class="tess-section" id="tess-sec-platform">
+      <div class="tess-section-header">
+        <span class="tess-section-title">Sentence Primitive</span>
+        <span class="tess-section-count" id="tess-label-platform"></span>
+      </div>
+      <div class="tess-grid" id="tess-grid-platform"></div>
+    </section>
+
+    <!-- Claude section — poster grid -->
+    <section class="tess-section" id="tess-sec-claude">
+      <div class="tess-section-header">
+        <span class="tess-section-title">Claude</span>
+        <span class="tess-section-count" id="tess-label-claude"></span>
+      </div>
+      <div class="tess-poster-grid" id="tess-grid-claude"></div>
+    </section>
+
+    <!-- Manifesto section — list -->
+    <section class="tess-section" id="tess-sec-manifesto">
+      <div class="tess-section-header">
+        <span class="tess-section-title">Manifesto</span>
+        <span class="tess-section-count" id="tess-label-manifesto"></span>
+      </div>
+      <div class="tess-list" id="tess-list-manifesto"></div>
+    </section>
+
+    <!-- Footer -->
+    <div id="tess-footer">
+      <span id="tess-footer-label">Raw Data Environment · The Black Hole · Zack.cx</span>
+      <button id="tess-back-btn" onclick="closeTesseract()">← Return to Universe</button>
+    </div>
+
+  </div><!-- /#tess-body -->
+
+</div><!-- /#tesseract-overlay -->
+
+<!-- Tesseract 2D Grid Overlay — retired -->
+<div id="tesseract-grid-overlay" style="display:none"></div>
 
 <script>
 // ─────────────────────────────────────────────────────────
@@ -10118,608 +10413,165 @@ document.addEventListener('keydown', e => {
 })();
 
 // ─────────────────────────────────────────────────────────
-// TESSERACT — 3D CUBE GRID · all nodes mapped in a cubic lattice
-// Categorized and connected through color.
-// View modes: cube (default) | grid-orbits | spiral | timeline
+// TESSERACT — RAW DATA ENVIRONMENT
+// Replaces the 3D cube-of-nodes with a full-page minimal
+// web UI. Same data, familiar conventions.
+// Exit: X button | ESC | scroll past the very top.
 // ─────────────────────────────────────────────────────────
+
 let tesseractOpen = false;
-let tesseractRAF = null;
-let tesseractScene = null, tesseractCam = null, tesseractRenderer = null;
-let tesseractTheta = 0.4, tesseractPhi = Math.PI * 0.32;
-let tesseractDrag = false, tesseractLastX = 0, tesseractLastY = 0;
-let tesseractHovered = null;
-const tesseractNodeObjs = [];
 
-let dnaViewMode = 'cube';
-let dnaMorphT = 1, dnaMorphing = false;
-let dnaMorphFromPos = [], dnaMorphToPos = [];
-
-const DNA_GALAXY_COLORS = {
-  career:   { hex3: 0xdaa520, r:218, g:165, b:32  },
-  sentence: { hex3: 0xffe066, r:255, g:224, b:102 },
-  claude:   { hex3: 0x6699ff, r:102, g:153, b:255 },
-  manifesto:{ hex3: 0xff9944, r:255, g:153, b:68  },
-};
-
-// ── 3D Cube Grid layout (default) ─────────────────────────
-// Arranges all nodes in a 3D cubic lattice.
-function dnaCubeGridPos(idx, total) {
-  const side = Math.ceil(Math.cbrt(total));
-  const spacing = 14;
-  const cx = idx % side;
-  const cy = Math.floor(idx / side) % side;
-  const cz = Math.floor(idx / (side * side));
-  return new THREE.Vector3(
-    (cx - (side - 1) / 2) * spacing,
-    (cy - (side - 1) / 2) * spacing,
-    (cz - (side - 1) / 2) * spacing
-  );
+// ── Build the web UI content from live era arrays ─────────
+function _tessGetText(era) {
+  if (era.body) return era.body;
+  if (era.sentences && era.sentences.length) return era.sentences[0];
+  return era.domain || '';
 }
 
-function dnaGridPos(idx, total) {
-  const rings = [1, 8, 16, 24, 32, 48];
-  let ring = 0, pos = idx;
-  for (let r = 0; r < rings.length; r++) {
-    if (pos < rings[r]) { ring = r; break; }
-    pos -= rings[r];
-    if (r === rings.length - 1) ring = r;
-  }
-  const orbitR = ring * 13;
-  const count = rings[Math.min(ring, rings.length - 1)] || 8;
-  const angle = ring === 0 ? 0 : (pos / count) * Math.PI * 2;
-  return new THREE.Vector3(Math.cos(angle) * orbitR, 0, Math.sin(angle) * orbitR);
+function _tessNavigateTo(era) {
+  window.closeTesseract();
+  setTimeout(() => { if (typeof focusEra === 'function') focusEra(era); }, 340);
 }
 
-function dnaSpiralPos(idx, total) {
-  const t = idx / Math.max(total - 1, 1);
-  const angle = t * Math.PI * 10;
-  const radius = 4 + t * 28;
-  return new THREE.Vector3(Math.cos(angle) * radius, (t - 0.5) * 80, Math.sin(angle) * radius);
-}
+function _tessPopulateSection(containerId, eras, galaxy, layout) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
 
-function dnaTimelinePos(idx, total, galaxy) {
-  const laneX = { career: -27, sentence: -9, claude: 9, manifesto: 27 };
-  const t = idx / Math.max(total - 1, 1);
-  return new THREE.Vector3(laneX[galaxy] || 0, (t - 0.5) * 90, 0);
-}
+  eras.forEach((era, idx) => {
+    if (layout === 'list') {
+      const row = document.createElement('div');
+      row.className = 'tess-list-row';
+      row.innerHTML = `
+        <div class="tess-list-idx">${String(idx + 1).padStart(2,'0')}</div>
+        <div class="tess-list-content">
+          <div class="tess-list-title">${era.title || era.id}</div>
+          <div class="tess-list-sub">${galaxy.toUpperCase()}${era.era ? ' · ' + era.era : ''}</div>
+          ${_tessGetText(era) ? `<div class="tess-list-body">${_tessGetText(era)}</div>` : ''}
+        </div>
+        <div class="tess-list-chevron">→</div>`;
+      row.addEventListener('click', () => _tessNavigateTo(era));
+      container.appendChild(row);
 
-function buildTesseractScene(galaxyFilter) {
-  const cvs = document.getElementById('tesseract-canvas');
-  cvs.width  = window.innerWidth;
-  cvs.height = window.innerHeight;
+    } else if (layout === 'poster') {
+      const card = document.createElement('div');
+      card.className = 'tess-poster';
+      card.innerHTML = `
+        <div class="tess-poster-label">${galaxy.toUpperCase()}${era.era ? ' · ' + era.era : ''}</div>
+        <div class="tess-poster-title">${era.title || era.id}</div>
+        ${era.role ? `<div class="tess-poster-sub">${era.role}</div>` : ''}
+        ${_tessGetText(era) ? `<div class="tess-poster-sub" style="font-size:13px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">${_tessGetText(era)}</div>` : ''}
+        <div class="tess-poster-footer">Explore node</div>`;
+      card.addEventListener('click', () => _tessNavigateTo(era));
+      container.appendChild(card);
 
-  tesseractRenderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, alpha: true });
-  tesseractRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  tesseractRenderer.setSize(window.innerWidth, window.innerHeight);
-  tesseractRenderer.setClearColor(0x000000, 0);
-
-  tesseractScene = new THREE.Scene();
-  tesseractScene.fog = new THREE.FogExp2(0x010208, 0.004);
-
-  tesseractCam = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 1200);
-  window._tesseractR = 110;
-
-  // Lighting
-  tesseractScene.add(new THREE.AmbientLight(0xffffff, 0.12));
-  const pl1 = new THREE.PointLight(0xdaa520, 6, 220); pl1.position.set(-25, 40, 20); tesseractScene.add(pl1);
-  const pl2 = new THREE.PointLight(0x4466ff, 5, 180); pl2.position.set(30, -20, -15); tesseractScene.add(pl2);
-  const pl3 = new THREE.PointLight(0xff6633, 4, 160); pl3.position.set(0,  0,  45); tesseractScene.add(pl3);
-
-  // Collect all nodes
-  const _allNodes = [
-    ...ERAS.map(e           => ({ era: e, galaxy: 'career'   })),
-    ...PLATFORM_ERAS.map(e  => ({ era: e, galaxy: 'sentence' })),
-    ...CLAUDE_ERAS.map(e    => ({ era: e, galaxy: 'claude'   })),
-    ...MANIFESTO_ERAS.map(e => ({ era: e, galaxy: 'manifesto'})),
-  ];
-  const allNodes = galaxyFilter ? _allNodes.filter(n => n.galaxy === galaxyFilter) : _allNodes;
-
-  // Sort: grouped by galaxy for helix coloring
-  const galOrder = { career: 0, sentence: 1, claude: 2, manifesto: 3 };
-  const sorted = [...allNodes].sort((a, b) => (galOrder[a.galaxy]||0) - (galOrder[b.galaxy]||0));
-  const total  = sorted.length;
-
-  tesseractNodeObjs.length = 0;
-
-  // ── Glow sprite factory ─────────────────────────────────
-  function makeGlowSprite(cr, cg, cb, scale, alpha) {
-    const sz = 128, gc = document.createElement('canvas');
-    gc.width = gc.height = sz;
-    const gctx = gc.getContext('2d');
-    const grad = gctx.createRadialGradient(sz/2,sz/2,0,sz/2,sz/2,sz/2);
-    grad.addColorStop(0,   `rgba(${cr},${cg},${cb},${alpha})`);
-    grad.addColorStop(0.45,`rgba(${cr},${cg},${cb},${alpha*0.25})`);
-    grad.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
-    gctx.fillStyle = grad; gctx.fillRect(0,0,sz,sz);
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(gc), transparent: true,
-      depthWrite: false, blending: THREE.AdditiveBlending
-    }));
-    spr.scale.setScalar(scale); spr.material.opacity = 0;
-    return spr;
-  }
-
-  // ── Ghost overlay canvas factory (hover card) ───────────
-  function makeGhostOverlay(era, cr, cg, cb) {
-    const W = 280, H = 100;
-    const gc2 = document.createElement('canvas'); gc2.width = W; gc2.height = H;
-    const ctx2 = gc2.getContext('2d');
-    ctx2.fillStyle = `rgba(2,1,10,0.85)`; ctx2.fillRect(0,0,W,H);
-    ctx2.strokeStyle = `rgba(${cr},${cg},${cb},0.55)`;
-    ctx2.lineWidth = 1; ctx2.strokeRect(0.5,0.5,W-1,H-1);
-    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.75)`;
-    ctx2.font = '600 13px "Crimson Text",serif';
-    const title = era.title || '';
-    ctx2.fillText(title.length > 28 ? title.slice(0,28)+'…' : title, 12, 26);
-    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.42)`;
-    ctx2.font = '300 9px "DM Mono",monospace';
-    ctx2.fillText((era.era || '').toUpperCase(), 12, 44);
-    ctx2.fillStyle = `rgba(${cr},${cg},${cb},0.30)`;
-    ctx2.font = '300 8px "DM Mono",monospace';
-    const role = (era.role || '');
-    ctx2.fillText(role.length > 38 ? role.slice(0,38)+'…' : role, 12, 60);
-    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: new THREE.CanvasTexture(gc2), transparent: true, depthWrite: false
-    }));
-    spr.scale.set(22, 8, 1); spr.material.opacity = 0;
-    return spr;
-  }
-
-  // ── Build each node ─────────────────────────────────────
-  // Store initial positions for morph source
-  sorted.forEach((node, idx) => {
-    const col = DNA_GALAXY_COLORS[node.galaxy] || DNA_GALAXY_COLORS.career;
-    const { hex3, r: cr, g: cg, b: cb } = col;
-    const nodeR = 0.55;
-
-    // Base position: 3D cube grid
-    const pos = dnaCubeGridPos(idx, total);
-
-    // Node sphere
-    const geo  = new THREE.SphereGeometry(nodeR, 14, 14);
-    const mat  = new THREE.MeshPhysicalMaterial({
-      color: hex3, emissive: hex3, emissiveIntensity: 1.6,
-      metalness: 0.05, roughness: 0.08, clearcoat: 1.0,
-      transparent: true, opacity: 0
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(pos);
-    mesh.userData = { node, idx };
-    tesseractScene.add(mesh);
-
-    // Glow halo
-    const glow = makeGlowSprite(cr, cg, cb, nodeR * 14, 0.60);
-    glow.position.copy(pos);
-    tesseractScene.add(glow);
-
-    // Outer bloom (larger, dimmer)
-    const bloom = makeGlowSprite(cr, cg, cb, nodeR * 32, 0.22);
-    bloom.position.copy(pos);
-    tesseractScene.add(bloom);
-
-    // Invisible hit sphere
-    const hitGeo  = new THREE.SphereGeometry(nodeR * 3.5, 6, 6);
-    const hitMesh = new THREE.Mesh(hitGeo, new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthWrite:false }));
-    hitMesh.position.copy(pos);
-    hitMesh.userData = { node, idx };
-    tesseractScene.add(hitMesh);
-
-    // Ghost overlay card (hidden until hover)
-    const ghost = makeGhostOverlay(node.era, cr, cg, cb);
-    ghost.position.set(pos.x + 12, pos.y + 4, pos.z);
-    tesseractScene.add(ghost);
-
-    // Luminous orbit ring (shown in grid mode, subtle in helix)
-    const orbitPts = [];
-    for (let k = 0; k <= 64; k++) {
-      const a = (k/64) * Math.PI * 2;
-      orbitPts.push(new THREE.Vector3(Math.cos(a) * nodeR * 3, Math.sin(a) * nodeR * 1.4, 0));
+    } else {
+      // default: card grid
+      const card = document.createElement('div');
+      card.className = 'tess-card';
+      card.innerHTML = `
+        <div class="tess-card-tag">${galaxy.toUpperCase()}${era.era ? ' · ' + era.era : ''}</div>
+        <div class="tess-card-title">${era.title || era.id}</div>
+        ${era.role ? `<div class="tess-card-role">${era.role}</div>` : ''}
+        ${_tessGetText(era) ? `<div class="tess-card-body">${_tessGetText(era)}</div>` : ''}
+        <div class="tess-card-arrow">→</div>`;
+      card.addEventListener('click', () => _tessNavigateTo(era));
+      container.appendChild(card);
     }
-    const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPts);
-    const orbitMat = new THREE.LineBasicMaterial({ color: hex3, transparent: true, opacity: 0, depthWrite: false });
-    const orbitRing = new THREE.Line(orbitGeo, orbitMat);
-    orbitRing.position.copy(pos);
-    tesseractScene.add(orbitRing);
+  });
+}
 
-    // Moon sub-nodes (orbiting dots per moon in era.moons)
-    const moonObjs = [];
-    const moons = (node.era.moons || []).slice(0, 4);
-    moons.forEach((moon, mi) => {
-      const mR = nodeR * 0.26;
-      const mOrbitR = nodeR * 2.6 + mi * nodeR * 0.5;
-      const tiltSeed = idx * 0.618 + mi * 1.1;
-      const tiltX = Math.sin(tiltSeed) * Math.PI * 0.35 + Math.PI * 0.5;
-      const tiltY = Math.cos(tiltSeed * 0.7) * Math.PI * 0.25;
+function _tessPopulate() {
+  const careerEras    = (typeof ERAS            !== 'undefined' ? ERAS            : []);
+  const platformEras  = (typeof PLATFORM_ERAS   !== 'undefined' ? PLATFORM_ERAS   : []);
+  const claudeEras    = (typeof CLAUDE_ERAS      !== 'undefined' ? CLAUDE_ERAS     : []);
+  const manifestoEras = (typeof MANIFESTO_ERAS   !== 'undefined' ? MANIFESTO_ERAS  : []);
 
-      const mGeo = new THREE.SphereGeometry(mR, 8, 8);
-      const mMat = new THREE.MeshPhysicalMaterial({
-        color: hex3, emissive: hex3, emissiveIntensity: 1.8,
-        metalness: 0, roughness: 0.1, transparent: true, opacity: 0
-      });
-      const mMesh = new THREE.Mesh(mGeo, mMat);
-      tesseractScene.add(mMesh);
+  // Update counters
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('tess-count-career',    careerEras.length);
+  set('tess-count-platform',  platformEras.length);
+  set('tess-count-claude',    claudeEras.length);
+  set('tess-count-manifesto', manifestoEras.length);
+  set('tess-label-career',    careerEras.length + ' nodes');
+  set('tess-label-platform',  platformEras.length + ' nodes');
+  set('tess-label-claude',    claudeEras.length + ' nodes');
+  set('tess-label-manifesto', manifestoEras.length + ' nodes');
 
-      // Orbit ring
-      const rPts = [];
-      for (let k = 0; k <= 48; k++) {
-        const a = (k/48) * Math.PI * 2;
-        rPts.push(new THREE.Vector3(Math.cos(a) * mOrbitR, Math.sin(a) * mOrbitR * 0.55, Math.sin(a) * mOrbitR * 0.30));
+  _tessPopulateSection('tess-grid-career',    careerEras,    'career',    'card');
+  _tessPopulateSection('tess-grid-platform',  platformEras,  'platform',  'card');
+  _tessPopulateSection('tess-grid-claude',    claudeEras,    'claude',    'poster');
+  _tessPopulateSection('tess-list-manifesto', manifestoEras, 'manifesto', 'list');
+}
+
+// ── Navbar section scroll + active state ─────────────────
+function _tessInitNav() {
+  const body = document.getElementById('tess-body');
+  if (!body) return;
+
+  // Nav link click → smooth scroll to section
+  document.querySelectorAll('.tess-nav-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const secId = btn.dataset.section;
+      const sec = document.getElementById(secId);
+      if (sec && body) {
+        body.scrollTo({ top: sec.offsetTop - 52, behavior: 'smooth' });
       }
-      const rLine = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(rPts),
-        new THREE.LineBasicMaterial({ color: hex3, transparent: true, opacity: 0, depthWrite: false })
-      );
-      rLine.rotation.x = tiltX; rLine.rotation.y = tiltY;
-      rLine.position.copy(pos);
-      tesseractScene.add(rLine);
-
-      moonObjs.push({
-        mesh: mMesh, ring: rLine,
-        orbitR: mOrbitR, tiltX, tiltY,
-        baseAngle: (mi / moons.length) * Math.PI * 2,
-        speed: 0.20 + mi * 0.08 + (idx % 3) * 0.03,
-        cx: pos.x, cy: pos.y, cz: pos.z
-      });
-    });
-
-    tesseractNodeObjs.push({
-      mesh, hitMesh, glow, bloom, ghost, orbitRing, moonObjs,
-      node, galaxy: node.galaxy,
-      basePos: pos.clone(),       // helix position
-      currentPos: pos.clone(),
     });
   });
 
-  // ── 3D Cube Grid wireframe edges ───────────────────────────
-  // Draw edges along the cubic lattice between adjacent nodes.
-  (function buildCubeEdges() {
-    const side = Math.ceil(Math.cbrt(total));
-    function nodeAt(cx, cy, cz) {
-      const i = cx + cy * side + cz * side * side;
-      return (i < total) ? tesseractNodeObjs[i] : null;
-    }
-    // Axis-aligned edges: connect each node to its +x, +y, +z neighbor
-    const dirs = [[1,0,0],[0,1,0],[0,0,1]];
-    for (let cz = 0; cz < side; cz++) {
-      for (let cy = 0; cy < side; cy++) {
-        for (let cx = 0; cx < side; cx++) {
-          const a = nodeAt(cx, cy, cz);
-          if (!a) continue;
-          dirs.forEach(([dx, dy, dz]) => {
-            const b = nodeAt(cx+dx, cy+dy, cz+dz);
-            if (!b) return;
-            // Color edge by galaxy of the start node
-            const gal = a.galaxy;
-            const col = (DNA_GALAXY_COLORS[gal] || DNA_GALAXY_COLORS.career).hex3;
-            const geo = new THREE.BufferGeometry().setFromPoints([a.basePos.clone(), b.basePos.clone()]);
-            const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.18, depthWrite: false });
-            tesseractScene.add(new THREE.Line(geo, mat));
-          });
-        }
+  // Scroll exit hint + active nav highlight
+  let _exitArmed = false;
+  let _exitTimeout = null;
+
+  body.addEventListener('scroll', () => {
+    const scrollTop = body.scrollTop;
+    const hint = document.getElementById('tess-scroll-hint');
+
+    // Show "keep scrolling to exit" hint when near the top
+    if (scrollTop < 60) {
+      if (hint) hint.classList.add('vis');
+      if (!_exitArmed) {
+        _exitArmed = true;
+        _exitTimeout = setTimeout(() => {
+          // If still near top after 600ms → exit
+          if (body.scrollTop < 60) window.closeTesseract();
+          _exitArmed = false;
+        }, 600);
       }
+    } else {
+      if (hint) hint.classList.remove('vis');
+      if (_exitArmed) { clearTimeout(_exitTimeout); _exitArmed = false; }
     }
-    // Outer bounding box wireframe (BoxGeometry wireframe)
-    const spacing = 14, half = ((side - 1) / 2) * spacing + spacing * 0.5;
-    const boxGeo = new THREE.BoxGeometry(half*2, half*2, half*2);
-    const wf = new THREE.LineSegments(
-      new THREE.EdgesGeometry(boxGeo),
-      new THREE.LineBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.10, depthWrite: false })
-    );
-    tesseractScene.add(wf);
-  })();
 
-  // ── Category-colored inter-node connection arcs ─────────
-  // Connect nodes of same galaxy with thin arcs
-  const galaxyGroups = {};
-  tesseractNodeObjs.forEach(obj => {
-    if (!galaxyGroups[obj.galaxy]) galaxyGroups[obj.galaxy] = [];
-    galaxyGroups[obj.galaxy].push(obj);
-  });
-  Object.entries(galaxyGroups).forEach(([gal, objs]) => {
-    const col = (DNA_GALAXY_COLORS[gal] || DNA_GALAXY_COLORS.career).hex3;
-    for (let i = 0; i < objs.length - 1; i++) {
-      const pA = objs[i].basePos, pB = objs[i+1].basePos;
-      const mid = pA.clone().add(pB).multiplyScalar(0.5);
-      mid.x += (Math.random() - 0.5) * 4;
-      mid.z += (Math.random() - 0.5) * 4;
-      const arc = new THREE.QuadraticBezierCurve3(pA.clone(), mid, pB.clone());
-      const pts = arc.getPoints(20);
-      const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.12, depthWrite: false });
-      tesseractScene.add(new THREE.Line(geo, mat));
-    }
-  });
-
-  // ── Ambient star field ──────────────────────────────────
-  const starGeo = new THREE.BufferGeometry();
-  const starPos = new Float32Array(600 * 3);
-  for (let i = 0; i < 600; i++) {
-    starPos[i*3]   = (Math.random() - 0.5) * 280;
-    starPos[i*3+1] = (Math.random() - 0.5) * 240;
-    starPos[i*3+2] = (Math.random() - 0.5) * 280;
-  }
-  starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-  tesseractScene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
-    color: 0xffffff, size: 0.3, transparent: true, opacity: 0.22,
-    sizeAttenuation: true, depthWrite: false
-  })));
-
-  // ── Fade in all node objects ────────────────────────────
-  tesseractNodeObjs.forEach(({ mesh, glow, bloom, orbitRing, moonObjs }, i) => {
-    setTimeout(() => {
-      let t2 = 0;
-      (function step() {
-        t2 = Math.min(t2 + 0.07, 1);
-        if (mesh.material) mesh.material.opacity = t2 * 0.95;
-        if (glow.material) glow.material.opacity = t2 * 0.55;
-        if (bloom.material) bloom.material.opacity = t2 * 0.18;
-        if (orbitRing.material) orbitRing.material.opacity = dnaViewMode === 'grid' ? t2 * 0.45 : t2 * 0.06;
-        moonObjs.forEach(m => {
-          if (m.mesh && m.mesh.material) m.mesh.material.opacity = t2 * 0.80;
-          if (m.ring && m.ring.material) m.ring.material.opacity = t2 * 0.22;
-        });
-        if (t2 < 1) requestAnimationFrame(step);
-      })();
-    }, i * 14 + 80);
-  });
-
-  // ── View mode switcher UI ───────────────────────────────
-  injectDnaViewModes();
-}
-
-// ── DNA view mode: morph node positions to target layout ──
-function dnaSetViewMode(mode) {
-  if (!tesseractNodeObjs.length) return;
-  dnaViewMode = mode;
-  const total = tesseractNodeObjs.length;
-
-  // Update legend text
-  const countEl = document.getElementById('tesseract-count');
-  const labels = { cube:'3D Cube Grid', grid:'Luminous Orbits', spiral:'Spiral', timeline:'Timeline' };
-  if (countEl) countEl.textContent = total + ' nodes  ·  ' + (labels[mode]||mode) + '  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
-
-  // Compute target positions
-  const galGroups = {};
-  tesseractNodeObjs.forEach((obj, i) => {
-    if (!galGroups[obj.galaxy]) galGroups[obj.galaxy] = [];
-    galGroups[obj.galaxy].push({ obj, globalIdx: i });
-  });
-
-  dnaMorphFromPos = tesseractNodeObjs.map(obj => obj.currentPos.clone());
-  dnaMorphToPos   = tesseractNodeObjs.map((obj, i) => {
-    switch (mode) {
-      case 'cube':     return dnaCubeGridPos(i, total);
-      case 'grid':     return dnaGridPos(i, total);
-      case 'spiral':   return dnaSpiralPos(i, total);
-      case 'timeline': {
-        const g = galGroups[obj.galaxy] || [];
-        const localIdx = g.findIndex(x => x.globalIdx === i);
-        return dnaTimelinePos(localIdx < 0 ? i : localIdx, g.length, obj.galaxy);
-      }
-      default:         return dnaCubeGridPos(i, total);
-    }
-  });
-
-  // Toggle orbit ring visibility
-  tesseractNodeObjs.forEach(obj => {
-    if (obj.orbitRing && obj.orbitRing.material)
-      obj.orbitRing.material.opacity = mode === 'grid' ? 0.50 : 0.06;
-  });
-
-  // Adjust camera distance for mode
-  const targetR = mode === 'grid' ? 120 : mode === 'timeline' ? 100 : mode === 'cube' ? 110 : 85;
-  window._tesseractR = targetR;
-
-  dnaMorphT = 0; dnaMorphing = true;
-
-  // Update active button
-  document.querySelectorAll('.dna-mode-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.mode === mode);
-  });
-}
-
-// ── Inject view-mode switcher bar into tesseract overlay ──
-function injectDnaViewModes() {
-  const existing = document.getElementById('dna-mode-bar');
-  if (existing) existing.remove();
-
-  const bar = document.createElement('div');
-  bar.id = 'dna-mode-bar';
-  bar.style.cssText = `
-    position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
-    display:flex; gap:0; z-index:3; pointer-events:all;
-    background:rgba(5,3,10,0.90); border:1px solid rgba(218,165,32,0.18);
-    border-radius:4px; overflow:hidden; backdrop-filter:blur(16px);
-  `;
-
-  const modes = [
-    { mode:'cube',     label:'3D GRID' },
-    { mode:'grid',     label:'ORBITS' },
-    { mode:'spiral',   label:'SPIRAL' },
-    { mode:'timeline', label:'TIMELINE' },
-  ];
-
-  modes.forEach(({ mode, label }) => {
-    const btn = document.createElement('button');
-    btn.className = 'dna-mode-btn';
-    btn.dataset.mode = mode;
-    btn.textContent = label;
-    btn.style.cssText = `
-      background:none; border:none; border-right:1px solid rgba(218,165,32,0.12);
-      color:rgba(218,165,32,0.40); font-family:'DM Mono',monospace;
-      font-size:7px; letter-spacing:0.18em; text-transform:uppercase;
-      padding:9px 16px; cursor:pointer; transition:color 0.15s, background 0.15s;
-    `;
-    if (mode === 'cube') {
-      btn.style.color = '#daa520';
-      btn.style.background = 'rgba(218,165,32,0.10)';
-      btn.classList.add('active');
-    }
-    btn.addEventListener('click', () => dnaSetViewMode(mode));
-    btn.addEventListener('mouseover', () => {
-      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.88)';
+    // Active nav highlight via IntersectionObserver-style fallback
+    const sections = ['tess-sec-career','tess-sec-platform','tess-sec-claude','tess-sec-manifesto'];
+    const viewMid = scrollTop + body.clientHeight * 0.35;
+    let activeId = sections[0];
+    sections.forEach(id => {
+      const sec = document.getElementById(id);
+      if (sec && sec.offsetTop - 52 <= viewMid) activeId = id;
     });
-    btn.addEventListener('mouseout', () => {
-      if (!btn.classList.contains('active')) btn.style.color = 'rgba(218,165,32,0.40)';
+    document.querySelectorAll('.tess-nav-link').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.section === activeId);
     });
-    bar.appendChild(btn);
-  });
-
-  // Legend dots
-  const legend = document.createElement('div');
-  legend.style.cssText = `
-    position:absolute; bottom:70px; left:28px; display:flex; flex-direction:column; gap:6px; pointer-events:none;
-  `;
-  const galaxyLabels = [
-    { id:'career',   label:'Career',           color:'#daa520' },
-    { id:'sentence', label:'Sentence Primitive',color:'#ffe066' },
-    { id:'claude',   label:'Claude Code',       color:'#6699ff' },
-    { id:'manifesto',label:'Manifesto',         color:'#ff9944' },
-  ];
-  galaxyLabels.forEach(({ label, color }) => {
-    const row = document.createElement('div');
-    row.style.cssText = `display:flex; align-items:center; gap:8px; font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.14em; text-transform:uppercase; color:rgba(245,236,213,0.38);`;
-    row.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;box-shadow:0 0 6px ${color}88;"></span>${label}`;
-    legend.appendChild(row);
-  });
-
-  const overlay = document.getElementById('tesseract-overlay');
-  if (overlay) {
-    overlay.appendChild(bar);
-    overlay.appendChild(legend);
-  }
-
-  // Update count label
-  const countEl = document.getElementById('tesseract-count');
-  if (countEl) countEl.textContent = tesseractNodeObjs.length + ' nodes  ·  3D Cube Grid  ·  drag to rotate  ·  scroll to zoom  ·  click to focus';
+  }, { passive: true });
 }
 
-function applyTesseractCam() {
-  if (!tesseractCam) return;
-  const r = window._tesseractR || 95;
-  tesseractCam.position.set(
-    r * Math.sin(tesseractPhi) * Math.sin(tesseractTheta),
-    r * Math.cos(tesseractPhi),
-    r * Math.sin(tesseractPhi) * Math.cos(tesseractTheta)
-  );
-  tesseractCam.lookAt(0, 0, 0);
-}
-window._tesseractR = 95;
-
-let tesseractAutoTheta = 0;
-let tesseractElapsed = 0;
-let tesseractLastTS = 0;
-
-function tickTesseractMoons(elapsed) {
-  tesseractNodeObjs.forEach(obj => {
-    obj.moonObjs.forEach(m => {
-      const angle = m.baseAngle + elapsed * m.speed;
-      const lx = Math.cos(angle) * m.orbitR;
-      const ly = Math.sin(angle) * m.orbitR * 0.55;
-      const lz = Math.sin(angle) * m.orbitR * 0.30;
-      const cosX = Math.cos(m.tiltX), sinX = Math.sin(m.tiltX);
-      const cosY = Math.cos(m.tiltY), sinY = Math.sin(m.tiltY);
-      const rx_y = ly * cosX - lz * sinX;
-      const rx_z = ly * sinX + lz * cosX;
-      const ry_x = lx * cosY + rx_z * sinY;
-      // Update moon position relative to parent's currentPos
-      const cx = obj.currentPos.x, cy = obj.currentPos.y, cz = obj.currentPos.z;
-      if (m.mesh) m.mesh.position.set(cx + ry_x, cy + rx_y, cz + (-lx * sinY + rx_z * cosY));
-      if (m.ring) m.ring.position.copy(obj.currentPos);
-    });
-  });
-}
-
-// Morph tick: lerp all node positions toward target
-function tickDnaMorph() {
-  if (!dnaMorphing) return;
-  dnaMorphT = Math.min(dnaMorphT + 0.045, 1);
-  const ease = dnaMorphT < 0.5 ? 2*dnaMorphT*dnaMorphT : 1-Math.pow(-2*dnaMorphT+2,2)/2;
-  tesseractNodeObjs.forEach((obj, i) => {
-    const from = dnaMorphFromPos[i], to = dnaMorphToPos[i];
-    if (!from || !to) return;
-    obj.currentPos.lerpVectors(from, to, ease);
-    obj.mesh.position.copy(obj.currentPos);
-    obj.hitMesh.position.copy(obj.currentPos);
-    obj.glow.position.copy(obj.currentPos);
-    obj.bloom.position.copy(obj.currentPos);
-    obj.orbitRing.position.copy(obj.currentPos);
-    obj.ghost.position.set(obj.currentPos.x + 12, obj.currentPos.y + 4, obj.currentPos.z);
-  });
-  if (dnaMorphT >= 1) dnaMorphing = false;
-}
-
-function animateTesseract(ts) {
-  if (_tabHidden) { tesseractRAF = null; return; }
-  if (!tesseractOpen) return;
-  tesseractRAF = requestAnimationFrame(animateTesseract);
-  const dt = Math.min((ts - tesseractLastTS) / 1000, 0.05);
-  tesseractLastTS = ts;
-  tesseractElapsed += dt;
-
-  if (!tesseractDrag) {
-    tesseractAutoTheta += 0.0005;
-    tesseractTheta += (tesseractAutoTheta - tesseractTheta) * 0.01;
-  }
-
-  tickDnaMorph();
-  tickTesseractMoons(tesseractElapsed);
-
-  // Pulse glow on all nodes; expand hovered node ghost
-  tesseractNodeObjs.forEach((obj, i) => {
-    const pulse = 1 + Math.sin(tesseractElapsed * 1.4 + i * 0.42) * 0.12;
-    if (obj.glow.material) obj.glow.material.opacity = 0.45 * pulse;
-    // Ghost overlay: fade in on hover, out otherwise
-    const isHov = (tesseractHovered === obj);
-    const ghostTarget = isHov ? 0.92 : 0;
-    if (obj.ghost.material)
-      obj.ghost.material.opacity += (ghostTarget - obj.ghost.material.opacity) * 0.14;
-    // Expand mesh scale on hover
-    const scaleTgt = isHov ? 1.6 : 1.0;
-    obj.mesh.scale.setScalar(obj.mesh.scale.x + (scaleTgt - obj.mesh.scale.x) * 0.14);
-  });
-
-  applyTesseractCam();
-  if (tesseractRenderer && tesseractScene && tesseractCam)
-    tesseractRenderer.render(tesseractScene, tesseractCam);
-}
-
-function disposeTesseractScene() {
-  if (!tesseractScene) return;
-  tesseractScene.traverse(obj => {
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) {
-      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-      mats.forEach(m => {
-        if (m.map) m.map.dispose();
-        if (m.emissiveMap) m.emissiveMap.dispose();
-        m.dispose();
-      });
-    }
-  });
-  tesseractScene = null;
-  tesseractNodeObjs.length = 0;
-  dnaMorphFromPos = []; dnaMorphToPos = [];
-  const bar = document.getElementById('dna-mode-bar');
-  if (bar) bar.remove();
-  // Remove injected legend
-  const overlay = document.getElementById('tesseract-overlay');
-  if (overlay) overlay.querySelectorAll('div[style*="flex-direction:column;gap:6px"]').forEach(el => el.remove());
-}
-
+// ── Open / Close ──────────────────────────────────────────
 window.openTesseract = function(galaxyFilter) {
   if (tesseractOpen) return;
   tesseractOpen = true;
-  dnaViewMode = 'cube';
   const overlay = document.getElementById('tesseract-overlay');
   overlay.style.display = 'block';
-  requestAnimationFrame(() => overlay.classList.add('on'));
-  disposeTesseractScene();
-  if (tesseractRenderer) { tesseractRenderer.dispose(); tesseractRenderer = null; }
-  buildTesseractScene(galaxyFilter || null);
-  tesseractAutoTheta = tesseractTheta;
-  tesseractLastTS = performance.now();
-  animateTesseract(performance.now());
+  requestAnimationFrame(() => {
+    overlay.classList.add('on');
+    // Reset scroll to top each open
+    const body = document.getElementById('tess-body');
+    if (body) body.scrollTop = 0;
+  });
+  _tessPopulate();
+  _tessInitNav();
 };
 
 window.closeTesseract = function() {
@@ -10727,150 +10579,20 @@ window.closeTesseract = function() {
   tesseractOpen = false;
   const overlay = document.getElementById('tesseract-overlay');
   overlay.classList.remove('on');
-  setTimeout(() => {
-    overlay.style.display = 'none';
-    disposeTesseractScene();
-  }, 540);
-  if (tesseractRAF) { cancelAnimationFrame(tesseractRAF); tesseractRAF = null; }
+  setTimeout(() => { overlay.style.display = 'none'; }, 400);
 };
 
-// Tesseract 2D Grid
+// ── ESC closes tesseract ─────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && tesseractOpen) {
+    e.stopImmediatePropagation();
+    window.closeTesseract();
+  }
+}, true);
+
+// ── Stub out retired 3D helpers so nothing else breaks ────
+window.closeTesseractGrid = function() {};
 let tesseractGridVisible = false;
-
-function openTesseractGrid() {
-  const overlay = document.getElementById('tesseract-grid-overlay');
-  const inner = document.getElementById('tesseract-grid-inner');
-  const allNodes = [
-    ...ERAS.map(e => ({ era: e, galaxy: 'career', color: '#daa520' })),
-    ...PLATFORM_ERAS.map(e => ({ era: e, galaxy: 'sentence', color: '#ffe066' })),
-    ...CLAUDE_ERAS.map(e => ({ era: e, galaxy: 'claude', color: '#6699ff' })),
-    ...MANIFESTO_ERAS.map(e => ({ era: e, galaxy: 'manifesto', color: '#ff9944' })),
-  ];
-  const total = allNodes.length;
-  const cols = Math.ceil(Math.sqrt(total * 1.4));
-  inner.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  inner.innerHTML = '';
-  allNodes.forEach(node => {
-    const card = document.createElement('div');
-    card.className = 'tess-grid-card';
-    card.style.borderLeftColor = node.color;
-    card.style.borderLeftWidth = '2px';
-    card.innerHTML = `
-      <div class="tess-grid-era">${node.galaxy.toUpperCase()} · ${node.era.era || ''}</div>
-      <div class="tess-grid-title" style="color: ${node.color}">${node.era.title}</div>
-      <div class="tess-grid-domain">${node.era.domain || ''}</div>`;
-    card.onclick = () => { closeTesseractGrid(); window.closeTesseract(); setTimeout(() => focusEra(node.era), 300); };
-    inner.appendChild(card);
-  });
-  overlay.style.display = 'flex';
-  requestAnimationFrame(() => overlay.classList.add('on'));
-  tesseractGridVisible = true;
-  if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
-}
-
-function closeTesseractGrid() {
-  const overlay = document.getElementById('tesseract-grid-overlay');
-  overlay.classList.remove('on');
-  setTimeout(() => { overlay.style.display = 'none'; }, 320);
-  tesseractGridVisible = false;
-  if (window._updateNavChrome) setTimeout(window._updateNavChrome, 80);
-}
-window.closeTesseractGrid = closeTesseractGrid;
-
-// Tesseract mouse/touch interaction
-(function() {
-  const overlay = document.getElementById('tesseract-overlay');
-  const tooltip = document.getElementById('tesseract-tooltip');
-  const ttEra   = document.getElementById('tesseract-tt-era');
-  const ttTitle = document.getElementById('tesseract-tt-title');
-  const ttDomain= document.getElementById('tesseract-tt-domain');
-  let pdX = 0, pdY = 0, pdDragged = false;
-  const mouse2 = new THREE.Vector2();
-  const rc2 = new THREE.Raycaster();
-
-  overlay.addEventListener('pointerdown', e => {
-    if (e.target === document.getElementById('tesseract-close')) return;
-    tesseractDrag = true;
-    pdX = e.clientX; pdY = e.clientY; pdDragged = false;
-    tesseractLastX = e.clientX; tesseractLastY = e.clientY;
-  });
-
-  overlay.addEventListener('pointermove', e => {
-    if (tesseractDrag) {
-      const dx = e.clientX - tesseractLastX;
-      const dy = e.clientY - tesseractLastY;
-      if (Math.abs(e.clientX - pdX) > 4 || Math.abs(e.clientY - pdY) > 4) pdDragged = true;
-      tesseractTheta  -= dx * 0.006;
-      tesseractPhi     = Math.max(0.08, Math.min(Math.PI * 0.46, tesseractPhi + dy * 0.006));
-      tesseractAutoTheta = tesseractTheta;
-      tesseractLastX = e.clientX; tesseractLastY = e.clientY;
-    } else {
-      if (!tesseractCam || !tesseractScene) return;
-      const cvs = document.getElementById('tesseract-canvas');
-      mouse2.x =  (e.clientX / cvs.clientWidth)  * 2 - 1;
-      mouse2.y = -((e.clientY / cvs.clientHeight) * 2 - 1);
-      rc2.setFromCamera(mouse2, tesseractCam);
-      const hitMeshes = tesseractNodeObjs.map(o => o.hitMesh);
-      const hits = rc2.intersectObjects(hitMeshes);
-      if (hits.length) {
-        const obj = tesseractNodeObjs.find(o => o.hitMesh === hits[0].object);
-        if (obj) {
-          const era = obj.node.era;
-          ttEra.textContent   = obj.galaxy.toUpperCase() + '  ·  ' + era.era;
-          ttTitle.textContent = era.title;
-          ttDomain.textContent= era.domain;
-          const colors = { career:'#daa520', sentence:'#ffe066', claude:'#6699ff', manifesto:'#ff9944' };
-          ttTitle.style.color = colors[obj.galaxy] || '#f5ecd5';
-          let tx = e.clientX + 18, ty = e.clientY - 10;
-          if (tx + 230 > window.innerWidth)  tx = e.clientX - 230;
-          if (ty + 80  > window.innerHeight) ty = e.clientY - 80;
-          tooltip.style.transform = `translate(${tx}px,${ty}px)`;
-          tooltip.classList.add('vis');
-          overlay.style.cursor = 'pointer';
-          tesseractHovered = obj;
-        }
-      } else {
-        tooltip.classList.remove('vis');
-        overlay.style.cursor = 'default';
-        tesseractHovered = null;
-      }
-    }
-  });
-
-  overlay.addEventListener('pointerup', e => {
-    tesseractDrag = false;
-    if (pdDragged) return;
-    if (!tesseractCam || !tesseractScene) return;
-    const cvs = document.getElementById('tesseract-canvas');
-    const ux =  (e.clientX / cvs.clientWidth)  * 2 - 1;
-    const uy = -((e.clientY / cvs.clientHeight) * 2 - 1);
-    const uRc = new THREE.Raycaster();
-    uRc.setFromCamera(new THREE.Vector2(ux, uy), tesseractCam);
-    const hitMeshes = tesseractNodeObjs.map(o => o.hitMesh).filter(Boolean);
-    const hits = uRc.intersectObjects(hitMeshes);
-    if (hits.length) {
-      const obj = tesseractNodeObjs.find(o => o.hitMesh === hits[0].object);
-      if (obj) { window.closeTesseract(); setTimeout(() => { focusEra(obj.node.era); }, 300); }
-    }
-  });
-
-  overlay.addEventListener('contextmenu', e => {
-    e.preventDefault();
-    if (tesseractGridVisible) { closeTesseractGrid(); } else { openTesseractGrid(); }
-  });
-
-  overlay.addEventListener('wheel', e => {
-    window._tesseractR = Math.max(30, Math.min(180, (window._tesseractR || 95) + e.deltaY * 0.08));
-  }, { passive: true });
-
-  // ESC closes tesseract
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && tesseractOpen) {
-      e.stopImmediatePropagation();
-      window.closeTesseract();
-    }
-  }, true);
-})();
 </script>
 
 <div id="ss-filter" style="
