@@ -7082,11 +7082,8 @@ function updateGalaxyAlpha() {
     if (window._updateSSFilter) window._updateSSFilter(null);
     if (window.updateLayoutToggleBar) updateLayoutToggleBar(null);
   }
-  // Reset star direct-click gate when user has returned to full galaxy view.
-  // Guard against the swoop-in path: during a zoom-in swoop, galaxyAlpha starts
-  // high and falls — we must NOT clear the gate while the swoop is still active,
-  // otherwise the second tap never sees starDirectClickId set.
-  if (galaxyAlpha > 0.85 && !swoop.active) starDirectClickId = null;
+  // Reset star direct-click gate when user has returned to full galaxy view
+  if (galaxyAlpha > 0.85) starDirectClickId = null;
 
   const ga = Math.pow(galaxyAlpha, 1.6); // steeper drop-off: galaxy fades fast as you zoom in
   const oa = 1 - ga; // orrery alpha (inverse)
@@ -8513,7 +8510,8 @@ cvs.addEventListener('pointerup', e => {
         isBlackHoleFocused = false;
       }
       if (handleStarClick && handleStarClick(mouse)) return;
-      // Galaxy cluster click
+      // Galaxy cluster click — match desktop: swoop to orrery overview so
+      // star becomes the entry point (second tap on star opens tesseract)
       if (galaxyAlpha > 0.15) {
         raycaster.setFromCamera(mouse, cam);
         const clMeshes = galaxyClusterObjects.map(o => o.mesh);
@@ -8522,16 +8520,7 @@ cvs.addEventListener('pointerup', e => {
           const cl = clHits[0].object.userData.galaxyCluster;
           if (cl) {
             tooltip.classList.remove('vis');
-            let targetEra;
-            if (cl.id === 'sentence') { targetEra = PLATFORM_ERAS[0]; }
-            else if (cl.id === 'career') { targetEra = ERAS[0]; }
-            else { targetEra = CLAUDE_ERAS[0]; }
-            isFocused = true; focusedEra = targetEra;
-            const preset = eraPreset(targetEra);
-            scenePivotTgt.copy(preset.pivot);
-            swoopTo(preset.phi, preset.theta, preset.radius, preset.pivot);
-            camTarget.phi = preset.phi; camTarget.theta = preset.theta; camTarget.radius = preset.radius;
-            setTimeout(() => { openPanel(targetEra); highlightConnections(targetEra); }, 300);
+            swoopToGalaxyOverview(cl.id);
             return;
           }
         }
