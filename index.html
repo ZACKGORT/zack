@@ -950,7 +950,17 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 .mshandle-btn:disabled{opacity:0.18;pointer-events:none;}
 .mshandle-btn.ms-expand-btn{font-size:8px;letter-spacing:0.08em;}
 
-.mshead{padding:10px 14px 8px;border-bottom:1px solid rgba(218,165,32,0.06);}
+.mshead{
+  padding:10px 14px 8px;
+  border-bottom:1px solid rgba(218,165,32,0.06);
+  position:relative;
+  z-index:2;
+  background:rgba(5,3,10,0.96);
+  flex-shrink:0;
+}
+@media(max-width:768px){
+  .mshead{ padding:12px 16px 12px; }
+}
 .msera{font-family:'DM Mono',monospace;font-size:6.5px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(218,165,32,0.38);margin-bottom:4px;}
 .mstitle{font-family:'Crimson Text',serif;font-size:18px;letter-spacing:-0.02em;color:#f5ecd5;line-height:1.15;margin-bottom:2px;}
 .mstitle-role{font-family:'DM Mono',monospace;font-size:7px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(218,165,32,0.30);}
@@ -960,6 +970,7 @@ body.light .gc-moon-pill:hover{background:rgba(0,0,0,0.05);color:#000;}
 ────────────────────────────────────────────────────────────── */
 #ms-hero-wrap {
   position: relative;
+  z-index: 1;
   width: 100%;
   height: 148px;
   overflow: hidden;
@@ -10846,8 +10857,8 @@ var TGAL = {
   manifesto: { r:255, g:112, b:67,  label:'Manifesto'          },
 };
 
-// ── Card world-space dimensions (large, tight gap) ───────────
-var CW = 2.72, CH = 1.68, CGAP = 0.07;
+// ── Card world-space dimensions (zero gap → grid lines drawn in scene) ─
+var CW = 2.72, CH = 1.68, CGAP = 0.0;
 var SX = CW + CGAP, SY = CH + CGAP;
 
 // ── Card texture resolution ──────────────────────────────────
@@ -10942,10 +10953,7 @@ function makeCardTex(item, isHov) {
     ctx.fillRect(0,0,TW,TH);
   }
 
-  // ── Border ────────────────────────────────────────────────
-  ctx.strokeStyle = isHov
-    ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.12)';
-  ctx.lineWidth=1.5; ctx.strokeRect(1,1,TW-2,TH-2);
+  // ── Border: removed — grid lines drawn as scene geometry ─
 
   // ── Left accent bar ───────────────────────────────────────
   ctx.fillStyle = isHov ? 'rgb('+r+','+g+','+b+')' : 'rgba('+r+','+g+','+b+',0.55)';
@@ -11014,6 +11022,56 @@ function getCols(camZ) {
 }
 
 // ── Build / rebuild mesh grid ────────────────────────────────
+var TGLines = null;  // Three.Group holding scene-level grid LineSegments
+
+function buildGridLines() {
+  // Remove old line group
+  if (TGLines) { TS.remove(TGLines); TGLines.children.forEach(function(m){m.geometry.dispose();m.material.dispose();}); }
+  TGLines = new THREE.Group();
+
+  var c = TCols;
+  var rows = Math.ceil(TItems.length / c);
+  var totalW = c * SX, totalH = rows * SY;
+
+  // We tile 3×3 copies of the grid so the infinite-scroll seam is never visible
+  var TILE = 3;
+  var verts = [];
+
+  // Line material — solid white, low opacity (phantom.land style)
+  var lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.13, depthWrite: false });
+
+  // Helper: add a line segment
+  function seg(x0,y0,x1,y1) { verts.push(x0,y0,0, x1,y1,0); }
+
+  for (var tx = -1; tx <= 1; tx++) {
+    for (var ty = -1; ty <= 1; ty++) {
+      var ox = tx * totalW;
+      var oy = ty * totalH;
+
+      // Centered offset matches card positioning
+      var left  = -(c * SX) * 0.5;
+      var top   =  (rows * SY) * 0.5;
+
+      // Vertical lines (columns + right edge)
+      for (var col = 0; col <= c; col++) {
+        var x = ox + left + col * SX;
+        seg(x, oy + top, x, oy + top - rows * SY);
+      }
+      // Horizontal lines (rows + bottom edge)
+      for (var row = 0; row <= rows; row++) {
+        var y = oy + top - row * SY;
+        seg(ox + left, y, ox + left + c * SX, y);
+      }
+    }
+  }
+
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  var lines = new THREE.LineSegments(geo, lineMat);
+  TGLines.add(lines);
+  TS.add(TGLines);
+}
+
 function buildGrid() {
   var toRemove=TG.children.slice();
   toRemove.forEach(function(m){
@@ -11033,6 +11091,7 @@ function buildGrid() {
     mesh.userData.item=item; mesh.userData.idx=idx;
     TG.add(mesh); TMeshes.push(mesh);
   });
+  buildGridLines();
 }
 
 // Refresh a single card after its snapshot loads
@@ -11215,23 +11274,58 @@ function tAnimate() {
     TN.velX=lerp(TN.velX,TN.dragDX,0.80);
     TN.velY=lerp(TN.velY,TN.dragDY,0.80);
     TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.055,0.07);
-    TN.distT=0.16;   // more distortion when dragging
+    TN.distT=0.04;   // subtle even when dragging (phantom.land style)
   } else {
     TN.panX+=TN.velX; TN.panY+=TN.velY;
     TN.velX=lerp(TN.velX,0,0.10);
     TN.velY=lerp(TN.velY,0,0.10);
     TC.position.z=lerp(TC.position.z,TN.baseCamZ,0.07);
-    TN.distT=0.045;  // subtle at rest
+    TN.distT=0.015;  // barely perceptible at rest
   }
   TN.dragDX=TN.dragDY=0;
 
   // ── Ambient cursor drift ──────────────────────────────────
   var ambX=(TN.uvX-0.5)*(-0.20), ambY=(TN.uvY-0.5)*0.20;
 
-  // ── Center group ─────────────────────────────────────────
+  // ── Infinite torus wrap — per-mesh positioning ────────────
+  // Each card is positioned at its nearest repeating instance
+  // of itself. Cards that leave one edge silently reappear on
+  // the opposite edge (always off-screen). No clamping.
   var c=TCols, rows=Math.ceil(TItems.length/c);
-  TG.position.x=-((c-1)*SX)/2 + TN.panX + ambX;
-  TG.position.y= ((rows-1)*SY)/2 + TN.panY + ambY;
+  var totalW=c*SX, totalH=rows*SY;
+
+  // Normalise pan to prevent float drift — doesn't change
+  // any displayed position, just keeps numbers small.
+  TN.panX=((TN.panX%totalW)+totalW)%totalW;
+  TN.panY=((TN.panY%totalH)+totalH)%totalH;
+
+  TG.position.set(0,0,0);  // group stays at origin; meshes move
+  // Sync grid lines: use same modular-wrapped pan as cards
+  // The lines tile 3×3, so we only need the fractional pan offset
+  if (TGLines) {
+    var _c2=TCols, _rows2=Math.ceil(TItems.length/_c2);
+    var _tw2=_c2*SX, _th2=_rows2*SY;
+    var lx = ((TN.panX % _tw2) + _tw2) % _tw2;
+    var ly = ((TN.panY % _th2) + _th2) % _th2;
+    // Offset by half-tile so centre tile is always the visible one
+    lx -= _tw2; ly -= _th2;
+    TGLines.position.set(lx + ambX, ly + ambY, -0.01);
+  }
+  for (var _i=0;_i<TMeshes.length;_i++) {
+    var _m=TMeshes[_i];
+    var _c=_i%c, _r=Math.floor(_i/c);
+    // Natural centered position in the repeating tile
+    var _nx=_c*SX-(c-1)*SX*0.5;
+    var _ny=-_r*SY+(rows-1)*SY*0.5;
+    // Apply pan
+    var _px=_nx+TN.panX;
+    var _py=_ny+TN.panY;
+    // Torus wrap: snap to nearest instance
+    _px=_px-totalW*Math.round(_px/totalW);
+    _py=_py-totalH*Math.round(_py/totalH);
+    _m.position.x=_px+ambX;
+    _m.position.y=_py+ambY;
+  }
 
   // Camera aspect
   var wrap=document.getElementById('tess-canvas-wrap');
@@ -11239,8 +11333,9 @@ function tAnimate() {
     if(Math.abs(TC.aspect-asp)>0.001){TC.aspect=asp;TC.updateProjectionMatrix();} }
 
   // ── Pincushion distortion lerp ────────────────────────────
-  TN.distC=lerp(TN.distC,TN.distT,0.06);
+  TN.distC=lerp(TN.distC,TN.distT,0.04);
   TPDM.uniforms.uDist.value=TN.distC;
+  TPDM.uniforms.uVig.value=0.62;  // slightly softer vignette
 
   // ── Render → RT → post ───────────────────────────────────
   TR.setRenderTarget(TRT); TR.render(TS,TC);
