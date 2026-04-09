@@ -10744,6 +10744,8 @@ let tesseractOpen = false;
 let tTessMode = 'grid';   // 'grid' | 'data'
 
 function _tessNavigateTo(era) {
+  // Kill card animations immediately — don't wait for closeTesseract timeout
+  if(window._tgStopCards) window._tgStopCards();
   window.closeTesseract();
   setTimeout(function(){ if (typeof focusEra==='function') focusEra(era); }, 340);
 }
@@ -11326,6 +11328,30 @@ window._tgInit=function(){
   if(window._snapQueueEras) window._snapQueueEras(TItems.map(function(i){return i.era;}));
 };
 window._tgStop=function(){ if(TRaf){cancelAnimationFrame(TRaf);TRaf=null;} };
+
+// Stop + dispose all live card texture loops (call before navigating away or closing)
+window._tgStopCards=function(){
+  for(var _ci=0;_ci<TMeshes.length;_ci++){
+    var _cm=TMeshes[_ci];
+    if(_cm.userData.liveCtx){ _cm.userData.liveCtx.stop(); }
+  }
+};
+
+// Pause (stop rAF but keep textures alive) — used when switching to data mode
+window._tgPauseCards=function(){
+  for(var _pi=0;_pi<TMeshes.length;_pi++){
+    var _pm=TMeshes[_pi];
+    if(_pm.userData.liveCtx){ _pm.userData.liveCtx.stop(); }
+  }
+};
+
+// Resume paused card loops — used when switching back to grid mode
+window._tgResumeCards=function(){
+  for(var _ri=0;_ri<TMeshes.length;_ri++){
+    var _rm=TMeshes[_ri];
+    if(_rm.userData.liveCtx){ _rm.userData.liveCtx.start(); }
+  }
+};
 window.tgZoomIn  =function(){TN.baseCamZ=Math.max(3, TN.baseCamZ*0.84);};
 window.tgZoomOut =function(){TN.baseCamZ=Math.min(28,TN.baseCamZ*1.19);};
 window.tgZoomFit =function(){
@@ -11442,6 +11468,8 @@ window.tTessSetMode = function(mode) {
     if(dataLinks)dataLinks.style.display='none';
     document.getElementById('tess-exit-hint').textContent='drag · scroll · pinch · esc';
     if(window._tgInit) window._tgInit();
+    // Card loops are started by _tgInit → buildGrid; resume any that were paused
+    if(window._tgResumeCards) window._tgResumeCards();
   } else {
     overlay.classList.add('data-mode');
     if(gridWrap) gridWrap.style.display='none';
@@ -11449,6 +11477,8 @@ window.tTessSetMode = function(mode) {
     if(gridLinks)gridLinks.style.display='none';
     if(dataLinks)dataLinks.style.display='flex';
     document.getElementById('tess-exit-hint').textContent='\u2191 scroll · esc to exit';
+    // Pause (not dispose) card loops — grid is hidden, no point rendering
+    if(window._tgPauseCards) window._tgPauseCards();
     if(window._tgStop) window._tgStop();
     _tessPopulate();
     if (!dataBody._navInited) { dataBody._navInited=true; _tessInitNav(); }
@@ -11467,6 +11497,8 @@ window.tTessSetMode = function(mode) {
 window.openTesseract = function(galaxyFilter) {
   if (tesseractOpen) return;
   tesseractOpen=true;
+  // Pause the main universe render — it's fully occluded by the overlay
+  if(typeof _mainRAFRunning!=='undefined'){ _mainRAFRunning=false; }
   var overlay=document.getElementById('tesseract-overlay');
   overlay.style.display='block';
   tTessMode=''; // force re-init
@@ -11481,8 +11513,13 @@ window.closeTesseract = function() {
   tesseractOpen=false;
   var overlay=document.getElementById('tesseract-overlay');
   overlay.classList.remove('on');
+  if(window._tgStopCards) window._tgStopCards();
   if(window._tgStop) window._tgStop();
   if(window._snapClearQueue) window._snapClearQueue();
+  // Resume main universe render loop (was paused while tesseract was open)
+  if(typeof _mainRAFRunning!=='undefined' && !_mainRAFRunning){
+    _mainRAFRunning=true; requestAnimationFrame(animate);
+  }
   setTimeout(function(){overlay.style.display='none';},420);
 };
 
@@ -12980,7 +13017,12 @@ if (msheetEl) {
   new MutationObserver(function(muts) {
     muts.forEach(function(m) {
       if (m.attributeName === 'class') {
-        if (!msheetEl.classList.contains('on')) stopHero();
+        if (msheetEl.classList.contains('on')) {
+          // Sheet opened — start hero if we have an era
+          if (currentEra) startHero();
+        } else {
+          stopHero();
+        }
       }
     });
   }).observe(msheetEl, { attributes: true });
@@ -12998,8 +13040,10 @@ setInterval(function() {
   } catch(e) {}
 }, 150);
 
-// Idle boot render
-startHero();
+// Only start hero if msheet is already open (don't idle-animate when hidden)
+if (msheetEl && msheetEl.classList.contains('on')) {
+  startHero();
+}
 
 })();
 </script>
