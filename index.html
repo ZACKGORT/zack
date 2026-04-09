@@ -10746,6 +10746,9 @@ let tTessMode = 'grid';   // 'grid' | 'data'
 function _tessNavigateTo(era) {
   // Kill card animations immediately — don't wait for closeTesseract timeout
   if(window._tgStopCards) window._tgStopCards();
+  // Clear black hole / star state immediately so the closing click doesn't re-open tesseract
+  if(typeof isBlackHoleFocused!=='undefined') isBlackHoleFocused=false;
+  if(typeof starDirectClickId!=='undefined')  starDirectClickId=null;
   window.closeTesseract();
   setTimeout(function(){ if (typeof focusEra==='function') focusEra(era); }, 340);
 }
@@ -11137,6 +11140,15 @@ function tInit() {
   tAttachEvents(TR.domElement);
 }
 
+// ── Undistort click/hover coords to match pre-distortion geometry ──
+function undistort(ndc) {
+  var d=TN.distC||0;
+  if(Math.abs(d)<0.001) return ndc;
+  var r2=ndc.x*ndc.x+ndc.y*ndc.y;
+  var scale=1.0/(1.0-d*r2);
+  return new THREE.Vector2(ndc.x*scale, ndc.y*scale);
+}
+
 // ── Events ───────────────────────────────────────────────────
 function tAttachEvents(cv) {
   var ndcM=new THREE.Vector2();
@@ -11165,16 +11177,17 @@ function tAttachEvents(cv) {
         cv.style.cursor='grabbing';
       }
     } else {
-      tUpdateHover(ndcM);
+      tUpdateHover(undistort(ndcM));
     }
   });
 
   cv.addEventListener('pointerup',function(e){
     var r=cv.getBoundingClientRect();
     if (!TN.isDragging) {
-      var ndcC=new THREE.Vector2(
+      var raw=new THREE.Vector2(
         ((e.clientX-r.left)/cv.clientWidth)*2-1,
         -((e.clientY-r.top)/cv.clientHeight)*2+1);
+      var ndcC=undistort(raw);
       TRC.setFromCamera(ndcC,TC);
       var hits=TRC.intersectObjects(TMeshes);
       if (hits.length&&hits[0].object.userData.item)
@@ -11551,6 +11564,11 @@ window.openTesseract = function(galaxyFilter) {
 window.closeTesseract = function() {
   if (!tesseractOpen) return;
   tesseractOpen=false;
+  // Clear focus state so the next click on the main canvas doesn't re-open the tesseract
+  if(typeof isBlackHoleFocused!=='undefined') isBlackHoleFocused=false;
+  if(typeof starDirectClickId!=='undefined')  starDirectClickId=null;
+  if(typeof isFocused!=='undefined')          isFocused=false;
+  if(typeof focusedEra!=='undefined')         focusedEra=null;
   var overlay=document.getElementById('tesseract-overlay');
   overlay.classList.remove('on');
   if(window._tgStopCards) window._tgStopCards();
