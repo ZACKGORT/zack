@@ -10879,7 +10879,7 @@ var TN = {
   dragDX:0, dragDY:0, isDragging:false,
   pdX:0, pdY:0, lastX:0, lastY:0,
   uvX:0.5, uvY:0.5,
-  baseCamZ:7,
+  baseCamZ:4,
   distT:0.04, distC:0.0,
 };
 function lerp(a,b,t){ return a+(b-a)*t; }
@@ -11034,7 +11034,9 @@ function getCols(camZ) {
   if (!wrap) return 4;
   var W=wrap.clientWidth||window.innerWidth;
   var H=wrap.clientHeight||window.innerHeight;
-  var z=camZ||TN.baseCamZ||10;
+  // Always compute layout from the default (fully zoomed-out) camera distance
+  // so column count doesn't collapse when starting zoomed in
+  var z=7;
   var viewH=2*Math.tan((60*Math.PI/180)/2)*z;
   var viewW=viewH*(W/H);
   var maxCols=Math.max(2,Math.floor(viewW/SX));
@@ -11185,7 +11187,7 @@ function tAttachEvents(cv) {
 
   cv.addEventListener('wheel',function(e){
     e.preventDefault();
-    TN.baseCamZ=Math.max(3,Math.min(28,TN.baseCamZ*(e.deltaY>0?1.10:0.91)));
+    TN.baseCamZ=Math.max(1.2,Math.min(7,TN.baseCamZ*(e.deltaY>0?1.10:0.91)));
   },{passive:false});
 
   // Pinch
@@ -11197,7 +11199,7 @@ function tAttachEvents(cv) {
   cv.addEventListener('pointermove',function(e){
     if(!pts.has(e.pointerId))return;
     pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pts.size===2&&pD0){var a=Array.from(pts.values());var d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);TN.baseCamZ=Math.max(3,Math.min(28,pZ0*(pD0/d)));}
+    if(pts.size===2&&pD0){var a=Array.from(pts.values());var d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);TN.baseCamZ=Math.max(1.2,Math.min(7,pZ0*(pD0/d)));}
   },{capture:true,passive:true});
   cv.addEventListener('pointerup',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
   cv.addEventListener('pointercancel',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
@@ -11239,7 +11241,7 @@ function tAnimate() {
     TN.panX+=TN.dragDX; TN.panY+=TN.dragDY;
     TN.velX=lerp(TN.velX,TN.dragDX,0.80);
     TN.velY=lerp(TN.velY,TN.dragDY,0.80);
-    TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.055,0.07);
+    TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.35,0.07);
     TN.distT=0.16;   // more distortion when dragging
     // Suspend canvas repaints during drag — mesh positions handle motion
     _cardFrameBudget = 1000 / 4;
@@ -11330,7 +11332,7 @@ window._tgInit=function(){
   if(!TR)tInit();
   TGalaxy='all'; TItems=buildItems('all'); TCols=getCols();
   TN.panX=TN.panY=TN.velX=TN.velY=0;
-  TN.baseCamZ=7; TN.distC=0; TN.distT=0.04; THovIdx=-1;
+  TN.baseCamZ=4; TN.distC=0; TN.distT=0.04; THovIdx=-1;
   buildGrid();
   if(TC)TC.position.z=TN.baseCamZ;
   var n=document.getElementById('tg-count-num'); if(n)n.textContent=TItems.length;
@@ -11371,7 +11373,7 @@ window._tgResumeCards=function(){
 window.tgZoomIn  =function(){TN.baseCamZ=Math.max(3, TN.baseCamZ*0.84);};
 window.tgZoomOut =function(){TN.baseCamZ=Math.min(28,TN.baseCamZ*1.19);};
 window.tgZoomFit =function(){
-  TN.baseCamZ=7;TN.panX=TN.panY=TN.velX=TN.velY=0;
+  TN.baseCamZ=4;TN.panX=TN.panY=TN.velX=TN.velY=0;
   TCols=getCols();buildGrid();
 };
 
