@@ -11187,6 +11187,7 @@ function tAttachEvents(cv) {
 
   cv.addEventListener('wheel',function(e){
     e.preventDefault();
+    if(e.deltaY>0 && TN.baseCamZ>=7){ window.closeTesseract(); return; }
     TN.baseCamZ=Math.max(1.2,Math.min(7,TN.baseCamZ*(e.deltaY>0?1.10:0.91)));
   },{passive:false});
 
@@ -11308,6 +11309,17 @@ function tSetGalaxy(gal) {
   TGalaxy=gal; TItems=buildItems(gal); TCols=getCols();
   TN.panX=TN.panY=TN.velX=TN.velY=0; THovIdx=-1;
   buildGrid();
+  // Center on wolfie.love (all view) or wolfco (filtered view) if present
+  var centerId = (gal==='all') ? 'p-wolfie-love' : 'wolfco';
+  var wolfIdx=TItems.findIndex(function(it){return it.era&&it.era.id===centerId;});
+  if (wolfIdx<0) wolfIdx=TItems.findIndex(function(it){return it.era&&it.era.id==='wolfco';});
+  if (wolfIdx>=0) {
+    var c=TCols, rows=Math.ceil(TItems.length/c);
+    var col=wolfIdx%c, row=Math.floor(wolfIdx/c);
+    var nx=col*SX-(c-1)*SX*0.5;
+    var ny=-row*SY+(rows-1)*SY*0.5;
+    TN.panX=-nx; TN.panY=-ny;
+  }
   var n=document.getElementById('tg-count-num'); if(n)n.textContent=TItems.length;
   document.querySelectorAll('.tess-nav-link[data-galaxy]').forEach(function(b){
     b.classList.toggle('active',b.dataset.galaxy===gal);
@@ -11334,6 +11346,16 @@ window._tgInit=function(){
   TN.panX=TN.panY=TN.velX=TN.velY=0;
   TN.baseCamZ=4; TN.distC=0; TN.distT=0.04; THovIdx=-1;
   buildGrid();
+  // Center on wolfie.love on open
+  var wolfIdx=TItems.findIndex(function(it){return it.era&&it.era.id==='p-wolfie-love';});
+  if(wolfIdx<0) wolfIdx=TItems.findIndex(function(it){return it.era&&it.era.id==='wolfco';});
+  if(wolfIdx>=0){
+    var c=TCols, rows=Math.ceil(TItems.length/c);
+    var col=wolfIdx%c, row=Math.floor(wolfIdx/c);
+    var nx=col*SX-(c-1)*SX*0.5;
+    var ny=-row*SY+(rows-1)*SY*0.5;
+    TN.panX=-nx; TN.panY=-ny;
+  }
   if(TC)TC.position.z=TN.baseCamZ;
   var n=document.getElementById('tg-count-num'); if(n)n.textContent=TItems.length;
   document.querySelectorAll('.tess-nav-link[data-galaxy]').forEach(function(b){
