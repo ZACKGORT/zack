@@ -1886,22 +1886,18 @@ body.light #mf-close:hover{color:#000;}
   position: absolute; top: 46px; left: 0; right: 0; bottom: 0;
   overflow: hidden; background: #05030a;
 }
-#tess-canvas-wrap::after {
-  content: '';
-  position: absolute; inset: 0; z-index: 5; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%,
-    transparent 42%,
-    rgba(0,0,0,0.45) 68%,
-    rgba(0,0,0,0.88) 88%,
-    rgba(0,0,0,0.98) 100%
-  );
-}
 @media(max-width:640px) { #tess-canvas-wrap { top: 44px; } }
 #tess-canvas-wrap canvas {
   display: block; position: absolute; inset: 0;
   touch-action: none; cursor: grab;
 }
-#tg-zoom-bar { display: none !important; }
+#tg-zoom-bar {
+  position: absolute; bottom: 20px; right: 20px; z-index: 10;
+  display: flex; flex-direction: column;
+  background: rgba(5,3,10,0.90); border: 1px solid rgba(218,165,32,0.16);
+  border-radius: 4px; overflow: hidden; backdrop-filter: blur(12px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.70);
+}
 .tg-zbtn {
   background: none; border: none; cursor: pointer;
   color: rgba(218,165,32,0.42); font-size: 14px; line-height: 1;
@@ -10617,7 +10613,7 @@ document.addEventListener('keydown', e => {
     </div>
     <div id="tg-meta">
       <div id="tg-count-badge"><span id="tg-count-num">—</span><span>nodes</span></div>
-      <div id="tg-drag-hint">drag to explore · click to enter</div>
+      <div id="tg-drag-hint">drag · scroll · click to enter</div>
     </div>
   </div>
 
@@ -10862,7 +10858,7 @@ var TGAL = {
 };
 
 // ── Card world-space dimensions (large, tight gap) ───────────
-var CW = 2.72, CH = 1.68, CGAP = 0.0;
+var CW = 2.72, CH = 1.68, CGAP = 0.07;
 var SX = CW + CGAP, SY = CH + CGAP;
 
 // ── Card texture resolution ──────────────────────────────────
@@ -10923,88 +10919,100 @@ function wrap2(ctx,txt,maxW) {
   return lines.length?lines:[''];
 }
 
-// ── Card canvas texture ──────────────────────────────────────
-function makeCardTex(item, isHov) {
-  var r=item.r, g=item.g, b=item.b;
-  var cv=document.createElement('canvas');
-  cv.width=TW; cv.height=TH;
-  var ctx=cv.getContext('2d');
-  var pad=20, cw=TW-pad*2-4;
+// ── Live animated card texture ────────────────────────────────
+// Creates a THREE.CanvasTexture backed by a canvas that is redrawn
+// every frame via renderScene.  Returns { texture, stop, setHov }
+// so callers can control the animation loop and toggle hover state.
+function makeLiveCardTex(item) {
+  var cv = document.createElement('canvas');
+  cv.width = TW; cv.height = TH;
+  var cx2 = cv.getContext('2d');
+  var pad = 20, cw = TW - pad * 2 - 4;
 
-  // ── Universe snapshot background ──────────────────────────
-  var snap=window._snapGetCache&&window._snapGetCache(item.era.id);
-  if (snap && snap.complete && snap.naturalWidth>0) {
-    ctx.save();
-    ctx.globalAlpha = isHov ? 0.40 : 0.22;
-    ctx.drawImage(snap, 0, 0, TW, TH);
-    ctx.restore();
-    // Gradient vignette over snapshot so text stays readable
-    var vigG = ctx.createRadialGradient(TW/2,TH/2,TH*0.18, TW/2,TH/2,TH*0.85);
-    vigG.addColorStop(0, 'rgba(5,3,10,0.55)');
-    vigG.addColorStop(1, 'rgba(5,3,10,0.97)');
-    ctx.fillStyle = vigG;
-    ctx.fillRect(0,0,TW,TH);
-    // Extra dark vignette at edges
-    var edgeG = ctx.createLinearGradient(0,0,0,TH);
-    edgeG.addColorStop(0, 'rgba(5,3,10,0.70)');
-    edgeG.addColorStop(0.35,'rgba(5,3,10,0.08)');
-    edgeG.addColorStop(0.65,'rgba(5,3,10,0.08)');
-    edgeG.addColorStop(1, 'rgba(5,3,10,0.75)');
-    ctx.fillStyle=edgeG; ctx.fillRect(0,0,TW,TH);
-  } else {
-    // Plain card background
-    ctx.fillStyle = isHov ? '#0e0820' : '#05030a';
-    ctx.fillRect(0,0,TW,TH);
+  var sceneType = (typeof window.inferSceneType === 'function')
+    ? window.inferSceneType(item.era, item.galaxy) : 'default';
+  var phase = (item.era.id || '').split('').reduce(function(a, c) {
+    return a + c.charCodeAt(0);
+  }, 0) * 0.137;
+  var color = [item.r, item.g, item.b];
+  var elapsed = Math.random() * 100;
+  var isHov = false;
+  var rafId = null;
+
+  var tex = new THREE.CanvasTexture(cv);
+
+  function drawFrame() {
+    elapsed += 0.016;
+    window.renderScene(cx2, TW, TH, sceneType, color, phase, elapsed);
+
+    // ── Overlay text on top of live scene ────────────────────
+    var r = item.r, g = item.g, b = item.b;
+
+    // Border
+    cx2.strokeStyle = isHov
+      ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.12)';
+    cx2.lineWidth = 1.5; cx2.strokeRect(1, 1, TW-2, TH-2);
+
+    // Left accent bar
+    cx2.fillStyle = isHov
+      ? 'rgb('+r+','+g+','+b+')' : 'rgba('+r+','+g+','+b+',0.55)';
+    cx2.fillRect(0, 0, 3, TH);
+
+    // Galaxy tag
+    cx2.font = '12px "DM Mono",monospace';
+    cx2.textBaseline = 'top'; cx2.textAlign = 'left';
+    cx2.fillStyle = isHov
+      ? 'rgba('+r+','+g+','+b+',0.90)' : 'rgba('+r+','+g+','+b+',0.42)';
+    var tag = item.label.toUpperCase() + (item.year ? '  \u00B7  ' + item.year : '');
+    cx2.fillText(trunc(cx2, tag, cw), pad, 16);
+
+    // Title
+    cx2.font = 'bold 24px "Crimson Text",Georgia,serif';
+    cx2.fillStyle = isHov ? '#fff' : '#f5ecd5';
+    var tLines = wrap2(cx2, item.title, cw);
+    var ty = 16 + 12 + 9, lh = 28;
+    tLines.forEach(function(l, i) { cx2.fillText(l, pad, ty + i * lh); });
+
+    // Role
+    var ry = ty + tLines.length * lh + 5;
+    cx2.font = '11px "DM Mono",monospace';
+    cx2.fillStyle = isHov
+      ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.30)';
+    cx2.fillText(trunc(cx2, item.role, cw), pad, ry);
+
+    // Body excerpt
+    if (item.body) {
+      cx2.font = 'italic 14px "Crimson Text",Georgia,serif';
+      cx2.fillStyle = isHov
+        ? 'rgba(245,236,213,0.55)' : 'rgba(245,236,213,0.22)';
+      cx2.textBaseline = 'bottom';
+      cx2.fillText(trunc(cx2, item.body, cw - 22), pad, TH - 14);
+      cx2.textBaseline = 'top';
+    }
+
+    // Arrow on hover
+    if (isHov) {
+      cx2.font = '15px "DM Mono",monospace';
+      cx2.fillStyle = 'rgba('+r+','+g+','+b+',0.80)';
+      cx2.textAlign = 'right'; cx2.textBaseline = 'bottom';
+      cx2.fillText('\u2192', TW - 14, TH - 14);
+      cx2.textAlign = 'left'; cx2.textBaseline = 'top';
+    }
+
+    tex.needsUpdate = true;
+    rafId = requestAnimationFrame(drawFrame);
   }
 
-  // ── Border ────────────────────────────────────────────────
-  ctx.strokeStyle = isHov
-    ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.12)';
-  ctx.lineWidth=1.5; ctx.strokeRect(1,1,TW-2,TH-2);
-
-  // ── Left accent bar ───────────────────────────────────────
-  ctx.fillStyle = isHov ? 'rgb('+r+','+g+','+b+')' : 'rgba('+r+','+g+','+b+',0.55)';
-  ctx.fillRect(0,0,3,TH);
-
-  // ── Galaxy tag ────────────────────────────────────────────
-  ctx.font='12px "DM Mono",monospace';
-  ctx.textBaseline='top'; ctx.textAlign='left';
-  ctx.fillStyle = isHov ? 'rgba('+r+','+g+','+b+',0.90)' : 'rgba('+r+','+g+','+b+',0.42)';
-  var tag=item.label.toUpperCase()+(item.year?'  \u00B7  '+item.year:'');
-  ctx.fillText(trunc(ctx,tag,cw), pad, 16);
-
-  // ── Title ─────────────────────────────────────────────────
-  ctx.font='bold 24px "Crimson Text",Georgia,serif';
-  ctx.fillStyle = isHov ? '#fff' : '#f5ecd5';
-  var tLines=wrap2(ctx,item.title,cw);
-  var ty=16+12+9, lh=28;
-  tLines.forEach(function(l,i){ ctx.fillText(l,pad,ty+i*lh); });
-
-  // ── Role ──────────────────────────────────────────────────
-  var ry=ty+tLines.length*lh+5;
-  ctx.font='11px "DM Mono",monospace';
-  ctx.fillStyle = isHov ? 'rgba('+r+','+g+','+b+',0.75)' : 'rgba('+r+','+g+','+b+',0.30)';
-  ctx.fillText(trunc(ctx,item.role,cw), pad, ry);
-
-  // ── Body excerpt ──────────────────────────────────────────
-  if (item.body) {
-    ctx.font='italic 14px "Crimson Text",Georgia,serif';
-    ctx.fillStyle = isHov ? 'rgba(245,236,213,0.55)' : 'rgba(245,236,213,0.22)';
-    ctx.textBaseline='bottom';
-    ctx.fillText(trunc(ctx,item.body,cw-22), pad, TH-14);
-    ctx.textBaseline='top';
-  }
-
-  // ── Arrow on hover ────────────────────────────────────────
-  if (isHov) {
-    ctx.font='15px "DM Mono",monospace';
-    ctx.fillStyle='rgba('+r+','+g+','+b+',0.80)';
-    ctx.textAlign='right'; ctx.textBaseline='bottom';
-    ctx.fillText('\u2192', TW-14, TH-14);
-    ctx.textAlign='left'; ctx.textBaseline='top';
-  }
-
-  return new THREE.CanvasTexture(cv);
+  return {
+    texture:  tex,
+    start:    function() { if (!rafId) rafId = requestAnimationFrame(drawFrame); },
+    stop:     function() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } },
+    setHov:   function(h) { isHov = h; },
+    dispose:  function() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      tex.dispose();
+    }
+  };
 }
 
 // ── Compute columns ──────────────────────────────────────────
@@ -11028,32 +11036,11 @@ function getCols(camZ) {
   return best;
 }
 
-// ── Scene-level grid lines ────────────────────────────────────
-var TGLines = null;
-function buildGridLines() {
-  if (TGLines) { TS.remove(TGLines); TGLines.children.forEach(function(m){m.geometry.dispose();m.material.dispose();}); }
-  TGLines = new THREE.Group();
-  var c=TCols, rows=Math.ceil(TItems.length/c);
-  var totalW=c*SX, totalH=rows*SY;
-  var verts=[];
-  var lineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.55,depthWrite:false});
-  function seg(x0,y0,x1,y1){verts.push(x0,y0,0,x1,y1,0);}
-  for(var tx=-1;tx<=1;tx++){for(var ty=-1;ty<=1;ty++){
-    var ox=tx*totalW, oy=ty*totalH;
-    var left=-(c*SX)*0.5, top=(rows*SY)*0.5;
-    for(var col2=0;col2<=c;col2++){var x=ox+left+col2*SX;seg(x,oy+top,x,oy+top-rows*SY);}
-    for(var row2=0;row2<=rows;row2++){var y=oy+top-row2*SY;seg(ox+left,y,ox+left+c*SX,y);}
-  }}
-  var geo2=new THREE.BufferGeometry();
-  geo2.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
-  TGLines.add(new THREE.LineSegments(geo2,lineMat));
-  TS.add(TGLines);
-}
-
 // ── Build / rebuild mesh grid ────────────────────────────────
 function buildGrid() {
   var toRemove=TG.children.slice();
   toRemove.forEach(function(m){
+    if(m.userData.liveCtx) m.userData.liveCtx.dispose();
     if(m.material&&m.material.map){m.material.map.dispose();}
     if(m.material)m.material.dispose();
     if(m.geometry)m.geometry.dispose();
@@ -11063,28 +11050,19 @@ function buildGrid() {
   var geo=new THREE.PlaneGeometry(CW,CH);
   TItems.forEach(function(item,idx){
     var col=idx%TCols, row=Math.floor(idx/TCols);
-    var tex=makeCardTex(item,false);
-    var mat=new THREE.MeshBasicMaterial({map:tex});
+    var live=makeLiveCardTex(item);
+    var mat=new THREE.MeshBasicMaterial({map:live.texture});
     var mesh=new THREE.Mesh(geo,mat);
     mesh.position.set(col*SX, -row*SY, 0);
     mesh.userData.item=item; mesh.userData.idx=idx;
+    mesh.userData.liveCtx=live;
+    live.start();
     TG.add(mesh); TMeshes.push(mesh);
   });
-  buildGridLines();
 }
 
-// Refresh a single card after its snapshot loads
-window.tRefreshCardByEraId = function(eraId) {
-  for (var i=0; i<TMeshes.length; i++) {
-    var m=TMeshes[i];
-    if (m.userData.item && m.userData.item.era.id===eraId) {
-      if(m.material.map)m.material.map.dispose();
-      m.material.map=makeCardTex(m.userData.item, i===THovIdx);
-      m.material.needsUpdate=true;
-      break;
-    }
-  }
-};
+// Live textures repaint themselves every frame; no manual refresh needed.
+window.tRefreshCardByEraId = function(eraId) { /* no-op: live animation handles updates */ };
 
 // ── Pincushion distortion shader ─────────────────────────────
 // Barrel:     c*(1 + D*r²)  — surface curves TOWARD viewer
@@ -11194,14 +11172,22 @@ function tAttachEvents(cv) {
 
   cv.addEventListener('wheel',function(e){
     e.preventDefault();
+    TN.baseCamZ=Math.max(3,Math.min(28,TN.baseCamZ*(e.deltaY>0?1.10:0.91)));
   },{passive:false});
 
-  // Pinch zoom disabled
-  var pts=new Map();
-  cv.addEventListener('pointerdown',function(e){pts.set(e.pointerId,{x:e.clientX,y:e.clientY});},{capture:true,passive:true});
-  cv.addEventListener('pointermove',function(e){if(pts.has(e.pointerId))pts.set(e.pointerId,{x:e.clientX,y:e.clientY});},{capture:true,passive:true});
-  cv.addEventListener('pointerup',function(e){pts.delete(e.pointerId);},{capture:true,passive:true});
-  cv.addEventListener('pointercancel',function(e){pts.delete(e.pointerId);},{capture:true,passive:true});
+  // Pinch
+  var pts=new Map(),pD0=null,pZ0=10;
+  cv.addEventListener('pointerdown',function(e){
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2){var a=Array.from(pts.values());pD0=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);pZ0=TN.baseCamZ;TN.isDragging=false;}
+  },{capture:true,passive:true});
+  cv.addEventListener('pointermove',function(e){
+    if(!pts.has(e.pointerId))return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2&&pD0){var a=Array.from(pts.values());var d=Math.hypot(a[1].x-a[0].x,a[1].y-a[0].y);TN.baseCamZ=Math.max(3,Math.min(28,pZ0*(pD0/d)));}
+  },{capture:true,passive:true});
+  cv.addEventListener('pointerup',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
+  cv.addEventListener('pointercancel',function(e){pts.delete(e.pointerId);if(pts.size<2)pD0=null;},{capture:true,passive:true});
 
   // Galaxy filter links
   document.querySelectorAll('.tess-nav-link[data-galaxy]').forEach(function(btn){
@@ -11218,16 +11204,12 @@ function tUpdateHover(ndc) {
   if (newH===THovIdx) return;
   if (THovIdx>=0&&TMeshes[THovIdx]) {
     var m=TMeshes[THovIdx];
-    if(m.material.map)m.material.map.dispose();
-    m.material.map=makeCardTex(TItems[THovIdx],false);
-    m.material.needsUpdate=true;
+    if (m.userData.liveCtx) m.userData.liveCtx.setHov(false);
   }
   THovIdx=newH;
   if (THovIdx>=0&&TMeshes[THovIdx]) {
     var m2=TMeshes[THovIdx];
-    if(m2.material.map)m2.material.map.dispose();
-    m2.material.map=makeCardTex(TItems[THovIdx],true);
-    m2.material.needsUpdate=true;
+    if (m2.userData.liveCtx) m2.userData.liveCtx.setHov(true);
     TR.domElement.style.cursor='pointer';
   } else {
     if(TR) TR.domElement.style.cursor='grab';
@@ -11244,14 +11226,14 @@ function tAnimate() {
     TN.panX+=TN.dragDX; TN.panY+=TN.dragDY;
     TN.velX=lerp(TN.velX,TN.dragDX,0.80);
     TN.velY=lerp(TN.velY,TN.dragDY,0.80);
-    TC.position.z=lerp(TC.position.z,TN.baseCamZ,0.07);  // no drag zoom
-    TN.distT=0.04;   // subtle even when dragging
+    TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.055,0.07);
+    TN.distT=0.16;   // more distortion when dragging
   } else {
     TN.panX+=TN.velX; TN.panY+=TN.velY;
     TN.velX=lerp(TN.velX,0,0.10);
     TN.velY=lerp(TN.velY,0,0.10);
     TC.position.z=lerp(TC.position.z,TN.baseCamZ,0.07);
-    TN.distT=0.015;  // barely perceptible at rest
+    TN.distT=0.045;  // subtle at rest
   }
   TN.dragDX=TN.dragDY=0;
 
@@ -11271,11 +11253,6 @@ function tAnimate() {
   TN.panY=((TN.panY%totalH)+totalH)%totalH;
 
   TG.position.set(0,0,0);  // group stays at origin; meshes move
-  if (TGLines) {
-    var lx=((TN.panX%totalW)+totalW)%totalW - totalW;
-    var ly=((TN.panY%totalH)+totalH)%totalH - totalH;
-    TGLines.position.set(lx+ambX, ly+ambY, -0.01);
-  }
   for (var _i=0;_i<TMeshes.length;_i++) {
     var _m=TMeshes[_i];
     var _c=_i%c, _r=Math.floor(_i/c);
@@ -11298,7 +11275,7 @@ function tAnimate() {
     if(Math.abs(TC.aspect-asp)>0.001){TC.aspect=asp;TC.updateProjectionMatrix();} }
 
   // ── Pincushion distortion lerp ────────────────────────────
-  TN.distC=lerp(TN.distC,TN.distT,0.04);
+  TN.distC=lerp(TN.distC,TN.distT,0.06);
   TPDM.uniforms.uDist.value=TN.distC;
 
   // ── Render → RT → post ───────────────────────────────────
@@ -11349,9 +11326,12 @@ window._tgInit=function(){
   if(window._snapQueueEras) window._snapQueueEras(TItems.map(function(i){return i.era;}));
 };
 window._tgStop=function(){ if(TRaf){cancelAnimationFrame(TRaf);TRaf=null;} };
-window.tgZoomIn  =function(){};
-window.tgZoomOut =function(){};
-window.tgZoomFit =function(){TN.panX=TN.panY=TN.velX=TN.velY=0;TCols=getCols();buildGrid();};
+window.tgZoomIn  =function(){TN.baseCamZ=Math.max(3, TN.baseCamZ*0.84);};
+window.tgZoomOut =function(){TN.baseCamZ=Math.min(28,TN.baseCamZ*1.19);};
+window.tgZoomFit =function(){
+  TN.baseCamZ=7;TN.panX=TN.panY=TN.velX=TN.velY=0;
+  TCols=getCols();buildGrid();
+};
 
 // Resize observer
 var _tw=document.getElementById('tess-canvas-wrap');
@@ -12334,7 +12314,7 @@ function weightedShuffle(items) {
   return [...shuffle(primary), ...shuffle(secondary)];
 }
 
-function inferSceneType(era, galaxy) {
+window.inferSceneType = function inferSceneType(era, galaxy) {
   if (galaxy === 'manifesto') return 'pulsar';
   if (galaxy === 'claude')    return 'binary';
   const id  = (era.id  || '').toLowerCase();
@@ -12349,7 +12329,7 @@ function inferSceneType(era, galaxy) {
   return ['giant', 'orbit', 'moons', 'ringed'][hash % 4];
 }
 
-function renderScene(ctx, w, h, sceneType, color, phase, elapsed) {
+window.renderScene = function renderScene(ctx, w, h, sceneType, color, phase, elapsed) {
   const [r, g, b] = color;
   const cx = w * 0.50, cy = h * 0.42;
   const t = elapsed;
