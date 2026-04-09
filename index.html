@@ -9660,7 +9660,7 @@ function syncArchStripHighlight(eraId) {
 }
 
 function animate(ts) {
-  if (_tabHidden) { _mainRAFRunning = false; return; } // pause when tab hidden
+  if (_tabHidden || !_mainRAFRunning) { _mainRAFRunning = false; return; } // pause when tab hidden or explicitly stopped
   requestAnimationFrame(animate);
   const dt = Math.min((ts - lastTime) / 1000, 0.05);
   lastTime = ts; elapsed += dt;
@@ -11002,16 +11002,16 @@ function makeLiveCardTex(item) {
     }
 
     tex.needsUpdate = true;
-    rafId = requestAnimationFrame(drawFrame);
+    if (rafId !== null) rafId = requestAnimationFrame(drawFrame);
   }
 
   return {
     texture:  tex,
     start:    function() { if (!rafId) rafId = requestAnimationFrame(drawFrame); },
-    stop:     function() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } },
+    stop:     function() { if (rafId) { var id=rafId; rafId = null; cancelAnimationFrame(id); } },
     setHov:   function(h) { isHov = h; },
     dispose:  function() {
-      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      if (rafId) { var id=rafId; rafId = null; cancelAnimationFrame(id); }
       tex.dispose();
     }
   };
