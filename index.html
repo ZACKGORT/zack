@@ -10923,8 +10923,9 @@ function wrap2(ctx,txt,maxW) {
 
 // ── Live animated card texture ────────────────────────────────
 // Creates a THREE.CanvasTexture backed by a canvas that is redrawn
-// every frame via renderScene.  Returns { texture, stop, setHov }
-// so callers can control the animation loop and toggle hover state.
+// at ~15fps via renderScene, decoupled from the 60fps Three.js render.
+// Returns { texture, stop, setHov } so callers can control the loop.
+var _cardFrameBudget = 1000 / 15; // repaint throttle: ~15fps
 function makeLiveCardTex(item) {
   var cv = document.createElement('canvas');
   cv.width = TW; cv.height = TH;
@@ -10940,11 +10941,22 @@ function makeLiveCardTex(item) {
   var elapsed = Math.random() * 100;
   var isHov = false;
   var rafId = null;
+  var lastPaint = 0;
 
   var tex = new THREE.CanvasTexture(cv);
 
-  function drawFrame() {
-    elapsed += 0.016;
+  function drawFrame(now) {
+    if (rafId === null) return;
+    rafId = requestAnimationFrame(drawFrame);
+
+    // Throttle repaints to ~15fps — panning is handled by mesh positions,
+    // not by canvas redraws, so there's no need to repaint at 60fps.
+    var budget = isHov ? 1000 / 30 : _cardFrameBudget;
+    if (now - lastPaint < budget) return;
+    var dt = Math.min((now - lastPaint) / 1000, 0.1);
+    lastPaint = now;
+    elapsed += dt;
+
     window.renderScene(cx2, TW, TH, sceneType, color, phase, elapsed);
 
     // ── Overlay text on top of live scene ────────────────────
@@ -11002,12 +11014,11 @@ function makeLiveCardTex(item) {
     }
 
     tex.needsUpdate = true;
-    if (rafId !== null) rafId = requestAnimationFrame(drawFrame);
   }
 
   return {
     texture:  tex,
-    start:    function() { if (!rafId) rafId = requestAnimationFrame(drawFrame); },
+    start:    function() { if (!rafId) { lastPaint = 0; rafId = requestAnimationFrame(drawFrame); } },
     stop:     function() { if (rafId) { var id=rafId; rafId = null; cancelAnimationFrame(id); } },
     setHov:   function(h) { isHov = h; },
     dispose:  function() {
@@ -11230,12 +11241,17 @@ function tAnimate() {
     TN.velY=lerp(TN.velY,TN.dragDY,0.80);
     TC.position.z=lerp(TC.position.z,TN.baseCamZ*1.055,0.07);
     TN.distT=0.16;   // more distortion when dragging
+    // Suspend canvas repaints during drag — mesh positions handle motion
+    _cardFrameBudget = 1000 / 4;
   } else {
     TN.panX+=TN.velX; TN.panY+=TN.velY;
     TN.velX=lerp(TN.velX,0,0.10);
     TN.velY=lerp(TN.velY,0,0.10);
     TC.position.z=lerp(TC.position.z,TN.baseCamZ,0.07);
     TN.distT=0.045;  // subtle at rest
+    // Restore normal repaint rate when coasting/idle
+    var speed=Math.abs(TN.velX)+Math.abs(TN.velY);
+    _cardFrameBudget = speed > 0.05 ? 1000 / 8 : 1000 / 15;
   }
   TN.dragDX=TN.dragDY=0;
 
