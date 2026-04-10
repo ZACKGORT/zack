@@ -8582,6 +8582,8 @@ let mobileMomentumActive = false;
 
 cvs.addEventListener('pointerdown', e => {
   if (e.button === 2) return;
+  if (tesseractOpen) return;
+  if (window._tessClosedAt && Date.now() - window._tessClosedAt < 500) return;
   isDragging = false; drag = false;
   pointerDownX = e.clientX; pointerDownY = e.clientY;
   lastDragX = e.clientX; lastDragY = e.clientY;
@@ -8644,6 +8646,8 @@ cvs.addEventListener('pointermove', e => {
 
 cvs.addEventListener('pointerup', e => {
   if (e.button === 2) return;
+  if (tesseractOpen) return;
+  if (window._tessClosedAt && Date.now() - window._tessClosedAt < 500) return;
 
   const dx = e.clientX - pointerDownX;
   const dy = e.clientY - pointerDownY;
@@ -8696,13 +8700,6 @@ cvs.addEventListener('pointerup', e => {
           }
           return;
         }
-      }
-      // If black hole is focused and tap missed the hit mesh, still open tesseract
-      // rather than falling through to node hit-testing (which spuriously matches
-      // a nearby node like Miller Designworks whose angle is nearly 0).
-      if (isBlackHoleFocused) {
-        openGalaxyTesseract('manifesto');
-        return;
       }
       if (handleStarClick && handleStarClick(mouse)) return;
       // Galaxy cluster click
@@ -8774,13 +8771,6 @@ cvs.addEventListener('pointerup', e => {
       }
     }
     
-    // If black hole is focused and click missed the hit mesh, still open tesseract
-    // rather than resetting state and falling through to node hit-testing.
-    if (isBlackHoleFocused) {
-      window.openTesseract();
-      return;
-    }
-
     // Star checked FIRST — direct star click takes priority over cluster mesh
     if (handleStarClick && handleStarClick(mouse)) return;
 
@@ -11564,6 +11554,7 @@ window.openTesseract = function(galaxyFilter) {
 window.closeTesseract = function() {
   if (!tesseractOpen) return;
   tesseractOpen=false;
+  window._tessClosedAt = Date.now();
   // Clear focus state so the next click on the main canvas doesn't re-open the tesseract
   if(typeof isBlackHoleFocused!=='undefined') isBlackHoleFocused=false;
   if(typeof starDirectClickId!=='undefined')  starDirectClickId=null;
