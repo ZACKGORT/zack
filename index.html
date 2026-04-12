@@ -13160,6 +13160,9 @@ var rocketmanTimer   = 0;
 var ROCKETMAN_DURATION = 1800; // 30 seconds
 
 var mouse = { x: 0, y: 0 };
+// Raw touch position — updated on every touchmove, persists between events
+// so the butterfly pull stays active rather than going stale between frames
+var _touchRawX = null, _touchRawY = null;
 // Butterfly physics: the cursor is the butterfly, astronaut chases with inertia
 var butterfly = { vx: 0, vy: 0 };
 var sea, sky, humanoid, orbHolder, canHolder, boxHolder;
@@ -13444,6 +13447,7 @@ document.addEventListener('touchmove', function(e) {
   var dx = t.clientX - touchState.startX, dy = t.clientY - touchState.startY;
   if (Math.sqrt(dx*dx + dy*dy) > 6) touchState.hasMoved = true;
   touchState.lastX = t.clientX; touchState.lastY = t.clientY;
+  _touchRawX = t.clientX; _touchRawY = t.clientY;
   mouse.x = -1 + (t.clientX / WIDTH) * 2;
   mouse.y =  1 - (t.clientY / HEIGHT) * 2;
 }, { passive: false });
@@ -13476,7 +13480,7 @@ document.addEventListener('touchend', function(e) {
       humanoid.joints[si].pivot.userData.velZ += (Math.random() - 0.5) * 4;
     }
   }
-  touchState.active = false; touchState.id = null;
+  touchState.active = false; touchState.id = null; _touchRawX = null; _touchRawY = null;
 }, { passive: false });
 
 var reverseLerp = 0.0;
@@ -14242,6 +14246,12 @@ function loop() {
     // The cursor is the butterfly: astronaut always wants to reach for it,
     // but velocity/inertia/momentum/mass physics can override arm strength.
     if (!humanoid.singularity) {
+      // On mobile, touchmove fires at browser cadence (~30-60hz), not every RAF frame.
+      // Refresh mouse from last raw touch position every frame so pull stays continuous.
+      if (_touchRawX !== null && _touchRawY !== null) {
+        mouse.x = -1 + (_touchRawX / WIDTH) * 2;
+        mouse.y =  1 - (_touchRawY / HEIGHT) * 2;
+      }
       var bfTx = norm(mouse.x, -1, 1, -100, 100);
       var bfTy = norm(mouse.y, -1, 1, 25, 175);
 
@@ -14267,19 +14277,23 @@ function loop() {
       var effectiveArm = armStrength * (1.0 - momentumResistance * 0.72);
 
       // Apply desire: accelerate toward butterfly (capped by arm strength)
+      // Mobile gets a stronger pull — finger moves fast and the astronaut needs to keep up
+      var _isTouchDriving = (_touchRawX !== null);
+      var pullMult = _isTouchDriving ? 1.7 : 1.0;
       if (bfDist > 0.5) {
-        butterfly.vx += (bfDx / bfDist) * Math.min(bfDist * 0.12, 6.0) * effectiveArm * 9;
-        butterfly.vy += (bfDy / bfDist) * Math.min(bfDist * 0.12, 6.0) * effectiveArm * 9;
+        butterfly.vx += (bfDx / bfDist) * Math.min(bfDist * 0.12, 6.0) * effectiveArm * 9 * pullMult;
+        butterfly.vy += (bfDy / bfDist) * Math.min(bfDist * 0.12, 6.0) * effectiveArm * 9 * pullMult;
       }
 
-      // Inertia / drag — space has near-zero friction, but suit thrusters provide some control
-      // Drag increases at higher speeds (thruster saturation)
-      var drag = 0.88 - Math.min(0.12, speed2d * 0.004);
+      // Inertia / drag — less drag on mobile so momentum carries between touch events
+      var drag = _isTouchDriving
+        ? 0.93 - Math.min(0.08, speed2d * 0.003)
+        : 0.88 - Math.min(0.12, speed2d * 0.004);
       butterfly.vx *= drag;
       butterfly.vy *= drag;
 
       // Mass-limited velocity cap: heavier suit means slower top speed
-      var MAX_SPEED = 9.5;
+      var MAX_SPEED = _isTouchDriving ? 14 : 9.5;
       if (speed2d > MAX_SPEED) {
         butterfly.vx *= MAX_SPEED / speed2d;
         butterfly.vy *= MAX_SPEED / speed2d;
