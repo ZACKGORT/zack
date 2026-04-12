@@ -11581,9 +11581,6 @@ window.openTesseract = function(galaxyFilter) {
   tesseractOpen = true;
   window.tesseractOpen = true;
 
-  // Fresh state every open — reset physics init flag so data re-injects cleanly
-  _tessPhysInited = false;
-
   document.body.classList.add('tess-on');
 
   // Pause the main universe render
@@ -11600,20 +11597,19 @@ window.openTesseract = function(galaxyFilter) {
   // Activate physics input listeners
   window._tessPhysActive = true;
 
-  // Inject era card data into the physics bento dispatch panel
-  var injectDelay = _tessPhysInited ? 60 : 220;
-  if (!_tessPhysInited) {
-    _tessPhysInited = true;
-    if (window._tessPhysicsInit) window._tessPhysicsInit();
-  }
+  // Init physics (first open builds scene; subsequent calls just reset game state)
+  var injectDelay = _tessPhysInited ? 60 : 260;
+  _tessPhysInited = true;
+  if (window._tessPhysicsInit) window._tessPhysicsInit();
   setTimeout(function(){
     if (window._tessPhysInjectData) {
       var html = _buildTessDataPayload();
       var styles = _tessDataStyles();
       window._tessPhysInjectData(html, styles);
     }
-    // Populate node list in bento menu
+    // Always rebuild node list + reset dispatch for fresh state
     if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
+    if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
   }, injectDelay);
 };
 
@@ -11693,10 +11689,15 @@ window.closeTesseract = function() {
   overlay.classList.remove('on');
   if (astBtn) astBtn.classList.remove('ast-on');
 
-  // Resume main universe render loop
-  if(typeof _mainRAFRunning!=='undefined' && !_mainRAFRunning){
-    _mainRAFRunning=true; requestAnimationFrame(animate);
-  }
+  // Ensure fg canvas is hidden
+  var wfg = document.getElementById('world-fg');
+  if (wfg) wfg.style.display = 'none';
+
+  // Resume main universe render loop — unconditional to handle any flag state
+  _mainRAFRunning = true;
+  if (typeof lastTime !== 'undefined') lastTime = performance.now(); // prevent dt spike
+  requestAnimationFrame(animate);
+
   setTimeout(function(){ overlay.style.display='none'; }, 420);
 };
 
@@ -14492,17 +14493,25 @@ function startQuoteRotation() {
 }
 function stopQuoteRotation() { clearInterval(_quoteInterval); }
 
+var _gameLoopRunning = false; // guard against duplicate loop() chains
+
 function _tessPhysicsInit() {
   isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  createScene(); createLights(); buildWorld();
-  initWindStreaks();
-  // Boot straight into playing — no welcome screen
-  STATUS = 'playing';
-  var sw = document.getElementById('screen-welcome');
-  if (sw) { sw.classList.remove('visible'); sw.style.display = 'none'; }
-  var sg = document.getElementById('screen-gameover');
-  if (sg) { sg.classList.remove('visible'); sg.style.display = 'none'; }
-  refreshUI(); loop();
+
+  if (!_gameLoopRunning) {
+    // First-time init — build the world and start the loop
+    createScene(); createLights(); buildWorld();
+    initWindStreaks();
+    STATUS = 'playing';
+    var sw = document.getElementById('screen-welcome');
+    if (sw) { sw.classList.remove('visible'); sw.style.display = 'none'; }
+    var sg = document.getElementById('screen-gameover');
+    if (sg) { sg.classList.remove('visible'); sg.style.display = 'none'; }
+    refreshUI();
+    _gameLoopRunning = true;
+    loop();
+  }
+  // Always (re-)start game state on each tesseract open
   startGame();
 }
 
