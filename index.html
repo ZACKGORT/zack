@@ -111,6 +111,38 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
 .tbw-btn:hover { color: rgba(218,165,32,0.90); background: rgba(218,165,32,0.06); }
 .tbw-btn.active { color: #daa520; background: rgba(218,165,32,0.10); }
 .tbw-sep { width: 1px; background: rgba(218,165,32,0.10); align-self: stretch; flex-shrink: 0; margin: 5px 0; }
+
+/* ── TESSERACT BUTTON — cosmic energy ─────────────────────
+   Idle: slow golden box-shadow pulse + SVG visor shimmer.
+   Hover / .ast-on: steady flare glow.
+   No pseudo-elements — keeps layout clean.
+─────────────────────────────────────────────────────────── */
+@keyframes tbw-astro-pulse {
+  0%,100% { box-shadow: 0 0 0px 0px rgba(218,165,32,0); }
+  50%      { box-shadow: 0 0 10px 3px rgba(218,165,32,0.40), 0 0 20px 6px rgba(218,165,32,0.12); }
+}
+@keyframes tbw-astro-svg-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+#tbw-astro {
+  animation: tbw-astro-pulse 3.2s ease-in-out infinite;
+}
+#tbw-astro #ast-hud-canvas {
+  opacity: 0.92 !important;
+  animation: tbw-astro-svg-spin 12s linear infinite;
+  transform-origin: 50% 50%;
+}
+#tbw-astro:hover,
+#tbw-astro.ast-on {
+  animation: none;
+  box-shadow: 0 0 14px 4px rgba(218,165,32,0.45), 0 0 30px 8px rgba(218,165,32,0.15);
+  background: rgba(218,165,32,0.10);
+}
+#tbw-astro.ast-on #ast-hud-canvas {
+  animation-duration: 2s;
+  opacity: 1 !important;
+}
 @media (max-width: 768px) {
   .tbw-btn { font-size: 8px; padding: 10px 12px; }
 }
@@ -3314,11 +3346,11 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   }
   .btn-link:hover { color: rgba(255,255,255,0.65); }
 
-  /* Foreground canvas — astronaut floats, but BELOW pause overlay */
+  /* Foreground canvas — astronaut floats ABOVE pause overlay */
   #world-fg {
     position: fixed; inset: 0;
     pointer-events: none;
-    z-index: 50;
+    z-index: 65; /* above #pause-overlay (60) */
     display: none;
   }
 
@@ -10768,6 +10800,18 @@ document.addEventListener('visibilitychange', () => {
 
 var _mainRAFRunning = false;
 var _meshRAFRunning = false;
+
+// ── Page-load: open on the accretion disc edge-on ──────────
+// Pull back wide and high, then swoop down to near-horizon altitude
+// so the disc reads as a thin glowing sliver — head-on.
+camState = { phi: Math.PI * 0.12, theta: Math.PI * 1.1, radius: 320 };
+camTarget = { ...camState };
+applyCam();
+bhGroup.visible = true;
+swoopTo(Math.PI * 0.42, Math.PI * 1.5, 48, new THREE.Vector3(0, 0, 0));
+camTarget.phi = Math.PI * 0.42;
+camTarget.theta = Math.PI * 1.5;
+camTarget.radius = 48;
 
 _mainRAFRunning = true; requestAnimationFrame(animate);
 
