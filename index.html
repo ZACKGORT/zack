@@ -11581,7 +11581,9 @@ window.openTesseract = function(galaxyFilter) {
   tesseractOpen = true;
   window.tesseractOpen = true;
 
-  // Add class for cursor scoping
+  // Fresh state every open — reset physics init flag so data re-injects cleanly
+  _tessPhysInited = false;
+
   document.body.classList.add('tess-on');
 
   // Pause the main universe render
@@ -11904,10 +11906,125 @@ function Sea() {
       speed: 0.016 + Math.random() * 0.032,
     });
   }
-  var mat = new THREE.MeshPhongMaterial({ color: planetColors[0], transparent: true, opacity: 0.8, flatShading: true });
+  // Event horizon surface — deep black with faint violet emissive
+  var mat = new THREE.MeshPhongMaterial({
+    color: 0x000000, emissive: 0x0a0020,
+    transparent: true, opacity: 0.92, flatShading: true
+  });
   this.mesh = new THREE.Mesh(geom, mat);
   this.mesh.receiveShadow = true;
+
+  // ── Black hole overlays (attached to a group at sea position) ─────────────
+  this.bhGroup = new THREE.Object3D();
+
+  // Accretion disk — canvas gradient texture, scaled to planet radius
+  var dc = document.createElement('canvas');
+  dc.width = 512; dc.height = 64;
+  var dctx = dc.getContext('2d');
+  var dg = dctx.createLinearGradient(0, 0, 512, 0);
+  dg.addColorStop(0,    'rgba(255,255,200,0.95)');
+  dg.addColorStop(0.05, 'rgba(255,190,50,0.88)');
+  dg.addColorStop(0.20, 'rgba(255,90,10,0.65)');
+  dg.addColorStop(0.48, 'rgba(160,22,5,0.30)');
+  dg.addColorStop(0.75, 'rgba(60,4,12,0.08)');
+  dg.addColorStop(1,    'rgba(8,0,3,0)');
+  dctx.fillStyle = dg;
+  dctx.fillRect(0, 0, 512, 64);
+
+  this.diskMat = new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(dc),
+    side: THREE.DoubleSide, transparent: true, opacity: 0.70,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  var disk = new THREE.Mesh(new THREE.RingGeometry(610, 900, 80, 6), this.diskMat);
+  disk.rotation.x = Math.PI * 0.12;
+  disk.rotation.z = Math.PI * 0.05;
+  this.bhGroup.add(disk);
+  this.disk = disk;
+
+  // Inner hot halo ring
+  this.haloMat = new THREE.MeshBasicMaterial({
+    color: 0xffaa33, side: THREE.DoubleSide,
+    transparent: true, opacity: 0.35,
+    depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  var halo = new THREE.Mesh(new THREE.RingGeometry(595, 625, 80), this.haloMat);
+  halo.rotation.x = disk.rotation.x;
+  halo.rotation.z = disk.rotation.z;
+  this.bhGroup.add(halo);
+  this.halo = halo;
+
+  // Gravitational lensing rings
+  var lensRadii  = [605, 630, 660, 720, 820];
+  var lensColors = [0xffeedd, 0xffeedd, 0xaaaaff, 0x8888ff, 0x6666cc];
+  var lensBaseOp = [0.50, 0.28, 0.14, 0.07, 0.03];
+  this.lensRings = [];
+  for (var li = 0; li < lensRadii.length; li++) {
+    var lpts = [];
+    for (var lk = 0; lk <= 128; lk++) {
+      var la = (lk / 128) * Math.PI * 2;
+      lpts.push(new THREE.Vector3(Math.cos(la) * lensRadii[li], Math.sin(la) * lensRadii[li], 0));
+    }
+    var lmat = new THREE.LineBasicMaterial({
+      color: lensColors[li], transparent: true,
+      opacity: lensBaseOp[li], depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    var lr = new THREE.Line(new THREE.BufferGeometry().setFromPoints(lpts), lmat);
+    this.bhGroup.add(lr);
+    this.lensRings.push({ line: lr, baseOp: lensBaseOp[li] });
+  }
+
+  // Glow sprites (fake-sprite using flat circles)
+  var mkGlow = function(color, radius, op) {
+    var gc = document.createElement('canvas');
+    gc.width = gc.height = 256;
+    var gctx = gc.getContext('2d');
+    var gg = gctx.createRadialGradient(128,128,0, 128,128,128);
+    var r = (color >> 16) & 0xff, g = (color >> 8) & 0xff, b = color & 0xff;
+    gg.addColorStop(0,   'rgba('+r+','+g+','+b+',0.6)');
+    gg.addColorStop(0.4, 'rgba('+r+','+g+','+b+',0.2)');
+    gg.addColorStop(1,   'rgba('+r+','+g+','+b+',0)');
+    gctx.fillStyle = gg;
+    gctx.fillRect(0,0,256,256);
+    var sm = new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(gc),
+      transparent: true, opacity: op, depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    var sp = new THREE.Sprite(sm);
+    sp.scale.setScalar(radius);
+    return sp;
+  };
+  this.glow1 = mkGlow(0x180860, 1800, 0.22);  // deep indigo
+  this.glow2 = mkGlow(0x3515b0, 1100, 0.38);  // violet
+  this.glow3 = mkGlow(0xff6010, 750,  0.18);  // disk warmth
+  this.bhGroup.add(this.glow1);
+  this.bhGroup.add(this.glow2);
+  this.bhGroup.add(this.glow3);
+
+  // Relativistic jets — thin lines above/below
+  var mkJet = function(y0, y1, ox) {
+    var jmat = new THREE.LineBasicMaterial({
+      color: 0x6644ee, transparent: true, opacity: 0.22,
+      depthWrite: false, blending: THREE.AdditiveBlending
+    });
+    return new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(ox, y0, 0),
+        new THREE.Vector3(ox * 2.5, y1, 0)
+      ]), jmat
+    );
+  };
+  this.jets = [
+    mkJet( 610,  1400,  0),
+    mkJet(-610, -1400,  0),
+    mkJet( 610,  1400,  40),
+    mkJet(-610, -1400, -40),
+  ];
+  for (var ji = 0; ji < this.jets.length; ji++) this.bhGroup.add(this.jets[ji]);
+
+  this.bhTime = 0;
 }
+
 Sea.prototype.moveWaves = function() {
   var pos = this.mesh.geometry.attributes.position;
   for (var i = 0, d; i < this.waveData.length; i++) {
@@ -11918,6 +12035,44 @@ Sea.prototype.moveWaves = function() {
   }
   pos.needsUpdate = true;
   this.mesh.geometry.computeVertexNormals();
+};
+
+Sea.prototype.tickBH = function(elapsed) {
+  this.bhTime += 0.016;
+  var t = this.bhTime;
+
+  // Disk slow rotation
+  this.disk.rotation.z += 0.0008;
+
+  // Halo pulse
+  this.halo.rotation.z = this.disk.rotation.z * 1.4;
+  this.haloMat.opacity = 0.25 + Math.sin(t * 1.3) * 0.10;
+
+  // Lensing ring shimmer
+  for (var li = 0; li < this.lensRings.length; li++) {
+    var lr = this.lensRings[li];
+    lr.line.material.opacity = lr.baseOp * (0.85 + Math.sin(t * 0.35 + li * 1.1) * 0.15);
+  }
+
+  // Glow breathe
+  this.glow1.material.opacity = 0.18 + Math.sin(t * 0.22) * 0.04;
+  this.glow2.material.opacity = 0.32 + Math.sin(t * 0.40) * 0.06;
+  this.glow3.material.opacity = 0.14 + Math.sin(t * 1.05) * 0.06;
+
+  // Jets flicker
+  var jt = 0.15 + Math.sin(t * 1.75) * 0.06;
+  var jt2 = 0.06 + Math.sin(t * 1.30) * 0.03;
+  this.jets[0].material.opacity = jt;
+  this.jets[1].material.opacity = jt;
+  this.jets[2].material.opacity = jt2;
+  this.jets[3].material.opacity = jt2;
+
+  // Event horizon surface: very faint violet shimmer
+  this.mesh.material.emissive.setRGB(
+    0.04 + Math.sin(t * 0.18) * 0.01,
+    0,
+    0.13 + Math.sin(t * 0.25) * 0.03
+  );
 };
 
 function Star() {
@@ -12355,13 +12510,17 @@ CanistersHolder.prototype.update = function() {
 };
 
 // ─── Mystery Box ───────────────────────────────────────────────────────────
+var MYSTERY_COLORS = [0xff2244, 0xff7700, 0xffee00, 0x44ff55, 0x00ffcc, 0x4488ff, 0xcc44ff, 0xff44cc];
+
 function MysteryBox() {
   this.mesh = new THREE.Object3D();
   this.t = 0;
-  var mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0x221100, flatShading: true });
+  this.colorPhase = Math.random() * MYSTERY_COLORS.length;
+  var mat = new THREE.MeshPhongMaterial({ color: 0xffcc00, emissive: 0x331100, flatShading: true });
+  this.mat = mat;
   var body = makeBox(14, 14, 14, mat);
   body.castShadow = true;
-  // Question mark vibe — cross stripe
+  // Cross stripe — white
   var stripeMat = new THREE.MeshPhongMaterial({ color: 0xffffff, flatShading: true });
   var stripeH = makeBox(16, 2, 2, stripeMat); this.mesh.add(stripeH);
   var stripeV = makeBox(2, 16, 2, stripeMat); this.mesh.add(stripeV);
@@ -12369,6 +12528,15 @@ function MysteryBox() {
 }
 MysteryBox.prototype.update = function(speed) {
   this.t += 0.03 * sceneSpeed;
+  // Cycle through colors
+  this.colorPhase += 0.07 * sceneSpeed;
+  var ci = Math.floor(this.colorPhase) % MYSTERY_COLORS.length;
+  var ci2 = (ci + 1) % MYSTERY_COLORS.length;
+  var blend = this.colorPhase - Math.floor(this.colorPhase);
+  var c1 = new THREE.Color(MYSTERY_COLORS[ci]);
+  var c2 = new THREE.Color(MYSTERY_COLORS[ci2]);
+  this.mat.color.copy(c1).lerp(c2, blend);
+  this.mat.emissive.copy(this.mat.color).multiplyScalar(0.18);
   this.mesh.position.x -= speed * sceneSpeed;
   this.mesh.rotation.x += 0.02 * sceneSpeed;
   this.mesh.rotation.y += 0.025 * sceneSpeed;
@@ -12898,6 +13066,7 @@ function updateWindStreaks(intensity, forward) {
 
 function buildWorld() {
   sea = new Sea(); sea.mesh.position.y = -600; scene.add(sea.mesh);
+  sea.bhGroup.position.y = -600; scene.add(sea.bhGroup);
   sky = new Sky(); sky.mesh.position.y = -600; scene.add(sky.mesh);
   humanoid = new RagdollHuman();
   humanoid.mesh.scale.setScalar(0.25);
@@ -13419,29 +13588,38 @@ function doTumble() {
 }
 
 function doSingularity() {
-  // Black orb: compress to nothing, fling from offscreen
-  invincibleFrames = 300;
+  invincibleFrames = 360;
   humanoid.singularity = true;
+
+  // Phase 1: magnetic crush — scale down
   gsap.to(humanoid.mesh.scale, {
-    x: 0.001, y: 0.001, z: 0.001, duration: 0.35, ease: "power3.in",
+    x: 0.04, y: 0.04, z: 0.04, duration: 0.4, ease: "power3.in",
     onComplete: function() {
-      // Fling from random offscreen edge
-      var edge = Math.floor(Math.random() * 4);
-      var px, py;
-      if (edge === 0)      { px = -280; py = 60 + Math.random()*80; humanoid.slingVx = 6; humanoid.slingVy = 0; }
-      else if (edge === 1) { px =  280; py = 60 + Math.random()*80; humanoid.slingVx = -6; humanoid.slingVy = 0; }
-      else if (edge === 2) { px = (Math.random()-0.5)*160; py = 280; humanoid.slingVx = 0; humanoid.slingVy = -4; }
-      else                 { px = (Math.random()-0.5)*160; py = -60; humanoid.slingVx = 0; humanoid.slingVy = 4; }
-      humanoid.mesh.position.set(px, py, 0);
-      humanoid.slingFrames = 35;
-      humanoid.flipX = 0; humanoid.flipZ = 0;
+      // Phase 2: spit from near-center at a random angle
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 18 + Math.random() * 10;
+      // Start near center
+      humanoid.mesh.position.set(
+        (Math.random() - 0.5) * 30,
+        80 + (Math.random() - 0.5) * 40,
+        0
+      );
+      // Give butterfly a huge velocity impulse in that random direction
+      butterfly.vx = Math.cos(angle) * speed;
+      butterfly.vy = Math.sin(angle) * speed * 0.6;
+      humanoid.flipX = (Math.random() - 0.5) * Math.PI * 6;
+      humanoid.flipZ = (Math.random() - 0.5) * Math.PI * 6;
+
+      // Reappear with scale pop
       gsap.to(humanoid.mesh.scale, {
-        x: 0.25, y: 0.25, z: 0.25, duration: 0.5, ease: "power2.out",
+        x: 0.25, y: 0.25, z: 0.25, duration: 0.3, ease: "back.out(1.5)",
         onComplete: function() { humanoid.singularity = false; }
       });
+      new Burst(0x6622cc, 14).mesh.position.copy(humanoid.mesh.position);
+      gsap.fromTo('#hit-flash', { opacity: 0.9 }, { opacity: 0, duration: 0.8 });
     }
   });
-  new Burst(0x111118, 14).mesh.position.copy(new THREE.Vector3().copy(humanoid.mesh.position));
+  new Burst(0x111118, 18).mesh.position.copy(humanoid.mesh.position);
 }
 
 function doOrbitalSling() {
@@ -13538,51 +13716,68 @@ function checkCollisions() {
       orbHolder.inUse.splice(i, 1);
 
       if (invincibleFrames > 0) {
-        // Rocketman: obstacles still burst visually but cause no harm
         new Burst(0xffdd00, 12).mesh.position.copy(_eWorld);
         continue;
       }
 
       if (en.orbType === 'black') {
         stats.blackOrbHits++;
-        showToast('removed from pipeline', 'black');
+        showToast('singularity', 'black');
         doSingularity();
         return;
       }
 
-      oxygen -= def.oxygenCost;
       if (def.hitStr === 'heavy') {
+        // Red orb: bounce backward. Pulsing red (emissive > threshold) = reverse time
         stats.redOrbHits++;
-        structuralStress += 0.28;
-        showToast('not moving forward', 'red');
-        gsap.fromTo('#hit-flash', { opacity: 0.7 }, { opacity: 0, duration: 0.5 });
+        structuralStress += 0.25;
+        var isPulsing = en.mat && en.mat.emissive &&
+          (en.mat.emissive.r + en.mat.emissive.g + en.mat.emissive.b) > 0.3;
+        if (isPulsing) {
+          // Reverse time — flip scene direction hard
+          showToast('temporal reversal', 'red');
+          reverseLerp = REVERSE_LIMIT * 0.85;
+          MAGNETIC_FORWARD = -0.8;
+          gsap.fromTo('#hit-flash', { opacity: 0.8 }, { opacity: 0, duration: 0.9 });
+          setTimeout(function() {
+            reverseLerp = 0; MAGNETIC_FORWARD = 1.0;
+          }, 3000);
+        } else {
+          showToast('pushed back', 'red');
+          gsap.fromTo('#hit-flash', { opacity: 0.6 }, { opacity: 0, duration: 0.5 });
+        }
+        // Strong backward impulse
+        butterfly.vx -= (orbHolder.speed * 2.5 + 8);
+        butterfly.vy += (Math.random() - 0.5) * 4;
         humanoid.hitReaction();
-        humanoid.hitReaction();
+
       } else {
+        // Blue orb: flip
         stats.blueOrbHits++;
-        structuralStress += 0.15;
+        structuralStress += 0.14;
         showToast('processed by filter', 'blue');
-        gsap.fromTo('#hit-flash', { opacity: 0.35 }, { opacity: 0, duration: 0.3 });
-        humanoid.hitReaction();
+        gsap.fromTo('#hit-flash', { opacity: 0.3 }, { opacity: 0, duration: 0.3 });
+        // Violent spin flip
+        humanoid.reachFade = 0;
+        gsap.to(humanoid, {
+          flipX: humanoid.flipX + (Math.random() < 0.5 ? 1 : -1) * Math.PI * (2 + Math.random()),
+          flipZ: humanoid.flipZ + (Math.random() - 0.5) * Math.PI * 1.5,
+          duration: 0.55, ease: 'power2.inOut'
+        });
+        for (var bi2 = 0; bi2 < humanoid.joints.length; bi2++) {
+          humanoid.joints[bi2].pivot.userData.velX += (Math.random() - 0.5) * 5;
+          humanoid.joints[bi2].pivot.userData.velZ += (Math.random() - 0.5) * 5;
+        }
       }
 
-      // Structural threshold — too many hits regardless of oxygen
+      oxygen -= def.oxygenCost;
       structuralStress = Math.min(1.0, structuralStress);
       stats.peakStructuralStress = Math.max(stats.peakStructuralStress, structuralStress);
-      if (structuralStress >= 0.8 && structuralStress < 1.0) {
-        showToast('structural integrity — critical', 'black');
-      }
       if (structuralStress >= 1.0) {
-        structuralStress = 0.6; // partial reset on forced tumble
+        structuralStress = 0.5;
         doTumble(); return;
       }
-
-      if (oxygen <= 0) {
-        oxygen = 0;
-        doVoid();
-        refreshUI();
-        return;
-      }
+      if (oxygen <= 0) { oxygen = 0; doVoid(); refreshUI(); return; }
       refreshUI();
     }
   }
@@ -13599,6 +13794,8 @@ function checkCollisions() {
       oxygen = Math.min(MAX_O, oxygen + restore);
       stats.canistersCollected++;
       showToast('oxygen + ' + restore.toFixed(1), 'oxy');
+      // Air makes you lighter — upward lift impulse
+      butterfly.vy += 4.5 + Math.random() * 2;
       gsap.fromTo('#comet-flash', { opacity: cometActive ? 0.4 : 0.2 }, { opacity: 0, duration: 0.3 });
       refreshUI();
     }
@@ -13649,6 +13846,9 @@ function loop() {
   sea.mesh.rotation.z += 0.005 * currentRotSpeed;
   sky.mesh.rotation.z += 0.002 * currentRotSpeed;
   sea.moveWaves();
+  // Keep bhGroup in sync with sea rotation
+  sea.bhGroup.rotation.z = sea.mesh.rotation.z;
+  sea.tickBH(Date.now() * 0.001);
   if (atmosphereGroup) atmosphereGroup.rotation.z = sea.mesh.rotation.z * 0.3;
   if (atmosRingMesh) {
     var distToLine = humanoid ? Math.abs(humanoid.mesh.position.y - ATMOSPHERE_Y) : 999;
@@ -13657,11 +13857,6 @@ function loop() {
     atmosRingMesh.material.opacity = Math.min(0.9, pulse);
     atmosRingGlow.material.opacity = Math.min(0.3, pulse * 0.22 + proximity * 0.12);
   }
-
-  var cycle = (sea.mesh.rotation.z / Math.PI) % planetColors.length;
-  var idx1 = Math.floor(Math.abs(cycle)), idx2 = (idx1+1) % planetColors.length;
-  var c1 = new THREE.Color(planetColors[idx1]), c2 = new THREE.Color(planetColors[idx2]);
-  sea.mesh.material.color.copy(c1).lerp(c2, Math.abs(cycle) - idx1);
 
   if (STATUS === 'playing') {
     // Safety net — ensure scene is always visible during play
@@ -13689,10 +13884,10 @@ function loop() {
       if (cometSparkles.length) updateCometSparkles();
       if (airPuffs.length) updateAirPuffs();
       renderer.render(scene, camera);
-      sea.mesh.visible = false; sky.mesh.visible = false;
+      sea.mesh.visible = false; sea.bhGroup.visible = false; sky.mesh.visible = false;
       orbHolder.mesh.visible = false; canHolder.mesh.visible = false; boxHolder.mesh.visible = false;
       fgRenderer.render(scene, camera);
-      sea.mesh.visible = true; sky.mesh.visible = true;
+      sea.mesh.visible = true; sea.bhGroup.visible = true; sky.mesh.visible = true;
       orbHolder.mesh.visible = true; canHolder.mesh.visible = true; boxHolder.mesh.visible = true;
       return;
     }
@@ -13989,6 +14184,33 @@ function loop() {
       }
     }
 
+    // ── Black orb gravity well — pulls astronaut before collision ────────────
+    if (!humanoid.singularity) {
+      for (var _bhi = 0; _bhi < orbHolder.inUse.length; _bhi++) {
+        var _bh = orbHolder.inUse[_bhi];
+        if (_bh.orbType !== 'black') {
+          // Pulsing red: emissive oscillates, used to flag temporal reversal
+          if (_bh.orbType === 'red') {
+            var _rp = 0.5 + Math.sin(Date.now() * 0.0045 + _bhi * 1.3) * 0.5;
+            _bh.mat.emissive.setRGB(_rp * 0.55, 0, 0);
+          }
+          continue;
+        }
+        _bh.mesh.getWorldPosition(_eWorld);
+        humanoid.mesh.getWorldPosition(_pWorld);
+        var _bhDx = _eWorld.x - _pWorld.x, _bhDy = _eWorld.y - _pWorld.y;
+        var _bhDist = Math.sqrt(_bhDx*_bhDx + _bhDy*_bhDy);
+        if (_bhDist < 130 && _bhDist > 9) {
+          var _bhStr = Math.min(2.8, 2200 / (_bhDist * _bhDist));
+          butterfly.vx += (_bhDx / _bhDist) * _bhStr;
+          butterfly.vy += (_bhDy / _bhDist) * _bhStr;
+          // Pulse emissive purple as it pulls
+          var _bhPulse = 0.08 + Math.sin(Date.now() * 0.007 + _bhi) * 0.06;
+          _bh.mat.emissive.setRGB(_bhPulse * 0.3, 0, _bhPulse * 0.9);
+        }
+      }
+    }
+
     orbHolder.update(); canHolder.update(); boxHolder.update();
     updateBursts(); checkCollisions();
     if (smokeParticles.length) updateSmoke();
@@ -14001,9 +14223,16 @@ function loop() {
 
   } else if (STATUS === 'tumbling') {
     tumble.frames++;
-    // Auto-recover after TUMBLE_TIMEOUT instead of game-over
+    // After timeout, open the node menu
     if (tumble.frames >= TUMBLE_TIMEOUT) {
-      tumble.liftProgress = 1.0; // force recovery
+      STATUS = 'playing'; // restore before openMenu checks
+      structuralStress = 0;
+      oxygen = Math.max(oxygen, MAX_O * 0.3);
+      humanoid.flipX = 0; humanoid.flipZ = 0;
+      humanoid.mesh.position.set(0, 100, 0);
+      refreshUI();
+      openMenu(true);
+      return;
     }
     var GRAVITY = -0.12, FRICTION = 0.96, BOUNCE_DAMP = 0.72, SURFACE_Y = tumble.surfaceY;
     tumble.velY += GRAVITY;
@@ -15801,5 +16030,3 @@ if (msheetEl && msheetEl.classList.contains('on')) {
 
 })();
 </script>
-</body>
-</html>
