@@ -3767,6 +3767,128 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   /* ── END TESSERACT GRID MODE ── */
 
   /* ══ END TESSERACT PHYSICS CSS ══ */
+
+  /* ── STANDALONE NODE OVERLAY — desktop only, always visible in tesseract ── */
+  #tess-node-overlay {
+    display: none; /* shown via body.tess-on */
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 230px;
+    z-index: 58; /* above world (10), below pause-overlay (60) */
+    background: rgba(2,1,14,0.82);
+    border-right: 1px solid rgba(218,165,32,0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    flex-direction: column;
+    overflow: hidden;
+  }
+  body.tess-on #tess-node-overlay { display: flex; }
+
+  /* Mobile: never show standalone overlay */
+  @media (max-width: 768px) {
+    body.tess-on #tess-node-overlay { display: none !important; }
+  }
+
+  #tno-header {
+    flex-shrink: 0;
+    padding: 18px 16px 12px;
+    border-bottom: 1px solid rgba(218,165,32,0.07);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #tno-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 6.5px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: rgba(218,165,32,0.30);
+  }
+  #tno-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(218,165,32,0.14) transparent;
+    padding: 8px 0 24px;
+  }
+  #tno-list::-webkit-scrollbar { width: 2px; }
+  #tno-list::-webkit-scrollbar-thumb { background: rgba(218,165,32,0.18); border-radius: 1px; }
+
+  /* section headers inside overlay */
+  .tno-section-hd {
+    padding: 10px 16px 5px;
+    font-family: 'DM Mono', monospace;
+    font-size: 6px; letter-spacing: 0.24em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 7px;
+    cursor: pointer; user-select: none;
+  }
+  .tno-section-dot {
+    width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
+  }
+  .tno-section-label { flex: 1; color: rgba(255,255,255,0.28); }
+  .tno-section-hd:hover .tno-section-label { color: rgba(255,255,255,0.55); }
+  .tno-chevron { color: rgba(255,255,255,0.18); font-size: 8px; transition: transform 0.18s; }
+  .tno-section-body { overflow: hidden; max-height: 0; transition: max-height 0.22s cubic-bezier(0.22,1,0.36,1); }
+  .tno-section-body.open { max-height: 9999px; }
+
+  .tno-node {
+    padding: 6px 16px 6px 28px;
+    display: flex; align-items: baseline; gap: 8px;
+    cursor: pointer;
+    transition: background 0.12s;
+    border-left: 2px solid transparent;
+  }
+  .tno-node:hover {
+    background: rgba(218,165,32,0.04);
+    border-left-color: rgba(218,165,32,0.25);
+  }
+  .tno-node-year {
+    font-family: 'DM Mono', monospace;
+    font-size: 6px; letter-spacing: 0.10em;
+    color: rgba(218,165,32,0.28); flex-shrink: 0; width: 26px;
+  }
+  .tno-node-title {
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 0.64em; font-weight: 400;
+    color: rgba(255,255,255,0.52); flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .tno-node:hover .tno-node-title { color: rgba(255,255,255,0.82); }
+
+  /* Bump world-fg above the node overlay so astronaut floats on top */
+  #world-fg { z-index: 62 !important; }
+
+  /* In the pause menu: hide the nodes card — they live in the standalone overlay */
+  @media (min-width: 769px) {
+    #pause-overlay.visible #bento-nodes-card { display: none !important; }
+    /* Compact the bento grid to single column when nodes card is gone */
+    #pause-overlay.visible .bento-grid {
+      grid-template-columns: 1fr;
+      max-width: 320px;
+    }
+    #pause-overlay.visible .bento-dispatch { grid-column: 1; grid-row: 1; }
+    #pause-overlay.visible .bento-link    { grid-column: 1; grid-row: 2; }
+  }
+
+  /* Mobile: menu button in top-hud */
+  #tno-menu-btn {
+    display: none;
+  }
+  @media (max-width: 768px) {
+    #tno-menu-btn {
+      display: flex;
+      align-items: center; justify-content: center;
+      background: none; border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 100px;
+      color: rgba(255,255,255,0.45);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.58em; letter-spacing: 1.8px; text-transform: lowercase;
+      padding: 4px 14px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      margin-left: 10px;
+    }
+    #tno-menu-btn.active { color: rgba(104,195,192,0.85); border-color: rgba(104,195,192,0.28); }
+  }
 </style>
 </head>
 <body>
@@ -11416,6 +11538,14 @@ document.addEventListener('keydown', e => {
   <canvas id="event-horizon-canvas"></canvas>
 </div>
 
+<!-- Standalone node overlay — desktop always-on, mobile hidden -->
+<div id="tess-node-overlay">
+  <div id="tno-header">
+    <span id="tno-label">narrative nodes</span>
+  </div>
+  <div id="tno-list"></div>
+</div>
+
 <div id="tesseract-overlay">
 
   <!-- ── PHYSICS ENVIRONMENT — inlined from physics-tess.html ── -->
@@ -11435,6 +11565,7 @@ document.addEventListener('keydown', e => {
     <span id="hud-wordmark" role="button" aria-label="navigate narrative nodes" style="cursor:pointer;">
       <span class="hud-main" style="-webkit-text-fill-color:rgba(255,255,255,0.55);background:none;color:rgba(255,255,255,0.55);font-family:'DM Mono',monospace;font-size:0.68em;letter-spacing:0.22em;text-transform:uppercase;font-weight:400;">Navigate Narrative Nodes</span>
     </span>
+    <button id="tno-menu-btn" aria-label="Open node menu">nodes</button>
   </div>
 
   <!-- Toast banner area -->
@@ -11824,6 +11955,7 @@ window.openTesseract = function(galaxyFilter) {
         window._tessPhysInjectData(html, styles);
       }
       if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
+      if (typeof _buildTnoList === 'function') _buildTnoList();
       if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
     }, _injectDelay);
   });
@@ -13736,6 +13868,89 @@ function _buildBentoNodeList() {
 // Legacy aliases used elsewhere
 function pauseGame()  { openMenu(false); }
 function resumeGame() { closeMenu(); }
+
+// ── Populate the standalone node overlay (desktop always-visible panel) ──
+function _buildTnoList() {
+  var container = document.getElementById('tno-list');
+  if (!container) return;
+
+  var sections = [
+    { key: 'career',    label: 'Career',            col: 'rgba(218,165,32,',  eras: typeof ERAS            !== 'undefined' ? ERAS            : [] },
+    { key: 'sentence',  label: 'Sentence Primitive', col: 'rgba(104,195,192,', eras: typeof PLATFORM_ERAS   !== 'undefined' ? PLATFORM_ERAS   : [] },
+    { key: 'claude',    label: 'Claude',             col: 'rgba(160,120,220,', eras: typeof CLAUDE_ERAS     !== 'undefined' ? CLAUDE_ERAS     : [] },
+    { key: 'manifesto', label: 'Manifesto',          col: 'rgba(255,153,68,',  eras: typeof MANIFESTO_ERAS  !== 'undefined' ? MANIFESTO_ERAS  : [] },
+    { key: 'explorer',  label: 'Explorer',           col: 'rgba(192,132,252,', eras: typeof EXPLORER_ERAS   !== 'undefined' ? EXPLORER_ERAS   : [] },
+  ];
+
+  var allEras = sections.reduce(function(acc, s) { return acc.concat(s.eras); }, []);
+
+  var html = '';
+  sections.forEach(function(sec) {
+    if (!sec.eras.length) return;
+    html += '<div>'
+      + '<div class="tno-section-hd" data-key="' + sec.key + '">'
+      +   '<span class="tno-section-dot" style="background:' + sec.col + '0.65)"></span>'
+      +   '<span class="tno-section-label">' + sec.label + '</span>'
+      +   '<span class="tno-chevron">▾</span>'
+      + '</div>'
+      + '<div class="tno-section-body" id="tno-body-' + sec.key + '">';
+    sec.eras.forEach(function(era) {
+      var tag = (era.year || era.era || '').toString().slice(0,4);
+      html += '<div class="tno-node" data-era-id="' + era.id + '">'
+        + '<span class="tno-node-year">' + tag + '</span>'
+        + '<span class="tno-node-title">' + (era.title || era.id) + '</span>'
+        + '</div>';
+    });
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+
+  // Section toggles — first section open by default
+  container.querySelectorAll('.tno-section-hd').forEach(function(hd) {
+    var body = document.getElementById('tno-body-' + hd.dataset.key);
+    var chev = hd.querySelector('.tno-chevron');
+    if (hd.dataset.key === 'career') {
+      if (body) body.classList.add('open');
+      if (chev) chev.style.transform = 'rotate(180deg)';
+    }
+    hd.addEventListener('click', function() {
+      var open = body.classList.toggle('open');
+      if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+    });
+  });
+
+  // Node clicks — navigate directly, no menu needed
+  container.querySelectorAll('.tno-node').forEach(function(node) {
+    var era = allEras.find(function(e) { return e.id === node.dataset.eraId; });
+    if (!era) return;
+    // Hover preview feeds the dispatch card even when menu is closed
+    node.addEventListener('mouseenter', function() { _renderDispatchNode(era); });
+    node.addEventListener('mouseleave', function() { _renderDispatchDefault(); });
+    node.addEventListener('click', function() { _tessNavigateTo(era); });
+  });
+}
+window._buildTnoList = _buildTnoList;
+
+// ── Mobile menu button toggle ──
+(function() {
+  var btn = document.getElementById('tno-menu-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function() {
+    if (pauseActive) { closeMenu(); btn.classList.remove('active'); }
+    else             { openMenu(true); btn.classList.add('active'); }
+  });
+  btn.addEventListener('touchend', function(e) {
+    e.stopPropagation(); e.preventDefault();
+    if (pauseActive) { closeMenu(); btn.classList.remove('active'); }
+    else             { openMenu(true); btn.classList.add('active'); }
+  }, { passive: false });
+  // Keep button state in sync when menu closes by other means
+  var _origCloseMenu = closeMenu;
+  closeMenu = function() {
+    _origCloseMenu();
+    btn.classList.remove('active');
+  };
+})();
 
 // btn-pause-resume removed — wire touchend on return button instead
 
