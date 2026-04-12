@@ -11601,13 +11601,33 @@ window.openTesseract = function(galaxyFilter) {
   var injectDelay = _tessPhysInited ? 60 : 260;
   _tessPhysInited = true;
   if (window._tessPhysicsInit) window._tessPhysicsInit();
+
+  // Always reset UI to fresh state on every open
+  (function resetTessUI() {
+    // Clear any lingering menu/pause flags so the game loop runs clean
+    if (typeof pauseActive !== 'undefined') pauseActive = false;
+    if (typeof frameFrozen !== 'undefined') frameFrozen = false;
+    if (typeof _tessMenuActive !== 'undefined') _tessMenuActive = false;
+
+    // Scroll node list back to top
+    var nodesList = document.getElementById('bento-nodes-list');
+    if (nodesList) { nodesList.scrollTop = 0; }
+
+    // Reset dispatch card label and content immediately
+    var lbl = document.getElementById('dispatch-label');
+    var content = document.getElementById('pause-dispatch-content');
+    if (lbl) lbl.textContent = 'navigate a node';
+    if (content) content.innerHTML =
+      '<div style="padding:8px 0;color:rgba(255,255,255,0.18);font-size:0.68em;letter-spacing:1.5px;line-height:1.8;">hover a node<br>to preview</div>';
+  })();
+
   setTimeout(function(){
     if (window._tessPhysInjectData) {
       var html = _buildTessDataPayload();
       var styles = _tessDataStyles();
       window._tessPhysInjectData(html, styles);
     }
-    // Always rebuild node list + reset dispatch for fresh state
+    // Rebuild node list (collapsed sections reset) + default dispatch
     if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
     if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
   }, injectDelay);
