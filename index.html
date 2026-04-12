@@ -13415,21 +13415,21 @@ document.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 document.addEventListener('touchmove', function(e) {
-  // Allow native scroll inside bento overlay panels
+  if (!window._tessPhysActive) return;
+  // Allow native scroll only inside specific scrollable panels
   var _t = e.target;
   while (_t && _t !== document.body) {
-    var _id = _t.id;
-    if (_id === 'bento-nodes-list' || _id === 'pause-dispatch-content' ||
-        _id === 'pause-overlay' || _id === 'bento-nodes-card' ||
-        _id === 'tesseract-overlay' ||
+    if (_t.id === 'bento-nodes-list' ||
+        _t.id === 'pause-dispatch-content' ||
+        _t.id === 'bento-nodes-card' ||
         (_t.classList && (_t.classList.contains('bn-section-body') ||
-                          _t.classList.contains('bento-card') ||
                           _t.classList.contains('gcscroll')))) {
-      return;
+      return; // let browser scroll these panels natively
     }
     _t = _t.parentElement;
   }
-  if (e.cancelable) e.preventDefault();
+  // All other touches — prevent scroll, update mouse
+  e.preventDefault();
   if (e.touches.length === 2 && touchState.twoFinger) {
     var midY = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
     var delta = touchState.twoStartY - midY;
@@ -13467,6 +13467,15 @@ document.addEventListener('touchend', function(e) {
   if (STATUS === 'waiting' || STATUS === 'gameover') return;
   e.preventDefault();
   touchState.twoFinger = false;
+
+  // Long-press guard — must be checked BEFORE anything else, regardless of touchState.active
+  if (typeof longPressFired !== 'undefined' && longPressFired) {
+    longPressFired = false;
+    touchState.active = false;
+    touchState.id = null; _touchRawX = null; _touchRawY = null;
+    return;
+  }
+
   if (!touchState.active) return;
   if (!touchState.hasMoved && STATUS === 'playing') {
     humanoid.reachFade = 0;
@@ -13581,6 +13590,8 @@ function openMenu(force) {
   if (!force && (STATUS === 'void' || STATUS === 'tumbling')) return;
   pauseActive = true;
   frameFrozen = false;
+  var exitBtn = document.getElementById('tess-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'none';
   // Populate dispatch with node-preview panel (default: prompt)
   if (!_tessMenuActive) {
     _renderDispatchDefault();
@@ -13626,6 +13637,8 @@ function closeMenu() {
   document.getElementById('pause-overlay').classList.remove('tess-mode');
   document.getElementById('pause-overlay').classList.remove('visible');
   document.getElementById('world-fg').style.display = 'none';
+  var exitBtn = document.getElementById('tess-exit-btn');
+  if (exitBtn) exitBtn.style.display = '';
   // Restore oxygen so they can keep floating after navigating
   if (oxygen <= 0) { oxygen = MAX_O * 0.5; refreshUI(); }
   updateHintLabel();
