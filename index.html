@@ -17,8 +17,8 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
 @media(max-width:768px){
   canvas{
     position:fixed;
-    top:52px; /* below topbar */
-    height:var(--canvas-h, calc(100vh - 52px));
+    top:62px; /* below topbar (10px offset + 52px height) */
+    height:var(--canvas-h, calc(100vh - 62px));
   }
 }
 #bg-mesh{position:fixed;inset:0;z-index:0;pointer-events:none;}
@@ -62,7 +62,7 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
 /* Mobile: affixed top-center, no drag, full-width pill */
 @media (max-width: 768px) {
   #topbar-widget {
-    top: 0 !important; left: 0 !important; right: 0 !important;
+    top: 10px !important; left: 0 !important; right: 0 !important;
     width: 100% !important; transform: none !important;
     border-radius: 0;
     border-top: none; border-left: none; border-right: none;
@@ -77,7 +77,7 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
   /* hide the menu drawer on mobile — buttons are visible in the bar */
   #topbar-widget-menu { display: none !important; }
   /* account for affixed topbar height in panel/sheet positioning */
-  #ghost { top: 52px !important; }
+  #ghost { top: 62px !important; }
   #msheet { bottom: 0; }  /* anchor to real bottom edge */
 }
 
@@ -256,7 +256,7 @@ body.light #tbw-logo svg .bh-node { fill: rgba(0,0,0,0.38) !important; }
 #wormhole-belt.open { width: 140px; }
 
 @media (max-width: 768px) {
-  #wormhole-belt { top: 52px; }
+  #wormhole-belt { top: 62px; }
   #wormhole-belt.open { width: 120px; }
 }
 
@@ -1777,6 +1777,20 @@ body.light #mf-close:hover{color:#000;}
 .gc-cycle-label {
   font-family:'DM Mono',monospace; font-size:7px; letter-spacing:0.20em;
   text-transform:uppercase; color:rgba(218,165,32,0.38);
+}
+
+/* ── EVENT HORIZON TRANSITION ──────────────────────────────────
+   Smooth wormhole swoop: radial tunnel, stars streak inward,
+   space bends and collapses before the tesseract opens.
+──────────────────────────────────────────────────────────────── */
+#event-horizon-overlay {
+  position: fixed; inset: 0; z-index: 965;
+  pointer-events: none;
+  opacity: 0;
+  display: none;
+}
+#event-horizon-canvas {
+  display: block; width: 100%; height: 100%;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -9525,19 +9539,6 @@ cvs.addEventListener('pointerup', e => {
     if (mobileMomentumActive) { mobileMomentumActive = false; return; }
     // Ignore touches fired during page-load startup (prevents panel auto-open)
     if (_startupGrace()) return;
-    const SWIPE_THRESHOLD = 48;
-    const AXIS_RATIO = 1.4;
-
-    if (isFocused && dist > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * AXIS_RATIO) {
-      // Horizontal swipe → navigate nodes
-      if (dx < 0) {
-        navNext();
-      } else {
-        navPrev();
-      }
-      return;
-    }
-
     // Short tap: open panel for current focused node, or jump to tapped node
     // Only process as tap if we didn't drag significantly
     if (dist < 16 && !wasDragging) {
@@ -11410,6 +11411,11 @@ document.addEventListener('keydown', e => {
 </script>
 
 
+<!-- Event horizon transition canvas -->
+<div id="event-horizon-overlay">
+  <canvas id="event-horizon-canvas"></canvas>
+</div>
+
 <div id="tesseract-overlay">
 
   <!-- ── PHYSICS ENVIRONMENT — inlined from physics-tess.html ── -->
@@ -11434,15 +11440,13 @@ document.addEventListener('keydown', e => {
   <!-- Toast banner area -->
   <div id="toast-banner-area"></div>
 
-  <!-- Bottom HUD: reverse | forward (mobile only) -->
+  <!-- Bottom HUD: single direction toggle (mobile only) -->
   <div id="bottom-hud">
-    <button id="btn-hud-back" class="hud-btn">&#8592;</button>
-    <div class="hud-sep"></div>
-    <button id="btn-hud-fwd" class="hud-btn">&#8594;</button>
+    <button id="btn-hud-dir" class="hud-btn" title="Toggle direction">&#8594; fwd</button>
   </div>
 
   <div id="pause-overlay">
-    <button id="btn-menu-close" aria-label="close menu">&#x2715;</button>
+    <button id="btn-menu-close" aria-label="close menu" style="display:none!important;"></button>
     <div class="bento-grid">
 
       <div class="bento-card bento-manifesto" id="bento-nodes-card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
@@ -11573,6 +11577,192 @@ window.tesseractOpen = false; // exposed for physics IIFE scope
 var tesseractGridVisible = false;  // legacy compat stub
 var _tessPhysInited = false;
 
+// ─── Event Horizon Transition ──────────────────────────────────────────────
+// Smooth wormhole swoop: radial star-streak tunnel that compresses into
+// a singularity before the tesseract overlay fades in.
+// onComplete fires when the tunnel reaches full darkness (overlay safe to show).
+(function() {
+  var _ehRunning = false;
+
+  window.playEventHorizon = function(onComplete) {
+    var overlay = document.getElementById('event-horizon-overlay');
+    var cvs     = document.getElementById('event-horizon-canvas');
+    if (!overlay || !cvs) { if (onComplete) onComplete(); return; }
+    if (_ehRunning) { if (onComplete) onComplete(); return; }
+    _ehRunning = true;
+
+    var W = window.innerWidth, H = window.innerHeight;
+    cvs.width  = W;
+    cvs.height = H;
+    var ctx = cvs.getContext('2d');
+
+    overlay.style.display = 'block';
+    overlay.style.opacity = '1';
+
+    // Star field: random points that will streak toward center
+    var NUM_STARS = 260;
+    var cx = W * 0.5, cy = H * 0.5;
+    var stars = [];
+    for (var i = 0; i < NUM_STARS; i++) {
+      // Distribute in a ring so center stays clear at start
+      var angle  = Math.random() * Math.PI * 2;
+      var radius = 80 + Math.random() * Math.max(W, H) * 0.62;
+      stars.push({
+        angle:  angle,
+        radius: radius,
+        baseR:  radius,
+        speed:  0.6 + Math.random() * 1.4,   // relative pull speed
+        size:   0.8 + Math.random() * 1.6,
+        bright: 0.35 + Math.random() * 0.65,
+        hue:    Math.random() < 0.15 ? 200 + Math.random() * 60 : 0  // some blue-tinted
+      });
+    }
+
+    // Lens rings that expand then compress
+    var NUM_RINGS = 5;
+
+    var startTime = null;
+    var TOTAL_MS  = 1200;   // full animation duration
+    var REVEAL_AT = 0.82;   // fraction when onComplete fires — scene inits then blackout lifts
+
+    var completeFired = false;
+
+    function easeIn(t)    { return t * t * t; }
+    function easeInOut(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+    function lerp(a,b,t)  { return a + (b-a)*t; }
+
+    function frame(ts) {
+      if (!startTime) startTime = ts;
+      var elapsed = ts - startTime;
+      var p = Math.min(1, elapsed / TOTAL_MS);   // 0 → 1 over TOTAL_MS
+
+      // Fire onComplete once the tunnel fully darkens (REVEAL_AT fraction)
+      if (!completeFired && p >= REVEAL_AT) {
+        completeFired = true;
+        if (onComplete) onComplete();
+      }
+
+      ctx.clearRect(0, 0, W, H);
+
+      // ── Background — deep space, darkens toward singularity ──
+      var bgAlpha = easeIn(p);
+      ctx.fillStyle = 'rgba(1,0,6,' + (0.08 + bgAlpha * 0.94).toFixed(3) + ')';
+      ctx.fillRect(0, 0, W, H);
+
+      // ── Lens distortion rings — expand out then implode ──
+      for (var ri = 0; ri < NUM_RINGS; ri++) {
+        // Each ring starts at different phase
+        var rPhase  = ri / NUM_RINGS;
+        var rP      = Math.min(1, Math.max(0, p - rPhase * 0.12));
+        // Ring expands fast, then collapses after midpoint
+        var expand  = Math.sin(rP * Math.PI);
+        var maxR    = Math.min(W, H) * (0.12 + ri * 0.11);
+        var rRadius = maxR * expand;
+        if (rRadius < 2) continue;
+
+        var ringAlpha = (1 - ri * 0.14) * expand * (1 - easeIn(p) * 0.7);
+        var hue       = lerp(220, 45, p);   // blue → gold as we approach singularity
+        ctx.beginPath();
+        ctx.arc(cx, cy, rRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'hsla(' + hue + ',90%,72%,' + (ringAlpha * 0.55).toFixed(3) + ')';
+        ctx.lineWidth   = lerp(0.8, 0.2, p);
+        ctx.stroke();
+      }
+
+      // ── Star streaks — accelerate toward center ──
+      var pullStrength = easeIn(p);   // starts gentle, rockets at end
+      for (var si = 0; si < NUM_STARS; si++) {
+        var s = stars[si];
+        // Stars are pulled inward; radius shrinks to near-zero
+        var r = s.baseR * (1 - pullStrength * 0.985);
+        if (r < 0.5) continue;
+
+        var sx = cx + Math.cos(s.angle) * r;
+        var sy = cy + Math.sin(s.angle) * r;
+
+        // Streak length grows with pull speed
+        var trailLen = pullStrength * s.baseR * 0.38 * s.speed;
+        var tx = sx + Math.cos(s.angle + Math.PI) * trailLen;
+        var ty = sy + Math.sin(s.angle + Math.PI) * trailLen;
+
+        var starAlpha = s.bright * (1 - easeIn(Math.max(0, p - 0.7) / 0.3));
+
+        var grad = ctx.createLinearGradient(tx, ty, sx, sy);
+        var col  = s.hue > 0
+          ? 'hsla(' + s.hue + ',80%,85%,'
+          : 'rgba(245,240,255,';
+        grad.addColorStop(0, col + '0)');
+        grad.addColorStop(1, col + starAlpha.toFixed(3) + ')');
+
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(sx, sy);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth   = s.size * (1 + pullStrength * 2.5);
+        ctx.stroke();
+
+        // Bright head dot
+        ctx.beginPath();
+        ctx.arc(sx, sy, s.size * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = col + (starAlpha * 0.9).toFixed(3) + ')';
+        ctx.fill();
+      }
+
+      // ── Singularity core — grows from nothing, blooms at center ──
+      var coreP    = Math.max(0, (p - 0.25) / 0.75);
+      var coreR    = easeInOut(coreP) * Math.min(W, H) * 0.38;
+      if (coreR > 1) {
+        // Outer glow
+        var gOuter = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+        gOuter.addColorStop(0,   'rgba(180,120,255,' + (easeInOut(coreP) * 0.22).toFixed(3) + ')');
+        gOuter.addColorStop(0.4, 'rgba(60,0,180,'   + (easeInOut(coreP) * 0.30).toFixed(3) + ')');
+        gOuter.addColorStop(1,   'rgba(1,0,6,0)');
+        ctx.beginPath(); ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+        ctx.fillStyle = gOuter; ctx.fill();
+
+        // Accretion glow band
+        var diskR   = coreR * 0.55;
+        var diskAlpha = easeInOut(coreP) * 0.45;
+        var gDisk   = ctx.createRadialGradient(cx, cy, diskR * 0.5, cx, cy, diskR * 1.1);
+        gDisk.addColorStop(0,   'rgba(218,165,32,' + diskAlpha.toFixed(3) + ')');
+        gDisk.addColorStop(0.5, 'rgba(255,80,20,'  + (diskAlpha * 0.6).toFixed(3) + ')');
+        gDisk.addColorStop(1,   'rgba(10,0,30,0)');
+        ctx.beginPath(); ctx.arc(cx, cy, diskR, 0, Math.PI * 2);
+        ctx.fillStyle = gDisk; ctx.fill();
+
+        // Hard singularity centre
+        var singR = Math.min(diskR * 0.22, 18) * easeIn(coreP);
+        if (singR > 0.5) {
+          ctx.beginPath(); ctx.arc(cx, cy, singR, 0, Math.PI * 2);
+          ctx.fillStyle = '#000'; ctx.fill();
+        }
+      }
+
+      // ── Final black-out vignette ──
+      if (p > REVEAL_AT) {
+        var blackP  = (p - REVEAL_AT) / (1 - REVEAL_AT);
+        var vAlpha  = easeIn(blackP);
+        ctx.fillStyle = 'rgba(1,0,6,' + vAlpha.toFixed(3) + ')';
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      if (p < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        // Clean up
+        overlay.style.opacity = '0';
+        setTimeout(function() {
+          overlay.style.display = 'none';
+          ctx.clearRect(0, 0, W, H);
+          _ehRunning = false;
+        }, 80);
+      }
+    }
+
+    requestAnimationFrame(frame);
+  };
+})();
+
 // Navigate to an era — close tesseract then focus the node
 function _tessNavigateTo(era) {
   if(typeof isBlackHoleFocused!=='undefined') isBlackHoleFocused=false;
@@ -11592,51 +11782,51 @@ window.openTesseract = function(galaxyFilter) {
   // Pause the main universe render
   if(typeof _mainRAFRunning!=='undefined'){ _mainRAFRunning=false; }
 
-  var overlay = document.getElementById('tesseract-overlay');
-  overlay.style.display = 'block';
-  requestAnimationFrame(function(){ overlay.classList.add('on'); });
-
-  // Glow the topbar button
+  // Glow the topbar button immediately
   var astBtn = document.getElementById('tbw-astro');
   if (astBtn) astBtn.classList.add('ast-on');
 
   // Activate physics input listeners
   window._tessPhysActive = true;
 
-  // Init physics (first open builds scene; subsequent calls just reset game state)
-  var injectDelay = _tessPhysInited ? 60 : 260;
+  // Play event horizon transition — all scene setup fires in onComplete,
+  // so the canvas has real dimensions and is visible before the loop starts.
+  var _injectDelay = _tessPhysInited ? 60 : 260;
   _tessPhysInited = true;
-  if (window._tessPhysicsInit) window._tessPhysicsInit();
 
-  // Always reset UI to fresh state on every open
-  (function resetTessUI() {
-    // Clear any lingering menu/pause flags so the game loop runs clean
+  playEventHorizon(function() {
+    // Reveal the tesseract overlay
+    var overlay = document.getElementById('tesseract-overlay');
+    overlay.style.display = 'block';
+    requestAnimationFrame(function(){ overlay.classList.add('on'); });
+
+    // Reset UI flags so game loop starts clean
     if (typeof pauseActive !== 'undefined') pauseActive = false;
     if (typeof frameFrozen !== 'undefined') frameFrozen = false;
     if (typeof _tessMenuActive !== 'undefined') _tessMenuActive = false;
 
-    // Scroll node list back to top
     var nodesList = document.getElementById('bento-nodes-list');
     if (nodesList) { nodesList.scrollTop = 0; }
-
-    // Reset dispatch card label and content immediately
     var lbl = document.getElementById('dispatch-label');
     var content = document.getElementById('pause-dispatch-content');
     if (lbl) lbl.textContent = 'navigate a node';
     if (content) content.innerHTML =
       '<div style="padding:8px 0;color:rgba(255,255,255,0.18);font-size:0.68em;letter-spacing:1.5px;line-height:1.8;">hover a node<br>to preview</div>';
-  })();
 
-  setTimeout(function(){
-    if (window._tessPhysInjectData) {
-      var html = _buildTessDataPayload();
-      var styles = _tessDataStyles();
-      window._tessPhysInjectData(html, styles);
-    }
-    // Rebuild node list (collapsed sections reset) + default dispatch
-    if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
-    if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
-  }, injectDelay);
+    // Init physics NOW — canvas is visible, dimensions are real
+    if (window._tessPhysicsInit) window._tessPhysicsInit();
+
+    // Inject node data after scene is ready
+    setTimeout(function(){
+      if (window._tessPhysInjectData) {
+        var html = _buildTessDataPayload();
+        var styles = _tessDataStyles();
+        window._tessPhysInjectData(html, styles);
+      }
+      if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
+      if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
+    }, _injectDelay);
+  });
 };
 
 // Inject data-toggle content into physics bento dispatch
@@ -13572,9 +13762,8 @@ function startGame() {
   directionState = 1; MAGNETIC_FORWARD = 1.0; reverseLerp = 0;
   sceneSpeed = 1.0;
   butterfly.vx = 0; butterfly.vy = 0;
-  var btnBack = document.getElementById('btn-hud-back'), btnFwd = document.getElementById('btn-hud-fwd');
-  if (btnBack) btnBack.classList.remove('active');
-  if (btnFwd)  btnFwd.classList.remove('active');
+  var btnDir = document.getElementById('btn-hud-dir');
+  if (btnDir) { btnDir.innerHTML = '&#8594; fwd'; btnDir.classList.remove('active'); }
   pauseActive = false; frameFrozen = false;
   document.getElementById('pause-overlay').classList.remove('visible');
   document.getElementById('world-fg').style.display = 'none';
@@ -14372,9 +14561,8 @@ function updateHintLabel() {
 function goHome() {
   directionState = 1; MAGNETIC_FORWARD = 1.0; reverseLerp = 0;
   frameFrozen = false;
-  var btnBack = document.getElementById('btn-hud-back'), btnFwd = document.getElementById('btn-hud-fwd');
-  if (btnBack) btnBack.classList.remove('active');
-  if (btnFwd)  btnFwd.classList.remove('active');
+  var btnDir = document.getElementById('btn-hud-dir');
+  if (btnDir) { btnDir.innerHTML = '&#8594; fwd'; btnDir.classList.remove('active'); }
   openMenu(true);
 }
 
@@ -14398,17 +14586,16 @@ var directionState = 1;
 function setDirection(dir) {
   if (STATUS !== 'playing') return;
   directionState = dir;
+  var btnDir = document.getElementById('btn-hud-dir');
   if (dir === -1) {
     reverseLerp = REVERSE_LIMIT * 0.75;
     MAGNETIC_FORWARD = -0.6;
-    document.getElementById('btn-hud-back').classList.add('active');
-    document.getElementById('btn-hud-fwd').classList.remove('active');
+    if (btnDir) { btnDir.innerHTML = '&#8592; rev'; btnDir.classList.add('active'); }
     showToast('reversing');
   } else {
     reverseLerp = 0;
     MAGNETIC_FORWARD = 1.0;
-    document.getElementById('btn-hud-fwd').classList.add('active');
-    document.getElementById('btn-hud-back').classList.remove('active');
+    if (btnDir) { btnDir.innerHTML = '&#8594; fwd'; btnDir.classList.remove('active'); }
     showToast('forward');
   }
 }
@@ -14420,8 +14607,7 @@ function wireBtn(id, fn) {
   el.addEventListener('touchend', function(e) { e.stopPropagation(); e.preventDefault(); fn(); }, { passive: false });
 }
 
-wireBtn('btn-hud-back', function() { setDirection(directionState === -1 ? 1 : -1); });
-wireBtn('btn-hud-fwd',  function() { setDirection(directionState === 1  ? -1 : 1); });
+wireBtn('btn-hud-dir', function() { setDirection(directionState === 1 ? -1 : 1); });
 
 
 // ─── Long-press on mobile → reset character orientation ──────────────────────
