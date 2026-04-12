@@ -3350,8 +3350,14 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
     justify-content: center;
     padding: 24px;
     overflow-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
   }
   #pause-overlay.visible { opacity: 1; pointer-events: all; }
+  #bento-nodes-list {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
   .bento-grid {
     display: grid;
     grid-template-columns: 1.55fr 1fr;
@@ -11854,6 +11860,18 @@ function _tessPhysInjectData(rawHtml, styles) {
 document.addEventListener('touchmove', function(e) {
   if (!window._tessPhysActive) return;
   if (STATUS === 'waiting' || STATUS === 'gameover') return;
+  // Allow native scroll inside any scrollable overlay panel
+  var t = e.target;
+  while (t && t !== document.body) {
+    var id = t.id;
+    if (id === 'bento-nodes-list' || id === 'pause-dispatch-content' ||
+        id === 'pause-overlay' || id === 'bento-nodes-card' ||
+        (t.classList && (t.classList.contains('bn-section-body') ||
+                         t.classList.contains('bento-card')))) {
+      return; // let the browser handle native scroll
+    }
+    t = t.parentElement;
+  }
   e.preventDefault();
 }, { passive: false });
 
@@ -13224,6 +13242,18 @@ document.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 document.addEventListener('touchmove', function(e) {
+  // Allow native scroll inside bento overlay panels
+  var _t = e.target;
+  while (_t && _t !== document.body) {
+    var _id = _t.id;
+    if (_id === 'bento-nodes-list' || _id === 'pause-dispatch-content' ||
+        _id === 'pause-overlay' || _id === 'bento-nodes-card' ||
+        (_t.classList && (_t.classList.contains('bn-section-body') ||
+                          _t.classList.contains('bento-card')))) {
+      return;
+    }
+    _t = _t.parentElement;
+  }
   e.preventDefault();
   if (e.touches.length === 2 && touchState.twoFinger) {
     var midY = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
