@@ -99,8 +99,8 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
 .tbw-btn {
   background: none; border: none; cursor: pointer;
   color: rgba(218,165,32,0.38);
-  font-family: 'DM Mono', monospace; font-size: 7.5px; letter-spacing: 0.18em;
-  text-transform: uppercase; padding: 9px 13px;
+  font-family: 'DM Mono', monospace; font-size: 8.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; padding: 11px 16px;
   border-right: 1px solid rgba(218,165,32,0.08);
   transition: color 0.15s, background 0.15s;
   white-space: nowrap;
@@ -111,6 +111,9 @@ canvas{display:block;width:100vw;height:100vh;height:var(--canvas-h,100vh);posit
 .tbw-btn:hover { color: rgba(218,165,32,0.90); background: rgba(218,165,32,0.06); }
 .tbw-btn.active { color: #daa520; background: rgba(218,165,32,0.10); }
 .tbw-sep { width: 1px; background: rgba(218,165,32,0.10); align-self: stretch; flex-shrink: 0; margin: 5px 0; }
+@media (max-width: 768px) {
+  .tbw-btn { font-size: 8px; padding: 10px 12px; }
+}
 
 /* menu drawer */
 #topbar-widget-menu {
@@ -1859,7 +1862,7 @@ body.light #mf-close:hover{color:#000;}
   flex-shrink: 0; margin-left: 8px; background: none;
   border: 1px solid rgba(218,165,32,0.18); color: rgba(218,165,32,0.40);
   width: 28px; height: 28px; border-radius: 3px; cursor: pointer; font-size: 12px;
-  display: flex; align-items: center; justify-content: center;
+  display: none; align-items: center; justify-content: center;
   font-family: 'DM Mono', monospace; transition: all 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -3842,9 +3845,13 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
     <div class="tbw-sep"></div>
     <button class="tbw-btn" id="tbw-astro" title="Open Tesseract" style="padding:5px 8px;display:flex;align-items:center;justify-content:center;" onclick="window.openTesseract&&window.openTesseract()">
       <svg id="ast-hud-canvas" width="26" height="26" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="display:block;opacity:0.7;transition:opacity 0.2s;">
-        <ellipse cx="16" cy="16" rx="14" ry="5" fill="none" stroke="#daa520" stroke-width="1.2" opacity="0.5" transform="rotate(-22 16 16)"/>
-        <circle cx="16" cy="16" r="7" fill="#daa520" opacity="0.85"/>
-        <ellipse cx="16" cy="16" rx="14" ry="5" fill="none" stroke="#daa520" stroke-width="1.2" opacity="0.9" stroke-dasharray="9 13" transform="rotate(-22 16 16)"/>
+        <!-- helmet dome -->
+        <path d="M16 4C10.477 4 6 8.477 6 14v7a4 4 0 0 0 4 4h12a4 4 0 0 0 4-4v-7C26 8.477 21.523 4 16 4z" fill="none" stroke="#daa520" stroke-width="1.2" opacity="0.85"/>
+        <!-- visor -->
+        <path d="M10.5 13.5 Q16 10 21.5 13.5 L21.5 18 Q16 21 10.5 18 Z" fill="#daa520" opacity="0.35"/>
+        <path d="M10.5 13.5 Q16 10 21.5 13.5 L21.5 18 Q16 21 10.5 18 Z" fill="none" stroke="#daa520" stroke-width="0.8" opacity="0.80"/>
+        <!-- collar ring -->
+        <rect x="9" y="24.5" width="14" height="2.5" rx="1.2" fill="none" stroke="#daa520" stroke-width="1.0" opacity="0.55"/>
       </svg>
     </button>
   </div>
@@ -8032,7 +8039,22 @@ function updateGalaxyAlpha() {
     else { hud.classList.add('orrery-view'); hud.classList.remove('galaxy-view'); }
   }
   // Show right HUD when in sol (orrery) view
-  if (window._showRightHud) window._showRightHud(galaxyAlpha < 0.5);
+  const _isMobOrrery = window.innerWidth <= 768;
+  if (window._showRightHud) window._showRightHud(_isMobOrrery ? false : galaxyAlpha < 0.5);
+  // Mobile orrery: hide galaxy hero image, default panel to expanded text
+  if (_isMobOrrery) {
+    const heroImg = document.getElementById('ms-hero-img');
+    if (heroImg) heroImg.style.display = galaxyAlpha < 0.5 ? 'none' : '';
+    // Auto-expand text on entering orrery (galaxyAlpha crossing below 0.5)
+    if (typeof prevGa !== 'undefined' && prevGa >= 0.5 && galaxyAlpha < 0.5) {
+      const ms = document.getElementById('msheet');
+      if (ms && !ms.classList.contains('expanded')) {
+        ms.classList.add('expanded');
+        const expandBtn = document.getElementById('ms-expand-btn');
+        if (expandBtn) expandBtn.textContent = '⊟';
+      }
+    }
+  }
   // FAB is the logo — always visible regardless of view
   const _fab = document.getElementById('flight-fab');
   if (_fab) {
@@ -10123,7 +10145,7 @@ if (window.innerWidth <= 768) {
     // Angle chosen to show sentence galaxy top-left + black hole center, matching screenshot
     const phi   = Math.PI * 0.22;
     const theta = Math.PI * 1.55;
-    const radius = 260;
+    const radius = 238;
     camState.phi    = phi;
     camState.theta  = theta;
     camState.radius = radius;
@@ -11441,11 +11463,9 @@ document.addEventListener('keydown', e => {
   <!-- Toast banner area -->
   <div id="toast-banner-area"></div>
 
-  <!-- Bottom HUD: reverse | forward (mobile only) -->
+  <!-- Bottom HUD: single two-state fwd/back button (mobile only) -->
   <div id="bottom-hud">
-    <button id="btn-hud-back" class="hud-btn">&#8592;</button>
-    <div class="hud-sep"></div>
-    <button id="btn-hud-fwd" class="hud-btn">&#8594;</button>
+    <button id="btn-hud-nav" class="hud-btn" data-dir="fwd">&#8594; forward</button>
   </div>
 
   <div id="pause-overlay">
@@ -11589,6 +11609,122 @@ function _tessNavigateTo(era) {
 }
 
 // Open the tesseract: show overlay, init physics (first time), inject data
+// ── Singularity particle transition ──────────────────────────────────────────
+// Zooming rush of particles past the event horizon, entering/exiting tesseract.
+function _singularityTransition(direction, onComplete) {
+  // direction: 'enter' | 'exit'
+  var existing = document.getElementById('singularity-transition-canvas');
+  if (existing) existing.remove();
+
+  var cvs = document.createElement('canvas');
+  cvs.id = 'singularity-transition-canvas';
+  cvs.style.cssText = 'position:fixed;inset:0;z-index:955;pointer-events:none;width:100vw;height:100vh;';
+  document.body.appendChild(cvs);
+
+  var W = window.innerWidth, H = window.innerHeight;
+  cvs.width = W; cvs.height = H;
+  var ctx = cvs.getContext('2d');
+  var cx = W * 0.5, cy = H * 0.5;
+
+  var DURATION = direction === 'enter' ? 820 : 620;
+  var start = performance.now();
+  var N = 260;
+
+  // Particles: each has angle, distance from center, speed, size, opacity
+  var particles = [];
+  for (var i = 0; i < N; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var dist  = direction === 'enter'
+      ? (0.15 + Math.random() * 0.85) * Math.max(W, H) * 0.72
+      : (0.01 + Math.random() * 0.25) * Math.max(W, H) * 0.20;
+    particles.push({
+      angle: angle,
+      dist: dist,
+      speed: 0.6 + Math.random() * 2.2,
+      size: 0.6 + Math.random() * 1.8,
+      op: 0.3 + Math.random() * 0.7,
+      streakLen: 0.04 + Math.random() * 0.14,
+      hue: Math.random() < 0.7 ? 43 : (Math.random() < 0.5 ? 55 : 200)
+    });
+  }
+
+  var singR = 0;
+
+  function tick(now) {
+    var elapsed = now - start;
+    var t = Math.min(elapsed / DURATION, 1);
+    var ease = direction === 'enter'
+      ? t * t * (3 - 2 * t)          // smooth step
+      : 1 - Math.pow(1 - t, 2.4);    // ease-in
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Singularity glow at center
+    singR = direction === 'enter'
+      ? ease * 38 + (1 - ease) * 4
+      : (1 - ease) * 38 + ease * 4;
+    var grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, singR * 3.5);
+    grd.addColorStop(0,   'rgba(218,165,32,' + (ease * 0.95) + ')');
+    grd.addColorStop(0.3, 'rgba(218,165,32,' + (ease * 0.30) + ')');
+    grd.addColorStop(1,   'rgba(5,3,10,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(cx, cy, singR * 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // Core singularity dot
+    ctx.beginPath(); ctx.arc(cx, cy, singR * 0.55, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,235,150,' + Math.min(1, ease * 1.8) + ')';
+    ctx.fill();
+
+    // Particles rush inward (enter) or outward (exit)
+    particles.forEach(function(p) {
+      var pull = direction === 'enter'
+        ? ease * ease * 3.2 + 0.4
+        : (1 - ease) * 0.1 + ease * ease * 3.8;
+      var d = direction === 'enter'
+        ? p.dist * (1 - pull * 0.92 * t)
+        : p.dist + pull * t * Math.max(W, H) * 0.65;
+
+      var px = cx + Math.cos(p.angle) * d;
+      var py = cy + Math.sin(p.angle) * d;
+
+      // Streak toward singularity
+      var streakD = d * (1 + p.streakLen * (direction === 'enter' ? pull : -pull * 0.5));
+      var sx = cx + Math.cos(p.angle) * streakD;
+      var sy = cy + Math.sin(p.angle) * streakD;
+
+      var alpha = p.op * (direction === 'enter' ? (1 - ease * 0.7) : ease);
+      if (alpha <= 0) return;
+
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(sx, sy);
+      ctx.strokeStyle = 'rgba(218,165,32,' + alpha + ')';
+      ctx.lineWidth = p.size * (1 + ease * 1.4);
+      ctx.stroke();
+    });
+
+    // Vignette — brightens toward singularity on enter, fades on exit
+    var vigA = direction === 'enter' ? ease * 0.82 : (1 - ease) * 0.82;
+    var vig = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W, H) * 0.6);
+    vig.addColorStop(0,   'rgba(5,3,10,0)');
+    vig.addColorStop(0.6, 'rgba(5,3,10,' + vigA * 0.3 + ')');
+    vig.addColorStop(1,   'rgba(5,3,10,' + vigA + ')');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+
+    if (t < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      setTimeout(function() {
+        cvs.style.transition = 'opacity 0.18s';
+        cvs.style.opacity = '0';
+        setTimeout(function() { if (cvs.parentNode) cvs.parentNode.removeChild(cvs); }, 200);
+      }, 40);
+      if (onComplete) onComplete();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
 window.openTesseract = function(galaxyFilter) {
   if (tesseractOpen) return;
   tesseractOpen = true;
@@ -11599,13 +11735,25 @@ window.openTesseract = function(galaxyFilter) {
   // Pause the main universe render
   if(typeof _mainRAFRunning!=='undefined'){ _mainRAFRunning=false; }
 
-  var overlay = document.getElementById('tesseract-overlay');
-  overlay.style.display = 'block';
-  requestAnimationFrame(function(){ overlay.classList.add('on'); });
-
   // Glow the topbar button
   var astBtn = document.getElementById('tbw-astro');
   if (astBtn) astBtn.classList.add('ast-on');
+
+  // Run singularity particle transition, then reveal overlay
+  _singularityTransition('enter', function() {
+    var overlay = document.getElementById('tesseract-overlay');
+    overlay.style.display = 'block';
+    requestAnimationFrame(function(){ overlay.classList.add('on'); });
+  });
+
+  // Show overlay after a beat so transition plays first
+  setTimeout(function() {
+    var overlay = document.getElementById('tesseract-overlay');
+    if (!overlay.classList.contains('on')) {
+      overlay.style.display = 'block';
+      overlay.classList.add('on');
+    }
+  }, 700);
 
   // Activate physics input listeners
   window._tessPhysActive = true;
@@ -11714,24 +11862,34 @@ window.closeTesseract = function() {
     pOverlay.classList.remove('tess-mode');
     pOverlay.classList.remove('visible');
   }
-  // Reset the flag inside the physics IIFE via its exposed setter
   if (typeof window._tessSetMenuActive === 'function') window._tessSetMenuActive(false);
 
   var overlay = document.getElementById('tesseract-overlay');
   var astBtn  = document.getElementById('tbw-astro');
-  overlay.classList.remove('on');
   if (astBtn) astBtn.classList.remove('ast-on');
 
   // Ensure fg canvas is hidden
   var wfg = document.getElementById('world-fg');
   if (wfg) wfg.style.display = 'none';
 
-  // Resume main universe render loop — unconditional to handle any flag state
-  _mainRAFRunning = true;
-  if (typeof lastTime !== 'undefined') lastTime = performance.now(); // prevent dt spike
-  requestAnimationFrame(animate);
+  // Phase 1: fade tesseract overlay to black, then run exit particle transition
+  overlay.style.transition = 'opacity 0.28s ease-in';
+  overlay.style.opacity = '0';
 
-  setTimeout(function(){ overlay.style.display='none'; }, 420);
+  setTimeout(function() {
+    overlay.classList.remove('on');
+    overlay.style.display = 'none';
+    overlay.style.opacity = '';
+    overlay.style.transition = '';
+
+    // Resume main universe render loop
+    _mainRAFRunning = true;
+    if (typeof lastTime !== 'undefined') lastTime = performance.now();
+    requestAnimationFrame(animate);
+
+    // Phase 2: astronaut sucked into singularity — exit particle burst
+    _singularityTransition('exit', null);
+  }, 300);
 };
 
 document.addEventListener('keydown', function(e) {
@@ -13510,7 +13668,17 @@ function _buildBentoNodeList() {
     function toggle() {
       var body = document.getElementById('bn-body-' + hd.dataset.key);
       var chev = hd.querySelector('.bn-chevron');
-      var open = body.classList.toggle('open');
+      var isOpen = body.classList.contains('open');
+      // Auto-collapse all other sections
+      container.querySelectorAll('.bn-section-hd').forEach(function(ohd) {
+        if (ohd === hd) return;
+        var ob = document.getElementById('bn-body-' + ohd.dataset.key);
+        var oc = ohd.querySelector('.bn-chevron');
+        if (ob) ob.classList.remove('open');
+        if (oc) oc.textContent = '▾';
+      });
+      var open = !isOpen;
+      body.classList.toggle('open', open);
       if (chev) chev.textContent = open ? '▴' : '▾';
     }
     hd.addEventListener('click', toggle);
@@ -13583,9 +13751,8 @@ function startGame() {
   directionState = 1; MAGNETIC_FORWARD = 1.0; reverseLerp = 0;
   sceneSpeed = 1.0;
   butterfly.vx = 0; butterfly.vy = 0;
-  var btnBack = document.getElementById('btn-hud-back'), btnFwd = document.getElementById('btn-hud-fwd');
-  if (btnBack) btnBack.classList.remove('active');
-  if (btnFwd)  btnFwd.classList.remove('active');
+  var btnNav = document.getElementById('btn-hud-nav');
+  if (btnNav) { btnNav.innerHTML = '&#8594; forward'; btnNav.classList.remove('active'); }
   pauseActive = false; frameFrozen = false;
   document.getElementById('pause-overlay').classList.remove('visible');
   document.getElementById('world-fg').style.display = 'none';
@@ -14383,9 +14550,8 @@ function updateHintLabel() {
 function goHome() {
   directionState = 1; MAGNETIC_FORWARD = 1.0; reverseLerp = 0;
   frameFrozen = false;
-  var btnBack = document.getElementById('btn-hud-back'), btnFwd = document.getElementById('btn-hud-fwd');
-  if (btnBack) btnBack.classList.remove('active');
-  if (btnFwd)  btnFwd.classList.remove('active');
+  var btnNav = document.getElementById('btn-hud-nav');
+  if (btnNav) { btnNav.innerHTML = '&#8594; forward'; btnNav.classList.remove('active'); }
   openMenu(true);
 }
 
@@ -14409,17 +14575,16 @@ var directionState = 1;
 function setDirection(dir) {
   if (STATUS !== 'playing') return;
   directionState = dir;
+  var btnNav = document.getElementById('btn-hud-nav');
   if (dir === -1) {
     reverseLerp = REVERSE_LIMIT * 0.75;
     MAGNETIC_FORWARD = -0.6;
-    document.getElementById('btn-hud-back').classList.add('active');
-    document.getElementById('btn-hud-fwd').classList.remove('active');
+    if (btnNav) { btnNav.innerHTML = '&#8592; reverse'; btnNav.classList.add('active'); }
     showToast('reversing');
   } else {
     reverseLerp = 0;
     MAGNETIC_FORWARD = 1.0;
-    document.getElementById('btn-hud-fwd').classList.add('active');
-    document.getElementById('btn-hud-back').classList.remove('active');
+    if (btnNav) { btnNav.innerHTML = '&#8594; forward'; btnNav.classList.remove('active'); }
     showToast('forward');
   }
 }
@@ -14431,8 +14596,7 @@ function wireBtn(id, fn) {
   el.addEventListener('touchend', function(e) { e.stopPropagation(); e.preventDefault(); fn(); }, { passive: false });
 }
 
-wireBtn('btn-hud-back', function() { setDirection(directionState === -1 ? 1 : -1); });
-wireBtn('btn-hud-fwd',  function() { setDirection(directionState === 1  ? -1 : 1); });
+wireBtn('btn-hud-nav', function() { setDirection(directionState === 1 ? -1 : 1); });
 
 
 // ─── Long-press on mobile → reset character orientation ──────────────────────
@@ -14580,6 +14744,20 @@ function _tessPhysicsInit() {
   }
   // Always (re-)start game state on each tesseract open
   startGame();
+
+  // Astronaut pops in from singularity — same gsap back.out(1.5) as the in-game reappear
+  if (humanoid && humanoid.mesh) {
+    humanoid.mesh.scale.setScalar(0.001);
+    // Brief delay so the particle transition clears before the pop
+    setTimeout(function() {
+      new Burst(0x6622cc, 14).mesh.position.copy(humanoid.mesh.position);
+      gsap.to(humanoid.mesh.scale, {
+        x: 0.25, y: 0.25, z: 0.25,
+        duration: 0.35,
+        ease: 'back.out(1.7)'
+      });
+    }, 300);
+  }
 }
 
 // Expose entry points to tesseract JS block
@@ -15155,6 +15333,53 @@ window._tessSetMenuActive  = function(v) { _tessMenuActive = v; if (!v) { pauseA
   // Only make topbar draggable on desktop — mobile is affixed
   if (tbw && tbwBar && window.innerWidth > 768) {
     makeDraggable(tbw, tbwBar, 'topbar-widget');
+
+    // ── Magnetic cursor lerp (desktop only) ──────────────────
+    // Pill gently drifts toward the cursor — subtle, not sticky
+    var _tbwMagX = parseFloat(tbw.style.left) || 16;
+    var _tbwMagY = parseFloat(tbw.style.top)  || 16;
+    var _tbwTgtX = _tbwMagX, _tbwTgtY = _tbwMagY;
+    var _tbwMagRaf = null;
+    var _tbwDragging = false;
+    var MAG_RADIUS = 220;   // px — how far cursor attracts
+    var MAG_STRENGTH = 0.07; // 0–1, how much it shifts (small = subtle)
+    var MAG_LERP = 0.06;     // smoothness
+
+    tbwBar.addEventListener('mousedown', function() { _tbwDragging = true; });
+    document.addEventListener('mouseup',  function() { _tbwDragging = false; });
+
+    document.addEventListener('mousemove', function(e) {
+      if (_tbwDragging || window.innerWidth <= 768) return;
+      var rect = tbw.getBoundingClientRect();
+      var cx = rect.left + rect.width  * 0.5;
+      var cy = rect.top  + rect.height * 0.5;
+      var dx = e.clientX - cx, dy = e.clientY - cy;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < MAG_RADIUS) {
+        var pull = (1 - dist / MAG_RADIUS) * MAG_STRENGTH;
+        _tbwTgtX = parseFloat(tbw.style.left || 16) + dx * pull;
+        _tbwTgtY = parseFloat(tbw.style.top  || 16) + dy * pull;
+        // Clamp to viewport
+        var vw = window.innerWidth, vh = window.innerHeight;
+        _tbwTgtX = Math.max(0, Math.min(_tbwTgtX, vw - tbw.offsetWidth));
+        _tbwTgtY = Math.max(0, Math.min(_tbwTgtY, vh - tbw.offsetHeight));
+        if (!_tbwMagRaf) _tbwMagRaf = requestAnimationFrame(_tbwMagTick);
+      }
+    });
+
+    function _tbwMagTick() {
+      _tbwMagRaf = null;
+      if (_tbwDragging || window.innerWidth <= 768) return;
+      var cx = parseFloat(tbw.style.left) || 16;
+      var cy = parseFloat(tbw.style.top)  || 16;
+      var nx = cx + (_tbwTgtX - cx) * MAG_LERP;
+      var ny = cy + (_tbwTgtY - cy) * MAG_LERP;
+      if (Math.abs(nx - cx) > 0.1 || Math.abs(ny - cy) > 0.1) {
+        tbw.style.left = nx + 'px';
+        tbw.style.top  = ny + 'px';
+        _tbwMagRaf = requestAnimationFrame(_tbwMagTick);
+      }
+    }
   }
   // On resize to desktop, re-enable drag; on resize to mobile, restore affixed
   window.addEventListener('resize', () => {
