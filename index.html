@@ -2941,6 +2941,7 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
   .bn-section-body {
     display: none; flex-direction: column;
     padding: 0 0 4px;
+    touch-action: pan-y;
   }
   .bn-section-body.open { display: flex; }
   .bn-node {
@@ -2949,6 +2950,7 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
     cursor: pointer; transition: background 0.12s;
     -webkit-tap-highlight-color: transparent;
     border-left: 2px solid transparent;
+    touch-action: pan-y;
   }
   .bn-node:hover {
     background: rgba(255,255,255,0.04);
@@ -3350,8 +3352,19 @@ body.light #mhud-close:hover { color:rgba(0,0,0,0.70); }
     justify-content: center;
     padding: 24px;
     overflow-y: auto;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   #pause-overlay.visible { opacity: 1; pointer-events: all; }
+  #bento-nodes-list {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .bn-section-body {
+    touch-action: pan-y;
+  }
   .bento-grid {
     display: grid;
     grid-template-columns: 1.55fr 1fr;
@@ -11581,9 +11594,6 @@ window.openTesseract = function(galaxyFilter) {
   tesseractOpen = true;
   window.tesseractOpen = true;
 
-  // Fresh state every open — reset physics init flag so data re-injects cleanly
-  _tessPhysInited = false;
-
   document.body.classList.add('tess-on');
 
   // Pause the main universe render
@@ -11600,20 +11610,39 @@ window.openTesseract = function(galaxyFilter) {
   // Activate physics input listeners
   window._tessPhysActive = true;
 
-  // Inject era card data into the physics bento dispatch panel
-  var injectDelay = _tessPhysInited ? 60 : 220;
-  if (!_tessPhysInited) {
-    _tessPhysInited = true;
-    if (window._tessPhysicsInit) window._tessPhysicsInit();
-  }
+  // Init physics (first open builds scene; subsequent calls just reset game state)
+  var injectDelay = _tessPhysInited ? 60 : 260;
+  _tessPhysInited = true;
+  if (window._tessPhysicsInit) window._tessPhysicsInit();
+
+  // Always reset UI to fresh state on every open
+  (function resetTessUI() {
+    // Clear any lingering menu/pause flags so the game loop runs clean
+    if (typeof pauseActive !== 'undefined') pauseActive = false;
+    if (typeof frameFrozen !== 'undefined') frameFrozen = false;
+    if (typeof _tessMenuActive !== 'undefined') _tessMenuActive = false;
+
+    // Scroll node list back to top
+    var nodesList = document.getElementById('bento-nodes-list');
+    if (nodesList) { nodesList.scrollTop = 0; }
+
+    // Reset dispatch card label and content immediately
+    var lbl = document.getElementById('dispatch-label');
+    var content = document.getElementById('pause-dispatch-content');
+    if (lbl) lbl.textContent = 'navigate a node';
+    if (content) content.innerHTML =
+      '<div style="padding:8px 0;color:rgba(255,255,255,0.18);font-size:0.68em;letter-spacing:1.5px;line-height:1.8;">hover a node<br>to preview</div>';
+  })();
+
   setTimeout(function(){
     if (window._tessPhysInjectData) {
       var html = _buildTessDataPayload();
       var styles = _tessDataStyles();
       window._tessPhysInjectData(html, styles);
     }
-    // Populate node list in bento menu
+    // Rebuild node list (collapsed sections reset) + default dispatch
     if (typeof _buildBentoNodeList === 'function') _buildBentoNodeList();
+    if (typeof _renderDispatchDefault === 'function') _renderDispatchDefault();
   }, injectDelay);
 };
 
@@ -11693,10 +11722,15 @@ window.closeTesseract = function() {
   overlay.classList.remove('on');
   if (astBtn) astBtn.classList.remove('ast-on');
 
-  // Resume main universe render loop
-  if(typeof _mainRAFRunning!=='undefined' && !_mainRAFRunning){
-    _mainRAFRunning=true; requestAnimationFrame(animate);
-  }
+  // Ensure fg canvas is hidden
+  var wfg = document.getElementById('world-fg');
+  if (wfg) wfg.style.display = 'none';
+
+  // Resume main universe render loop — unconditional to handle any flag state
+  _mainRAFRunning = true;
+  if (typeof lastTime !== 'undefined') lastTime = performance.now(); // prevent dt spike
+  requestAnimationFrame(animate);
+
   setTimeout(function(){ overlay.style.display='none'; }, 420);
 };
 
@@ -11833,7 +11867,21 @@ function _tessPhysInjectData(rawHtml, styles) {
 document.addEventListener('touchmove', function(e) {
   if (!window._tessPhysActive) return;
   if (STATUS === 'waiting' || STATUS === 'gameover') return;
-  e.preventDefault();
+  // Only preventDefault when NOT inside a scrollable overlay
+  var t = e.target;
+  while (t && t !== document.body) {
+    var id = t.id;
+    if (id === 'bento-nodes-list' || id === 'pause-dispatch-content' ||
+        id === 'pause-overlay' || id === 'bento-nodes-card' ||
+        id === 'tesseract-overlay' ||
+        (t.classList && (t.classList.contains('bn-section-body') ||
+                         t.classList.contains('bento-card') ||
+                         t.classList.contains('gcscroll')))) {
+      return;
+    }
+    t = t.parentElement;
+  }
+  if (e.cancelable) e.preventDefault();
 }, { passive: false });
 
 var C = {
@@ -13176,6 +13224,9 @@ document.addEventListener('touchstart', function(e) {
   var botHud = document.getElementById('bottom-hud');
   if (topHud && topHud.contains(e.target)) return;
   if (botHud && botHud.contains(e.target)) return;
+  // Don't swallow touches inside the pause overlay / node list — needed for scroll
+  var pauseOverlay = document.getElementById('pause-overlay');
+  if (pauseOverlay && pauseOverlay.contains(e.target)) return;
   // Don't interfere with screen overlays while waiting or showing gameover
   if (STATUS === 'waiting' || STATUS === 'gameover') return;
 
@@ -13203,7 +13254,21 @@ document.addEventListener('touchstart', function(e) {
 }, { passive: false });
 
 document.addEventListener('touchmove', function(e) {
-  e.preventDefault();
+  // Allow native scroll inside bento overlay panels
+  var _t = e.target;
+  while (_t && _t !== document.body) {
+    var _id = _t.id;
+    if (_id === 'bento-nodes-list' || _id === 'pause-dispatch-content' ||
+        _id === 'pause-overlay' || _id === 'bento-nodes-card' ||
+        _id === 'tesseract-overlay' ||
+        (_t.classList && (_t.classList.contains('bn-section-body') ||
+                          _t.classList.contains('bento-card') ||
+                          _t.classList.contains('gcscroll')))) {
+      return;
+    }
+    _t = _t.parentElement;
+  }
+  if (e.cancelable) e.preventDefault();
   if (e.touches.length === 2 && touchState.twoFinger) {
     var midY = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
     var delta = touchState.twoStartY - midY;
@@ -13234,6 +13299,9 @@ document.addEventListener('touchend', function(e) {
   var botHud2 = document.getElementById('bottom-hud');
   if (topHud2 && topHud2.contains(e.target)) return;
   if (botHud2 && botHud2.contains(e.target)) return;
+  // Don't swallow touches inside the pause overlay — needed for node taps & scroll
+  var pauseOverlay = document.getElementById('pause-overlay');
+  if (pauseOverlay && pauseOverlay.contains(e.target)) return;
   if (STATUS === 'waiting' || STATUS === 'gameover') return;
   e.preventDefault();
   touchState.twoFinger = false;
@@ -14492,17 +14560,25 @@ function startQuoteRotation() {
 }
 function stopQuoteRotation() { clearInterval(_quoteInterval); }
 
+var _gameLoopRunning = false; // guard against duplicate loop() chains
+
 function _tessPhysicsInit() {
   isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  createScene(); createLights(); buildWorld();
-  initWindStreaks();
-  // Boot straight into playing — no welcome screen
-  STATUS = 'playing';
-  var sw = document.getElementById('screen-welcome');
-  if (sw) { sw.classList.remove('visible'); sw.style.display = 'none'; }
-  var sg = document.getElementById('screen-gameover');
-  if (sg) { sg.classList.remove('visible'); sg.style.display = 'none'; }
-  refreshUI(); loop();
+
+  if (!_gameLoopRunning) {
+    // First-time init — build the world and start the loop
+    createScene(); createLights(); buildWorld();
+    initWindStreaks();
+    STATUS = 'playing';
+    var sw = document.getElementById('screen-welcome');
+    if (sw) { sw.classList.remove('visible'); sw.style.display = 'none'; }
+    var sg = document.getElementById('screen-gameover');
+    if (sg) { sg.classList.remove('visible'); sg.style.display = 'none'; }
+    refreshUI();
+    _gameLoopRunning = true;
+    loop();
+  }
+  // Always (re-)start game state on each tesseract open
   startGame();
 }
 
@@ -16030,8 +16106,3 @@ if (msheetEl && msheetEl.classList.contains('on')) {
 
 })();
 </script>
-
-</body>
-</html>
-
-
