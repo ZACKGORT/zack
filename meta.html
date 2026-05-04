@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>zackgort.sandbox — metallica </title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#000; overflow:hidden; width:100vw; height:100vh; cursor:none; }
-  canvas { display:block; position:fixed; inset:0; }
-  #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; }
+  html, body { background:#000; overflow:hidden; width:100%; height:100%; cursor:none; overscroll-behavior:none; touch-action:none; }
+  canvas { display:block; position:fixed; inset:0; touch-action:none; }
+  #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; touch-action:none; }
   #count {
     position:fixed; top:38px; right:60px;
     font-family:'DM Mono',monospace; font-weight:300;
@@ -71,10 +71,18 @@
   #albums-widget { left: 28px; bottom: 28px; }
   #tags-widget { right: 28px; bottom: 28px; }
 
-  /* Mobile: thinner margins */
+  /* Mobile portrait */
   @media (max-width: 600px) {
     #albums-widget { left: 10px; bottom: 10px; max-width: calc(50vw - 14px); }
     #tags-widget { right: 10px; bottom: 10px; max-width: calc(50vw - 14px); }
+  }
+  /* Mobile landscape */
+  @media (max-height: 500px) and (orientation: landscape) {
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #tags-widget { right: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #top-header { top: 10px; }
+    #logo-widget { width: 80px; height: 80px; }
+    #count { top: 14px; right: 40px; }
   }
 
   .widget-topbar {
@@ -307,7 +315,8 @@ const ALL_ALBUMS = [...new Set(TRACKS.map(d => d.album))];
 const ALL_TAGS   = [...new Set(TRACKS.flatMap(d => d.tags))].sort();
 const SHORT = { "Kill 'Em All":'KEA', 'Ride the Lightning':'RTL', 'Master of Puppets':'MOP', 'And Justice for All':'AJFA', 'The Black Album':'TBA', 'Load':'Load', 'Reload':'Reload', 'St. Anger':'St.A', 'Death Magnetic':'DM', 'Hardwired':'HW2SD', '72 Seasons':'72S' };
 
-const isMobile = () => window.innerWidth <= 600;
+const isMobile = () => window.innerWidth <= 600 || (window.innerHeight <= 500 && window.innerWidth < 1024);
+const isLandscape = () => window.innerWidth > window.innerHeight;
 
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
@@ -340,7 +349,10 @@ function currentFontSize() {
 function currentCharW()    { return currentFontSize() * 0.602; }
 function currentLineH()    { return currentFontSize() * 1.64; }
 function currentPadX()     { return isMobile() ? 10 : 80; }
-function currentPadTop()   { return 220; }
+function currentPadTop()   { 
+  if (isMobile() && isLandscape()) return 100; // compact in landscape
+  return isMobile() ? 220 : 220; 
+}
 function currentFontFace() { return `300 ${currentFontSize().toFixed(2)}px "DM Mono", monospace`; }
 
 // ── Bottom safe area: fixed 120px clearance from bottom of viewport ──
@@ -362,21 +374,56 @@ function bindDraggable(element, widgetContainer) {
   });
 }
 
+function clampToViewport(el, nx, ny) {
+  const rect = el.getBoundingClientRect();
+  const W = window.innerWidth, H = window.innerHeight;
+  nx = Math.max(0, Math.min(nx, W - rect.width));
+  ny = Math.max(0, Math.min(ny, H - rect.height));
+  return { nx, ny };
+}
+
+function bindDraggable(element, widgetContainer) {
+  function startDrag(clientX, clientY) {
+    activeDrag = widgetContainer;
+    const rect = widgetContainer.getBoundingClientRect();
+    dragDX = clientX - rect.left;
+    dragDY = clientY - rect.top;
+  }
+  element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  element.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { startDrag(e.touches[0].clientX, e.touches[0].clientY); }
+    e.stopPropagation(); // don't bubble to body touch blocker
+  }, { passive: true });
+}
+
 bindDraggable(logoWidget, topHeader);
 document.querySelectorAll('.widget-topbar').forEach(bar => bindDraggable(bar, bar.closest('.filter-widget')));
+
 window.addEventListener('mouseup', () => { activeDrag = null; });
-window.addEventListener('mousemove', e => {
+window.addEventListener('touchend', () => { activeDrag = null; });
+
+function applyDrag(clientX, clientY) {
   if (!activeDrag) return;
-  const nx = e.clientX - dragDX, ny = e.clientY - dragDY;
+  let nx = clientX - dragDX, ny = clientY - dragDY;
   if (activeDrag === topHeader) {
-    logoX = nx; logoY = ny;
+    const clamped = clampToViewport(topHeader, nx, ny);
+    logoX = clamped.nx; logoY = clamped.ny;
     topHeader.style.left = logoX + 'px'; topHeader.style.top = logoY + 'px'; topHeader.style.transform = 'none';
   } else {
-    activeDrag.style.left = nx + 'px'; activeDrag.style.top = ny + 'px';
+    const clamped = clampToViewport(activeDrag, nx, ny);
+    activeDrag.style.left = clamped.nx + 'px'; activeDrag.style.top = clamped.ny + 'px';
     activeDrag.style.bottom = 'auto'; activeDrag.style.right = 'auto';
     invalidateFilterRepel();
   }
-});
+}
+
+window.addEventListener('mousemove', e => { applyDrag(e.clientX, e.clientY); });
+window.addEventListener('touchmove', e => {
+  if (activeDrag) {
+    applyDrag(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }
+}, { passive: false });
 
 document.querySelectorAll('.collapse-btn').forEach(btn => {
   btn.addEventListener('mousedown', e => e.stopPropagation());
@@ -422,11 +469,31 @@ function buildInfoLayout() {
 infoBtn.addEventListener('click', () => { infoOpen = true; infoOverlay.classList.add('visible'); buildInfoLayout(); });
 infoClose.addEventListener('click', () => { infoOpen = false; infoOverlay.classList.remove('visible'); });
 infoOverlay.addEventListener('mousemove', e => { const r = infoCanvas.getBoundingClientRect(); infoMX = e.clientX - r.left; infoMY = e.clientY - r.top; });
+infoOverlay.addEventListener('touchmove', e => { 
+  const r = infoCanvas.getBoundingClientRect(); 
+  infoMX = e.touches[0].clientX - r.left; infoMY = e.touches[0].clientY - r.top; 
+}, { passive: true });
+
+// Prevent body scroll/bounce on iOS — only allow touchmove if a widget drag is active
+document.body.addEventListener('touchmove', e => {
+  if (!activeDrag) e.preventDefault();
+}, { passive: false });
 
 let activeAlbum = null, activeTags = new Set(), domButtons = [], filterRepelZones = [];
 let mX = W/2, mY = H/2, bX = W/2, bY = H/2, eX = W/2, eY = H/2, eVX = 0, eVY = 0;
 
 window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
+// Touch: update blob position on single-finger move (when not dragging a widget)
+window.addEventListener('touchmove', e => {
+  if (!activeDrag && e.touches.length === 1) {
+    mX = e.touches[0].clientX; mY = e.touches[0].clientY;
+  }
+}, { passive: true });
+window.addEventListener('touchstart', e => {
+  if (!activeDrag && e.touches.length === 1) {
+    mX = e.touches[0].clientX; mY = e.touches[0].clientY;
+  }
+}, { passive: true });
 
 function initDOMFilters() {
   const albC = document.getElementById('albums-container'), tagC = document.getElementById('tags-container');
