@@ -539,8 +539,9 @@ document.body.addEventListener('touchmove', e => {
 
 let activeAlbum = null, activeTags = new Set(), domButtons = [], filterRepelZones = [];
 let mX = W/2, mY = H/2, bX = W/2, bY = H/2, eX = W/2, eY = H/2, eVX = 0, eVY = 0;
+let mVX = 0, mVY = 0, cursorSpeed = 0;
 
-window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
+window.addEventListener('mousemove', e => { mVX = e.clientX - mX; mVY = e.clientY - mY; mX = e.clientX; mY = e.clientY; });
 // Touch: update blob position on single-finger move (when not dragging a widget)
 window.addEventListener('touchmove', e => {
   if (!activeDrag && e.touches.length === 1) {
@@ -667,6 +668,8 @@ function loop() {
   bX += (mX - bX) * BLOB_LERP; bY += (mY - bY) * BLOB_LERP;
   eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1; eX += (eVX *= 0.68); eY += (eVY *= 0.68);
   fontT += (fontTgt - fontT) * FONT_LERP;
+  cursorSpeed += (Math.sqrt(mVX*mVX + mVY*mVY) - cursorSpeed) * 0.12;
+  mVX *= 0.6; mVY *= 0.6;
 
   if (Math.abs(fontT - fontTgt) > 0.001) {
     const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop());
@@ -682,16 +685,25 @@ function loop() {
 
     if (magnifyMode && d < repelRadius) {
       // ── Black hole accretion disc ──
-      // Stable orbit radius scales with repelRadius — chars settle at ~40% of field edge
-      const stableR = repelRadius * 0.42;
+      // Gravity pulls chars inward. Tangential velocity creates orbit.
+      // Inner barrier prevents collapse into singularity.
 
-      // Inward gravity — 1/d² falloff, scaled to repelRadius so scroll widens the whole system
+      // Inward gravity — pulls toward center
       const gravity = (repelRadius * 1.4) / Math.max(d * d * 0.08, 4);
       p.vx -= (dx/d) * Math.min(gravity, 3.5);
       p.vy -= (dy/d) * Math.min(gravity, 3.5);
 
-      // Keplerian tangential velocity — faster close in, slower far out
-      // v_orbit ∝ 1/sqrt(d), anchored so stable orbit lands at stableR
+      // Inner barrier — scales with repelRadius so void grows with scroll
+      // At default (110px): coreR ≈ 55px — a solid medium void
+      // At max scroll: coreR scales proportionally, orbit band stays wide
+      const coreR = repelRadius * 0.5;
+      if (d < coreR) {
+        const pushF = Math.pow(1 - d / coreR, 2) * 12;
+        p.vx += (dx/d) * pushF;
+        p.vy += (dy/d) * pushF;
+      }
+
+      // Tangential orbital velocity — automatic, constant
       const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * 0.9;
       p.vx += (-dy/d) * vOrbit;
       p.vy += ( dx/d) * vOrbit;
