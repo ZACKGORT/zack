@@ -10,6 +10,14 @@
   html, body { background:#000; overflow:hidden; width:100%; height:100%; cursor:none; overscroll-behavior:none; touch-action:none; }
   canvas { display:block; position:fixed; inset:0; touch-action:none; }
   #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; touch-action:none; }
+  #magnify-ring {
+    position:fixed; pointer-events:none; z-index:101;
+    border:1px solid rgba(255,255,255,0.25); border-radius:50%;
+    transform:translate(-50%,-50%);
+    display:none;
+    transition: border-color 0.2s;
+  }
+  #magnify-ring.active { display:block; border-color:rgba(255,255,255,0.4); }
   #count {
     position:fixed; top:38px; right:60px;
     font-family:'DM Mono',monospace; font-weight:300;
@@ -162,6 +170,7 @@
 <body>
 <canvas id="c"></canvas>
 <canvas id="cursor-canvas"></canvas>
+<div id="magnify-ring"></div>
 
 <div id="top-header">
   <div id="logo-widget">
@@ -337,6 +346,17 @@ let repelRadius = REPEL_DEFAULT;
 // Bloom tracks repel radius proportionally
 const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
+
+// ── MAGNIFY MODE: right-click toggle ──
+let magnifyMode = false;
+let magnifyRadius = repelRadius; // lerped display radius for ring
+const magnifyRing = document.getElementById('magnify-ring');
+
+window.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  magnifyMode = !magnifyMode;
+  magnifyRing.classList.toggle('active', magnifyMode);
+});
 
 function handleWheel(e) {
   e.preventDefault();
@@ -600,9 +620,33 @@ function loop() {
   const lcx = logoX + 90, lcy = logoY + 90;
 
   for (const p of allChars) {
-    p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
-    if (d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
+
+    if (magnifyMode && d < repelRadius) {
+      // ── Black hole accretion disc ──
+      // Suppress tether so the hole wins
+      const fieldF = Math.max(0, 1 - d/repelRadius);
+
+      // Radial inward pull — stronger near center
+      const inward = fieldF * fieldF * 2.8;
+      p.vx -= (dx/d) * inward;
+      p.vy -= (dy/d) * inward;
+
+      // Tangential orbital velocity — perpendicular to radius, consistent handedness
+      const orbit = fieldF * 3.2;
+      p.vx += (-dy/d) * orbit;
+      p.vy += ( dx/d) * orbit;
+
+      // Weak tether so chars eventually return when field moves away
+      p.vx += (p.restX - p.x) * TETHER_K * 0.3;
+      p.vy += (p.restY - p.y) * TETHER_K * 0.3;
+    } else {
+      // Normal tether
+      p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
+      // Repel mode
+      if (!magnifyMode && d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
+    }
+
     const ldx = p.x - lcx, ldy = p.y - lcy, ld = Math.sqrt(ldx*ldx + ldy*ldy);
     if (ld < 130) { const f = (1 - ld/130); p.vx += (ldx/ld) * f * f * 20; p.vy += (ldy/ld) * f * f * 20; }
     filterRepelZones.forEach(z => {
@@ -614,10 +658,28 @@ function loop() {
     });
     p.vx *= DAMP; p.vy *= DAMP; p.x += p.vx; p.y += p.vy;
 
-    // Fade chars based on distance to blob cursor
-    const fadeStart = 20, fadeEnd = 60;
-    const alpha = p.baseOpacity * Math.min(1, Math.max(0, (d - fadeStart) / (fadeEnd - fadeStart)));
-    if (alpha > 0.01) { ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+    if (magnifyMode && d < repelRadius) {
+      // Fade to black at event horizon (inner 15% of field)
+      const f = Math.max(0, 1 - d/repelRadius);
+      const eventHorizon = repelRadius * 0.15;
+      const consumed = Math.max(0, 1 - d/eventHorizon); // 1 = at center, 0 = outside horizon
+      const alpha = p.baseOpacity * (1 - consumed * consumed) * (0.6 + f * 0.6);
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+    } else {
+      // Repel mode: fade chars near cursor
+      const fadeStart = 20, fadeEnd = 60;
+      const alpha = p.baseOpacity * Math.min(1, Math.max(0, (d - fadeStart) / (fadeEnd - fadeStart)));
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+    }
+  }
+
+  // ── Animate ring in magnify mode ──
+  magnifyRadius += (repelRadius - magnifyRadius) * 0.12;
+  if (magnifyMode) {
+    magnifyRing.style.width  = magnifyRadius * 2 + 'px';
+    magnifyRing.style.height = magnifyRadius * 2 + 'px';
+    magnifyRing.style.left   = bX + 'px';
+    magnifyRing.style.top    = bY + 'px';
   }
 
   // ── Cursor: bloom radius controlled by scroll (desktop only) ──
