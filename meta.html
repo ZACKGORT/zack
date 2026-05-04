@@ -68,11 +68,14 @@
   #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; touch-action:none; }
   
   #magnify-ring {
-    position:fixed; pointer-events:none; z-index:101;
-    border:1px var(--ring-border); border-radius:50%;
-    transform:translate(-50%,-50%);
-    display:none;
-  }
+  position: fixed; 
+  pointer-events: none; 
+  z-index: 101;
+  border: 1px var(--ring-border); 
+  border-radius: 50%;
+  /* Remove transform: translate(-50%, -50%); */
+  display: none;
+}
   #magnify-ring.active { display:block; border-color:var(--ring-active); }
   
   #count {
@@ -495,13 +498,15 @@ let W = canvas.width = cursorCanvas.width  = window.innerWidth;
 let H = canvas.height = cursorCanvas.height = window.innerHeight;
 
 const FONT_BASE  = 11;
-const FONT_LARGE = 20;
+const FONT_LARGE = 22;
 let userFontBase = FONT_BASE;
 const SEP = ' — ';
 let fontT = 0, fontTgt = 0;
 const FONT_LERP = 0.07;
 
-const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
+const REPEL_MIN = 44;
+const REPEL_MAX = 444;      // Increased from 400
+const REPEL_DEFAULT = 222;  // Increased from 110 to be bigger by default
 let repelRadius = REPEL_DEFAULT;
 const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
@@ -514,6 +519,7 @@ window.addEventListener('contextmenu', e => {
   e.preventDefault();
   magnifyMode = !magnifyMode;
   magnifyRing.classList.toggle('active', magnifyMode);
+  
 });
 
 function handleWheel(e) {
@@ -865,6 +871,22 @@ function loop() {
   fontT += (fontTgt - fontT) * FONT_LERP;
   cursorSpeed += (Math.sqrt(mVX*mVX + mVY*mVY) - cursorSpeed) * 0.12;
   mVX *= 0.6; mVY *= 0.6;
+
+
+  // --- ADD THIS SECTION HERE ---
+  if (magnifyMode) {
+    const d = repelRadius * 2;
+    magnifyRing.style.display = 'block';
+    magnifyRing.style.width = d + 'px';
+    magnifyRing.style.height = d + 'px';
+    
+    // Center the ring by subtracting half its width/height
+    magnifyRing.style.left = (bX - repelRadius) + 'px';
+    magnifyRing.style.top = (bY - repelRadius) + 'px';
+  } else {
+    magnifyRing.style.display = 'none';
+  }
+
 
   if (Math.abs(fontT - fontTgt) > 0.001) {
     const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop());
