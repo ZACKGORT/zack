@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>zackgort — career as mass</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Light Theme (Blueprint) Defaults */
+    --bg-color: #f4f4f4;
+    --bg-image: linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+    --fg-color: #000;
+    --border-color: #000;
+    --widget-bg: #fff;
+    --widget-hover: #f4f4f4;
+    --btn-bg: #fff;
+    --btn-hover-bg: #000;
+    --btn-hover-fg: #fff;
+    --active-bg: #000;
+    --active-fg: #fff;
+    --font-weight: 500;
+    --ring-border: dashed rgba(0,0,0,0.3);
+    --ring-active: #000;
+    --shadow: 4px 4px 0px #000;
+    --drop-shadow: none;
+    --count-bg: #fff;
+  }
+
+  body.theme-dark {
+    /* Dark Theme Overrides */
+    --bg-color: #000;
+    --bg-image: none;
+    --fg-color: #fff;
+    --border-color: rgba(255,255,255,0.05);
+    --widget-bg: rgba(0,0,0,0.8);
+    --widget-hover: rgba(255,255,255,0.06);
+    --btn-bg: transparent;
+    --btn-hover-bg: transparent;
+    --btn-hover-fg: #fff;
+    --active-bg: #fff;
+    --active-fg: #000;
+    --font-weight: 300;
+    --ring-border: solid rgba(255,255,255,0.25);
+    --ring-active: rgba(255,255,255,0.4);
+    --shadow: none;
+    --drop-shadow: drop-shadow(0 0 18px #000) drop-shadow(0 0 40px #000);
+    --count-bg: transparent;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  
+  html, body { 
+    background-color: var(--bg-color);
+    background-image: var(--bg-image);
+    background-size: 20px 20px;
+    background-position: center center;
+    overflow:hidden; 
+    width:100%; 
+    height:100%; 
+    cursor:none; 
+    overscroll-behavior:none; 
+    touch-action:none; 
+    transition: background-color 0.3s;
+  }
+  
+  canvas { display:block; position:fixed; inset:0; touch-action:none; }
+  #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; touch-action:none; }
+  
+  #magnify-ring {
+    position:fixed; pointer-events:none; z-index:101;
+    border:1px var(--ring-border); border-radius:50%;
+    transform:translate(-50%,-50%);
+    display:none;
+  }
+  #magnify-ring.active { display:block; border-color:var(--ring-active); }
+  
+  #count {
+    position:fixed; top:94px; left:50%; transform:translateX(-50%);
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:9px; letter-spacing:.2em; text-transform:uppercase;
+    color:var(--fg-color); pointer-events:none; z-index:20;
+    background: var(--count-bg);
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+  }
+  body.theme-dark #count {
+    border: none;
+    color: rgba(255,255,255,0.14);
+  }
+
+  #top-header {
+    position:fixed; top:22px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    z-index:20;
+    filter: var(--drop-shadow);
+  }
+  #logo-widget {
+    width:180px; height:60px;
+    cursor:none; user-select:none;
+  }
+  #logo-svg { width:100%; height:100%; fill:var(--fg-color); display:block; pointer-events:none; overflow:visible; }
+
+  /* ── Controls widget ── */
+  #controls-widget {
+    position:fixed; top:22px; right:22px; z-index:30;
+  }
+
+  /* ── Links widget ── */
+  #links-widget {
+    position:fixed; top:22px; left:22px; z-index:20;
+    max-width: 260px;
+  }
+  #links-widget .widget-content {
+    padding: 0;
+  }
+  .link-row {
+    display: flex; align-items: center;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border-color);
+    font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--fg-color); text-decoration: none;
+    cursor: none;
+    transition: background 0.2s;
+    opacity: 0.8;
+  }
+  .link-row:first-child { border-top: none; }
+  .link-row:hover { background: var(--widget-hover); opacity: 1; }
+  body.theme-dark .link-row { color: rgba(255,255,255,0.35); }
+  body.theme-dark .link-row:hover { color: rgba(255,255,255,0.9); }
+  @media (pointer: coarse) { .link-row { cursor: pointer; padding: 10px 16px; } }
+
+  /* ── Info widget ── */
+  #info-widget {
+    position:fixed; top:66px; left:22px; z-index:20;
+    max-width: 260px;
+  }
+  #info-widget .widget-content {
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:10px; line-height:1.7; letter-spacing:0.04em;
+    color:var(--fg-color);
+    padding:14px 16px;
+    opacity: 0.8;
+  }
+
+  /* ── Controls row inside widget ── */
+  .ctrl-row {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 16px;
+    border-top:1px solid var(--border-color);
+  }
+  .ctrl-row:first-child { border-top:none; }
+  .ctrl-label {
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:9px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--fg-color); flex:1; pointer-events:none;
+    opacity: 0.8;
+  }
+  .ctrl-btn {
+    background:var(--btn-bg); border:1px solid var(--border-color);
+    color:var(--fg-color); font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:11px; line-height:1; padding:4px 9px;
+    cursor:none; transition:all 0.2s; user-select:none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  body.theme-dark .ctrl-btn { border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.35); }
+  @media (pointer: coarse) {
+    .ctrl-btn { cursor: pointer; padding: 8px 14px; font-size:13px; }
+    .filter-btn { cursor: pointer; padding: 9px 12px; }
+    .collapse-btn { cursor: pointer; padding: 4px 10px; }
+  }
+  .ctrl-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); border-color:var(--active-bg); }
+  body.theme-dark .ctrl-btn:hover { border-color: rgba(255,255,255,0.4); }
+  .ctrl-btn.active { background:var(--active-bg); color:var(--active-fg); border-color:var(--active-bg); }
+  
+  .ctrl-val {
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:9px; color:var(--fg-color);
+    min-width:24px; text-align:center; pointer-events:none;
+    opacity: 0.8;
+  }
+
+  .filter-widget {
+    position: fixed;
+    background: var(--widget-bg);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    max-width: 420px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    filter: var(--drop-shadow);
+    backdrop-filter: blur(4px);
+  }
+  
+  #albums-widget { left: 22px; bottom: 22px; }
+  #tags-widget { right: 22px; bottom: 22px; }
+
+  @media (max-width: 600px) {
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(50vw - 12px); }
+    #tags-widget { right: 8px; bottom: 8px; max-width: calc(50vw - 12px); }
+  }
+  @media (max-height: 500px) and (orientation: landscape) {
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #tags-widget { right: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #top-header { top: 10px; }
+    #logo-widget { width: 80px; height: 80px; }
+    #count { top: 80px; }
+  }
+
+  .widget-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    user-select: none;
+  }
+  .widget-topbar:hover { background: var(--widget-hover); }
+
+  .filter-header {
+    font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--fg-color);
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  .collapse-btn {
+    font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
+    font-size: 14px;
+    line-height: 1;
+    color: var(--fg-color);
+    cursor: none;
+    padding: 0 4px;
+    transition: color 0.2s;
+    opacity: 0.6;
+  }
+  .collapse-btn:hover { opacity: 1; }
+
+  .widget-content {
+    padding: 16px;
+    display: block;
+  }
+
+  .filter-widget.collapsed .widget-content { display: none; }
+  .filter-widget.collapsed .widget-topbar { border-bottom: none; }
+
+  .filter-btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filter-btn {
+    background: var(--btn-bg);
+    border: 1px solid var(--border-color);
+    color: var(--fg-color);
+    font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    cursor: none;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  body.theme-dark .filter-btn { border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.22); }
+  .filter-btn:hover {
+    background: var(--btn-hover-bg);
+    color: var(--btn-hover-fg);
+  }
+  body.theme-dark .filter-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+  
+  .filter-btn.related {
+    opacity: 0.6;
+    border-style: dashed;
+  }
+  body.theme-dark .filter-btn.related { border-style: solid; border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.45); }
+  
+  .filter-btn.active {
+    background: var(--active-bg);
+    color: var(--active-fg);
+    border-color: var(--active-bg);
+    border-style: solid;
+    opacity: 1;
+  }
+
+  .clear-btn {
+    font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
+    font-size: 16px;
+    line-height: 1;
+    color: var(--fg-color);
+    cursor: none;
+    padding: 0 4px;
+    transition: color 0.2s;
+    opacity: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+  .clear-btn.visible {
+    opacity: 0.5;
+    pointer-events: auto;
+  }
+  .clear-btn.visible:hover { opacity: 1; }
+  @media (pointer: coarse) { .clear-btn { cursor: pointer; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<canvas id="cursor-canvas"></canvas>
+<div id="magnify-ring"></div>
+
+<div id="top-header">
+  <div id="logo-widget">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 60" id="logo-svg">
+      <text x="90" y="44" text-anchor="middle" font-family="'DM Mono', monospace" font-weight="500" font-size="28" letter-spacing="10" style="fill:var(--fg-color)">ZCKGRT</text>
+    </svg>
+  </div>
+</div>
+
+<div id="links-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">Links</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content">
+    <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
+    <a class="link-row" href="https://zack.cx" target="_blank">zack.cx</a>
+    <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
+    <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+  </div>
+</div>
+
+<div id="info-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. right-click magnifies. the sentence is the irreducible unit.</div>
+</div>
+
+<div id="controls-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content" style="padding:0;">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Theme</span>
+      <div class="ctrl-btn" id="theme-toggle">Dark</div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Font</span>
+      <div class="ctrl-btn" id="font-down">−</div>
+      <span class="ctrl-val" id="font-val">11</span>
+      <div class="ctrl-btn" id="font-up">+</div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Cursor</span>
+      <div class="ctrl-btn" id="cursor-toggle">Repel</div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Reset</span>
+      <div class="ctrl-btn" id="reset-btn">↺</div>
+    </div>
+  </div>
+</div>
+
+<div id="albums-widget" class="filter-widget">
+  <div class="widget-topbar">
+    <div class="filter-header">Eras</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="clear-btn" id="clear-album" title="Clear">×</div>
+      <div class="collapse-btn">−</div>
+    </div>
+  </div>
+  <div class="widget-content"><div class="filter-btn-group" id="albums-container"></div></div>
+</div>
+
+<div id="tags-widget" class="filter-widget">
+  <div class="widget-topbar">
+    <div class="filter-header">Themes</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="clear-btn" id="clear-tags" title="Clear">×</div>
+      <div class="collapse-btn">−</div>
+    </div>
+  </div>
+  <div class="widget-content"><div class="filter-btn-group" id="tags-container"></div></div>
+</div>
+
+<div id="count"><span id="cnt">0</span> entries</div>
+
+<script>
+const TRACKS = [
+  // ── ERA: ROOTS ── Miller Designworks, 2003–2004
+  { id:1,  album:'Roots · Philadelphia',  year:2003, tags:['craft','identity','print','origin'],           text:"Miller Designworks was the first studio — print, identity, production, a professional context for instincts I had been developing informally before Craigslist, before startups, before New York." },
+  { id:2,  album:'Roots · Philadelphia',  year:2003, tags:['craft','origin','print'],                      text:"The beginning of the thread: a pirated copy of Photoshop, a Craigslist post into the void, and the sustained conviction that the right interface disappears and leaves only understanding." },
+
+  // ── ERA: STARTUP ── Turn5, 2007–2011
+  { id:3,  album:'Startup · Philadelphia', year:2007, tags:['ecommerce','photography','growth','startup'],  text:"Turn5 was a garage startup that became my real education — web properties, product packaging, printed catalogues, emails, ads, and a Canon Rebel DSLR with instructions to build a photo studio from nothing." },
+  { id:4,  album:'Startup · Philadelphia', year:2007, tags:['growth','ecommerce','startup'],               text:"We grew from ten to forty million in revenue during my tenure — no title, no credential, just the work and what it proved." },
+  { id:5,  album:'Startup · Philadelphia', year:2007, tags:['photography','craft','startup'],              text:"Building a product photography studio from scratch taught me that constraint is not a limitation — it is the brief, and speed is the feature." },
+
+  // ── ERA: CONVERSION ── Leadnomics, 2011–2014
+  { id:6,  album:'Conversion · Philadelphia', year:2011, tags:['mobile','conversion','startup','ethics'],  text:"Leadnomics was lead generation across multiple verticals — the cash cow was payday loans, and my job was to make it easy for users to make catastrophic financial decisions." },
+  { id:7,  album:'Conversion · Philadelphia', year:2011, tags:['mobile','conversion','testing'],           text:"A 95.8% conversion rate, achieved through responsive design and rigorous A/B testing — mobile-first before it was a mandate, because it was simply right." },
+  { id:8,  album:'Conversion · Philadelphia', year:2011, tags:['ethics','startup','mobile'],               text:"Business abides by imperative, not by idealism — I learned both sides of that equation here, and have held both sides ever since." },
+
+  // ── ERA: AGENCY ── 160/90, 2014–2016
+  { id:9,  album:'Agency · Philadelphia',  year:2014, tags:['agency','accessibility','enterprise','culture'], text:"One Sixty Over Ninety — my heartrate when offered the job — demanded we dare, so I took a pay cut to join their new Interactive Department and build what design culture could actually be." },
+  { id:10, album:'Agency · Philadelphia',  year:2014, tags:['accessibility','enterprise','agency'],         text:"Full-service interaction design for .EDU and enterprise: Comcast, Kent State, the Philadelphia Eagles — information architecture, prototyping, ADA compliance, client-facing creative lead." },
+  { id:11, album:'Agency · Philadelphia',  year:2014, tags:['culture','agency','accessibility'],            text:"Long days, longer nights — the years that taught me accessibility is not a checklist, it is a design decision, and enterprise interaction design is where that distinction is tested most harshly." },
+
+  // ── ERA: PRODUCT ── O3 World, 2016–2017
+  { id:12, album:'Product · Philadelphia', year:2016, tags:['agile','product','lean'],                     text:"O3 World was a digital product shop in the heart of Fishtown — Certified Scrum Master, daily standups, whiteboards, wireframes: real Lean UX, not the PowerPoint version." },
+  { id:13, album:'Product · Philadelphia', year:2016, tags:['agile','lean','product'],                     text:"Agile in practice and sprint-led, with clients including La Colombe, Vertex, and SEIC — the difference between process as theater and process as production became permanent knowledge here." },
+
+  // ── ERA: SAAS ── Workarea, 2017–2018
+  { id:14, album:'SaaS · Philadelphia',    year:2017, tags:['ecommerce','saas','engineering','product'],   text:"Workarea was a proprietary SaaS e-commerce platform shaped through direct client relationships — napkin sketches and real conversations with engineers, no mockup theater, high-velocity over high-fidelity." },
+  { id:15, album:'SaaS · Philadelphia',    year:2017, tags:['saas','ecommerce','product'],                 text:"I shaped the platform through direct client feedback loops, end-to-end UX ownership, until the company sold — the full arc from blank canvas to acquisition in a single engagement." },
+
+  // ── ERA: NYC DEBUT ── FlightPath, 2018–2019
+  { id:16, album:'NYC Debut',              year:2018, tags:['pharma','agency','commute'],                  text:"Hello, New York City — FlightPath was emerging from bankruptcy and I was not deterred, commuting from Philadelphia to Manhattan and back every business day for a full year." },
+  { id:17, album:'NYC Debut',              year:2018, tags:['pharma','agency','commute'],                  text:"Up and out by five, home by ten — maybe — two skylines three hours apart, with Merck, Charter, and Goya as my introduction to the New York design scene." },
+
+  // ── ERA: ECOMMERCE MANAGEMENT ── Livearea / PFSWeb, 2019–2021
+  { id:18, album:'E-commerce · NYC',       year:2019, tags:['management','ecommerce','systems','b2b'],     text:"Livearea was the transition from IC to Manager — I owned the full UX strategy and design function for Salesforce Commerce Cloud builds across B2C and B2B clients: Aquasana, West Marine, Yeti." },
+  { id:19, album:'E-commerce · NYC',       year:2019, tags:['management','systems','ecommerce'],           text:"I invented 'Cards Against Bad UX' — an empathy tool for client workshops — because discovery and delegation require clients to feel their own user's frustration before they will change anything." },
+  { id:20, album:'E-commerce · NYC',       year:2019, tags:['management','b2b','ecommerce'],               text:"Conversion, post-sale re-engagement, design systems at platform scale — the full management loop of discovery, delegation, and socialization across a major commerce platform." },
+
+  // ── ERA: HOSPITALITY TECH ── HUGE, 2021
+  { id:21, album:'Hospitality · NYC',      year:2021, tags:['product','hospitality','speed'],              text:"HUGE was short but sharp — end-to-end UX and booking flow for Sentral Lifestyle Apartments, a hospitality-tech platform reimagining urban living, delivered under constrained conditions: fast, precise, shipped." },
+
+  // ── ERA: GNC RECOVERY ── Elva Design Group, 2021
+  { id:22, album:'Recovery · NYC',         year:2021, tags:['ecommerce','shopify','strategy','systems'],   text:"GNC asked us to rebuild from the ground up after bankruptcy — a complete Shopify overhaul, mobile-first, component-based, discovery through delivery in twelve weeks, strategy and execution in the same hands." },
+  { id:23, album:'Recovery · NYC',         year:2021, tags:['shopify','systems','ecommerce'],              text:"Before any wireframe, I restructured the entire product taxonomy — a prerequisite for navigation that could scale, because you cannot design navigation for a catalog you haven't understood." },
+  { id:24, album:'Recovery · NYC',         year:2021, tags:['shopify','ecommerce','mobile'],               text:"The rebuilt navigation was redesigned from scratch: thumb-zone logic, progressive disclosure, persistent cart state — because navigation is the product, and if you can't find it, it doesn't exist." },
+  { id:25, album:'Recovery · NYC',         year:2021, tags:['strategy','ecommerce','systems'],             text:"One thread held from research to live storefront — the result helped GNC reclaim approximately five hundred million dollars in annual revenue following bankruptcy, on time, without dropping a single thread." },
+
+  // ── ERA: TIKTOK ── Code & Theory, 2021–2022
+  { id:26, album:'Enterprise · NYC',       year:2021, tags:['enterprise','content','systems','agency'],    text:"Code and Theory put me on TikTok For Business, sixty-two floors above Manhattan — UX and interaction design for one of the fastest-growing advertising platforms in the world." },
+  { id:27, album:'Enterprise · NYC',       year:2021, tags:['enterprise','content','agency'],              text:"Senior Designer to Associate Creative Director to Directly Responsible Individual across one engagement — a trajectory earned through information architecture workshops and headless CMS strategy, not assigned." },
+
+  // ── ERA: FINTECH ── Publicis Sapient / BNY Mellon, 2022–2023
+  { id:28, album:'Fintech · NYC',          year:2022, tags:['fintech','systems','agile','management'],     text:"Publicis Sapient embedded me in BNY Mellon's digital transformation — I joined as Senior UX Designer and became interim Product Owner and primary client liaison, a role I wasn't hired for and became anyway." },
+  { id:29, album:'Fintech · NYC',          year:2022, tags:['fintech','agile','systems'],                  text:"Wove is an industry-first platform that gives financial advisors their client's complete picture in one place — I architected user data models and flows across three parallel Agile tracks simultaneously." },
+  { id:30, album:'Fintech · NYC',          year:2022, tags:['systems','fintech','management'],             text:"How do you present a client's full financial picture without overwhelming the advisor who must act on it — a unified client profile model with progressive disclosure and workflow-aware navigation was the answer." },
+  { id:31, album:'Fintech · NYC',          year:2022, tags:['systems','agile','fintech'],                  text:"I built and maintained the Wove design system in Figma — a canonical component library serving all three development tracks simultaneously, React and Tailwind constraints informing every decision from day one." },
+  { id:32, album:'Fintech · NYC',          year:2022, tags:['fintech','systems','management'],             text:"Named operational silos nobody else had mapped, centralized a sprawling product ecosystem into a modular scalable design system, and shipped at BNY Mellon scale — two trillion dollars in assets under management." },
+  { id:33, album:'Fintech · NYC',          year:2022, tags:['fintech','agile','management'],               text:"Human blood, sweat, and copious caffeine — zero AI, this was 2022, and every decision was human due diligence applied at the pace and precision the engagement demanded." },
+
+  // ── ERA: CONTRACT ── Independent, 2023–2025
+  { id:34, album:'Independent',            year:2023, tags:['pharma','enterprise','contract'],             text:"Two years of contract work spanning three distinct threads — HUGE plus UX and development for Merck across enterprise pharmaceutical digital properties." },
+  { id:35, album:'Independent',            year:2023, tags:['ai','product','contract'],                    text:"Phenom was a proprietary AI platform — UX strategy end-to-end, content infrastructure, events, the full stack of decisions that define how a new kind of product presents itself to its users." },
+  { id:36, album:'Independent',            year:2023, tags:['fintech','contract','agency'],                text:"Brave People with Geico Asset Management — fintech UX in the contract-engagement mode, where the scope is fixed and the execution must be complete without the luxury of iteration." },
+  { id:37, album:'Independent',            year:2023, tags:['craft','contract','humility'],                text:"A full year of low voltage contracting — running cable, installing security systems, terminating an RJ45 in thirty seconds — different parts of the same brain, and humility is a hell of a teacher." },
+
+  // ── ERA: STUDIO ── Wolfgang & Co., 2025–Now
+  { id:38, album:'Wolfgang & Co.',         year:2025, tags:['studio','language','craft','conviction'],     text:"Wolfgang and Co. is named for my late blind rescue poodle — a concept studio focused on craft, language, and human intent, built around the single conviction that the sentence is the irreducible unit of thought." },
+  { id:39, album:'Wolfgang & Co.',         year:2025, tags:['language','studio','craft'],                  text:"wolfie.love was built entirely from scratch — a memorial for Wolfgang and the origin point of everything: the sentence-progressive reading engine, Flow Mode with authored timing markup, four themes." },
+  { id:40, album:'Wolfgang & Co.',         year:2025, tags:['studio','language','conviction'],             text:"ifimaybefrank.com is a writing application and a manifesto simultaneously — the tool proves the argument by existing, sentence-as-primitive applied to writing itself, v2 shipped in a single session." },
+  { id:41, album:'Wolfgang & Co.',         year:2025, tags:['studio','craft','language'],                  text:"reasonably.cc is a thinking tool — bracket annotation, scatter canvas interaction system, the same engine doing the work of structured thought rather than structured reading." },
+  { id:42, album:'Wolfgang & Co.',         year:2025, tags:['conviction','studio','language'],             text:"dab.cx embodies the approach in three words: Design, Architect, Build — not design then hand off, not design then wait, one continuous motion from concept to production without translation loss." },
+  { id:43, album:'Wolfgang & Co.',         year:2025, tags:['studio','conviction','language'],             text:"intoview.pro is my professional presence — built on the same engine as everything else, a pedigree panel of fourteen organizations across twenty years, the narrative-as-nodes architecture applied to the job market." },
+  { id:44, album:'Wolfgang & Co.',         year:2025, tags:['language','craft','conviction'],              text:"The sentence is the irreducible unit of thought — not the page, not the flow, not the interface — and every platform in this system is an expression of that single conviction, compounding forward." },
+
+  // ── ERA: MANIFESTO ── The Argument
+  { id:45, album:'The Argument',           year:2026, tags:['conviction','craft','systems','language'],    text:"Twenty years, no degree, no certification, no award — every credential earned in the work itself, starting from a pirated copy of Photoshop and a Craigslist post into the void." },
+  { id:46, album:'The Argument',           year:2026, tags:['conviction','systems','craft'],               text:"Systems thinking, code-native prototyping, the rare ability to hold the whole model in your head while making a pixel decision — and to know which one yields." },
+  { id:47, album:'The Argument',           year:2026, tags:['conviction','language','craft'],              text:"This canvas is not a portfolio — it is the argument made visible, vanilla HTML, CSS, and JavaScript, one file, no framework, no build step, the constraint as proof." },
+  { id:48, album:'The Argument',           year:2026, tags:['conviction','systems','craft'],               text:"I am not looking for a title — I am looking for the problem worth solving with people who want to solve it well, at senior or principal level, remote, full-time, for real." },
+  { id:49, album:'The Argument',           year:2026, tags:['conviction','language','craft'],              text:"I have lived on both sides of the design and development handoff, and I think deeply about human-to-human interaction at scale — zack@reasonably.cc, linkedin.com/in/zackgort." },
+];
+
+const ALL_ALBUMS = [...new Set(TRACKS.map(d => d.album))];
+const ALL_TAGS   = [...new Set(TRACKS.flatMap(d => d.tags))].sort();
+const SHORT = { 'Roots · Philadelphia':'Roots', 'Startup · Philadelphia':'Turn5', 'Conversion · Philadelphia':'Conv.', 'Agency · Philadelphia':'160/90', 'Product · Philadelphia':'O3', 'SaaS · Philadelphia':'SaaS', 'NYC Debut':'NYC↑', 'E-commerce · NYC':'Livearea', 'Hospitality · NYC':'HUGE', 'Recovery · NYC':'GNC', 'Enterprise · NYC':'C&T', 'Fintech · NYC':'BNY', 'Independent':'Indep.', 'Wolfgang & Co.':'W&Co', 'The Argument':'∴' };
+
+const isMobile = () => window.innerWidth <= 600 || (window.innerHeight <= 500 && window.innerWidth < 1024);
+const isLandscape = () => window.innerWidth > window.innerHeight;
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const cursorCanvas = document.getElementById('cursor-canvas');
+const cursorCtx    = cursorCanvas.getContext('2d');
+let W = canvas.width = cursorCanvas.width  = window.innerWidth;
+let H = canvas.height = cursorCanvas.height = window.innerHeight;
+
+const FONT_BASE  = 11;
+const FONT_LARGE = 20;
+let userFontBase = FONT_BASE;
+const SEP = ' — ';
+let fontT = 0, fontTgt = 0;
+const FONT_LERP = 0.07;
+
+const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
+let repelRadius = REPEL_DEFAULT;
+const BLOOM_DEFAULT = 160;
+let bloomRadius = BLOOM_DEFAULT;
+
+let magnifyMode = false;
+let magnifyRadius = repelRadius; 
+const magnifyRing = document.getElementById('magnify-ring');
+
+window.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  magnifyMode = !magnifyMode;
+  magnifyRing.classList.toggle('active', magnifyMode);
+});
+
+function handleWheel(e) {
+  e.preventDefault();
+  if (isMobile()) return;
+  repelRadius = Math.min(REPEL_MAX, Math.max(REPEL_MIN, repelRadius - e.deltaY * 0.5));
+  bloomRadius = repelRadius * 1.45; 
+}
+window.addEventListener('wheel', handleWheel, { passive: false });
+canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+function isFiltered() { return activeAlbum !== null || activeTags.size > 0; }
+function currentFontSize() {
+  const base = isMobile() ? 9 : userFontBase;
+  const large = isMobile() ? 16 : userFontBase + 9;
+  return base + (large - base) * fontT;
+}
+function currentCharW()    { return currentFontSize() * 0.602; }
+function currentLineH()    { return currentFontSize() * 1.64; }
+function currentPadX()     { return isMobile() ? 10 : 80; }
+function currentPadTop()   { 
+  if (isMobile() && isLandscape()) return 100; 
+  return isMobile() ? 220 : 220; 
+}
+function currentFontFace() { 
+  const weight = document.body.classList.contains('theme-dark') ? '300' : '500';
+  return `${weight} ${currentFontSize().toFixed(2)}px "DM Mono", monospace`; 
+}
+
+function getBottomSafeArea() { return 120; }
+
+const TETHER_K = 0.014, DAMP = 0.76, REPEL_S = 3.2, BLOB_LERP = 0.11, BLOB_RX = 28;
+
+const topHeader = document.getElementById('top-header'), logoWidget = document.getElementById('logo-widget');
+const LOGO_SIZE = 180;
+let activeDrag = null, dragDX = 0, dragDY = 0;
+let logoX = Math.round(window.innerWidth / 2 - LOGO_SIZE / 2), logoY = 22;
+
+const EDGE_MARGIN = 60;  
+const EDGE_HARDSTOP = 1; 
+
+function edgeResist(value, min, max) {
+  if (value >= min + EDGE_MARGIN && value <= max - EDGE_MARGIN) return value;
+  if (value < min + EDGE_HARDSTOP) return min + EDGE_HARDSTOP;
+  if (value > max - EDGE_HARDSTOP) return max - EDGE_HARDSTOP;
+  if (value < min + EDGE_MARGIN) {
+    const t = 1 - (value - min) / EDGE_MARGIN; 
+    const cushion = t * t * (EDGE_MARGIN - EDGE_HARDSTOP);
+    return min + EDGE_HARDSTOP + (EDGE_MARGIN - EDGE_HARDSTOP - cushion * 0.85);
+  } else {
+    const t = 1 - (max - value) / EDGE_MARGIN;
+    const cushion = t * t * (EDGE_MARGIN - EDGE_HARDSTOP);
+    return max - EDGE_HARDSTOP - (EDGE_MARGIN - EDGE_HARDSTOP - cushion * 0.85);
+  }
+}
+
+function clampToViewport(el, nx, ny) {
+  const rect = el.getBoundingClientRect();
+  const vW = window.innerWidth, vH = window.innerHeight;
+  const elW = rect.width, elH = rect.height;
+  nx = edgeResist(nx, 0, vW - elW);
+  ny = edgeResist(ny, 0, vH - elH);
+  return { nx, ny };
+}
+
+function reanchorWidget(widget) {
+  const rect = widget.getBoundingClientRect();
+  const vW = window.innerWidth, vH = window.innerHeight;
+  let nx = rect.left, ny = rect.top;
+  if (nx + rect.width > vW - EDGE_HARDSTOP) nx = vW - rect.width - EDGE_HARDSTOP;
+  if (ny + rect.height > vH - EDGE_HARDSTOP) ny = vH - rect.height - EDGE_HARDSTOP;
+  if (nx < EDGE_HARDSTOP) nx = EDGE_HARDSTOP;
+  if (ny < EDGE_HARDSTOP) ny = EDGE_HARDSTOP;
+  if (widget.style.left || widget.style.top) {
+    widget.style.left = nx + 'px';
+    widget.style.top  = ny + 'px';
+    widget.style.bottom = 'auto';
+    widget.style.right  = 'auto';
+  } else {
+    if (rect.right > vW - EDGE_HARDSTOP || rect.bottom > vH - EDGE_HARDSTOP ||
+        rect.left < EDGE_HARDSTOP || rect.top < EDGE_HARDSTOP) {
+      widget.style.left = nx + 'px';
+      widget.style.top  = ny + 'px';
+      widget.style.bottom = 'auto';
+      widget.style.right  = 'auto';
+    }
+  }
+}
+
+function bindDraggable(element, widgetContainer) {
+  function startDrag(clientX, clientY) {
+    activeDrag = widgetContainer;
+    const rect = widgetContainer.getBoundingClientRect();
+    dragDX = clientX - rect.left;
+    dragDY = clientY - rect.top;
+  }
+  element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  element.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) { startDrag(e.touches[0].clientX, e.touches[0].clientY); }
+    e.stopPropagation(); 
+  }, { passive: true });
+}
+
+bindDraggable(logoWidget, topHeader);
+document.querySelectorAll('.widget-topbar').forEach(bar => bindDraggable(bar, bar.closest('.filter-widget')));
+
+window.addEventListener('mouseup', () => { activeDrag = null; });
+window.addEventListener('touchend', () => { activeDrag = null; });
+
+function applyDrag(clientX, clientY) {
+  if (!activeDrag) return;
+  let nx = clientX - dragDX, ny = clientY - dragDY;
+  if (activeDrag === topHeader) {
+    const clamped = clampToViewport(topHeader, nx, ny);
+    logoX = clamped.nx; logoY = clamped.ny;
+    topHeader.style.left = logoX + 'px'; topHeader.style.top = logoY + 'px'; topHeader.style.transform = 'none';
+  } else {
+    const clamped = clampToViewport(activeDrag, nx, ny);
+    activeDrag.style.left = clamped.nx + 'px'; activeDrag.style.top = clamped.ny + 'px';
+    activeDrag.style.bottom = 'auto'; activeDrag.style.right = 'auto';
+    invalidateFilterRepel();
+  }
+}
+
+window.addEventListener('mousemove', e => { applyDrag(e.clientX, e.clientY); });
+window.addEventListener('touchmove', e => {
+  if (activeDrag) {
+    applyDrag(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }
+}, { passive: false });
+
+document.querySelectorAll('.collapse-btn').forEach(btn => {
+  btn.addEventListener('mousedown', e => e.stopPropagation());
+  shimTouch(btn);
+  btn.addEventListener('click', e => {
+    const widget = btn.closest('.filter-widget');
+    widget.classList.toggle('collapsed');
+    btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
+    invalidateFilterRepel();
+    buildLayout();
+    requestAnimationFrame(() => {
+      reanchorWidget(widget);
+      invalidateFilterRepel();
+    });
+  });
+});
+
+const fontVal = document.getElementById('font-val');
+const cursorToggle = document.getElementById('cursor-toggle');
+const themeToggle = document.getElementById('theme-toggle');
+
+function shimTouch(el) {
+  let tStart = null;
+  el.addEventListener('touchstart', e => { tStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!tStart) return;
+    const dx = e.changedTouches[0].clientX - tStart.x;
+    const dy = e.changedTouches[0].clientY - tStart.y;
+    tStart = null;
+    if (Math.sqrt(dx*dx + dy*dy) < 10) {
+      e.preventDefault();
+      el.click();
+    }
+  }, { passive: false });
+}
+
+['font-up','font-down','reset-btn','cursor-toggle','theme-toggle'].forEach(id => shimTouch(document.getElementById(id)));
+
+themeToggle.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('theme-dark');
+  themeToggle.textContent = isDark ? 'Light' : 'Dark';
+  buildLayout(); // Recalculate font weights & opacities
+});
+
+document.getElementById('font-up').addEventListener('click', () => {
+  userFontBase = Math.min(22, userFontBase + 1);
+  fontVal.textContent = userFontBase;
+  buildLayout();
+});
+document.getElementById('font-down').addEventListener('click', () => {
+  userFontBase = Math.max(7, userFontBase - 1);
+  fontVal.textContent = userFontBase;
+  buildLayout();
+});
+document.getElementById('reset-btn').addEventListener('click', () => {
+  activeAlbum = null; activeTags.clear();
+  userFontBase = FONT_BASE; fontVal.textContent = userFontBase;
+  repelRadius = REPEL_DEFAULT; bloomRadius = BLOOM_DEFAULT;
+  magnifyMode = false;
+  cursorToggle.textContent = 'Repel'; cursorToggle.classList.remove('active');
+  magnifyRing.classList.remove('active');
+  buildLayout(); refreshFilterState();
+});
+cursorToggle.addEventListener('click', () => {
+  magnifyMode = !magnifyMode;
+  cursorToggle.textContent = magnifyMode ? 'Black Hole' : 'Repel';
+  cursorToggle.classList.toggle('active', magnifyMode);
+  magnifyRing.classList.toggle('active', magnifyMode);
+});
+
+document.body.addEventListener('touchmove', e => {
+  if (!activeDrag) e.preventDefault();
+}, { passive: false });
+
+let activeAlbum = null, activeTags = new Set(), domButtons = [], filterRepelZones = [];
+let mX = W/2, mY = H/2, bX = W/2, bY = H/2, eX = W/2, eY = H/2, eVX = 0, eVY = 0;
+let mVX = 0, mVY = 0, cursorSpeed = 0;
+
+window.addEventListener('mousemove', e => { mVX = e.clientX - mX; mVY = e.clientY - mY; mX = e.clientX; mY = e.clientY; });
+window.addEventListener('touchmove', e => {
+  if (!activeDrag && e.touches.length === 1) {
+    mX = e.touches[0].clientX; mY = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+let pinchStartDist = null, pinchStartRadius = null;
+window.addEventListener('touchstart', e => {
+  if (!activeDrag && e.touches.length === 1) {
+    mX = e.touches[0].clientX; mY = e.touches[0].clientY;
+  }
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStartDist = Math.sqrt(dx*dx + dy*dy);
+    pinchStartRadius = repelRadius;
+  }
+}, { passive: true });
+
+window.addEventListener('touchmove', e => {
+  if (e.touches.length === 2 && pinchStartDist) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const scale = dist / pinchStartDist;
+    repelRadius = Math.min(REPEL_MAX, Math.max(REPEL_MIN, pinchStartRadius * scale));
+    bloomRadius = repelRadius * 1.45;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', e => {
+  if (e.touches.length < 2) { pinchStartDist = null; pinchStartRadius = null; }
+});
+
+function initDOMFilters() {
+  const albC = document.getElementById('albums-container'), tagC = document.getElementById('tags-container');
+  ALL_ALBUMS.forEach(a => {
+    const btn = document.createElement('div'); btn.className = 'filter-btn'; btn.textContent = SHORT[a] || a;
+    btn.addEventListener('click', () => { activeAlbum = activeAlbum === a ? null : a; buildLayout(); });
+    shimTouch(btn);
+    albC.appendChild(btn); domButtons.push({ btn, key: a, type: 'album' });
+  });
+  ALL_TAGS.forEach(t => {
+    const btn = document.createElement('div'); btn.className = 'filter-btn'; btn.textContent = t;
+    btn.addEventListener('click', () => { activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); buildLayout(); });
+    shimTouch(btn);
+    tagC.appendChild(btn); domButtons.push({ btn, key: t, type: 'tag' });
+  });
+}
+
+function refreshFilterState() {
+  const visible = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t))));
+  const vA = new Set(visible.map(d => d.album)), vT = new Set(visible.flatMap(d => d.tags));
+  domButtons.forEach(({ btn, key, type }) => {
+    const isActive = type === 'album' ? key === activeAlbum : activeTags.has(key);
+    const isRel = isActive ? false : (type === 'album' ? vA.has(key) : vT.has(key));
+    btn.classList.toggle('active', isActive); btn.classList.toggle('related', isRel);
+  });
+  document.getElementById('clear-album').classList.toggle('visible', activeAlbum !== null);
+  document.getElementById('clear-tags').classList.toggle('visible', activeTags.size > 0);
+}
+
+const clearAlbum = document.getElementById('clear-album');
+const clearTags  = document.getElementById('clear-tags');
+clearAlbum.addEventListener('click', e => { e.stopPropagation(); activeAlbum = null; buildLayout(); });
+clearTags.addEventListener('click',  e => { e.stopPropagation(); activeTags.clear(); buildLayout(); });
+shimTouch(clearAlbum); shimTouch(clearTags);
+
+function invalidateFilterRepel() {
+  filterRepelZones = [];
+  ['albums-widget','tags-widget','controls-widget','info-widget','links-widget'].map(id => document.getElementById(id)).forEach(w => {
+    const r = w.getBoundingClientRect();
+    filterRepelZones.push({ left: r.left - 28, top: r.top - 28, right: r.right + 28, bottom: r.bottom + 28, rx: r.left, ry: r.top, rw: r.width, rh: r.height, pad: 28 });
+  });
+}
+
+let allChars = [];
+
+function computeLayout(charW, lineH, padX, padTop) {
+  const visible = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t))));
+  if (!visible.length) return [];
+  const tokens = [];
+  visible.forEach((d, i) => {
+    d.text.split(' ').forEach(w => tokens.push({ text: w, trackId: d.id }));
+    if (i < visible.length - 1) tokens.push({ text: SEP.trim(), trackId: d.id, isSep: true });
+  });
+  const maxW = W - padX * 2;
+  const maxH = H - getBottomSafeArea();
+  const lines = [];
+  let curL = [], curW = 0;
+  tokens.forEach(tok => {
+    const seg = (curL.length ? ' ' : '') + tok.text, sw = seg.length * charW;
+    if (curW + sw > maxW && curL.length) { lines.push(curL); curL = [{ ...tok, display: tok.text }]; curW = tok.text.length * charW; }
+    else { curL.push({ ...tok, display: seg }); curW += sw; }
+  });
+  if (curL.length) lines.push(curL);
+  const chars = [];
+  lines.forEach((line, li) => {
+    const ry = padTop + li * lineH;
+    if (ry > maxH) return; 
+    let rx = padX;
+    line.forEach(tok => {
+      for (let ci = 0; ci < tok.display.length; ci++) {
+        chars.push({ ch: tok.display[ci], restX: rx + ci * charW, restY: ry, seed: (tok.trackId * 137 + ci) % 100 / 100, isSep: tok.isSep });
+      }
+      rx += tok.display.length * charW;
+    });
+  });
+  return chars;
+}
+
+function buildLayout() {
+  const isDark = document.body.classList.contains('theme-dark');
+  const tgtT = isFiltered() ? 1 : 0;
+  const base = isMobile() ? 9 : userFontBase;
+  const large = isMobile() ? 16 : userFontBase + 9;
+  const tgtF = base + (large - base) * tgtT;
+  const tgtCW = tgtF * 0.602, tgtLH = tgtF * 1.64;
+  const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop());
+  allChars = layout.map((def, i) => {
+    const ex = allChars[i];
+    // Dynamic opacity baselines based on current theme
+    const opacityBase = isDark ? 
+      (def.isSep ? 0.11 : 0.32 + def.seed * 0.38) : 
+      (def.isSep ? 0.30 : 0.60 + def.seed * 0.40);
+      
+    return { ch: def.ch, restX: def.restX, restY: def.restY, x: ex ? ex.x : def.restX, y: ex ? ex.y : def.restY, vx: ex ? ex.vx : 0, vy: ex ? ex.vy : 0, baseOpacity: opacityBase };
+  });
+  fontTgt = tgtT;
+  document.getElementById('cnt').textContent = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t)))).length;
+  refreshFilterState();
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  bX += (mX - bX) * BLOB_LERP; bY += (mY - bY) * BLOB_LERP;
+  eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1; eX += (eVX *= 0.68); eY += (eVY *= 0.68);
+  fontT += (fontTgt - fontT) * FONT_LERP;
+  cursorSpeed += (Math.sqrt(mVX*mVX + mVY*mVY) - cursorSpeed) * 0.12;
+  mVX *= 0.6; mVY *= 0.6;
+
+  if (Math.abs(fontT - fontTgt) > 0.001) {
+    const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop());
+    l.forEach((def, i) => { if (allChars[i]) { allChars[i].restX = def.restX; allChars[i].restY = def.restY; } });
+  }
+
+  const isDark = document.body.classList.contains('theme-dark');
+
+  // Clear rect handles light mode grid, fillRect for solid dark mode black
+  ctx.clearRect(0, 0, W, H);
+  if (isDark) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.font = currentFontFace(); ctx.textBaseline = 'top';
+  const lcx = logoX + 90, lcy = logoY + 30;
+
+  const rgb = isDark ? '255,255,255' : '0,0,0';
+
+  for (const p of allChars) {
+    const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
+
+    if (magnifyMode && d < repelRadius) {
+      const gravity = (repelRadius * 1.4) / Math.max(d * d * 0.08, 4);
+      p.vx -= (dx/d) * Math.min(gravity, 3.5);
+      p.vy -= (dy/d) * Math.min(gravity, 3.5);
+
+      const coreR = repelRadius * 0.5;
+      if (d < coreR) {
+        const pushF = Math.pow(1 - d / coreR, 2) * 12;
+        p.vx += (dx/d) * pushF;
+        p.vy += (dy/d) * pushF;
+      }
+
+      const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * 0.9;
+      p.vx += (-dy/d) * vOrbit;
+      p.vy += ( dx/d) * vOrbit;
+
+      p.vx += (p.restX - p.x) * TETHER_K * 0.25;
+      p.vy += (p.restY - p.y) * TETHER_K * 0.25;
+    } else {
+      p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
+      if (!magnifyMode && d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
+    }
+
+    const ldx = p.x - lcx, ldy = p.y - lcy, ld = Math.sqrt(ldx*ldx + ldy*ldy);
+    if (ld < 130) { const f = (1 - ld/130); p.vx += (ldx/ld) * f * f * 20; p.vy += (ldy/ld) * f * f * 20; }
+    filterRepelZones.forEach(z => {
+      if (p.x > z.left && p.x < z.right && p.y > z.top && p.y < z.bottom) {
+        const cpx = Math.max(z.rx, Math.min(p.x, z.rx + z.rw)), cpy = Math.max(z.ry, Math.min(p.y, z.ry + z.rh));
+        const ddx = p.x - cpx, ddy = p.y - cpy, dd = Math.sqrt(ddx*ddx + ddy*ddy);
+        if (dd < z.pad && dd > 0.5) { const f = (1 - dd/z.pad); p.vx += (ddx/dd) * f * f * 16; p.vy += (ddy/dd) * f * f * 16; }
+      }
+    });
+    p.vx *= DAMP; p.vy *= DAMP; p.x += p.vx; p.y += p.vy;
+
+    if (magnifyMode && d < repelRadius) {
+      const alpha = p.baseOpacity;
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+    } else {
+      const fadeStart = 20, fadeEnd = 60;
+      const alpha = p.baseOpacity * Math.min(1, Math.max(0, (d - fadeStart) / (fadeEnd - fadeStart)));
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+    }
+  }
+
+  cursorCtx.clearRect(0,0,W,H);
+
+  if (!isMobile()) {
+    const grad = cursorCtx.createRadialGradient(bX, bY, 0, bX, bY, bloomRadius);
+    grad.addColorStop(0,   `rgba(${rgb}, ${isDark ? 0.055 : 0.01})`);
+    grad.addColorStop(0.4, `rgba(${rgb}, ${isDark ? 0.018 : 0.01})`);
+    grad.addColorStop(1,   `rgba(${rgb}, 0)`);
+    cursorCtx.fillStyle = grad;
+    cursorCtx.beginPath();
+    cursorCtx.arc(bX, bY, bloomRadius, 0, Math.PI*2);
+    cursorCtx.fill();
+  }
+
+  cursorCtx.fillStyle = `rgba(${rgb},0.4)`;
+  cursorCtx.beginPath(); cursorCtx.arc(eX, eY, 4, 0, Math.PI*2); cursorCtx.fill();
+  cursorCtx.fillStyle = `rgb(${rgb})`;
+  cursorCtx.beginPath(); cursorCtx.arc(mX, mY, 1.5, 0, Math.PI*2); cursorCtx.fill();
+}
+
+window.addEventListener('resize', () => {
+  W = canvas.width = cursorCanvas.width = window.innerWidth;
+  H = canvas.height = cursorCanvas.height = window.innerHeight;
+  buildLayout(); invalidateFilterRepel();
+});
+
+initDOMFilters(); invalidateFilterRepel(); buildLayout(); loop();
+</script>
+</body>
+</html>
