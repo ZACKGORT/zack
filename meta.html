@@ -682,22 +682,23 @@ function loop() {
 
     if (magnifyMode && d < repelRadius) {
       // ── Black hole accretion disc ──
-      // Suppress tether so the hole wins
-      const fieldF = Math.max(0, 1 - d/repelRadius);
+      // Stable orbit radius scales with repelRadius — chars settle at ~40% of field edge
+      const stableR = repelRadius * 0.42;
 
-      // Radial inward pull — stronger near center
-      const inward = fieldF * fieldF * 2.8;
-      p.vx -= (dx/d) * inward;
-      p.vy -= (dy/d) * inward;
+      // Inward gravity — 1/d² falloff, scaled to repelRadius so scroll widens the whole system
+      const gravity = (repelRadius * 1.4) / Math.max(d * d * 0.08, 4);
+      p.vx -= (dx/d) * Math.min(gravity, 3.5);
+      p.vy -= (dy/d) * Math.min(gravity, 3.5);
 
-      // Tangential orbital velocity — perpendicular to radius, consistent handedness
-      const orbit = fieldF * 3.2;
-      p.vx += (-dy/d) * orbit;
-      p.vy += ( dx/d) * orbit;
+      // Keplerian tangential velocity — faster close in, slower far out
+      // v_orbit ∝ 1/sqrt(d), anchored so stable orbit lands at stableR
+      const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * 0.9;
+      p.vx += (-dy/d) * vOrbit;
+      p.vy += ( dx/d) * vOrbit;
 
-      // Weak tether so chars eventually return when field moves away
-      p.vx += (p.restX - p.x) * TETHER_K * 0.3;
-      p.vy += (p.restY - p.y) * TETHER_K * 0.3;
+      // Weak tether so chars drift home when field moves away
+      p.vx += (p.restX - p.x) * TETHER_K * 0.25;
+      p.vy += (p.restY - p.y) * TETHER_K * 0.25;
     } else {
       // Normal tether
       p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
