@@ -3,43 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>zackgort.sandbox — metallica </title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300&display=swap" rel="stylesheet">
+<title>zackgort.sandbox — metallica</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
 <style>
+  :root {
+    /* Light Theme (Blueprint) Defaults */
+    --bg-color: #f4f4f4;
+    --bg-image: linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+    --fg-color: #000;
+    --border-color: #000;
+    --widget-bg: #fff;
+    --widget-hover: #f4f4f4;
+    --btn-bg: #fff;
+    --btn-hover-bg: #000;
+    --btn-hover-fg: #fff;
+    --active-bg: #000;
+    --active-fg: #fff;
+    --font-weight: 500;
+    --ring-border: dashed rgba(0,0,0,0.3);
+    --ring-active: #000;
+    --shadow: 4px 4px 0px #000;
+    --drop-shadow: none;
+    --count-bg: #fff;
+  }
+
+  body.theme-dark {
+    /* Dark Theme Overrides */
+    --bg-color: #000;
+    --bg-image: none;
+    --fg-color: #fff;
+    --border-color: rgba(255,255,255,0.05);
+    --widget-bg: rgba(0,0,0,0.8);
+    --widget-hover: rgba(255,255,255,0.06);
+    --btn-bg: transparent;
+    --btn-hover-bg: transparent;
+    --btn-hover-fg: #fff;
+    --active-bg: #fff;
+    --active-fg: #000;
+    --font-weight: 300;
+    --ring-border: solid rgba(255,255,255,0.25);
+    --ring-active: rgba(255,255,255,0.4);
+    --shadow: none;
+    --drop-shadow: drop-shadow(0 0 18px #000) drop-shadow(0 0 40px #000);
+    --count-bg: transparent;
+  }
+
   * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { background:#000; overflow:hidden; width:100%; height:100%; cursor:none; overscroll-behavior:none; touch-action:none; }
+  
+  html, body { 
+    background-color: var(--bg-color);
+    background-image: var(--bg-image);
+    background-size: 20px 20px;
+    background-position: center center;
+    overflow:hidden; 
+    width:100%; 
+    height:100%; 
+    cursor:none; 
+    overscroll-behavior:none; 
+    touch-action:none; 
+    transition: background-color 0.3s;
+  }
+  
   canvas { display:block; position:fixed; inset:0; touch-action:none; }
   #cursor-canvas { display:block; position:fixed; inset:0; z-index:100; pointer-events:none; touch-action:none; }
+  
   #magnify-ring {
     position:fixed; pointer-events:none; z-index:101;
-    border:1px solid rgba(255,255,255,0.25); border-radius:50%;
+    border:1px var(--ring-border); border-radius:50%;
     transform:translate(-50%,-50%);
     display:none;
-    transition: border-color 0.2s;
   }
-  #magnify-ring.active { display:block; border-color:rgba(255,255,255,0.4); }
+  #magnify-ring.active { display:block; border-color:var(--ring-active); }
+  
   #count {
     position:fixed; top:38px; right:60px;
-    font-family:'DM Mono',monospace; font-weight:300;
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:9px; letter-spacing:.2em; text-transform:uppercase;
-    color:rgba(255,255,255,0.14); pointer-events:none; z-index:20;
+    color:var(--fg-color); pointer-events:none; z-index:20;
+    background: var(--count-bg);
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+  }
+  body.theme-dark #count {
+    border: none;
+    color: rgba(255,255,255,0.14);
   }
 
   #top-header {
     position:fixed; top:22px; left:50%; transform:translateX(-50%);
     display:flex; flex-direction:column; align-items:center; gap:10px;
     z-index:20;
-    filter: drop-shadow(0 0 8px #000) drop-shadow(0 0 20px #000);
+    filter: var(--drop-shadow);
   }
   #logo-widget {
     width:180px; height:60px;
     cursor:none; user-select:none;
   }
-  #logo-svg { width:100%; height:100%; fill:#fff; display:block; pointer-events:none; overflow:visible; }
+  #logo-svg { width:100%; height:100%; fill:var(--fg-color); display:block; pointer-events:none; overflow:visible; }
 
   /* ── Controls widget ── */
   #controls-widget {
-    position:fixed; top:22px; right:22px; z-index:20;
+    position:fixed; top:22px; right:22px; z-index:30; /* Elevated above #count */
   }
 
   /* ── Info widget ── */
@@ -48,66 +113,71 @@
     max-width: 320px;
   }
   #info-widget .widget-content {
-    font-family:'DM Mono',monospace; font-weight:300;
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:10px; line-height:1.7; letter-spacing:0.04em;
-    color:rgba(255,255,255,0.38);
+    color:var(--fg-color);
     padding:14px 16px;
+    opacity: 0.8;
   }
 
   /* ── Controls row inside widget ── */
   .ctrl-row {
     display:flex; align-items:center; gap:8px;
     padding:10px 16px;
-    border-top:1px solid rgba(255,255,255,0.05);
+    border-top:1px solid var(--border-color);
   }
   .ctrl-row:first-child { border-top:none; }
   .ctrl-label {
-    font-family:'DM Mono',monospace; font-weight:300;
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:9px; letter-spacing:0.18em; text-transform:uppercase;
-    color:rgba(255,255,255,0.3); flex:1; pointer-events:none;
+    color:var(--fg-color); flex:1; pointer-events:none;
+    opacity: 0.8;
   }
   .ctrl-btn {
-    background:transparent; border:1px solid rgba(255,255,255,0.1);
-    color:rgba(255,255,255,0.35); font-family:'DM Mono',monospace;
+    background:var(--btn-bg); border:1px solid var(--border-color);
+    color:var(--fg-color); font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:11px; line-height:1; padding:4px 9px;
     cursor:none; transition:all 0.2s; user-select:none;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+  body.theme-dark .ctrl-btn { border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.35); }
   @media (pointer: coarse) {
     .ctrl-btn { cursor: pointer; padding: 8px 14px; font-size:13px; }
     .filter-btn { cursor: pointer; padding: 9px 12px; }
     .collapse-btn { cursor: pointer; padding: 4px 10px; }
   }
-  .ctrl-btn:hover { color:#fff; border-color:rgba(255,255,255,0.4); }
-  .ctrl-btn.active { background:#fff; color:#000; border-color:#fff; }
+  .ctrl-btn:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); border-color:var(--active-bg); }
+  body.theme-dark .ctrl-btn:hover { border-color: rgba(255,255,255,0.4); }
+  .ctrl-btn.active { background:var(--active-bg); color:var(--active-fg); border-color:var(--active-bg); }
+  
   .ctrl-val {
-    font-family:'DM Mono',monospace; font-weight:300;
-    font-size:9px; color:rgba(255,255,255,0.25);
+    font-family:'DM Mono',monospace; font-weight:var(--font-weight);
+    font-size:9px; color:var(--fg-color);
     min-width:24px; text-align:center; pointer-events:none;
+    opacity: 0.8;
   }
 
   .filter-widget {
     position: fixed;
-    background: rgba(0,0,0,0.8);
-    backdrop-filter: blur(4px);
+    background: var(--widget-bg);
     z-index: 20;
     display: flex;
     flex-direction: column;
-    filter: drop-shadow(0 0 18px #000) drop-shadow(0 0 40px #000);
     max-width: 420px;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow);
+    filter: var(--drop-shadow);
+    backdrop-filter: blur(4px);
   }
   
   #albums-widget { left: 28px; bottom: 28px; }
   #tags-widget { right: 28px; bottom: 28px; }
 
-  /* Mobile portrait */
   @media (max-width: 600px) {
     #albums-widget { left: 10px; bottom: 10px; max-width: calc(50vw - 14px); }
     #tags-widget { right: 10px; bottom: 10px; max-width: calc(50vw - 14px); }
   }
-  /* Mobile landscape */
   @media (max-height: 500px) and (orientation: landscape) {
     #albums-widget { left: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
     #tags-widget { right: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
@@ -121,32 +191,35 @@
     justify-content: space-between;
     align-items: center;
     padding: 12px 16px;
-    background: rgba(255,255,255,0.03);
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
     user-select: none;
   }
-  .widget-topbar:hover { background: rgba(255,255,255,0.06); }
+  .widget-topbar:hover { background: var(--widget-hover); }
 
   .filter-header {
     font-family: 'DM Mono', monospace;
-    font-weight: 300;
+    font-weight: var(--font-weight);
     font-size: 10px;
     letter-spacing: 0.2em;
-    color: rgba(255,255,255,0.5);
+    color: var(--fg-color);
     text-transform: uppercase;
     pointer-events: none;
+    opacity: 0.7;
   }
 
   .collapse-btn {
     font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
     font-size: 14px;
     line-height: 1;
-    color: rgba(255,255,255,0.3);
+    color: var(--fg-color);
     cursor: none;
     padding: 0 4px;
     transition: color 0.2s;
+    opacity: 0.6;
   }
-  .collapse-btn:hover { color: #fff; }
+  .collapse-btn:hover { opacity: 1; }
 
   .widget-content {
     padding: 16px;
@@ -163,10 +236,11 @@
   }
 
   .filter-btn {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.22);
+    background: var(--btn-bg);
+    border: 1px solid var(--border-color);
+    color: var(--fg-color);
     font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
     font-size: 9px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -175,25 +249,33 @@
     transition: all 0.2s;
     user-select: none;
   }
+  body.theme-dark .filter-btn { border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.22); }
   .filter-btn:hover {
-    color: rgba(255,255,255,0.7);
-    border-color: rgba(255,255,255,0.3);
+    background: var(--btn-hover-bg);
+    color: var(--btn-hover-fg);
   }
+  body.theme-dark .filter-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+  
   .filter-btn.related {
-    color: rgba(255,255,255,0.45);
-    border-color: rgba(255,255,255,0.15);
+    opacity: 0.6;
+    border-style: dashed;
   }
+  body.theme-dark .filter-btn.related { border-style: solid; border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.45); }
+  
   .filter-btn.active {
-    background: #fff;
-    color: #000;
-    border-color: #fff;
+    background: var(--active-bg);
+    color: var(--active-fg);
+    border-color: var(--active-bg);
+    border-style: solid;
+    opacity: 1;
   }
 
   .clear-btn {
     font-family: 'DM Mono', monospace;
+    font-weight: var(--font-weight);
     font-size: 16px;
     line-height: 1;
-    color: rgba(255,255,255,0.15);
+    color: var(--fg-color);
     cursor: none;
     padding: 0 4px;
     transition: color 0.2s;
@@ -202,10 +284,10 @@
     user-select: none;
   }
   .clear-btn.visible {
-    opacity: 1;
+    opacity: 0.5;
     pointer-events: auto;
   }
-  .clear-btn:hover { color: rgba(255,255,255,0.8); }
+  .clear-btn.visible:hover { opacity: 1; }
   @media (pointer: coarse) { .clear-btn { cursor: pointer; } }
 </style>
 </head>
@@ -222,16 +304,18 @@
   </div>
 </div>
 
-<!-- Info widget — top left -->
 <div id="info-widget" class="filter-widget collapsed">
   <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
   <div class="widget-content">a fan-made thought-experiment — a meditation on meaning as mass. one analytical sentence per track across metallica's studio discography. built to ask what it feels like to hold a body of work all at once.</div>
 </div>
 
-<!-- Controls widget — top right -->
 <div id="controls-widget" class="filter-widget collapsed">
   <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
   <div class="widget-content" style="padding:0;">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Theme</span>
+      <div class="ctrl-btn" id="theme-toggle">Dark</div>
+    </div>
     <div class="ctrl-row">
       <span class="ctrl-label">Font</span>
       <div class="ctrl-btn" id="font-down">−</div>
@@ -417,16 +501,13 @@ const SEP = ' — ';
 let fontT = 0, fontTgt = 0;
 const FONT_LERP = 0.07;
 
-// ── REPEL + BLOOM: scrollwheel controls distortion radius on desktop ──
 const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
 let repelRadius = REPEL_DEFAULT;
-// Bloom tracks repel radius proportionally
 const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
 
-// ── MAGNIFY MODE: right-click toggle ──
 let magnifyMode = false;
-let magnifyRadius = repelRadius; // lerped display radius for ring
+let magnifyRadius = repelRadius; 
 const magnifyRing = document.getElementById('magnify-ring');
 
 window.addEventListener('contextmenu', e => {
@@ -439,7 +520,7 @@ function handleWheel(e) {
   e.preventDefault();
   if (isMobile()) return;
   repelRadius = Math.min(REPEL_MAX, Math.max(REPEL_MIN, repelRadius - e.deltaY * 0.5));
-  bloomRadius = repelRadius * 1.45; // bloom tracks repel
+  bloomRadius = repelRadius * 1.45; 
 }
 window.addEventListener('wheel', handleWheel, { passive: false });
 canvas.addEventListener('wheel', handleWheel, { passive: false });
@@ -454,12 +535,14 @@ function currentCharW()    { return currentFontSize() * 0.602; }
 function currentLineH()    { return currentFontSize() * 1.64; }
 function currentPadX()     { return isMobile() ? 10 : 80; }
 function currentPadTop()   { 
-  if (isMobile() && isLandscape()) return 100; // compact in landscape
+  if (isMobile() && isLandscape()) return 100; 
   return isMobile() ? 220 : 220; 
 }
-function currentFontFace() { return `300 ${currentFontSize().toFixed(2)}px "DM Mono", monospace`; }
+function currentFontFace() { 
+  const weight = document.body.classList.contains('theme-dark') ? '300' : '500';
+  return `${weight} ${currentFontSize().toFixed(2)}px "DM Mono", monospace`; 
+}
 
-// ── Bottom safe area: fixed 120px clearance from bottom of viewport ──
 function getBottomSafeArea() { return 120; }
 
 const TETHER_K = 0.014, DAMP = 0.76, REPEL_S = 3.2, BLOB_LERP = 0.11, BLOB_RX = 28;
@@ -469,30 +552,15 @@ const LOGO_SIZE = 180;
 let activeDrag = null, dragDX = 0, dragDY = 0;
 let logoX = Math.round(window.innerWidth / 2 - LOGO_SIZE / 2), logoY = 22;
 
-function bindDraggable(element, widgetContainer) {
-  element.addEventListener('mousedown', e => {
-    activeDrag = widgetContainer;
-    const rect = widgetContainer.getBoundingClientRect();
-    dragDX = e.clientX - rect.left; dragDY = e.clientY - rect.top;
-    e.preventDefault();
-  });
-}
-
-// ── Edge-aware clamping with magnetic lerp resistance ──
-// MARGIN: how many px from the edge resistance starts building.
-// HARDSTOP: the outermost the widget can ever land (1px gap).
-const EDGE_MARGIN = 60;  // resistance begins this far from edge
-const EDGE_HARDSTOP = 1; // widget never goes past this
+const EDGE_MARGIN = 60;  
+const EDGE_HARDSTOP = 1; 
 
 function edgeResist(value, min, max) {
-  // Inside safe zone: no resistance
   if (value >= min + EDGE_MARGIN && value <= max - EDGE_MARGIN) return value;
-  // Past hard stop: clamp
   if (value < min + EDGE_HARDSTOP) return min + EDGE_HARDSTOP;
   if (value > max - EDGE_HARDSTOP) return max - EDGE_HARDSTOP;
-  // In resistance zone: lerp toward edge with increasing force
   if (value < min + EDGE_MARGIN) {
-    const t = 1 - (value - min) / EDGE_MARGIN; // 0→1 as approaching edge
+    const t = 1 - (value - min) / EDGE_MARGIN; 
     const cushion = t * t * (EDGE_MARGIN - EDGE_HARDSTOP);
     return min + EDGE_HARDSTOP + (EDGE_MARGIN - EDGE_HARDSTOP - cushion * 0.85);
   } else {
@@ -511,24 +579,20 @@ function clampToViewport(el, nx, ny) {
   return { nx, ny };
 }
 
-// After a widget expands (collapse toggled), re-clamp it so it doesn't overflow
 function reanchorWidget(widget) {
   const rect = widget.getBoundingClientRect();
   const vW = window.innerWidth, vH = window.innerHeight;
   let nx = rect.left, ny = rect.top;
-  // Hard-clamp on expand (no resistance — just snap it back in)
   if (nx + rect.width > vW - EDGE_HARDSTOP) nx = vW - rect.width - EDGE_HARDSTOP;
   if (ny + rect.height > vH - EDGE_HARDSTOP) ny = vH - rect.height - EDGE_HARDSTOP;
   if (nx < EDGE_HARDSTOP) nx = EDGE_HARDSTOP;
   if (ny < EDGE_HARDSTOP) ny = EDGE_HARDSTOP;
-  // Only reposition if widget has been explicitly placed (left/top set)
   if (widget.style.left || widget.style.top) {
     widget.style.left = nx + 'px';
     widget.style.top  = ny + 'px';
     widget.style.bottom = 'auto';
     widget.style.right  = 'auto';
   } else {
-    // Widget is still in CSS-positioned default: check if it overflows and fix
     if (rect.right > vW - EDGE_HARDSTOP || rect.bottom > vH - EDGE_HARDSTOP ||
         rect.left < EDGE_HARDSTOP || rect.top < EDGE_HARDSTOP) {
       widget.style.left = nx + 'px';
@@ -549,7 +613,7 @@ function bindDraggable(element, widgetContainer) {
   element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
   element.addEventListener('touchstart', e => {
     if (e.touches.length === 1) { startDrag(e.touches[0].clientX, e.touches[0].clientY); }
-    e.stopPropagation(); // don't bubble to body touch blocker
+    e.stopPropagation(); 
   }, { passive: true });
 }
 
@@ -591,7 +655,6 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
     btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
     invalidateFilterRepel();
     buildLayout();
-    // Re-clamp after expand so content doesn't overflow viewport
     requestAnimationFrame(() => {
       reanchorWidget(widget);
       invalidateFilterRepel();
@@ -599,12 +662,10 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
   });
 });
 
-// ── Controls widget ──
 const fontVal = document.getElementById('font-val');
 const cursorToggle = document.getElementById('cursor-toggle');
+const themeToggle = document.getElementById('theme-toggle');
 
-// Mobile touch shim: iOS/Android sometimes swallow clicks on cursor:none divs.
-// Bind touchend → click for any interactive div that may be affected.
 function shimTouch(el) {
   let tStart = null;
   el.addEventListener('touchstart', e => { tStart = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
@@ -613,7 +674,6 @@ function shimTouch(el) {
     const dx = e.changedTouches[0].clientX - tStart.x;
     const dy = e.changedTouches[0].clientY - tStart.y;
     tStart = null;
-    // Only fire if finger barely moved (tap, not drag)
     if (Math.sqrt(dx*dx + dy*dy) < 10) {
       e.preventDefault();
       el.click();
@@ -621,7 +681,13 @@ function shimTouch(el) {
   }, { passive: false });
 }
 
-['font-up','font-down','reset-btn','cursor-toggle'].forEach(id => shimTouch(document.getElementById(id)));
+['font-up','font-down','reset-btn','cursor-toggle','theme-toggle'].forEach(id => shimTouch(document.getElementById(id)));
+
+themeToggle.addEventListener('click', () => {
+  const isDark = document.body.classList.toggle('theme-dark');
+  themeToggle.textContent = isDark ? 'Light' : 'Dark';
+  buildLayout(); // Recalculate font weights & opacities
+});
 
 document.getElementById('font-up').addEventListener('click', () => {
   userFontBase = Math.min(22, userFontBase + 1);
@@ -649,7 +715,6 @@ cursorToggle.addEventListener('click', () => {
   magnifyRing.classList.toggle('active', magnifyMode);
 });
 
-// Prevent body scroll/bounce on iOS — only allow touchmove if a widget drag is active
 document.body.addEventListener('touchmove', e => {
   if (!activeDrag) e.preventDefault();
 }, { passive: false });
@@ -659,14 +724,12 @@ let mX = W/2, mY = H/2, bX = W/2, bY = H/2, eX = W/2, eY = H/2, eVX = 0, eVY = 0
 let mVX = 0, mVY = 0, cursorSpeed = 0;
 
 window.addEventListener('mousemove', e => { mVX = e.clientX - mX; mVY = e.clientY - mY; mX = e.clientX; mY = e.clientY; });
-// Touch: update blob position on single-finger move (when not dragging a widget)
 window.addEventListener('touchmove', e => {
   if (!activeDrag && e.touches.length === 1) {
     mX = e.touches[0].clientX; mY = e.touches[0].clientY;
   }
 }, { passive: true });
 
-// ── Pinch to resize field radius ──
 let pinchStartDist = null, pinchStartRadius = null;
 window.addEventListener('touchstart', e => {
   if (!activeDrag && e.touches.length === 1) {
@@ -720,7 +783,6 @@ function refreshFilterState() {
     const isRel = isActive ? false : (type === 'album' ? vA.has(key) : vT.has(key));
     btn.classList.toggle('active', isActive); btn.classList.toggle('related', isRel);
   });
-  // Show clear buttons only when something is active
   document.getElementById('clear-album').classList.toggle('visible', activeAlbum !== null);
   document.getElementById('clear-tags').classList.toggle('visible', activeTags.size > 0);
 }
@@ -749,7 +811,6 @@ function computeLayout(charW, lineH, padX, padTop) {
     d.text.split(' ').forEach(w => tokens.push({ text: w, trackId: d.id }));
     if (i < visible.length - 1) tokens.push({ text: SEP.trim(), trackId: d.id, isSep: true });
   });
-  // Bottom boundary: viewport height minus fixed 120px safe area
   const maxW = W - padX * 2;
   const maxH = H - getBottomSafeArea();
   const lines = [];
@@ -763,7 +824,7 @@ function computeLayout(charW, lineH, padX, padTop) {
   const chars = [];
   lines.forEach((line, li) => {
     const ry = padTop + li * lineH;
-    if (ry > maxH) return; // skip lines that exceed safe area
+    if (ry > maxH) return; 
     let rx = padX;
     line.forEach(tok => {
       for (let ci = 0; ci < tok.display.length; ci++) {
@@ -776,6 +837,7 @@ function computeLayout(charW, lineH, padX, padTop) {
 }
 
 function buildLayout() {
+  const isDark = document.body.classList.contains('theme-dark');
   const tgtT = isFiltered() ? 1 : 0;
   const base = isMobile() ? 9 : userFontBase;
   const large = isMobile() ? 16 : userFontBase + 9;
@@ -784,7 +846,12 @@ function buildLayout() {
   const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop());
   allChars = layout.map((def, i) => {
     const ex = allChars[i];
-    return { ch: def.ch, restX: def.restX, restY: def.restY, x: ex ? ex.x : def.restX, y: ex ? ex.y : def.restY, vx: ex ? ex.vx : 0, vy: ex ? ex.vy : 0, baseOpacity: def.isSep ? 0.11 : 0.32 + def.seed * 0.38 };
+    // Dynamic opacity baselines based on current theme
+    const opacityBase = isDark ? 
+      (def.isSep ? 0.11 : 0.32 + def.seed * 0.38) : 
+      (def.isSep ? 0.30 : 0.60 + def.seed * 0.40);
+      
+    return { ch: def.ch, restX: def.restX, restY: def.restY, x: ex ? ex.x : def.restX, y: ex ? ex.y : def.restY, vx: ex ? ex.vx : 0, vy: ex ? ex.vy : 0, baseOpacity: opacityBase };
   });
   fontTgt = tgtT;
   document.getElementById('cnt').textContent = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t)))).length;
@@ -804,26 +871,28 @@ function loop() {
     l.forEach((def, i) => { if (allChars[i]) { allChars[i].restX = def.restX; allChars[i].restY = def.restY; } });
   }
 
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+  const isDark = document.body.classList.contains('theme-dark');
+
+  // Clear rect handles light mode grid, fillRect for solid dark mode black
+  ctx.clearRect(0, 0, W, H);
+  if (isDark) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
   ctx.font = currentFontFace(); ctx.textBaseline = 'top';
   const lcx = logoX + 90, lcy = logoY + 30;
+
+  const rgb = isDark ? '255,255,255' : '0,0,0';
 
   for (const p of allChars) {
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
 
     if (magnifyMode && d < repelRadius) {
-      // ── Black hole accretion disc ──
-      // Gravity pulls chars inward. Tangential velocity creates orbit.
-      // Inner barrier prevents collapse into singularity.
-
-      // Inward gravity — pulls toward center
       const gravity = (repelRadius * 1.4) / Math.max(d * d * 0.08, 4);
       p.vx -= (dx/d) * Math.min(gravity, 3.5);
       p.vy -= (dy/d) * Math.min(gravity, 3.5);
 
-      // Inner barrier — scales with repelRadius so void grows with scroll
-      // At default (110px): coreR ≈ 55px — a solid medium void
-      // At max scroll: coreR scales proportionally, orbit band stays wide
       const coreR = repelRadius * 0.5;
       if (d < coreR) {
         const pushF = Math.pow(1 - d / coreR, 2) * 12;
@@ -831,18 +900,14 @@ function loop() {
         p.vy += (dy/d) * pushF;
       }
 
-      // Tangential orbital velocity — automatic, constant
       const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * 0.9;
       p.vx += (-dy/d) * vOrbit;
       p.vy += ( dx/d) * vOrbit;
 
-      // Weak tether so chars drift home when field moves away
       p.vx += (p.restX - p.x) * TETHER_K * 0.25;
       p.vy += (p.restY - p.y) * TETHER_K * 0.25;
     } else {
-      // Normal tether
       p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
-      // Repel mode
       if (!magnifyMode && d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
     }
 
@@ -859,46 +924,31 @@ function loop() {
 
     if (magnifyMode && d < repelRadius) {
       const alpha = p.baseOpacity;
-      if (alpha > 0.01) { ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
     } else {
-      // Repel mode: fade chars near cursor
       const fadeStart = 20, fadeEnd = 60;
       const alpha = p.baseOpacity * Math.min(1, Math.max(0, (d - fadeStart) / (fadeEnd - fadeStart)));
-      if (alpha > 0.01) { ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
+      if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
     }
   }
 
-  // ring hidden
-  // magnifyRadius += (repelRadius - magnifyRadius) * 0.12;
-  // if (magnifyMode) {
-  //   magnifyRing.style.width  = magnifyRadius * 2 + 'px';
-  //   magnifyRing.style.height = magnifyRadius * 2 + 'px';
-  //   magnifyRing.style.left   = bX + 'px';
-  //   magnifyRing.style.top    = bY + 'px';
-  // }
-
-  // ── Cursor: bloom radius controlled by scroll (desktop only) ──
   cursorCtx.clearRect(0,0,W,H);
 
   if (!isMobile()) {
-    // Bloom glow
     const grad = cursorCtx.createRadialGradient(bX, bY, 0, bX, bY, bloomRadius);
-    grad.addColorStop(0,   'rgba(255,255,255,0.055)');
-    grad.addColorStop(0.4, 'rgba(255,255,255,0.018)');
-    grad.addColorStop(1,   'rgba(255,255,255,0)');
+    grad.addColorStop(0,   `rgba(${rgb}, ${isDark ? 0.055 : 0.08})`);
+    grad.addColorStop(0.4, `rgba(${rgb}, ${isDark ? 0.018 : 0.03})`);
+    grad.addColorStop(1,   `rgba(${rgb}, 0)`);
     cursorCtx.fillStyle = grad;
     cursorCtx.beginPath();
     cursorCtx.arc(bX, bY, bloomRadius, 0, Math.PI*2);
     cursorCtx.fill();
   }
 
-  // Lagging dot
-  cursorCtx.fillStyle = 'rgba(255,255,255,0.4)';
+  cursorCtx.fillStyle = `rgba(${rgb},0.4)`;
   cursorCtx.beginPath(); cursorCtx.arc(eX, eY, 4, 0, Math.PI*2); cursorCtx.fill();
-  // Sharp dot at exact mouse pos
-  cursorCtx.fillStyle = '#fff';
+  cursorCtx.fillStyle = `rgb(${rgb})`;
   cursorCtx.beginPath(); cursorCtx.arc(mX, mY, 1.5, 0, Math.PI*2); cursorCtx.fill();
-
 }
 
 window.addEventListener('resize', () => {
