@@ -331,14 +331,21 @@ const SEP = ' — ';
 let fontT = 0, fontTgt = 0;
 const FONT_LERP = 0.07;
 
-// ── BLOOM SIZE: scrollwheel on desktop, fixed on mobile ──
-const BLOOM_MIN = 60, BLOOM_MAX = 400, BLOOM_DEFAULT = 160;
+// ── REPEL + BLOOM: scrollwheel controls distortion radius on desktop ──
+const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
+let repelRadius = REPEL_DEFAULT;
+// Bloom tracks repel radius proportionally
+const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
 
-window.addEventListener('wheel', e => {
+function handleWheel(e) {
+  e.preventDefault();
   if (isMobile()) return;
-  bloomRadius = Math.min(BLOOM_MAX, Math.max(BLOOM_MIN, bloomRadius - e.deltaY * 0.4));
-}, { passive: true });
+  repelRadius = Math.min(REPEL_MAX, Math.max(REPEL_MIN, repelRadius - e.deltaY * 0.5));
+  bloomRadius = repelRadius * 1.45; // bloom tracks repel
+}
+window.addEventListener('wheel', handleWheel, { passive: false });
+canvas.addEventListener('wheel', handleWheel, { passive: false });
 
 function isFiltered() { return activeAlbum !== null || activeTags.size > 0; }
 function currentFontSize() {
@@ -358,7 +365,7 @@ function currentFontFace() { return `300 ${currentFontSize().toFixed(2)}px "DM M
 // ── Bottom safe area: fixed 120px clearance from bottom of viewport ──
 function getBottomSafeArea() { return 120; }
 
-const TETHER_K = 0.014, DAMP = 0.76, REPEL_R = 110, REPEL_S = 3.2, BLOB_LERP = 0.11, BLOB_RX = 28;
+const TETHER_K = 0.014, DAMP = 0.76, REPEL_S = 3.2, BLOB_LERP = 0.11, BLOB_RX = 28;
 
 const topHeader = document.getElementById('top-header'), logoWidget = document.getElementById('logo-widget');
 const LOGO_SIZE = 180;
@@ -595,7 +602,7 @@ function loop() {
   for (const p of allChars) {
     p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
-    if (d < REPEL_R && d > 0.5) { const f = (1 - d/REPEL_R); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
+    if (d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
     const ldx = p.x - lcx, ldy = p.y - lcy, ld = Math.sqrt(ldx*ldx + ldy*ldy);
     if (ld < 130) { const f = (1 - ld/130); p.vx += (ldx/ld) * f * f * 20; p.vy += (ldy/ld) * f * f * 20; }
     filterRepelZones.forEach(z => {
