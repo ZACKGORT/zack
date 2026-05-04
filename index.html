@@ -7,14 +7,14 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Light Theme (Blueprint) Defaults */
-    --bg-color: #f4f4f4;
-    --bg-image: linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+    /* Light Theme */
+    --bg-color: #f2efe9;
+    --bg-image: none;
     --fg-color: #000;
     --border-color: #000;
-    --widget-bg: #fff;
-    --widget-hover: #f4f4f4;
-    --btn-bg: #fff;
+    --widget-bg: rgba(242,239,233,0.92);
+    --widget-hover: rgba(220,216,208,0.6);
+    --btn-bg: rgba(242,239,233,0.9);
     --btn-hover-bg: #000;
     --btn-hover-fg: #fff;
     --active-bg: #000;
@@ -337,7 +337,7 @@
   @media (pointer: coarse) { .clear-btn { cursor: pointer; } }
 </style>
 </head>
-<body class="theme-light">
+<body class="theme-dark">
 <canvas id="c"></canvas>
 <canvas id="cursor-canvas"></canvas>
 <div id="magnify-ring"></div>
@@ -896,11 +896,29 @@ function loop() {
 
   const isDark = document.body.classList.contains('theme-dark');
 
-  // Clear rect handles light mode grid, fillRect for solid dark mode black
   ctx.clearRect(0, 0, W, H);
   if (isDark) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
+  } else {
+    // Ambient background: warm base + dark-purple vignette + cyan grain
+    ctx.fillStyle = '#f2efe9';
+    ctx.fillRect(0, 0, W, H);
+    // Vignette
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.28, W/2, H/2, Math.max(W,H)*0.78);
+    vg.addColorStop(0,   'rgba(20,10,60,0)');
+    vg.addColorStop(0.6, 'rgba(20,10,60,0.15)');
+    vg.addColorStop(1,   'rgba(20,10,60,0.38)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+    // Grain (every 2 frames)
+    if (Math.round(performance.now() / 16) % 2 === 0) {
+      const gc = Math.floor(W * H * 0.00048);
+      ctx.fillStyle = 'rgba(100,195,220,0.13)';
+      for (let gi = 0; gi < gc; gi++) {
+        ctx.fillRect(Math.random() * W | 0, Math.random() * H | 0, 1, 1);
+      }
+    }
   }
 
   ctx.font = currentFontFace(); ctx.textBaseline = 'top';
@@ -916,7 +934,7 @@ function loop() {
       p.vx -= (dx/d) * Math.min(gravity, 3.5);
       p.vy -= (dy/d) * Math.min(gravity, 3.5);
 
-      const coreR = repelRadius * 1.11;
+      const coreR = repelRadius * 0.72;
       if (d < coreR) {
         const pushF = Math.pow(1 - d / coreR, 2) * 12;
         p.vx += (dx/d) * pushF;
