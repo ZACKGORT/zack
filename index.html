@@ -216,7 +216,6 @@
     filter: var(--drop-shadow);
     backdrop-filter: blur(4px);
   }
-  #strip > .filter-widget { min-width: 0; } /* strip sizes by flex, not min-width */
   
   #albums-widget { left: 22px; bottom: 22px; }
   #tags-widget { right: 22px; bottom: 22px; }
@@ -229,8 +228,9 @@
     background: transparent;
     border-bottom: 1px solid var(--border-color);
     user-select: none;
-    touch-action: none; /* prevent browser scroll/zoom hijack during widget drag */
   }
+  /* Only block browser touch gestures on topbars when dragging is available (desktop) */
+  @media (pointer: fine) { .widget-topbar { touch-action: none; } }
   .widget-topbar:hover { background: var(--widget-hover); }
 
   .filter-header {
@@ -769,6 +769,7 @@ function bindDraggable(element, widgetContainer) {
     widgetContainer.style.bottom = 'auto';
     widgetContainer.style.right  = 'auto';
     activeDrag = widgetContainer;
+    widgetContainer.dataset.dragged = '1';
     dragDX = e.clientX - rect.left;
     dragDY = e.clientY - rect.top;
     e.preventDefault();
@@ -789,11 +790,13 @@ function bindDraggable(element, widgetContainer) {
   }, { passive: true });
 }
 
-bindDraggable(logoWidget, topHeader);
-document.querySelectorAll('.widget-topbar').forEach(bar => {
-  const widget = bar.closest('.filter-widget');
-  if (widget) bindDraggable(bar, widget);
-});
+if (!isMobile()) {
+  bindDraggable(logoWidget, topHeader);
+  document.querySelectorAll('.widget-topbar').forEach(bar => {
+    const widget = bar.closest('.filter-widget');
+    if (widget) bindDraggable(bar, widget);
+  });
+}
 
 window.addEventListener('mouseup', () => {
   activeDrag = null;
@@ -840,6 +843,7 @@ window.addEventListener('touchmove', e => {
       widget.style.bottom = 'auto';
       widget.style.right  = 'auto';
       activeDrag = widget;
+      widget.dataset.dragged = '1'; // mark as manually positioned
       dragDX = tx - rect.left;
       dragDY = ty - rect.top;
     }
@@ -861,7 +865,7 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
     btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
     invalidateFilterRepel();
     buildLayout();
-    requestAnimationFrame(() => { reanchorWidget(widget); invalidateFilterRepel(); });
+    requestAnimationFrame(() => { if (widget.dataset.dragged) reanchorWidget(widget); invalidateFilterRepel(); });
   });
 });
 
@@ -921,6 +925,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
     const btn = w.querySelector('.collapse-btn');
     if (btn) btn.textContent = '+';
     w.style.cssText = ''; // clear inline drag styles, restores CSS position
+    delete w.dataset.dragged;
   });
 
   // Snap albums/tags back to CSS defaults
