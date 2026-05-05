@@ -259,6 +259,7 @@
     background: transparent;
     border-bottom: 1px solid var(--border-color);
     user-select: none;
+    touch-action: none; /* prevent browser scroll/zoom hijack during widget drag */
   }
   .widget-topbar:hover { background: var(--widget-hover); }
 
@@ -680,25 +681,30 @@ function snapToStrip(widget) {
 
 function bindDraggable(element, widgetContainer) {
   function startDrag(clientX, clientY) {
-    // Detach from strip if needed
+    // Detach from strip if needed (captures rect before DOM move)
     detachFromStrip(widgetContainer);
     // Resolve any CSS transform into explicit left/top before drag begins
+    // Use a single getBoundingClientRect call — avoids race between two calls
     const rect = widgetContainer.getBoundingClientRect();
-    if (widgetContainer.style.transform && widgetContainer.style.transform !== 'none') {
-      widgetContainer.style.transform = 'none';
-      widgetContainer.style.left = rect.left + 'px';
-      widgetContainer.style.top  = rect.top  + 'px';
-      widgetContainer.style.bottom = 'auto'; widgetContainer.style.right = 'auto';
-    }
+    widgetContainer.style.transform = 'none';
+    widgetContainer.style.left   = rect.left + 'px';
+    widgetContainer.style.top    = rect.top  + 'px';
+    widgetContainer.style.bottom = 'auto';
+    widgetContainer.style.right  = 'auto';
     activeDrag = widgetContainer;
-    dragDX = clientX - widgetContainer.getBoundingClientRect().left;
-    dragDY = clientY - widgetContainer.getBoundingClientRect().top;
+    // dragDX/dragDY relative to the freshly-locked rect — only one rect read
+    dragDX = clientX - rect.left;
+    dragDY = clientY - rect.top;
   }
   element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
+  // non-passive so we can call preventDefault and stop scroll interfering with drag
   element.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) { startDrag(e.touches[0].clientX, e.touches[0].clientY); }
-    e.stopPropagation(); 
-  }, { passive: true });
+    if (e.touches.length === 1) {
+      startDrag(e.touches[0].clientX, e.touches[0].clientY);
+      e.preventDefault(); // prevent scroll/zoom hijacking the drag
+    }
+    e.stopPropagation();
+  }, { passive: false });
 }
 
 bindDraggable(logoWidget, topHeader);
@@ -730,7 +736,9 @@ function applyDrag(clientX, clientY) {
   if (activeDrag === topHeader) {
     const clamped = clampToViewport(topHeader, nx, ny);
     logoX = clamped.nx; logoY = clamped.ny;
-    topHeader.style.left = logoX + 'px'; topHeader.style.top = logoY + 'px'; topHeader.style.transform = 'none';
+    topHeader.style.left = logoX + 'px'; topHeader.style.top = logoY + 'px';
+    topHeader.style.transform = 'none';
+    topHeader.style.bottom = 'auto'; topHeader.style.right = 'auto';
   } else {
     const clamped = clampToViewport(activeDrag, nx, ny);
     activeDrag.style.left = clamped.nx + 'px'; activeDrag.style.top = clamped.ny + 'px';
@@ -743,7 +751,8 @@ window.addEventListener('mousemove', e => { applyDrag(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => {
   if (activeDrag) {
     applyDrag(e.touches[0].clientX, e.touches[0].clientY);
-    e.preventDefault();
+    e.preventDefault(); // block scroll/bounce while dragging a widget
+    e.stopPropagation();
   }
 }, { passive: false });
 
@@ -870,6 +879,8 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Shift') { setIntensity(bhLevel + 1); }
 });
 
+// Body-level touchmove: prevent page scroll/bounce only when not in a drag
+// (drag touchmove is handled on window above with stopPropagation)
 document.body.addEventListener('touchmove', e => {
   if (!activeDrag) e.preventDefault();
 }, { passive: false });
@@ -880,6 +891,7 @@ let mVX = 0, mVY = 0, cursorSpeed = 0;
 
 window.addEventListener('mousemove', e => { mVX = e.clientX - mX; mVY = e.clientY - mY; mX = e.clientX; mY = e.clientY; });
 window.addEventListener('touchmove', e => {
+  // Only update cursor position when not dragging — avoids repel-field jump during widget drag
   if (!activeDrag && e.touches.length === 1) {
     mX = e.touches[0].clientX; mY = e.touches[0].clientY;
   }
