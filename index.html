@@ -88,27 +88,10 @@
     cursor:none; user-select:none;
   }
   #logo-svg { width:100%; height:100%; fill:var(--fg-color); display:block; pointer-events:none; overflow:visible; }
-  /* ── Magnetic strip ── */
-  #strip {
-    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 0; align-items: flex-start;
-    z-index: 25; pointer-events: none;
-    max-width: calc(100vw - 16px);
-  }
-  #strip > .filter-widget {
-    position: relative;
-    pointer-events: all;
-    left: auto; top: auto; right: auto; bottom: auto;
-    transform: none;
-    min-width: 0; /* let topbar content size it */
-    flex: 1; /* equal width in strip */
-  }
-  /* detached widgets become fixed again */
-  .filter-widget.detached {
-    position: fixed !important;
-    flex: none;
-    min-width: 160px;
-  }
+  /* ── Top widgets: each pinned independently ── */
+  #links-widget   { position: fixed; top: 22px; left: 22px; z-index: 25; }
+  #info-widget    { position: fixed; top: 22px; left: 50%; transform: translateX(-50%); z-index: 25; }
+  #controls-widget{ position: fixed; top: 22px; right: 22px; z-index: 25; }
 
   /* ── Count widget — bottom center, below eras/themes ── */
   #count-widget {
@@ -131,31 +114,18 @@
   #controls-widget { max-width: 200px; }
 
   /* ── Links widget ── */
-  #links-widget { max-width: 260px; }
+  #links-widget { max-width: 220px; }
 
-  /* strip widget borders — collapse left border so they tile cleanly */
-  #strip > .filter-widget + .filter-widget { border-left: none; }
-  #strip > .filter-widget.detached { border: 1px solid var(--border-color); }
+  /* ── Info widget ── */
+  #info-widget { max-width: 260px; }
 
-  /* ── Mobile strip: full width row, no flex growth past topbar ── */
+
+
   @media (max-width: 600px) {
-    #strip {
-      left: 8px; right: 8px;
-      transform: none;
-      max-width: calc(100vw - 16px);
-    }
-    #strip > .filter-widget {
-      flex: 1;
-      min-width: 90px;
-      max-width: none;
-    }
-    #strip > .filter-widget .widget-content {
-      max-height: 40vh;
-      overflow-y: auto;
-    }
-    #controls-widget { max-width: none; }
-    #links-widget { max-width: none; }
-    #info-widget { width: auto; max-width: none; }
+    #links-widget    { top: 8px; left: 8px; max-width: calc(50vw - 12px); }
+    #info-widget     { top: 8px; max-width: calc(100vw - 16px); }
+    #controls-widget { top: 8px; right: 8px; max-width: calc(50vw - 12px); }
+    .widget-content  { max-height: 40vh; overflow-y: auto; }
     #albums-widget { left: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
     #tags-widget { right: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
     #count-widget { bottom: 8px; }
@@ -357,9 +327,140 @@
   }
   .clear-btn.visible:hover { opacity: 1; }
   @media (pointer: coarse) { .clear-btn { cursor: pointer; } }
+
+  /* ════════════════════════════════════════
+     MOBILE BAR  (≤600px only)
+     Single fixed bar: Links · About · ⚙
+  ════════════════════════════════════════ */
+  @media (max-width: 600px) {
+    /* Hide the three desktop widgets */
+    #links-widget, #info-widget, #controls-widget { display: none !important; }
+
+    /* The bar itself */
+    #mobile-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 44px;
+      display: flex; align-items: stretch;
+      background: var(--widget-bg);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(6px);
+      z-index: 30;
+    }
+
+    .mb-btn {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace;
+      font-weight: var(--font-weight);
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--fg-color);
+      border: none; background: transparent;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      border-right: 1px solid var(--border-color);
+      opacity: 0.7;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .mb-btn:last-child { border-right: none; }
+    .mb-btn:active, .mb-btn.open { background: var(--widget-hover); opacity: 1; }
+
+    /* Gear icon via SVG */
+    .mb-gear-icon { width: 14px; height: 14px; fill: var(--fg-color); opacity: 0.7; }
+    .mb-btn.open .mb-gear-icon { opacity: 1; }
+
+    /* Dropdown panels — appear below bar */
+    .mb-panel {
+      position: fixed; top: 44px; left: 0; right: 0;
+      background: var(--widget-bg);
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(6px);
+      z-index: 29;
+      display: none;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    .mb-panel.open { display: block; }
+
+    /* Links panel */
+    #mb-links-panel .link-row {
+      border-top: 1px solid var(--border-color);
+      padding: 13px 20px;
+      font-size: 10px;
+    }
+    #mb-links-panel .link-row:first-child { border-top: none; }
+
+    /* About panel */
+    #mb-about-panel {
+      font-family: 'DM Mono', monospace;
+      font-weight: var(--font-weight);
+      font-size: 10px; line-height: 1.7; letter-spacing: 0.04em;
+      color: var(--fg-color);
+      padding: 16px 20px;
+      opacity: 0.85;
+    }
+
+    /* Gear panel — reuse existing ctrl-row styles */
+    #mb-gear-panel .ctrl-row { padding: 12px 20px; }
+
+    /* Push canvas content down so bar doesn't overlap text */
+    /* (top-header already sits at top:80px on desktop; on mobile shift it) */
+    #top-header { top: 60px !important; }
+
+    /* Albums/tags stay bottom corners */
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
+    #tags-widget   { right: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
+    #count-widget  { bottom: 8px; }
+  }
+
+  /* Hide mobile bar on desktop */
+  @media (min-width: 601px) { #mobile-bar, .mb-panel { display: none !important; } }
 </style>
 </head>
 <body class="theme-dark">
+
+<div id="mobile-bar">
+  <button class="mb-btn" id="mb-links-btn">Links</button>
+  <button class="mb-btn" id="mb-about-btn">About</button>
+  <button class="mb-btn" id="mb-gear-btn" aria-label="Controls">
+    <svg class="mb-gear-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12 3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.92c.04-.34.07-.69.07-1.08s-.03-.73-.07-1.08l2.32-1.81c.21-.16.27-.45.14-.69l-2.2-3.81c-.13-.24-.41-.32-.65-.24l-2.74 1.1c-.57-.44-1.18-.81-1.86-1.09l-.42-2.9A.513.513 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.42 2.9c-.68.28-1.29.65-1.86 1.09L4.48 5.31c-.24-.08-.52 0-.65.24l-2.2 3.81c-.14.24-.08.53.14.69l2.32 1.81C4.03 11.27 4 11.62 4 12s.03.73.07 1.08L1.75 14.9c-.21.16-.27.45-.14.69l2.2 3.81c.13.24.41.32.65.24l2.74-1.1c.57.44 1.18.81 1.86 1.09l.42 2.9c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.42-2.9c.68-.28 1.29-.65 1.86-1.09l2.74 1.1c.24.08.52 0 .65-.24l2.2-3.81c.14-.24.08-.53-.14-.69l-2.32-1.81Z"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Mobile dropdown panels -->
+<div class="mb-panel" id="mb-links-panel">
+  <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
+  <a class="link-row" href="https://zack.cx/cosmo" target="_blank">zack.cx/cosmo</a>
+  <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
+  <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+</div>
+<div class="mb-panel" id="mb-about-panel">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. the sentence is the irreducible unit.</div>
+<div class="mb-panel" id="mb-gear-panel">
+  <div class="ctrl-row">
+    <span class="ctrl-label">Theme</span>
+    <div class="ctrl-btn" id="mb-theme-toggle">Light</div>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Font</span>
+    <div class="ctrl-btn" id="mb-font-down">−</div>
+    <span class="ctrl-val" id="mb-font-val">11</span>
+    <div class="ctrl-btn" id="mb-font-up">+</div>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Cursor</span>
+    <div class="ctrl-btn" id="mb-cursor-toggle">Repel</div>
+  </div>
+  <div class="ctrl-row" id="mb-intensity-row" style="display:none;">
+    <span class="ctrl-label">Intensity</span>
+    <div class="ctrl-btn" id="mb-intensity-toggle">Drift</div>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Reset</span>
+    <div class="ctrl-btn" id="mb-reset-btn">↺</div>
+  </div>
+</div>
 <canvas id="c"></canvas>
 <canvas id="cursor-canvas"></canvas>
 <div id="magnify-ring"></div>
@@ -372,47 +473,45 @@
   </div>
 </div>
 
-<div id="strip">
-  <div id="links-widget" class="filter-widget collapsed">
-    <div class="widget-topbar"><div class="filter-header">Links</div><div class="collapse-btn">+</div></div>
-    <div class="widget-content">
-      <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
-      <a class="link-row" href="https://zack.cx/cosmo" target="_blank">zack.cx/cosmo</a>
-      <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
-      <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+<div id="links-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">Links</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content">
+    <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
+    <a class="link-row" href="https://zack.cx/cosmo" target="_blank">zack.cx/cosmo</a>
+    <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
+    <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+  </div>
+</div>
+
+<div id="info-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. right-click magnifies. the sentence is the irreducible unit.</div>
+</div>
+
+<div id="controls-widget" class="filter-widget collapsed">
+  <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
+  <div class="widget-content" style="padding:0;">
+    <div class="ctrl-row">
+      <span class="ctrl-label">Theme</span>
+      <div class="ctrl-btn" id="theme-toggle">Light</div>
     </div>
-  </div>
-
-  <div id="info-widget" class="filter-widget collapsed">
-    <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
-    <div class="widget-content">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. right-click magnifies. the sentence is the irreducible unit.</div>
-  </div>
-
-  <div id="controls-widget" class="filter-widget collapsed">
-    <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
-    <div class="widget-content" style="padding:0;">
-      <div class="ctrl-row">
-        <span class="ctrl-label">Theme</span>
-        <div class="ctrl-btn" id="theme-toggle">Light</div>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Font</span>
-        <div class="ctrl-btn" id="font-down">−</div>
-        <span class="ctrl-val" id="font-val">11</span>
-        <div class="ctrl-btn" id="font-up">+</div>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Cursor</span>
-        <div class="ctrl-btn" id="cursor-toggle">Repel</div>
-      </div>
-      <div class="ctrl-row" id="intensity-row" style="display:none;">
-        <span class="ctrl-label">Intensity</span>
-        <div class="ctrl-btn" id="intensity-toggle">Drift</div>
-      </div>
-      <div class="ctrl-row">
-        <span class="ctrl-label">Reset</span>
-        <div class="ctrl-btn" id="reset-btn">↺</div>
-      </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Font</span>
+      <div class="ctrl-btn" id="font-down">−</div>
+      <span class="ctrl-val" id="font-val">11</span>
+      <div class="ctrl-btn" id="font-up">+</div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Cursor</span>
+      <div class="ctrl-btn" id="cursor-toggle">Repel</div>
+    </div>
+    <div class="ctrl-row" id="intensity-row" style="display:none;">
+      <span class="ctrl-label">Intensity</span>
+      <div class="ctrl-btn" id="intensity-toggle">Drift</div>
+    </div>
+    <div class="ctrl-row">
+      <span class="ctrl-label">Reset</span>
+      <div class="ctrl-btn" id="reset-btn">↺</div>
     </div>
   </div>
 </div>
@@ -650,41 +749,19 @@ function reanchorWidget(widget) {
   widget.style.right  = 'auto';
 }
 
-const strip = document.getElementById('strip');
-const STRIP_SNAP_Y = 80; // px from top to snap back into strip
+// strip removed — widgets are independently fixed
 
-function detachFromStrip(widget) {
-  if (!widget.classList.contains('detached') && widget.parentElement === strip) {
-    const rect = widget.getBoundingClientRect();
-    document.body.appendChild(widget);
-    widget.style.position = 'fixed';
-    widget.style.left = rect.left + 'px';
-    widget.style.top  = rect.top  + 'px';
-    widget.style.transform = 'none';
-    widget.style.bottom = 'auto'; widget.style.right = 'auto';
-    widget.classList.add('detached');
-    // restore border
-    widget.style.borderLeft = '1px solid var(--border-color)';
-  }
-}
-
-function snapToStrip(widget) {
-  if (widget.classList.contains('detached')) {
-    widget.classList.remove('detached');
-    widget.style.position = '';
-    widget.style.left = ''; widget.style.top = '';
-    widget.style.transform = ''; widget.style.bottom = '';
-    widget.style.right = ''; widget.style.borderLeft = '';
-    strip.appendChild(widget);
-  }
-}
+// Pending touch drag: set on touchstart, committed only after finger moves > threshold
+let pendingDrag = null; // { widget, startX, startY }
+const DRAG_THRESHOLD = 6; // px of movement before drag commits
+// Suppress synthetic mousedown events that browsers fire after touch
+let touchActive = false;
 
 function bindDraggable(element, widgetContainer) {
-  function startDrag(clientX, clientY) {
-    // Detach from strip if needed (captures rect before DOM move)
-    detachFromStrip(widgetContainer);
-    // Resolve any CSS transform into explicit left/top before drag begins
-    // Use a single getBoundingClientRect call — avoids race between two calls
+  element.addEventListener('mousedown', e => {
+    // Skip synthetic mousedown events fired by the browser after a touch sequence
+    if (touchActive) return;
+    // Mouse: commit immediately (no tap ambiguity on desktop)
     const rect = widgetContainer.getBoundingClientRect();
     widgetContainer.style.transform = 'none';
     widgetContainer.style.left   = rect.left + 'px';
@@ -692,19 +769,24 @@ function bindDraggable(element, widgetContainer) {
     widgetContainer.style.bottom = 'auto';
     widgetContainer.style.right  = 'auto';
     activeDrag = widgetContainer;
-    // dragDX/dragDY relative to the freshly-locked rect — only one rect read
-    dragDX = clientX - rect.left;
-    dragDY = clientY - rect.top;
-  }
-  element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
-  // non-passive so we can call preventDefault and stop scroll interfering with drag
+    dragDX = e.clientX - rect.left;
+    dragDY = e.clientY - rect.top;
+    e.preventDefault();
+  });
+
+  // Touch: record intent only — don't commit until finger actually moves
   element.addEventListener('touchstart', e => {
+    touchActive = true;
     if (e.touches.length === 1) {
-      startDrag(e.touches[0].clientX, e.touches[0].clientY);
-      e.preventDefault(); // prevent scroll/zoom hijacking the drag
+      pendingDrag = {
+        widget: widgetContainer,
+        startX: e.touches[0].clientX,
+        startY: e.touches[0].clientY,
+      };
     }
     e.stopPropagation();
-  }, { passive: false });
+    // No preventDefault here — allows tap/click to fire normally
+  }, { passive: true });
 }
 
 bindDraggable(logoWidget, topHeader);
@@ -714,18 +796,12 @@ document.querySelectorAll('.widget-topbar').forEach(bar => {
 });
 
 window.addEventListener('mouseup', () => {
-  if (activeDrag && activeDrag.classList.contains('detached')) {
-    const rect = activeDrag.getBoundingClientRect();
-    if (rect.top < STRIP_SNAP_Y) snapToStrip(activeDrag);
-  }
   activeDrag = null;
   invalidateFilterRepel();
 });
 window.addEventListener('touchend', () => {
-  if (activeDrag && activeDrag.classList.contains('detached')) {
-    const rect = activeDrag.getBoundingClientRect();
-    if (rect.top < STRIP_SNAP_Y) snapToStrip(activeDrag);
-  }
+  pendingDrag = null;
+  setTimeout(() => { touchActive = false; }, 400);
   activeDrag = null;
   invalidateFilterRepel();
 });
@@ -749,9 +825,29 @@ function applyDrag(clientX, clientY) {
 
 window.addEventListener('mousemove', e => { applyDrag(e.clientX, e.clientY); });
 window.addEventListener('touchmove', e => {
+  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+
+  // Commit pending drag once finger moves past threshold
+  if (!activeDrag && pendingDrag) {
+    const dx = tx - pendingDrag.startX, dy = ty - pendingDrag.startY;
+    if (Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
+      const widget = pendingDrag.widget;
+      pendingDrag = null;
+      const rect = widget.getBoundingClientRect();
+      widget.style.transform = 'none';
+      widget.style.left   = rect.left + 'px';
+      widget.style.top    = rect.top  + 'px';
+      widget.style.bottom = 'auto';
+      widget.style.right  = 'auto';
+      activeDrag = widget;
+      dragDX = tx - rect.left;
+      dragDY = ty - rect.top;
+    }
+  }
+
   if (activeDrag) {
-    applyDrag(e.touches[0].clientX, e.touches[0].clientY);
-    e.preventDefault(); // block scroll/bounce while dragging a widget
+    applyDrag(tx, ty);
+    e.preventDefault(); // block scroll/bounce while dragging
     e.stopPropagation();
   }
 }, { passive: false });
@@ -765,12 +861,7 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
     btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
     invalidateFilterRepel();
     buildLayout();
-    // Only reanchor if detached — strip widgets are in flex flow, reanchoring breaks them
-    if (widget.classList.contains('detached')) {
-      requestAnimationFrame(() => { reanchorWidget(widget); invalidateFilterRepel(); });
-    } else {
-      requestAnimationFrame(() => invalidateFilterRepel());
-    }
+    requestAnimationFrame(() => { reanchorWidget(widget); invalidateFilterRepel(); });
   });
 });
 
@@ -823,15 +914,13 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   magnifyRing.classList.remove('active');
 
   // ── Widget position reset ──
-  // Snap any detached strip widgets back
   ['links-widget','info-widget','controls-widget'].forEach(id => {
     const w = document.getElementById(id);
-    if (w && w.classList.contains('detached')) snapToStrip(w);
-    // Ensure collapsed
+    if (!w) return;
     w.classList.add('collapsed');
     const btn = w.querySelector('.collapse-btn');
     if (btn) btn.textContent = '+';
-    w.style.cssText = ''; // clear any inline styles
+    w.style.cssText = ''; // clear inline drag styles, restores CSS position
   });
 
   // Snap albums/tags back to CSS defaults
@@ -962,7 +1051,7 @@ shimTouch(clearAlbum); shimTouch(clearTags);
 
 function invalidateFilterRepel() {
   filterRepelZones = [];
-  const ids = ['albums-widget','tags-widget','controls-widget','info-widget','links-widget','count-widget','top-header','strip'];
+  const ids = ['albums-widget','tags-widget','controls-widget','info-widget','links-widget','count-widget','top-header'];
   ids.map(id => document.getElementById(id)).forEach(w => {
     if (!w) return;
     const r = w.getBoundingClientRect();
@@ -1169,6 +1258,100 @@ if (!isMobile()) {
   tw.classList.remove('collapsed');
   tw.querySelector('.collapse-btn').textContent = '−';
 }
+
+// ── Mobile bar ──────────────────────────────────────────────
+(function() {
+  const bar = document.getElementById('mobile-bar');
+  if (!bar) return;
+
+  const panels = {
+    links: document.getElementById('mb-links-panel'),
+    about: document.getElementById('mb-about-panel'),
+    gear:  document.getElementById('mb-gear-panel'),
+  };
+  const btns = {
+    links: document.getElementById('mb-links-btn'),
+    about: document.getElementById('mb-about-btn'),
+    gear:  document.getElementById('mb-gear-btn'),
+  };
+
+  function closeAll() {
+    Object.values(panels).forEach(p => p.classList.remove('open'));
+    Object.values(btns).forEach(b => b.classList.remove('open'));
+  }
+
+  function toggle(key) {
+    const isOpen = panels[key].classList.contains('open');
+    closeAll();
+    if (!isOpen) {
+      panels[key].classList.add('open');
+      btns[key].classList.add('open');
+    }
+    invalidateFilterRepel();
+  }
+
+  btns.links.addEventListener('click', () => toggle('links'));
+  btns.about.addEventListener('click', () => toggle('about'));
+  btns.gear.addEventListener('click',  () => toggle('gear'));
+
+  // Close panels when tapping canvas
+  document.getElementById('c').addEventListener('touchstart', closeAll, { passive: true });
+
+  // ── Mirror mobile gear controls to main state ──
+  function syncMobileUI() {
+    const isDark = document.body.classList.contains('theme-dark');
+    const mbTheme = document.getElementById('mb-theme-toggle');
+    if (mbTheme) mbTheme.textContent = isDark ? 'Light' : 'Dark';
+    const mbFontVal = document.getElementById('mb-font-val');
+    if (mbFontVal) mbFontVal.textContent = userFontBase;
+    const mbCursor = document.getElementById('mb-cursor-toggle');
+    if (mbCursor) { mbCursor.textContent = magnifyMode ? 'Black Hole' : 'Repel'; mbCursor.classList.toggle('active', magnifyMode); }
+    const mbIntRow = document.getElementById('mb-intensity-row');
+    if (mbIntRow) mbIntRow.style.display = magnifyMode ? 'flex' : 'none';
+    const mbInt = document.getElementById('mb-intensity-toggle');
+    if (mbInt) mbInt.textContent = BH_LEVELS[bhLevel].label;
+  }
+
+  // Theme
+  document.getElementById('mb-theme-toggle').addEventListener('click', () => {
+    document.getElementById('theme-toggle').click();
+    syncMobileUI();
+  });
+  // Font up/down
+  document.getElementById('mb-font-up').addEventListener('click', () => {
+    document.getElementById('font-up').click();
+    syncMobileUI();
+  });
+  document.getElementById('mb-font-down').addEventListener('click', () => {
+    document.getElementById('font-down').click();
+    syncMobileUI();
+  });
+  // Cursor toggle
+  document.getElementById('mb-cursor-toggle').addEventListener('click', () => {
+    document.getElementById('cursor-toggle').click();
+    syncMobileUI();
+  });
+  // Intensity
+  document.getElementById('mb-intensity-toggle').addEventListener('click', () => {
+    document.getElementById('intensity-toggle').click();
+    syncMobileUI();
+  });
+  // Reset
+  document.getElementById('mb-reset-btn').addEventListener('click', () => {
+    document.getElementById('reset-btn').click();
+    closeAll();
+    syncMobileUI();
+  });
+
+  // shimTouch all mobile btns
+  ['mb-theme-toggle','mb-font-up','mb-font-down','mb-cursor-toggle','mb-intensity-toggle','mb-reset-btn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) shimTouch(el);
+  });
+
+  syncMobileUI();
+})();
+
 </script>
 </body>
 </html>
