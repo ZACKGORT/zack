@@ -620,28 +620,28 @@ function reanchorWidget(widget) {
   if (ny + rect.height > vH - EDGE_HARDSTOP) ny = vH - rect.height - EDGE_HARDSTOP;
   if (nx < EDGE_HARDSTOP) nx = EDGE_HARDSTOP;
   if (ny < EDGE_HARDSTOP) ny = EDGE_HARDSTOP;
-  if (widget.style.left || widget.style.top) {
-    widget.style.left = nx + 'px';
-    widget.style.top  = ny + 'px';
-    widget.style.bottom = 'auto';
-    widget.style.right  = 'auto';
-  } else {
-    if (rect.right > vW - EDGE_HARDSTOP || rect.bottom > vH - EDGE_HARDSTOP ||
-        rect.left < EDGE_HARDSTOP || rect.top < EDGE_HARDSTOP) {
-      widget.style.left = nx + 'px';
-      widget.style.top  = ny + 'px';
-      widget.style.bottom = 'auto';
-      widget.style.right  = 'auto';
-    }
-  }
+  // Always strip transform and lock to explicit coords — prevents jump on widgets using translateX(-50%)
+  widget.style.transform = 'none';
+  widget.style.left   = nx + 'px';
+  widget.style.top    = ny + 'px';
+  widget.style.bottom = 'auto';
+  widget.style.right  = 'auto';
 }
 
 function bindDraggable(element, widgetContainer) {
   function startDrag(clientX, clientY) {
-    activeDrag = widgetContainer;
+    // Resolve any CSS transform into explicit left/top before drag begins
     const rect = widgetContainer.getBoundingClientRect();
-    dragDX = clientX - rect.left;
-    dragDY = clientY - rect.top;
+    if (widgetContainer.style.transform && widgetContainer.style.transform !== 'none') {
+      widgetContainer.style.transform = 'none';
+      widgetContainer.style.left = rect.left + 'px';
+      widgetContainer.style.top  = rect.top  + 'px';
+      widgetContainer.style.bottom = 'auto';
+      widgetContainer.style.right  = 'auto';
+    }
+    activeDrag = widgetContainer;
+    dragDX = clientX - widgetContainer.getBoundingClientRect().left;
+    dragDY = clientY - widgetContainer.getBoundingClientRect().top;
   }
   element.addEventListener('mousedown', e => { startDrag(e.clientX, e.clientY); e.preventDefault(); });
   element.addEventListener('touchstart', e => {
@@ -1042,8 +1042,6 @@ initDOMFilters(); invalidateFilterRepel();
 if (isMobile()) {
   repelRadius = REPEL_MIN;
   bloomRadius = REPEL_MIN * 1.45;
-  userFontBase = 22;
-  fontVal.textContent = userFontBase;
 }
 
 buildLayout(); loop();
