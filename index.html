@@ -88,17 +88,33 @@
     cursor:none; user-select:none;
   }
   #logo-svg { width:100%; height:100%; fill:var(--fg-color); display:block; pointer-events:none; overflow:visible; }
-  /* ── Count widget ── */
+  /* ── Magnetic strip ── */
+  #strip {
+    position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 0; align-items: flex-start;
+    z-index: 25; pointer-events: none;
+  }
+  #strip > .filter-widget {
+    position: relative; /* in-strip widgets are flow, not fixed */
+    pointer-events: all;
+    left: auto; top: auto; right: auto; bottom: auto;
+    transform: none;
+  }
+  /* detached widgets become fixed again */
+  .filter-widget.detached {
+    position: fixed !important;
+  }
+
+  /* ── Count widget — bottom center, below eras/themes ── */
   #count-widget {
-    position:fixed; top:22px; right:22px;
-    z-index:20;
-    pointer-events:none;
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    z-index: 15; /* below albums z:20, tags z:20 */
+    pointer-events: none;
   }
   #count-widget .widget-topbar {
-    pointer-events:none;
-    border-bottom:none;
+    pointer-events: none; border-bottom: none;
   }
-  #count-widget .widget-topbar:hover { background:transparent; }
+  #count-widget .widget-topbar:hover { background: transparent; }
   #count {
     font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:9px; letter-spacing:.2em; text-transform:uppercase;
@@ -107,29 +123,14 @@
   body.theme-dark #count { color: rgba(255,255,255,0.38); }
 
   /* ── Controls widget ── */
-  #controls-widget {
-    position:fixed; top:22px; right:230px; z-index:30;
-  }
+  #controls-widget { max-width: 200px; }
 
   /* ── Links widget ── */
-  #links-widget {
-    position:fixed; top:22px; left:22px; z-index:20;
-    max-width: 260px;
-  }
+  #links-widget { max-width: 260px; }
 
-  @media (max-width: 600px) {
-    #controls-widget {
-      top: 22px;
-      left: 50%;
-      right: auto;
-      transform: translateX(-50%);
-    }
-    #links-widget {
-      top: 22px;
-      left: 8px;
-      max-width: calc(33vw - 12px);
-    }
-  }
+  /* strip widget borders — collapse left border so they tile cleanly */
+  #strip > .filter-widget + .filter-widget { border-left: none; }
+  #strip > .filter-widget.detached { border: 1px solid var(--border-color); }
   #links-widget .widget-content {
     padding: 0;
   }
@@ -152,11 +153,7 @@
   @media (pointer: coarse) { .link-row { cursor: pointer; padding: 10px 16px; } }
 
   /* ── Info widget ── */
-  #info-widget {
-    position:fixed; top:170px; left:50%; transform:translateX(-50%); z-index:20;
-    width:280px;
-    max-width: 90vw;
-  }
+  #info-widget { width: 220px; max-width: 90vw; }
   #info-widget .widget-content {
     font-family:'DM Mono',monospace; font-weight:var(--font-weight);
     font-size:10px; line-height:1.7; letter-spacing:0.04em;
@@ -352,46 +349,54 @@
   </div>
 </div>
 
-<div id="info-widget" class="filter-widget collapsed">
-  <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
-  <div class="widget-content">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. right-click magnifies. the sentence is the irreducible unit.</div>
-</div>
+<div id="strip">
+  <div id="links-widget" class="filter-widget collapsed">
+    <div class="widget-topbar"><div class="filter-header">Links</div><div class="collapse-btn">+</div></div>
+    <div class="widget-content">
+      <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
+      <a class="link-row" href="https://zack.cx/cosmo" target="_blank">zack.cx/cosmo</a>
+      <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
+      <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+    </div>
+  </div>
 
-<div id="links-widget" class="filter-widget collapsed">
-  <div class="widget-topbar"><div class="filter-header">Links</div><div class="collapse-btn">+</div></div>
-  <div class="widget-content">
-    <a class="link-row" href="https://zackgort.com" target="_blank">zackgort.com</a>
-    <a class="link-row" href="https://zack.cx/cosmo" target="_blank">zack.cx/cosmo</a>
-    <a class="link-row" href="https://neverever.land" target="_blank">neverever.land</a>
-    <a class="link-row" href="https://linkedin.com/in/zackgort" target="_blank">linkedin/in/zackgort</a>
+  <div id="info-widget" class="filter-widget collapsed">
+    <div class="widget-topbar"><div class="filter-header">About</div><div class="collapse-btn">+</div></div>
+    <div class="widget-content">one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. filter by era or theme. cursor repels. right-click magnifies. the sentence is the irreducible unit.</div>
+  </div>
+
+  <div id="controls-widget" class="filter-widget collapsed">
+    <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
+    <div class="widget-content" style="padding:0;">
+      <div class="ctrl-row">
+        <span class="ctrl-label">Theme</span>
+        <div class="ctrl-btn" id="theme-toggle">Light</div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Font</span>
+        <div class="ctrl-btn" id="font-down">−</div>
+        <span class="ctrl-val" id="font-val">11</span>
+        <div class="ctrl-btn" id="font-up">+</div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Cursor</span>
+        <div class="ctrl-btn" id="cursor-toggle">Repel</div>
+      </div>
+      <div class="ctrl-row" id="intensity-row" style="display:none;">
+        <span class="ctrl-label">Intensity</span>
+        <div class="ctrl-btn" id="intensity-toggle">Drift</div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label">Reset</span>
+        <div class="ctrl-btn" id="reset-btn">↺</div>
+      </div>
+    </div>
   </div>
 </div>
 
-<div id="controls-widget" class="filter-widget collapsed">
-  <div class="widget-topbar"><div class="filter-header">Controls</div><div class="collapse-btn">+</div></div>
-  <div class="widget-content" style="padding:0;">
-    <div class="ctrl-row">
-      <span class="ctrl-label">Theme</span>
-      <div class="ctrl-btn" id="theme-toggle">Light</div>
-    </div>
-    <div class="ctrl-row">
-      <span class="ctrl-label">Font</span>
-      <div class="ctrl-btn" id="font-down">−</div>
-      <span class="ctrl-val" id="font-val">11</span>
-      <div class="ctrl-btn" id="font-up">+</div>
-    </div>
-    <div class="ctrl-row">
-      <span class="ctrl-label">Cursor</span>
-      <div class="ctrl-btn" id="cursor-toggle">Repel</div>
-    </div>
-    <div class="ctrl-row" id="intensity-row" style="display:none;">
-      <span class="ctrl-label">Intensity</span>
-      <div class="ctrl-btn" id="intensity-toggle">Drift</div>
-    </div>
-    <div class="ctrl-row">
-      <span class="ctrl-label">Reset</span>
-      <div class="ctrl-btn" id="reset-btn">↺</div>
-    </div>
+<div id="count-widget" class="filter-widget">
+  <div class="widget-topbar" style="padding:6px 14px;">
+    <span id="count"><span id="cnt">0</span> entries</span>
   </div>
 </div>
 
@@ -415,12 +420,6 @@
     </div>
   </div>
   <div class="widget-content"><div class="filter-btn-group" id="tags-container"></div></div>
-</div>
-
-<div id="count-widget" class="filter-widget">
-  <div class="widget-topbar" style="padding:6px 14px;">
-    <span id="count"><span id="cnt">0</span> entries</span>
-  </div>
 </div>
 
 <script>
@@ -628,16 +627,46 @@ function reanchorWidget(widget) {
   widget.style.right  = 'auto';
 }
 
+const strip = document.getElementById('strip');
+const STRIP_SNAP_Y = 80; // px from top to snap back into strip
+
+function detachFromStrip(widget) {
+  if (!widget.classList.contains('detached') && widget.parentElement === strip) {
+    const rect = widget.getBoundingClientRect();
+    document.body.appendChild(widget);
+    widget.style.position = 'fixed';
+    widget.style.left = rect.left + 'px';
+    widget.style.top  = rect.top  + 'px';
+    widget.style.transform = 'none';
+    widget.style.bottom = 'auto'; widget.style.right = 'auto';
+    widget.classList.add('detached');
+    // restore border
+    widget.style.borderLeft = '1px solid var(--border-color)';
+  }
+}
+
+function snapToStrip(widget) {
+  if (widget.classList.contains('detached')) {
+    widget.classList.remove('detached');
+    widget.style.position = '';
+    widget.style.left = ''; widget.style.top = '';
+    widget.style.transform = ''; widget.style.bottom = '';
+    widget.style.right = ''; widget.style.borderLeft = '';
+    strip.appendChild(widget);
+  }
+}
+
 function bindDraggable(element, widgetContainer) {
   function startDrag(clientX, clientY) {
+    // Detach from strip if needed
+    detachFromStrip(widgetContainer);
     // Resolve any CSS transform into explicit left/top before drag begins
     const rect = widgetContainer.getBoundingClientRect();
     if (widgetContainer.style.transform && widgetContainer.style.transform !== 'none') {
       widgetContainer.style.transform = 'none';
       widgetContainer.style.left = rect.left + 'px';
       widgetContainer.style.top  = rect.top  + 'px';
-      widgetContainer.style.bottom = 'auto';
-      widgetContainer.style.right  = 'auto';
+      widgetContainer.style.bottom = 'auto'; widgetContainer.style.right = 'auto';
     }
     activeDrag = widgetContainer;
     dragDX = clientX - widgetContainer.getBoundingClientRect().left;
@@ -656,8 +685,22 @@ document.querySelectorAll('.widget-topbar').forEach(bar => {
   if (widget) bindDraggable(bar, widget);
 });
 
-window.addEventListener('mouseup', () => { activeDrag = null; });
-window.addEventListener('touchend', () => { activeDrag = null; });
+window.addEventListener('mouseup', () => {
+  if (activeDrag && activeDrag.classList.contains('detached')) {
+    const rect = activeDrag.getBoundingClientRect();
+    if (rect.top < STRIP_SNAP_Y) snapToStrip(activeDrag);
+  }
+  activeDrag = null;
+  invalidateFilterRepel();
+});
+window.addEventListener('touchend', () => {
+  if (activeDrag && activeDrag.classList.contains('detached')) {
+    const rect = activeDrag.getBoundingClientRect();
+    if (rect.top < STRIP_SNAP_Y) snapToStrip(activeDrag);
+  }
+  activeDrag = null;
+  invalidateFilterRepel();
+});
 
 function applyDrag(clientX, clientY) {
   if (!activeDrag) return;
@@ -691,10 +734,12 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
     btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
     invalidateFilterRepel();
     buildLayout();
-    requestAnimationFrame(() => {
-      reanchorWidget(widget);
-      invalidateFilterRepel();
-    });
+    // Only reanchor if detached — strip widgets are in flex flow, reanchoring breaks them
+    if (widget.classList.contains('detached')) {
+      requestAnimationFrame(() => { reanchorWidget(widget); invalidateFilterRepel(); });
+    } else {
+      requestAnimationFrame(() => invalidateFilterRepel());
+    }
   });
 });
 
@@ -847,9 +892,11 @@ shimTouch(clearAlbum); shimTouch(clearTags);
 
 function invalidateFilterRepel() {
   filterRepelZones = [];
-  ['albums-widget','tags-widget','controls-widget','info-widget','links-widget','count-widget','top-header'].map(id => document.getElementById(id)).forEach(w => {
+  const ids = ['albums-widget','tags-widget','controls-widget','info-widget','links-widget','count-widget','top-header','strip'];
+  ids.map(id => document.getElementById(id)).forEach(w => {
     if (!w) return;
     const r = w.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return;
     filterRepelZones.push({ left: r.left - 28, top: r.top - 28, right: r.right + 28, bottom: r.bottom + 28, rx: r.left, ry: r.top, rw: r.width, rh: r.height, pad: 28 });
   });
 }
