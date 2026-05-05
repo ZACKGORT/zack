@@ -32,19 +32,19 @@
     --bg-color: #000;
     --bg-image: none;
     --fg-color: #fff;
-    --border-color: rgba(255,255,255,0.05);
-    --widget-bg: rgba(0,0,0,0.8);
-    --widget-hover: rgba(255,255,255,0.06);
+    --border-color: rgba(255,255,255,0.12);
+    --widget-bg: rgba(10,10,10,0.85);
+    --widget-hover: rgba(255,255,255,0.08);
     --btn-bg: transparent;
     --btn-hover-bg: transparent;
     --btn-hover-fg: #fff;
     --active-bg: #fff;
     --active-fg: #000;
     --font-weight: 300;
-    --ring-border: solid rgba(255,255,255,0.25);
-    --ring-active: rgba(255,255,255,0.4);
+    --ring-border: solid rgba(255,255,255,0.35);
+    --ring-active: rgba(255,255,255,0.5);
     --shadow: none;
-    --drop-shadow: drop-shadow(0 0 18px #000) drop-shadow(0 0 40px #000);
+    --drop-shadow: drop-shadow(0 0 8px #000) drop-shadow(0 0 20px #000);
     --count-bg: transparent;
   }
 
@@ -104,7 +104,7 @@
     font-size:9px; letter-spacing:.2em; text-transform:uppercase;
     color:var(--fg-color);
   }
-  body.theme-dark #count { color: rgba(255,255,255,0.25); }
+  body.theme-dark #count { color: rgba(255,255,255,0.38); }
 
   /* ── Controls widget ── */
   #controls-widget {
@@ -186,7 +186,7 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-  body.theme-dark .ctrl-btn { border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.35); }
+  body.theme-dark .ctrl-btn { border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.5); }
   @media (pointer: coarse) {
     .ctrl-btn { cursor: pointer; padding: 8px 14px; font-size:13px; }
     .filter-btn { cursor: pointer; padding: 9px 12px; }
@@ -209,6 +209,7 @@
     z-index: 20;
     display: flex;
     flex-direction: column;
+    min-width: 160px;
     max-width: 420px;
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow);
@@ -252,6 +253,7 @@
     pointer-events: none;
     opacity: 0.7;
   }
+  body.theme-dark .filter-header { opacity: 0.6; }
 
   .collapse-btn {
     font-family: 'DM Mono', monospace;
@@ -294,18 +296,18 @@
     transition: all 0.2s;
     user-select: none;
   }
-  body.theme-dark .filter-btn { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.3); background: transparent; }
+  body.theme-dark .filter-btn { border-color: rgba(255,255,255,0.18); color: rgba(255,255,255,0.45); background: transparent; }
   .filter-btn:hover {
     background: var(--btn-hover-bg);
     color: var(--btn-hover-fg);
   }
-  body.theme-dark .filter-btn:hover { border-color: rgba(255,255,255,0.45); color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.06); }
+  body.theme-dark .filter-btn:hover { border-color: rgba(255,255,255,0.55); color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.07); }
   
   .filter-btn.related {
     opacity: 0.6;
     border-style: dashed;
   }
-  body.theme-dark .filter-btn.related { border-style: solid; border-color: rgba(255,255,255,0.28); color: rgba(255,255,255,0.6); opacity: 1; background: rgba(255,255,255,0.04); }
+  body.theme-dark .filter-btn.related { border-style: solid; border-color: rgba(255,255,255,0.32); color: rgba(255,255,255,0.65); opacity: 1; background: rgba(255,255,255,0.04); }
   
   .filter-btn.active {
     background: var(--active-bg);
@@ -381,6 +383,10 @@
     <div class="ctrl-row">
       <span class="ctrl-label">Cursor</span>
       <div class="ctrl-btn" id="cursor-toggle">Repel</div>
+    </div>
+    <div class="ctrl-row" id="intensity-row" style="display:none;">
+      <span class="ctrl-label">Intensity</span>
+      <div class="ctrl-btn" id="intensity-toggle">Drift</div>
     </div>
     <div class="ctrl-row">
       <span class="ctrl-label">Reset</span>
@@ -524,6 +530,14 @@ const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
 let repelRadius = REPEL_DEFAULT;
 const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
+
+// ── Black hole intensity: 3 levels ──
+const BH_LEVELS = [
+  { label: 'Drift',  gravity: 2.2,  gravCap: 3.0,  orbit: 1.2, tether: 0.35 },
+  { label: 'Pull',   gravity: 4.0,  gravCap: 6.0,  orbit: 2.0, tether: 0.18 },
+  { label: 'Devour', gravity: 7.5,  gravCap: 12.0, orbit: 3.2, tether: 0.06 },
+];
+let bhLevel = 0;
 
 let magnifyMode = false;
 let magnifyRadius = repelRadius; 
@@ -725,8 +739,10 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   activeAlbum = null; activeTags.clear();
   userFontBase = FONT_BASE; fontVal.textContent = userFontBase;
   repelRadius = REPEL_DEFAULT; bloomRadius = BLOOM_DEFAULT;
-  magnifyMode = false;
+  magnifyMode = false; bhLevel = 0;
   cursorToggle.textContent = 'Repel'; cursorToggle.classList.remove('active');
+  intensityToggle.textContent = BH_LEVELS[0].label;
+  document.getElementById('intensity-row').style.display = 'none';
   magnifyRing.classList.remove('active');
   buildLayout(); refreshFilterState();
 });
@@ -735,6 +751,20 @@ cursorToggle.addEventListener('click', () => {
   cursorToggle.textContent = magnifyMode ? 'Black Hole' : 'Repel';
   cursorToggle.classList.toggle('active', magnifyMode);
   magnifyRing.classList.toggle('active', magnifyMode);
+  document.getElementById('intensity-row').style.display = magnifyMode ? 'flex' : 'none';
+});
+
+const intensityToggle = document.getElementById('intensity-toggle');
+function setIntensity(level) {
+  bhLevel = ((level % BH_LEVELS.length) + BH_LEVELS.length) % BH_LEVELS.length;
+  intensityToggle.textContent = BH_LEVELS[bhLevel].label;
+}
+intensityToggle.addEventListener('click', () => setIntensity(bhLevel + 1));
+shimTouch(intensityToggle);
+
+// Shift key cycles intensity
+window.addEventListener('keydown', e => {
+  if (e.key === 'Shift') { setIntensity(bhLevel + 1); }
 });
 
 document.body.addEventListener('touchmove', e => {
@@ -900,6 +930,13 @@ function loop() {
   if (isDark) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
+    // Subtle center luminance — single gradient, no grain, negligible cost
+    const dv = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H) * 0.7);
+    dv.addColorStop(0,   'rgba(30,28,38,0.55)');
+    dv.addColorStop(0.5, 'rgba(18,16,26,0.3)');
+    dv.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = dv;
+    ctx.fillRect(0, 0, W, H);
   } else {
     // Ambient background: warm base + dark-purple vignette + cyan grain
     ctx.fillStyle = '#f2efe9';
@@ -930,9 +967,10 @@ function loop() {
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
 
     if (magnifyMode && d < repelRadius) {
-      const gravity = (repelRadius * 1.4) / Math.max(d * d * 0.08, 4);
-      p.vx -= (dx/d) * Math.min(gravity, 3.5);
-      p.vy -= (dy/d) * Math.min(gravity, 3.5);
+      const bhl = BH_LEVELS[bhLevel];
+      const gravity = (repelRadius * bhl.gravity) / Math.max(d * d * 0.08, 4);
+      p.vx -= (dx/d) * Math.min(gravity, bhl.gravCap);
+      p.vy -= (dy/d) * Math.min(gravity, bhl.gravCap);
 
       const coreR = repelRadius * 0.72;
       if (d < coreR) {
@@ -941,12 +979,12 @@ function loop() {
         p.vy += (dy/d) * pushF;
       }
 
-      const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * 0.9;
+      const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * bhl.orbit;
       p.vx += (-dy/d) * vOrbit;
       p.vy += ( dx/d) * vOrbit;
 
-      p.vx += (p.restX - p.x) * TETHER_K * 0.25;
-      p.vy += (p.restY - p.y) * TETHER_K * 0.25;
+      p.vx += (p.restX - p.x) * TETHER_K * bhl.tether;
+      p.vy += (p.restY - p.y) * TETHER_K * bhl.tether;
     } else {
       p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
       if (!magnifyMode && d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
@@ -998,7 +1036,17 @@ window.addEventListener('resize', () => {
   buildLayout(); invalidateFilterRepel();
 });
 
-initDOMFilters(); invalidateFilterRepel(); buildLayout(); loop();
+initDOMFilters(); invalidateFilterRepel();
+
+// Mobile defaults
+if (isMobile()) {
+  repelRadius = REPEL_MIN;
+  bloomRadius = REPEL_MIN * 1.45;
+  userFontBase = 22;
+  fontVal.textContent = userFontBase;
+}
+
+buildLayout(); loop();
 
 // Tags open on desktop, collapsed on mobile
 if (!isMobile()) {
