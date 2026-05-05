@@ -781,6 +781,7 @@ document.getElementById('font-down').addEventListener('click', () => {
   buildLayout();
 });
 document.getElementById('reset-btn').addEventListener('click', () => {
+  // ── State reset ──
   activeAlbum = null; activeTags.clear();
   userFontBase = FONT_BASE; fontVal.textContent = userFontBase;
   repelRadius = REPEL_DEFAULT; bloomRadius = BLOOM_DEFAULT;
@@ -789,7 +790,42 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   intensityToggle.textContent = BH_LEVELS[0].label;
   document.getElementById('intensity-row').style.display = 'none';
   magnifyRing.classList.remove('active');
-  buildLayout(); refreshFilterState();
+
+  // ── Widget position reset ──
+  // Snap any detached strip widgets back
+  ['links-widget','info-widget','controls-widget'].forEach(id => {
+    const w = document.getElementById(id);
+    if (w && w.classList.contains('detached')) snapToStrip(w);
+    // Ensure collapsed
+    w.classList.add('collapsed');
+    const btn = w.querySelector('.collapse-btn');
+    if (btn) btn.textContent = '+';
+    w.style.cssText = ''; // clear any inline styles
+  });
+
+  // Snap albums/tags back to CSS defaults
+  ['albums-widget','tags-widget'].forEach(id => {
+    const w = document.getElementById(id);
+    if (!w) return;
+    w.style.left = ''; w.style.top = ''; w.style.right = '';
+    w.style.bottom = ''; w.style.transform = ''; w.style.position = '';
+  });
+
+  // Ensure albums open, tags collapsed
+  const aw = document.getElementById('albums-widget');
+  aw.classList.remove('collapsed');
+  aw.querySelector('.collapse-btn').textContent = '−';
+  const tw = document.getElementById('tags-widget');
+  tw.classList.add('collapsed');
+  tw.querySelector('.collapse-btn').textContent = '+';
+
+  // Reset logo to center
+  logoX = Math.round(window.innerWidth / 2 - LOGO_SIZE / 2);
+  logoY = 80;
+  topHeader.style.left = ''; topHeader.style.top = '';
+  topHeader.style.transform = 'translateX(-50%)';
+
+  buildLayout(); refreshFilterState(); invalidateFilterRepel();
 });
 cursorToggle.addEventListener('click', () => {
   magnifyMode = !magnifyMode;
