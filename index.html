@@ -93,22 +93,27 @@
     position: fixed; top: 22px; left: 50%; transform: translateX(-50%);
     display: flex; gap: 0; align-items: flex-start;
     z-index: 25; pointer-events: none;
+    max-width: calc(100vw - 16px);
   }
   #strip > .filter-widget {
-    position: relative; /* in-strip widgets are flow, not fixed */
+    position: relative;
     pointer-events: all;
     left: auto; top: auto; right: auto; bottom: auto;
     transform: none;
+    min-width: 0; /* let topbar content size it */
+    flex: 1; /* equal width in strip */
   }
   /* detached widgets become fixed again */
   .filter-widget.detached {
     position: fixed !important;
+    flex: none;
+    min-width: 160px;
   }
 
   /* ── Count widget — bottom center, below eras/themes ── */
   #count-widget {
     position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
-    z-index: 15; /* below albums z:20, tags z:20 */
+    z-index: 15;
     pointer-events: none;
   }
   #count-widget .widget-topbar {
@@ -131,9 +136,37 @@
   /* strip widget borders — collapse left border so they tile cleanly */
   #strip > .filter-widget + .filter-widget { border-left: none; }
   #strip > .filter-widget.detached { border: 1px solid var(--border-color); }
-  #links-widget .widget-content {
-    padding: 0;
+
+  /* ── Mobile strip: full width row, no flex growth past topbar ── */
+  @media (max-width: 600px) {
+    #strip {
+      left: 8px; right: 8px;
+      transform: none;
+      max-width: calc(100vw - 16px);
+    }
+    #strip > .filter-widget {
+      flex: 1;
+      min-width: 0;
+      max-width: none;
+    }
+    #strip > .filter-widget .widget-content {
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+    #controls-widget { max-width: none; }
+    #links-widget { max-width: none; }
+    #info-widget { width: auto; max-width: none; }
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
+    #tags-widget { right: 8px; bottom: 8px; max-width: calc(50vw - 12px); min-width: 0; }
+    #count-widget { bottom: 8px; }
   }
+  @media (max-height: 500px) and (orientation: landscape) {
+    #albums-widget { left: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #tags-widget { right: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
+    #top-header { top: 10px; }
+    #logo-widget { width: 80px; height: 80px; }
+  }
+  #links-widget .widget-content { padding: 0; }
   .link-row {
     display: flex; align-items: center;
     padding: 8px 16px;
@@ -213,21 +246,10 @@
     filter: var(--drop-shadow);
     backdrop-filter: blur(4px);
   }
+  #strip > .filter-widget { min-width: 0; } /* strip sizes by flex, not min-width */
   
   #albums-widget { left: 22px; bottom: 22px; }
   #tags-widget { right: 22px; bottom: 22px; }
-
-  @media (max-width: 600px) {
-    #albums-widget { left: 8px; bottom: 8px; max-width: calc(50vw - 12px); }
-    #tags-widget { right: 8px; bottom: 8px; max-width: calc(50vw - 12px); }
-  }
-  @media (max-height: 500px) and (orientation: landscape) {
-    #albums-widget { left: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
-    #tags-widget { right: 8px; bottom: 8px; max-width: calc(44vw - 12px); }
-    #top-header { top: 10px; }
-    #logo-widget { width: 80px; height: 80px; }
-    #count-widget { top: 74px; }
-  }
 
   .widget-topbar {
     display: flex;
