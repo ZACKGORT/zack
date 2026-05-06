@@ -689,16 +689,16 @@ function currentCharW()    { return currentFontSize() * 0.602; }
 function currentLineH()    { return currentFontSize() * 1.64; }
 function currentPadX() {
   if (isMobile()) return 10;
-  // Desktop era active: text starts flush after image + gap, zero overlap
-  if (activeAlbum && ERA_IMAGES[activeAlbum]) {
-    const { rW } = eraRegionDimensions();
-    return 24 + rW + 32; // image left margin + square width + gutter
-  }
   return 80;
 }
+function currentTextMaxW() {
+  if (isMobile()) return W - 20;
+  return W - currentPadX() - 60;
+}
 function currentPadTop()   { 
-  if (isMobile() && isLandscape()) return 100;
-  return isMobile() ? 260 : 260;
+  if (isMobile() && isLandscape()) return 60;
+  // Mobile: start text higher — image floats ambientyly behind, not above text
+  return isMobile() ? 180 : 260;
 }
 function currentFontFace() { 
   const weight = document.body.classList.contains('theme-dark') ? '300' : '500';
@@ -871,6 +871,12 @@ document.querySelectorAll('.collapse-btn').forEach(btn => {
     const widget = btn.closest('.filter-widget');
     widget.classList.toggle('collapsed');
     btn.textContent = widget.classList.contains('collapsed') ? '+' : '−';
+    // If widget was never manually dragged, snap back to CSS anchor position on collapse/expand
+    if (!widget.dataset.dragged) {
+      widget.style.left = ''; widget.style.top = '';
+      widget.style.right = ''; widget.style.bottom = '';
+      widget.style.transform = '';
+    }
     invalidateFilterRepel();
     buildLayout();
     requestAnimationFrame(() => { if (widget.dataset.dragged) reanchorWidget(widget); invalidateFilterRepel(); });
@@ -1075,7 +1081,7 @@ function invalidateFilterRepel() {
 
 let allChars = [];
 
-function computeLayout(charW, lineH, padX, padTop) {
+function computeLayout(charW, lineH, padX, padTop, maxWOverride) {
   const visible = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t))));
   if (!visible.length) return [];
   const tokens = [];
@@ -1083,7 +1089,8 @@ function computeLayout(charW, lineH, padX, padTop) {
     d.text.split(' ').forEach(w => tokens.push({ text: w, trackId: d.id }));
     if (i < visible.length - 1) tokens.push({ text: SEP.trim(), trackId: d.id, isSep: true });
   });
-  const maxW = W - padX * 2;
+  const rightMargin = isMobile() ? 10 : 60;
+  const maxW = maxWOverride !== undefined ? maxWOverride : (W - padX - rightMargin);
   const maxH = H - getBottomSafeArea();
   const lines = [];
   let curL = [], curW = 0;
@@ -1177,7 +1184,7 @@ function buildLayout() {
   const large = isMobile() ? 16 : userFontBase + 9;
   const tgtF = base + (large - base) * tgtT;
   const tgtCW = tgtF * 0.602, tgtLH = tgtF * 1.64;
-  const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop());
+  const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop(), currentTextMaxW());
   allChars = layout.map((def, i) => {
     const ex = allChars[i];
     const opacityBase = isDark ? 
@@ -1202,7 +1209,7 @@ function loop() {
   mVX *= 0.6; mVY *= 0.6;
 
   if (Math.abs(fontT - fontTgt) > 0.001) {
-    const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop());
+    const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop(), currentTextMaxW());
     l.forEach((def, i) => { if (allChars[i]) { allChars[i].restX = def.restX; allChars[i].restY = def.restY; } });
   }
 
@@ -1247,6 +1254,18 @@ function loop() {
   drawEraParticles(isDark);
 
   const rgb = isDark ? '255,255,255' : '0,0,0';
+
+  // ── Soft shadow on text when era image is present, so text reads over the ambient image ──
+  const hasEraImage = eraParticles.length > 0 && eraAlpha > 0.05;
+  if (hasEraImage) {
+    if (isDark) {
+      ctx.shadowColor = 'rgba(0,0,0,0.82)';
+      ctx.shadowBlur  = 14;
+    } else {
+      ctx.shadowColor = 'rgba(242,239,233,0.78)';
+      ctx.shadowBlur  = 12;
+    }
+  }
 
   for (const p of allChars) {
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
@@ -1295,6 +1314,10 @@ function loop() {
       if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
     }
   }
+
+  // Clear text shadow so it doesn't affect cursor/other drawing
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur  = 0;
 
   cursorCtx.clearRect(0,0,W,H);
 
@@ -1356,7 +1379,7 @@ let eraStep      = 6;           // sampling density — lower = more pixels
 
 const ERA_FRICTION = 0.78;
 const ERA_SPRING_K = 0.022;
-const ERA_REPEL_SCALE = 1.0;    // use full repelRadius
+const ERA_REPEL_SCALE = 0.72;    // tighter influence radius for image pixels vs text
 const ERA_REPEL_FORCE = 14;
 
 // Offscreen canvas for pixel sampling
@@ -1367,21 +1390,30 @@ const eraOfCtx = eraOfc.getContext('2d');
 // Center-crop is applied in buildEraParticles via drawImage source offsets.
 function eraRegionDimensions() {
   const mob = isMobile();
-  // Desktop: tall square occupying left column. Mobile: compact square above text.
+  // Desktop: large ambient square — 50% bigger than before. Mobile: compact.
   const sq = mob
-    ? Math.min(Math.round(W * 0.52), Math.round(H * 0.32), 180)
-    : Math.min(Math.round(H * 0.62), 420);
+    ? Math.min(Math.round(W * 0.72), Math.round(H * 0.45), 260)
+    : Math.min(Math.round(H * 0.88), 620);
   return { rW: sq, rH: sq };
 }
 
 function eraRegion() {
   const mob = isMobile();
   const { rW, rH } = eraRegionDimensions();
-  // Desktop: flush left margin, vertically centered
-  const ox = mob ? Math.round(W / 2 - rW / 2) : 24;
-  const oy = mob
-    ? Math.round(H * 0.58)                    // below text in lower half on mobile
-    : Math.round(H / 2 - rH / 2 - 10);       // vertically centered on desktop
+  let ox, oy;
+  if (mob) {
+    // Mobile: centered horizontally, upper-mid vertically so text overlaps bottom
+    ox = Math.round(W / 2 - rW / 2);
+    oy = Math.round(H * 0.18);
+  } else {
+    // Desktop: float image so its center sits at the visual center-left of the
+    // text block — this is roughly 1/3 from the left, centered vertically.
+    // Text will overlap it freely; image is purely ambient behind.
+    const hotzoneX = Math.round(W * 0.30);
+    const hotzoneY = Math.round(H * 0.48);
+    ox = Math.max(0, hotzoneX - Math.round(rW * 0.42));
+    oy = Math.max(0, hotzoneY - Math.round(rH * 0.50));
+  }
   return { ox, oy, rW, rH };
 }
 
@@ -1451,7 +1483,7 @@ function loadEraImage(album) {
     if (eraLoadKey !== key) return; // stale — another era was selected during load
     eraImage = img;
     buildEraParticles();
-    eraAlphaTgt = 1; // fade in cleanly
+    eraAlphaTgt = 0.576; // ambient — 80% of previous 0.72
     // Rebuild text layout now that we know real image dimensions → padX updates
     _origBuildLayout();
   };
@@ -1526,17 +1558,19 @@ function drawEraParticles(isDark) {
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx * dx + dy * dy);
 
     if (magnifyMode && d < r) {
-      // Black hole mode — pull inward / orbit
+      // Black hole mode — gentle pull / graceful orbit for image pixels
       const bhl = BH_LEVELS[bhLevel];
-      const gravity = (r * bhl.gravity) / Math.max(d * d * 0.08, 4);
-      p.vx -= (dx/d) * Math.min(gravity, bhl.gravCap);
-      p.vy -= (dy/d) * Math.min(gravity, bhl.gravCap);
-      const vOrbit = Math.sqrt(r * 2.2 / Math.max(d, 8)) * bhl.orbit * 0.5;
+      // Use softer gravity scaling (d*d*0.18 vs 0.08) to reduce close-in suction
+      const gravity = (r * bhl.gravity * 0.55) / Math.max(d * d * 0.18, 6);
+      p.vx -= (dx/d) * Math.min(gravity, bhl.gravCap * 0.45);
+      p.vy -= (dy/d) * Math.min(gravity, bhl.gravCap * 0.45);
+      // Stronger orbital tangent so pixels arc around rather than spiral inward
+      const vOrbit = Math.sqrt(r * 2.2 / Math.max(d, 8)) * bhl.orbit * 0.85;
       p.vx += (-dy/d) * vOrbit;
       p.vy += ( dx/d) * vOrbit;
-      // tether
-      p.vx += (p.baseX - p.x) * TETHER_K * bhl.tether;
-      p.vy += (p.baseY - p.y) * TETHER_K * bhl.tether;
+      // Stronger tether pulls them back to formation more firmly
+      p.vx += (p.baseX - p.x) * TETHER_K * bhl.tether * 2.2;
+      p.vy += (p.baseY - p.y) * TETHER_K * bhl.tether * 2.2;
     } else {
       // Spring home
       p.vx += (p.baseX - p.x) * ERA_SPRING_K;
