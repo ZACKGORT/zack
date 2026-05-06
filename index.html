@@ -680,13 +680,42 @@ window.addEventListener('wheel', handleWheel, { passive: false });
 canvas.addEventListener('wheel', handleWheel, { passive: false });
 
 function isFiltered() { return activeAlbum !== null || activeTags.size > 0; }
+// ── Typography system ─────────────────────────────────────
+// All metrics derive from fontSize. DM Mono is a fixed-width font,
+// but optical density shifts at different sizes — we compensate.
 function currentFontSize() {
-  const base = isMobile() ? Math.max(7, userFontBase - 2) : userFontBase;
+  const base  = userFontBase;
   const large = base + 9;
   return base + (large - base) * fontT;
 }
-function currentCharW()    { return currentFontSize() * 0.602; }
-function currentLineH()    { return currentFontSize() * 1.64; }
+
+function currentCharW() {
+  const f = currentFontSize();
+  // DM Mono advance width: tighten slightly at large sizes for a denser texture,
+  // open slightly at small sizes for legibility. Range: 0.615 (small) → 0.592 (large)
+  const minF = 7, maxF = 28;
+  const t = Math.max(0, Math.min(1, (f - minF) / (maxF - minF)));
+  return f * (0.615 - t * 0.023);
+}
+
+function currentWordSpacing() {
+  const f  = currentFontSize();
+  const cw = currentCharW();
+  // Word space: wider than char at small sizes (aids legibility), converges at large
+  // Range: charW * 1.22 (small) → charW * 1.08 (large)
+  const minF = 7, maxF = 28;
+  const t = Math.max(0, Math.min(1, (f - minF) / (maxF - minF)));
+  return cw * (1.22 - t * 0.14);
+}
+
+function currentLineH() {
+  const f = currentFontSize();
+  // Generous leading at small sizes, tighter at display sizes.
+  // Range: 1.85× (7px) → 1.48× (28px)
+  const minF = 7, maxF = 28, minLH = 1.48, maxLH = 1.85;
+  const t = Math.max(0, Math.min(1, (f - minF) / (maxF - minF)));
+  return f * (maxLH - (maxLH - minLH) * t);
+}
 function currentPadX() {
   if (isMobile()) return 10;
   const mid = W < 1024; // tablet / small laptop
@@ -1104,6 +1133,7 @@ function invalidateFilterRepel() {
 let allChars = [];
 
 function computeLayout(charW, lineH, padX, padTop, maxWOverride) {
+  const wordSpacing = currentWordSpacing();
   const visible = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t))));
   if (!visible.length) return [];
   const tokens = [];
@@ -1116,22 +1146,35 @@ function computeLayout(charW, lineH, padX, padTop, maxWOverride) {
   const maxH = H - getBottomSafeArea();
   const lines = [];
   let curL = [], curW = 0;
+
+  // Token width: letter advance for each char + word space before token (except first)
+  function tokW(tok, isFirst) {
+    return tok.text.length * charW + (isFirst ? 0 : wordSpacing);
+  }
+
   tokens.forEach(tok => {
-    const seg = (curL.length ? ' ' : '') + tok.text, sw = seg.length * charW;
-    if (curW + sw > maxW && curL.length) { lines.push(curL); curL = [{ ...tok, display: tok.text }]; curW = tok.text.length * charW; }
-    else { curL.push({ ...tok, display: seg }); curW += sw; }
+    const isFirst = curL.length === 0;
+    const tw = tokW(tok, isFirst);
+    if (!isFirst && curW + tw > maxW) {
+      lines.push(curL); curL = [{ ...tok, display: tok.text }]; curW = tok.text.length * charW;
+    } else {
+      curL.push({ ...tok, display: isFirst ? tok.text : ' ' + tok.text }); curW += tw;
+    }
   });
   if (curL.length) lines.push(curL);
   const chars = [];
   lines.forEach((line, li) => {
     const ry = padTop + li * lineH;
-    if (ry > maxH) return; 
+    if (ry > maxH) return;
     let rx = padX;
     line.forEach(tok => {
-      for (let ci = 0; ci < tok.display.length; ci++) {
-        chars.push({ ch: tok.display[ci], restX: rx + ci * charW, restY: ry, seed: (tok.trackId * 137 + ci) % 100 / 100, isSep: tok.isSep });
+      // Leading space character for word gap (not drawn, just advances rx)
+      let ci = 0;
+      if (tok.display.startsWith(' ')) { rx += wordSpacing; ci = 1; }
+      for (; ci < tok.display.length; ci++) {
+        chars.push({ ch: tok.display[ci], restX: rx + (ci - (tok.display.startsWith(' ') ? 1 : 0)) * charW, restY: ry, seed: (tok.trackId * 137 + ci) % 100 / 100, isSep: tok.isSep });
       }
-      rx += tok.display.length * charW;
+      rx += (tok.display.length - (tok.display.startsWith(' ') ? 1 : 0)) * charW;
     });
   });
   return chars;
@@ -1202,8 +1245,8 @@ function buildLayout() {
 
   const isDark = document.body.classList.contains('theme-dark');
   const tgtT = isFiltered() ? 1 : 0;
-  const base = isMobile() ? 9 : userFontBase;
-  const large = isMobile() ? 16 : userFontBase + 9;
+  const base = userFontBase;
+  const large = userFontBase + 9;
   const tgtF = base + (large - base) * tgtT;
   const tgtCW = tgtF * 0.602, tgtLH = tgtF * 1.64;
   const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop(), currentTextMaxW());
@@ -1405,7 +1448,7 @@ const ERA_IMAGES = {
   'Fintech · NYC':             'https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp',
   'Independent':               'https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp',
   'Wolfgang & Co.':            'https://i.ibb.co/BHTFx2kP/1-R9y-Bt9f-Sy-Eoa56p77-Ncpq-A.webp',
-  'The Argument':              'https://i.ibb.co/60GV48WK/fishtown.webp',
+  'The Argument':              'https://i.ibb.co/rG8S6QkB/OLLIE-1.png',
 };
 
 // State
