@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>zackgort — cv en masse</title>
+<title>zackgort — career as mass</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -640,23 +640,23 @@ const cursorCtx    = cursorCanvas.getContext('2d');
 let W = canvas.width = cursorCanvas.width  = window.innerWidth;
 let H = canvas.height = cursorCanvas.height = window.innerHeight;
 
-const FONT_BASE  = 14;
-const FONT_LARGE = 24;
+const FONT_BASE  = 11;
+const FONT_LARGE = 20;
 let userFontBase = FONT_BASE;
 const SEP = ' — ';
 let fontT = 0, fontTgt = 0;
 const FONT_LERP = 0.07;
 
-const REPEL_MIN = 33, REPEL_MAX = 444, REPEL_DEFAULT = 66;
+const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
 let repelRadius = REPEL_DEFAULT;
-const BLOOM_DEFAULT = 111;
+const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
 
 // ── Black hole intensity: 3 levels ──
 const BH_LEVELS = [
-  { label: 'Drift',  gravity: 0.77,  gravCap: 3.0,  orbit: 1.2, tether: 0.35 },
-  { label: 'Pull',   gravity: 3.33,  gravCap: 6.0,  orbit: 2.0, tether: 0.18 },
-  { label: 'Devour', gravity: 6.66,  gravCap: 12.0, orbit: 3.2, tether: 0.06 },
+  { label: 'Drift',  gravity: 2.2,  gravCap: 3.0,  orbit: 1.2, tether: 0.35 },
+  { label: 'Pull',   gravity: 4.0,  gravCap: 6.0,  orbit: 2.0, tether: 0.18 },
+  { label: 'Devour', gravity: 7.5,  gravCap: 12.0, orbit: 3.2, tether: 0.06 },
 ];
 let bhLevel = 0;
 
@@ -687,10 +687,18 @@ function currentFontSize() {
 }
 function currentCharW()    { return currentFontSize() * 0.602; }
 function currentLineH()    { return currentFontSize() * 1.64; }
-function currentPadX()     { return isMobile() ? 10 : 80; }
+function currentPadX() {
+  if (isMobile()) return 10;
+  // Desktop era active: text starts flush after image + gap, zero overlap
+  if (activeAlbum && ERA_IMAGES[activeAlbum]) {
+    const { rW } = eraRegionDimensions();
+    return 24 + rW + 32; // image left margin + square width + gutter
+  }
+  return 80;
+}
 function currentPadTop()   { 
-  if (isMobile() && isLandscape()) return 100; 
-  return isMobile() ? 260 : 260; 
+  if (isMobile() && isLandscape()) return 100;
+  return isMobile() ? 260 : 260;
 }
 function currentFontFace() { 
   const weight = document.body.classList.contains('theme-dark') ? '300' : '500';
@@ -1100,7 +1108,69 @@ function computeLayout(charW, lineH, padX, padTop) {
   return chars;
 }
 
+// ── Helix shuffle ─────────────────────────────────────────
+// When filter changes, particles spiral out in a helix then spring to new positions.
+let helixActive  = false;
+let helixT       = 0;        // 0..1 progress through the outward burst phase
+const HELIX_DUR  = 38;       // frames for the outward burst (at 60fps ≈ 0.63s)
+const HELIX_ARMS = 3;        // number of helix arms
+
+function triggerHelixShuffle() {
+  if (!allChars.length) return;
+  helixActive = true;
+  helixT      = 0;
+
+  const cx = W / 2, cy = H / 2;
+  const total = allChars.length;
+
+  allChars.forEach((p, i) => {
+    // Each particle gets a helical launch: outward radial + tangential spin
+    // Arm angle: evenly distribute across HELIX_ARMS arms, offset by position in array
+    const arm       = i % HELIX_ARMS;
+    const frac      = i / total;                           // 0..1 along array
+    const baseAngle = (arm / HELIX_ARMS) * Math.PI * 2;
+    const spinAngle = baseAngle + frac * Math.PI * 4;     // two full rotations spread across array
+
+    // Radial distance from canvas center to particle rest position
+    const dx   = p.restX - cx, dy = p.restY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+    // Outward burst magnitude — stronger for particles farther from center
+    const burst = 6 + (dist / Math.max(W, H)) * 18;
+
+    // Tangential (perpendicular) kick for the helix swirl
+    const swirl = burst * 0.7;
+
+    p.vx += Math.cos(spinAngle) * burst  + Math.cos(spinAngle + Math.PI / 2) * swirl;
+    p.vy += Math.sin(spinAngle) * burst  + Math.sin(spinAngle + Math.PI / 2) * swirl;
+  });
+
+  // Same for era image particles
+  if (eraParticles.length) {
+    const total2 = eraParticles.length;
+    eraParticles.forEach((p, i) => {
+      const arm       = i % HELIX_ARMS;
+      const frac      = i / total2;
+      const baseAngle = (arm / HELIX_ARMS) * Math.PI * 2;
+      const spinAngle = baseAngle + frac * Math.PI * 4;
+      const dx = p.baseX - cx, dy = p.baseY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const burst = 5 + (dist / Math.max(W, H)) * 14;
+      const swirl = burst * 0.7;
+      p.vx += Math.cos(spinAngle) * burst  + Math.cos(spinAngle + Math.PI / 2) * swirl;
+      p.vy += Math.sin(spinAngle) * burst  + Math.sin(spinAngle + Math.PI / 2) * swirl;
+    });
+  }
+}
+// ─────────────────────────────────────────────────────────
+
+let _prevFilterKey = '';
+
 function buildLayout() {
+  const filterKey    = (activeAlbum || '') + '|' + [...activeTags].sort().join(',');
+  const filterChanged = filterKey !== _prevFilterKey && allChars.length > 0;
+  _prevFilterKey = filterKey;
+
   const isDark = document.body.classList.contains('theme-dark');
   const tgtT = isFiltered() ? 1 : 0;
   const base = isMobile() ? 9 : userFontBase;
@@ -1110,16 +1180,17 @@ function buildLayout() {
   const layout = computeLayout(tgtCW, tgtLH, currentPadX(), currentPadTop());
   allChars = layout.map((def, i) => {
     const ex = allChars[i];
-    // Dynamic opacity baselines based on current theme
     const opacityBase = isDark ? 
       (def.isSep ? 0.11 : 0.32 + def.seed * 0.38) : 
       (def.isSep ? 0.30 : 0.60 + def.seed * 0.40);
-      
     return { ch: def.ch, restX: def.restX, restY: def.restY, x: ex ? ex.x : def.restX, y: ex ? ex.y : def.restY, vx: ex ? ex.vx : 0, vy: ex ? ex.vy : 0, baseOpacity: opacityBase };
   });
   fontTgt = tgtT;
   document.getElementById('cnt').textContent = TRACKS.filter(d => (!activeAlbum || d.album === activeAlbum) && (activeTags.size === 0 || d.tags.some(t => activeTags.has(t)))).length;
   refreshFilterState();
+
+  // Fire helix only on genuine filter changes, not font/resize/theme updates
+  if (filterChanged) triggerHelixShuffle();
 }
 
 function loop() {
@@ -1171,6 +1242,9 @@ function loop() {
 
   ctx.font = currentFontFace(); ctx.textBaseline = 'top';
   const lcx = logoX + 90, lcy = logoY + 30;
+
+  // ── Era image particles (drawn behind text) ──
+  drawEraParticles(isDark);
 
   const rgb = isDark ? '255,255,255' : '0,0,0';
 
@@ -1248,6 +1322,274 @@ window.addEventListener('resize', () => {
 });
 
 initDOMFilters(); invalidateFilterRepel();
+
+// ══════════════════════════════════════════════════════════
+// ERA IMAGE PARTICLE SYSTEM — drawn on main ctx, shares cursor physics
+// ══════════════════════════════════════════════════════════
+const ERA_IMAGES = {
+  'Roots · Philadelphia':      'https://i.ibb.co/zWddYDKH/1-b7-R1-Bb-D3kn-TIbl-Ly-MZd-Xg.webp',
+  'Startup · Philadelphia':    'https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp',
+  'Conversion · Philadelphia': 'https://i.ibb.co/bg5W6vyn/DSC09125.jpg',
+  'Agency · Philadelphia':     'https://i.ibb.co/SwzHM3CZ/1-o-P6kr-DDq-Pp-Sg-F4-Ag-Fr-WClw.webp',
+  'Product · Philadelphia':    'https://i.ibb.co/zTKr9Dh9/1-7w-EKA8du-Scc-OZw-Im-A-6j-SQ.webp',
+  'SaaS · Philadelphia':       'https://i.ibb.co/mjt5Myw/1-l-EJetj-Ut85-CTbb24d-BTFk-A.webp',
+  'NYC Debut':                 'https://i.ibb.co/HmmCNyS/603d61b96ca6f0c336165b6e-DSC09310.webp',
+  'E-commerce · NYC':          'https://i.ibb.co/8njbYh3K/603d0b5635e8053bc120bec7-DSC09034.webp',
+  'Hospitality · NYC':         'https://i.ibb.co/HpnrrYMR/2269419019461331921-5144774570.webp',
+  'Recovery · NYC':            'https://i.ibb.co/cSQCgNQY/work1.webp',
+  'Enterprise · NYC':          'https://i.ibb.co/MyN6xvyt/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp',
+  'Fintech · NYC':             'https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp',
+  'Independent':               'https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp',
+  'Wolfgang & Co.':            'https://i.ibb.co/BHTFx2kP/1-R9y-Bt9f-Sy-Eoa56p77-Ncpq-A.webp',
+  'The Argument':              'https://i.ibb.co/rG8S6QkB/OLLIE-1.png',
+};
+
+// State
+let eraParticles = [];          // { x, y, baseX, baseY, srcX, srcY, vx, vy, density }
+let eraImage     = null;        // loaded HTMLImageElement
+let eraImgW      = 0, eraImgH = 0;  // image region dimensions on screen
+let eraOffX      = 0, eraOffY = 0;  // top-left of image region in viewport
+let eraAlpha     = 0;           // 0..1 fade
+let eraAlphaTgt  = 0;           // target
+let eraLoadKey   = null;        // prevents stale loads
+let eraStep      = 6;           // sampling density — lower = more pixels
+
+const ERA_FRICTION = 0.78;
+const ERA_SPRING_K = 0.022;
+const ERA_REPEL_SCALE = 1.0;    // use full repelRadius
+const ERA_REPEL_FORCE = 14;
+
+// Offscreen canvas for pixel sampling
+const eraOfc = document.createElement('canvas');
+const eraOfCtx = eraOfc.getContext('2d');
+
+// Always a consistent square — size fixed, not driven by image aspect ratio.
+// Center-crop is applied in buildEraParticles via drawImage source offsets.
+function eraRegionDimensions() {
+  const mob = isMobile();
+  // Desktop: tall square occupying left column. Mobile: compact square above text.
+  const sq = mob
+    ? Math.min(Math.round(W * 0.52), Math.round(H * 0.32), 180)
+    : Math.min(Math.round(H * 0.62), 420);
+  return { rW: sq, rH: sq };
+}
+
+function eraRegion() {
+  const mob = isMobile();
+  const { rW, rH } = eraRegionDimensions();
+  // Desktop: flush left margin, vertically centered
+  const ox = mob ? Math.round(W / 2 - rW / 2) : 24;
+  const oy = mob
+    ? Math.round(H * 0.58)                    // below text in lower half on mobile
+    : Math.round(H / 2 - rH / 2 - 10);       // vertically centered on desktop
+  return { ox, oy, rW, rH };
+}
+
+function buildEraParticles() {
+  if (!eraImage || !eraImage.naturalWidth) return;
+  const { ox, oy, rW, rH } = eraRegion();
+  eraOffX = ox; eraOffY = oy; eraImgW = rW; eraImgH = rH;
+
+  // Center-crop: take the largest centered square from the source image
+  const natW = eraImage.naturalWidth, natH = eraImage.naturalHeight;
+  const cropSide = Math.min(natW, natH);
+  const cropX = Math.round((natW - cropSide) / 2);
+  const cropY = Math.round((natH - cropSide) / 2);
+
+  // Sample the center-cropped square into the offscreen canvas at display size
+  eraOfc.width  = rW;
+  eraOfc.height = rH;
+  eraOfCtx.clearRect(0, 0, rW, rH);
+  // drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh) — center crop → square display
+  eraOfCtx.drawImage(eraImage, cropX, cropY, cropSide, cropSide, 0, 0, rW, rH);
+
+  eraParticles = [];
+  for (let y = 0; y < rH; y += eraStep) {
+    for (let x = 0; x < rW; x += eraStep) {
+      const baseX = ox + x, baseY = oy + y;
+      const scatter = eraAlpha < 0.05;
+      const sx = scatter ? (Math.random() * W) : baseX;
+      const sy = scatter ? (Math.random() * H) : baseY;
+      eraParticles.push({
+        x: sx, y: sy,
+        baseX, baseY,
+        srcX: x, srcY: y,
+        vx: 0, vy: 0,
+        density: Math.random() * 4 + 2,
+      });
+    }
+  }
+}
+
+// Outgoing slot — holds the previous era's particles + offscreen canvas while fading out
+let eraOutParticles = [];
+let eraOutOfc       = null;
+let eraOutAlpha     = 0;
+
+function loadEraImage(album) {
+  const url = ERA_IMAGES[album];
+  if (!url) { eraAlphaTgt = 0; eraImage = null; eraParticles = []; return; }
+  const key = album;
+  eraLoadKey = key;
+
+  // Move current particles to outgoing slot so they fade out independently
+  if (eraParticles.length && eraAlpha > 0.01) {
+    eraOutParticles = eraParticles;
+    eraOutOfc       = eraOfc.cloneNode();                  // clone the canvas element
+    eraOutOfc.getContext('2d').drawImage(eraOfc, 0, 0);   // copy pixel data
+    eraOutAlpha     = eraAlpha;
+  }
+
+  // Reset incoming state — incoming particles won't appear until image loads
+  eraParticles = [];
+  eraAlpha     = 0;
+  eraAlphaTgt  = 0;
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    if (eraLoadKey !== key) return; // stale — another era was selected during load
+    eraImage = img;
+    buildEraParticles();
+    eraAlphaTgt = 1; // fade in cleanly
+    // Rebuild text layout now that we know real image dimensions → padX updates
+    _origBuildLayout();
+  };
+  img.onerror = () => { if (eraLoadKey === key) { eraImage = null; eraParticles = []; } };
+  img.src = url;
+}
+
+function clearEraParticles() {
+  // Fade out current into outgoing slot
+  if (eraParticles.length && eraAlpha > 0.01) {
+    eraOutParticles = eraParticles;
+    eraOutOfc       = eraOfc.cloneNode();
+    eraOutOfc.getContext('2d').drawImage(eraOfc, 0, 0);
+    eraOutAlpha     = eraAlpha;
+  }
+  eraAlphaTgt = 0;
+  eraLoadKey  = null;
+  eraImage    = null;
+  eraParticles = [];
+  eraAlpha     = 0;
+  setTimeout(() => { if (typeof _origBuildLayout === 'function' && !activeAlbum) _origBuildLayout(); }, 0);
+}
+
+// Patch buildLayout to react to activeAlbum changes
+const _origBuildLayout = buildLayout;
+buildLayout = function() {
+  _origBuildLayout();
+  if (activeAlbum && ERA_IMAGES[activeAlbum]) {
+    if (eraLoadKey !== activeAlbum) loadEraImage(activeAlbum);
+  } else {
+    clearEraParticles();
+  }
+  // After image loads and eraRegion is known, also rebuild text positions
+  // (text padX depends on image width — handled via loadEraImage callback calling buildLayout again)
+};
+
+// Draw era particles INSIDE the loop — called between background and text
+function drawEraParticles(isDark) {
+  // ── Outgoing slot: fade out previous era's particles independently ──
+  if (eraOutParticles.length && eraOutAlpha > 0.005) {
+    eraOutAlpha *= 0.88; // fast fade — gone in ~0.5s
+    ctx.save();
+    ctx.globalAlpha = eraOutAlpha;
+    for (const p of eraOutParticles) {
+      // Just drift — no spring, light damping only
+      p.vx *= 0.92; p.vy *= 0.92;
+      p.x  += p.vx; p.y  += p.vy;
+      if (eraOutOfc) ctx.drawImage(eraOutOfc, p.srcX, p.srcY, eraStep, eraStep, p.x, p.y, eraStep, eraStep);
+    }
+    ctx.restore();
+  } else if (eraOutAlpha <= 0.005) {
+    eraOutParticles = [];
+    eraOutOfc       = null;
+    eraOutAlpha     = 0;
+  }
+
+  // ── Incoming: normal draw ──
+  if (!eraParticles.length && eraAlpha < 0.01) return;
+
+  eraAlpha += (eraAlphaTgt - eraAlpha) * 0.045;
+  if (eraAlpha < 0.005 && eraAlphaTgt < 0.01) {
+    if (!activeAlbum || !ERA_IMAGES[activeAlbum]) { eraParticles = []; eraImage = null; }
+    return;
+  }
+
+  const r = repelRadius * ERA_REPEL_SCALE;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, eraAlpha);
+
+  for (const p of eraParticles) {
+    // Physics — same pattern as text particles
+    const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx * dx + dy * dy);
+
+    if (magnifyMode && d < r) {
+      // Black hole mode — pull inward / orbit
+      const bhl = BH_LEVELS[bhLevel];
+      const gravity = (r * bhl.gravity) / Math.max(d * d * 0.08, 4);
+      p.vx -= (dx/d) * Math.min(gravity, bhl.gravCap);
+      p.vy -= (dy/d) * Math.min(gravity, bhl.gravCap);
+      const vOrbit = Math.sqrt(r * 2.2 / Math.max(d, 8)) * bhl.orbit * 0.5;
+      p.vx += (-dy/d) * vOrbit;
+      p.vy += ( dx/d) * vOrbit;
+      // tether
+      p.vx += (p.baseX - p.x) * TETHER_K * bhl.tether;
+      p.vy += (p.baseY - p.y) * TETHER_K * bhl.tether;
+    } else {
+      // Spring home
+      p.vx += (p.baseX - p.x) * ERA_SPRING_K;
+      p.vy += (p.baseY - p.y) * ERA_SPRING_K;
+      // Repel
+      if (!magnifyMode && d < r && d > 0.5) {
+        const f = (1 - d / r);
+        const force = f * f * ERA_REPEL_FORCE * p.density * 0.18;
+        p.vx += (dx / d) * force;
+        p.vy += (dy / d) * force;
+      }
+    }
+
+    // Widget repel (same zones as text)
+    filterRepelZones.forEach(z => {
+      if (p.x > z.left && p.x < z.right && p.y > z.top && p.y < z.bottom) {
+        const cpx = Math.max(z.rx, Math.min(p.x, z.rx + z.rw));
+        const cpy = Math.max(z.ry, Math.min(p.y, z.ry + z.rh));
+        const ddx = p.x - cpx, ddy = p.y - cpy;
+        const dd = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (dd < z.pad && dd > 0.5) {
+          const f = (1 - dd / z.pad);
+          p.vx += (ddx / dd) * f * f * 14;
+          p.vy += (ddy / dd) * f * f * 14;
+        }
+      }
+    });
+
+    p.vx *= ERA_FRICTION;
+    p.vy *= ERA_FRICTION;
+    p.x  += p.vx;
+    p.y  += p.vy;
+
+    // Draw pixel from source image
+    ctx.drawImage(
+      eraOfc,
+      p.srcX, p.srcY, eraStep, eraStep,
+      p.x,    p.y,    eraStep, eraStep
+    );
+  }
+
+  ctx.restore();
+}
+
+// Resize: rebuild particle positions
+window.addEventListener('resize', () => {
+  if (eraImage && eraAlpha > 0.1) {
+    const prev = { ox: eraOffX, oy: eraOffY, rW: eraImgW, rH: eraImgH };
+    buildEraParticles(); // recompute region + re-sample
+    // Teleport particles to new base positions to avoid big drift
+    eraParticles.forEach(p => { p.x = p.baseX; p.y = p.baseY; p.vx = 0; p.vy = 0; });
+  }
+});
 
 // Mobile defaults
 if (isMobile()) {
