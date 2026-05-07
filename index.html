@@ -648,7 +648,9 @@ let fontT = 0, fontTgt = 0;
 const FONT_LERP = 0.07;
 
 const REPEL_MIN = 40, REPEL_MAX = 400, REPEL_DEFAULT = 110;
-let repelRadius = REPEL_DEFAULT;
+let repelRadius    = REPEL_DEFAULT;   // target (set instantly by scroll/pinch)
+let repelRadiusCur = REPEL_DEFAULT;   // smoothly lerped — drives actual physics + ring
+const REPEL_LERP   = 0.072;           // ease rate — smooth accel/decel
 const BLOOM_DEFAULT = 160;
 let bloomRadius = BLOOM_DEFAULT;
 
@@ -1272,6 +1274,9 @@ function loop() {
   fontT += (fontTgt - fontT) * FONT_LERP;
   cursorSpeed += (Math.sqrt(mVX*mVX + mVY*mVY) - cursorSpeed) * 0.12;
   mVX *= 0.6; mVY *= 0.6;
+  // Smooth radius: ease toward target for fluid accel/decel
+  repelRadiusCur += (repelRadius - repelRadiusCur) * REPEL_LERP;
+  bloomRadius = repelRadiusCur * 1.45;
 
   if (Math.abs(fontT - fontTgt) > 0.001) {
     const l = computeLayout(currentCharW(), currentLineH(), currentPadX(), currentPadTop(), currentTextMaxW());
@@ -1354,20 +1359,20 @@ function loop() {
   for (const p of allChars) {
     const dx = p.x - bX, dy = p.y - bY, d = Math.sqrt(dx*dx + dy*dy);
 
-    if (magnifyMode && d < repelRadius) {
+    if (magnifyMode && d < repelRadiusCur) {
       const bhl = BH_LEVELS[bhLevel];
-      const gravity = (repelRadius * bhl.gravity) / Math.max(d * d * 0.08, 4);
+      const gravity = (repelRadiusCur * bhl.gravity) / Math.max(d * d * 0.08, 4);
       p.vx -= (dx/d) * Math.min(gravity, bhl.gravCap);
       p.vy -= (dy/d) * Math.min(gravity, bhl.gravCap);
 
-      const coreR = repelRadius * 0.72;
+      const coreR = repelRadiusCur * 0.72;
       if (d < coreR) {
         const pushF = Math.pow(1 - d / coreR, 2) * 12;
         p.vx += (dx/d) * pushF;
         p.vy += (dy/d) * pushF;
       }
 
-      const vOrbit = Math.sqrt(repelRadius * 2.2 / Math.max(d, 8)) * bhl.orbit;
+      const vOrbit = Math.sqrt(repelRadiusCur * 2.2 / Math.max(d, 8)) * bhl.orbit;
       p.vx += (-dy/d) * vOrbit;
       p.vy += ( dx/d) * vOrbit;
 
@@ -1375,7 +1380,12 @@ function loop() {
       p.vy += (p.restY - p.y) * TETHER_K * bhl.tether;
     } else {
       p.vx += (p.restX - p.x) * TETHER_K; p.vy += (p.restY - p.y) * TETHER_K;
-      if (!magnifyMode && d < repelRadius && d > 0.5) { const f = (1 - d/repelRadius); p.vx += (dx/d) * f * f * 16; p.vy += (dy/d) * f * f * 16; }
+      if (!magnifyMode && d < repelRadiusCur && d > 0.5) {
+        const f = (1 - d / repelRadiusCur);
+        // Force scales with radius — bigger circle expels at higher velocity
+        const force = 8 + (repelRadiusCur / REPEL_MAX) * 24;
+        p.vx += (dx/d) * f * f * force; p.vy += (dy/d) * f * f * force;
+      }
     }
 
     const ldx = p.x - lcx, ldy = p.y - lcy, ld = Math.sqrt(ldx*ldx + ldy*ldy);
@@ -1389,7 +1399,7 @@ function loop() {
     });
     p.vx *= DAMP; p.vy *= DAMP; p.x += p.vx; p.y += p.vy;
 
-    if (magnifyMode && d < repelRadius) {
+    if (magnifyMode && d < repelRadiusCur) {
       const alpha = p.baseOpacity;
       if (alpha > 0.01) { ctx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`; ctx.fillText(p.ch, p.x, p.y); }
     } else {
@@ -1420,7 +1430,16 @@ function loop() {
   cursorCtx.beginPath(); cursorCtx.arc(eX, eY, 4, 0, Math.PI*2); cursorCtx.fill();
   cursorCtx.fillStyle = `rgb(${rgb})`;
   cursorCtx.beginPath(); cursorCtx.arc(mX, mY, 1.5, 0, Math.PI*2); cursorCtx.fill();
-}
+
+// Update ring element size + position from smoothed radius
+if (magnifyMode) {
+    const d = Math.round(repelRadiusCur * 2);
+    magnifyRing.style.width  = d + 'px';
+    magnifyRing.style.height = d + 'px';
+    magnifyRing.style.left   = bX + 'px';
+    magnifyRing.style.top    = bY + 'px';
+  }
+}  // ← closes loop()
 
 window.addEventListener('resize', () => {
   W = canvas.width = cursorCanvas.width = window.innerWidth;
@@ -1651,7 +1670,7 @@ function drawEraParticles(isDark) {
     return;
   }
 
-  const r = repelRadius * ERA_REPEL_SCALE;
+  const r = repelRadiusCur * ERA_REPEL_SCALE;
   ctx.save();
   ctx.globalAlpha = Math.min(1, eraAlpha);
 
