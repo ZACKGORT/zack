@@ -8,1006 +8,607 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 body { background:#0a0a0a; overflow:hidden; font-family:'Courier New',monospace; cursor:none; }
 canvas { display:block; }
-
-#cursor {
-  position:fixed; top:0; left:0; pointer-events:none; z-index:9999;
-  width:18px; height:11px; border-radius:50%;
-  background:rgba(255,255,248,0.92);
-  box-shadow:0 0 8px rgba(255,255,255,0.4);
-  will-change:transform;
-}
-
-/* ── DISPENSER ── */
-#dispenser {
-  position:fixed; z-index:300;
-  top:18px; left:50%; transform:translateX(-50%);
-  user-select:none; touch-action:none;
-}
-#cta-btn {
-  display:flex; align-items:center; justify-content:center; gap:9px;
-  background:#ffffff; color:#0a0a0a;
-  border:none; padding:0 20px 0 18px; height:38px;
-  font-family:'Helvetica Neue',Arial,sans-serif; font-size:11px;
-  font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
-  cursor:none; border-radius:4px;
-  box-shadow:0 2px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
-  transition:box-shadow 0.15s, background 0.12s, color 0.12s;
-  white-space:nowrap; min-width:100px;
-}
-#cta-btn:hover { box-shadow:0 4px 24px rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.25); }
-#cta-btn.paused { background:#0a0a0a; color:#ffffff; box-shadow:0 2px 16px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.18); }
-#cta-btn.paused:hover { box-shadow:0 4px 24px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.32); }
-#cta-btn.snap-active { box-shadow:0 0 0 2px rgba(255,255,255,0.55), 0 4px 20px rgba(255,255,255,0.12); }
-#snap-hint {
-  position:fixed; top:0; left:0; right:0; height:3px;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
-  pointer-events:none; z-index:299; opacity:0; transition:opacity 0.3s;
-}
+#cursor { position:fixed; top:0; left:0; pointer-events:none; z-index:9999; width:18px; height:11px; border-radius:50%; background:rgba(255,255,248,0.92); box-shadow:0 0 8px rgba(255,255,255,0.4); will-change:transform; }
+#snap-hint { position:fixed; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent); pointer-events:none; z-index:299; opacity:0; transition:opacity 0.3s; }
 #snap-hint.visible { opacity:1; }
 
-/* ── CONTEXT MENU ── */
-#ctx-menu {
-  position:fixed; z-index:500; background:#111111;
-  border:1px solid rgba(255,255,255,0.12); border-radius:8px;
-  padding:8px; min-width:200px; display:none;
-  box-shadow:0 8px 40px rgba(0,0,0,0.7);
-  font-family:'Helvetica Neue',Arial,sans-serif;
-}
-#ctx-menu.visible { display:block; }
-.ctx-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.2); text-transform:uppercase; padding:4px 8px 8px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:6px; }
-.shape-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
-.shape-btn { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:10px 8px; cursor:none; color:#fff; text-align:center; transition:background 0.12s, border-color 0.12s; display:flex; flex-direction:column; align-items:center; gap:5px; }
-.shape-btn:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.22); }
-.shape-icon { width:32px; height:32px; display:flex; align-items:center; justify-content:center; }
-.shape-icon svg { width:28px; height:28px; }
-.shape-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.45); display:flex; flex-direction:column; gap:2px; align-items:center; }
-.shape-trait { font-size:8px; color:rgba(255,255,255,0.22); letter-spacing:0.05em; text-transform:none; }
-.ctx-divider { height:1px; background:rgba(255,255,255,0.06); margin:6px 0; }
-.ctx-action { background:transparent; border:none; width:100%; padding:7px 8px; text-align:left; cursor:none; font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.3); border-radius:4px; transition:background 0.1s, color 0.1s; display:flex; align-items:center; gap:8px; }
-.ctx-action:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.6); }
-.ctx-action.danger:hover { background:rgba(255,60,60,0.1); color:rgba(255,80,80,0.7); }
+/* DISPENSER */
+#dispenser { position:fixed; z-index:300; top:18px; left:50%; transform:translateX(-50%); user-select:none; touch-action:none; }
+#cta-btn { display:flex; align-items:center; justify-content:center; gap:9px; background:#ffffff; color:#0a0a0a; border:none; padding:0 20px 0 18px; height:38px; font-family:'Helvetica Neue',Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; cursor:none; border-radius:4px; box-shadow:0 2px 16px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.08); transition:box-shadow 0.15s,background 0.12s,color 0.12s; white-space:nowrap; min-width:100px; }
+#cta-btn:hover { box-shadow:0 4px 24px rgba(255,255,255,0.18),0 0 0 1px rgba(255,255,255,0.25); }
+#cta-btn.paused { background:#0a0a0a; color:#ffffff; box-shadow:0 2px 16px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.18); }
+#cta-btn.snap-active { box-shadow:0 0 0 2px rgba(255,255,255,0.55),0 4px 20px rgba(255,255,255,0.12); }
 
-/* ── PANEL ── */
-#panel {
-  position:fixed; top:70px; right:16px; width:186px;
-  background:rgba(10,10,10,0.85); border:1px solid rgba(255,255,255,0.07);
-  backdrop-filter:blur(12px); z-index:100; border-radius:6px;
-}
-#panel-header { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.04); }
+/* SHARED WIDGET */
+.widget { position:fixed; z-index:100; background:rgba(10,10,10,0.88); border:1px solid rgba(255,255,255,0.07); backdrop-filter:blur(14px); border-radius:6px; user-select:none; }
+.widget-header { display:flex; align-items:center; justify-content:space-between; padding:8px 11px; border-bottom:1px solid rgba(255,255,255,0.05); cursor:grab; }
+.widget-header:active { cursor:grabbing; }
+.widget-header.grabbing { background:rgba(255,255,255,0.02); }
+.widget-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
+.widget-sub { font-size:8px; color:rgba(255,255,255,0.1); letter-spacing:0.1em; }
+
+/* SHAPE INSERTER */
+#shape-inserter { left:16px; top:80px; width:74px; }
+#shape-inserter .widget-header { padding:8px 10px 6px; }
+#inserter-body { padding:8px; display:flex; flex-direction:column; gap:6px; }
+.ins-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:8px 5px 7px; cursor:none; color:#fff; width:100%; transition:background 0.12s,border-color 0.12s; }
+.ins-btn:hover { background:rgba(255,255,255,0.09); border-color:rgba(255,255,255,0.2); }
+.ins-btn svg { width:22px; height:22px; }
+.ins-btn-lbl { font-size:8px; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.32); }
+.ins-div { height:1px; background:rgba(255,255,255,0.04); }
+.ins-clear { width:100%; background:transparent; border:1px solid rgba(255,60,60,0.15); color:rgba(255,80,80,0.38); font-family:'Courier New',monospace; font-size:8px; letter-spacing:0.1em; padding:5px 4px; cursor:none; text-transform:uppercase; border-radius:3px; transition:all 0.15s; }
+.ins-clear:hover { border-color:rgba(255,60,60,0.4); color:rgba(255,80,80,0.75); background:rgba(255,40,40,0.06); }
+
+/* GAME HUD */
+#game-hud { left:104px; top:80px; width:165px; }
+#hud-inner { padding:10px 11px; display:flex; flex-direction:column; gap:0; }
+.target-row { display:flex; align-items:center; gap:7px; margin-bottom:6px; }
+.tdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.tbar-bg { flex:1; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+.tbar-fill { height:100%; border-radius:2px; transition:width 0.15s; }
+.tpct { font-size:8px; color:rgba(255,255,255,0.22); min-width:24px; text-align:right; }
+.tchk { font-size:9px; opacity:0; transition:opacity 0.3s; }
+.tchk.done { opacity:1; }
+
+/* FLOW PANEL */
+#panel { right:16px; top:70px; width:186px; }
+#panel-header { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:grab; }
+#panel-header:active { cursor:grabbing; }
 #panel-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
-#btn-playpause { background:transparent; border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.38); font-family:'Courier New',monospace; font-size:9px; letter-spacing:0.1em; padding:3px 7px; cursor:none; text-transform:uppercase; transition:all 0.15s; border-radius:3px; }
-#btn-playpause:hover { color:#fff; border-color:rgba(255,255,255,0.35); }
-#btn-playpause.paused { color:rgba(255,180,80,0.85); border-color:rgba(255,160,60,0.3); }
+#btn-pp { background:transparent; border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.38); font-family:'Courier New',monospace; font-size:9px; letter-spacing:0.1em; padding:3px 7px; cursor:none; text-transform:uppercase; transition:all 0.15s; border-radius:3px; }
+#btn-pp:hover { color:#fff; border-color:rgba(255,255,255,0.35); }
+#btn-pp.paused { color:rgba(255,180,80,0.85); border-color:rgba(255,160,60,0.3); }
 #panel-body { padding:11px; display:flex; flex-direction:column; gap:9px; }
 .ctrl-row { display:flex; flex-direction:column; gap:4px; }
-.ctrl-label { display:flex; justify-content:space-between; align-items:baseline; }
-.ctrl-name { font-size:9px; letter-spacing:0.18em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
-.ctrl-val { font-size:9px; color:rgba(255,255,255,0.32); min-width:30px; text-align:right; }
+.ctrl-lbl { display:flex; justify-content:space-between; align-items:baseline; }
+.ctrl-nm { font-size:9px; letter-spacing:0.18em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
+.ctrl-vl { font-size:9px; color:rgba(255,255,255,0.32); min-width:30px; text-align:right; }
 input[type=range] { -webkit-appearance:none; width:100%; height:1px; background:rgba(255,255,255,0.08); outline:none; cursor:none; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.55); cursor:none; transition:transform 0.1s; }
 input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); background:#fff; }
-.divider { height:1px; background:rgba(255,255,255,0.04); margin:1px 0; }
+.div { height:1px; background:rgba(255,255,255,0.04); margin:1px 0; }
 .tog { background:transparent; border:1px solid rgba(255,255,255,0.08); color:rgba(255,255,255,0.22); font-family:'Courier New',monospace; font-size:9px; letter-spacing:0.1em; padding:2px 7px; cursor:none; text-transform:uppercase; transition:all 0.15s; border-radius:3px; }
 .tog:hover { color:rgba(255,255,255,0.55); border-color:rgba(255,255,255,0.25); }
 .tog.on { color:rgba(255,255,255,0.75); border-color:rgba(255,255,255,0.35); }
-.check-row { display:flex; align-items:center; justify-content:space-between; }
+.chk-row { display:flex; align-items:center; justify-content:space-between; }
 
-/* ── GAME HUD ── */
-#game-hud {
-  position:fixed; top:70px; left:16px; width:180px;
-  background:rgba(10,10,10,0.85); border:1px solid rgba(255,255,255,0.07);
-  backdrop-filter:blur(12px); z-index:100; border-radius:6px;
-  padding:12px;
-}
-#game-hud-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.18); text-transform:uppercase; margin-bottom:10px; }
-.target-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
-.target-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.target-bar-bg { flex:1; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
-.target-bar-fill { height:100%; border-radius:2px; transition:width 0.15s; }
-.target-pct { font-size:9px; color:rgba(255,255,255,0.25); min-width:28px; text-align:right; }
-.target-check { font-size:10px; opacity:0; transition:opacity 0.3s; }
-.target-check.done { opacity:1; }
+/* AUTHOR NOTE */
+#author-note { bottom:24px; left:16px; width:218px; }
+#author-note .widget-header { padding:9px 12px 7px; }
+#anote-body { padding:12px 13px 13px; }
+#anote-eye { font-size:8px; letter-spacing:0.32em; color:rgba(255,255,255,0.13); text-transform:uppercase; margin-bottom:9px; }
+#anote-text { font-family:Georgia,'Times New Roman',serif; font-size:11px; line-height:1.7; color:rgba(255,255,255,0.36); font-style:italic; }
+#anote-text em { font-style:normal; color:rgba(255,255,255,0.62); }
+#anote-sig { margin-top:10px; font-size:8px; letter-spacing:0.18em; color:rgba(255,255,255,0.1); text-transform:uppercase; }
 
-#level-info { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-#level-label { font-size:9px; letter-spacing:0.25em; color:rgba(255,255,255,0.12); text-transform:uppercase; }
-#level-val { font-size:9px; color:rgba(255,255,255,0.3); }
-
-/* ── SCREENSHOT BUTTON ── */
-#screenshot-btn {
-  position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-  background:rgba(255,255,255,0.95); color:#0a0a0a;
-  border:none; padding:10px 24px; border-radius:4px;
-  font-family:'Helvetica Neue',Arial,sans-serif; font-size:11px;
-  font-weight:700; letter-spacing:0.12em; text-transform:uppercase;
-  cursor:none; z-index:500;
-  box-shadow:0 4px 24px rgba(255,255,255,0.2);
-  transition:all 0.2s;
-  opacity:0; pointer-events:none;
-}
-#screenshot-btn.visible { opacity:1; pointer-events:auto; animation: pulse-btn 2s infinite; }
-@keyframes pulse-btn {
-  0%,100% { box-shadow:0 4px 24px rgba(255,255,255,0.2); }
-  50% { box-shadow:0 4px 40px rgba(255,255,255,0.55); }
-}
-#screenshot-btn:hover { background:#fff; box-shadow:0 6px 32px rgba(255,255,255,0.4); }
-
-/* ── LEVEL COMPLETE FLASH ── */
-#complete-flash {
-  position:fixed; inset:0; pointer-events:none; z-index:600;
-  background:rgba(255,255,255,0);
-  transition:background 0.1s;
-}
-#complete-flash.flash { background:rgba(255,255,255,0.12); }
-
-/* ── NEXT LEVEL BUTTON ── */
-#next-btn {
-  position:fixed; bottom:68px; left:50%; transform:translateX(-50%);
-  background:transparent; color:rgba(255,255,255,0.4);
-  border:1px solid rgba(255,255,255,0.15); padding:7px 20px; border-radius:4px;
-  font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px;
-  font-weight:600; letter-spacing:0.15em; text-transform:uppercase;
-  cursor:none; z-index:500;
-  transition:all 0.2s;
-  opacity:0; pointer-events:none;
-}
+/* SCREENSHOT / NEXT */
+#screenshot-btn { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.95); color:#0a0a0a; border:none; padding:10px 24px; border-radius:4px; font-family:'Helvetica Neue',Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; cursor:none; z-index:500; box-shadow:0 4px 24px rgba(255,255,255,0.2); transition:all 0.2s; opacity:0; pointer-events:none; }
+#screenshot-btn.visible { opacity:1; pointer-events:auto; animation:pulse-btn 2s infinite; }
+@keyframes pulse-btn { 0%,100%{box-shadow:0 4px 24px rgba(255,255,255,0.2);}50%{box-shadow:0 4px 40px rgba(255,255,255,0.55);} }
+#next-btn { position:fixed; bottom:68px; left:50%; transform:translateX(-50%); background:transparent; color:rgba(255,255,255,0.4); border:1px solid rgba(255,255,255,0.15); padding:7px 20px; border-radius:4px; font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; cursor:none; z-index:500; transition:all 0.2s; opacity:0; pointer-events:none; }
 #next-btn.visible { opacity:1; pointer-events:auto; }
 #next-btn:hover { color:rgba(255,255,255,0.8); border-color:rgba(255,255,255,0.4); }
 
-#hint {
-  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
-  font-size:9px; letter-spacing:0.28em; color:rgba(255,255,255,0.14);
-  text-transform:uppercase; pointer-events:none; transition:opacity 1s; white-space:nowrap;
-}
-#shape-count { position:fixed; bottom:20px; right:16px; font-size:9px; letter-spacing:0.2em; color:rgba(255,255,255,0.14); text-transform:uppercase; pointer-events:none; }
+/* FLASH OVERLAYS */
+#flash-complete,#flash-delete { position:fixed; inset:0; pointer-events:none; z-index:600; transition:background 0.1s; background:transparent; }
+#flash-complete.on { background:rgba(255,255,255,0.1); }
+#flash-delete.on { background:rgba(255,40,40,0.07); }
+
+/* SCALE INDICATOR */
+#scale-ind { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; letter-spacing:0.28em; color:rgba(255,255,255,0.5); pointer-events:none; z-index:700; opacity:0; transition:opacity 0.3s; text-transform:uppercase; background:rgba(0,0,0,0.5); padding:6px 14px; border-radius:3px; border:1px solid rgba(255,255,255,0.08); }
+#scale-ind.on { opacity:1; }
+
+#hint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:0.22em; color:rgba(255,255,255,0.1); text-transform:uppercase; pointer-events:none; transition:opacity 1s; white-space:nowrap; z-index:10; }
+#shape-count { position:fixed; bottom:20px; right:16px; font-size:9px; letter-spacing:0.2em; color:rgba(255,255,255,0.12); text-transform:uppercase; pointer-events:none; }
 </style>
 </head>
 <body>
 
 <div id="cursor"></div>
 <div id="snap-hint"></div>
+<div id="flash-complete"></div>
+<div id="flash-delete"></div>
+<div id="scale-ind"></div>
 
+<!-- Dispenser -->
 <div id="dispenser">
   <button id="cta-btn">
-    <span id="btn-label">Flow</span>
+    <span id="btn-label">Intent</span>
   </button>
+</div>
+
+<!-- Shape Inserter (left rail widget) -->
+<div class="widget" id="shape-inserter">
+  <div class="widget-header" id="si-header">
+    <span class="widget-title">ADD</span>
+    <span class="widget-sub">⠿</span>
+  </div>
+  <div id="inserter-body">
+    <button class="ins-btn" data-shape="cube">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><path d="M12 2L12 22M2 7L22 7" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/></svg>
+      <span class="ins-btn-lbl">Cube</span>
+    </button>
+    <button class="ins-btn" data-shape="sphere">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><ellipse cx="12" cy="12" rx="9" ry="3.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"/><line x1="12" y1="3" x2="12" y2="21" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"/></svg>
+      <span class="ins-btn-lbl">Sphere</span>
+    </button>
+    <button class="ins-btn" data-shape="pyramid">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3L22 20H2L12 3Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><path d="M12 3L2 20M12 3L22 20" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"/></svg>
+      <span class="ins-btn-lbl">Pyramid</span>
+    </button>
+    <div class="ins-div"></div>
+    <button class="ins-clear" id="btn-clear">CLEAR</button>
+  </div>
 </div>
 
 <!-- Game HUD -->
-<div id="game-hud">
-  <div id="level-info">
-    <span id="level-label">LEVEL</span>
-    <span id="level-val">1 · 1 TARGET</span>
+<div class="widget" id="game-hud">
+  <div class="widget-header" id="hud-header">
+    <span class="widget-title">TARGETS</span>
+    <span class="widget-sub" id="level-val">LVL 1</span>
   </div>
-  <div id="game-hud-title">REDIRECT TARGETS</div>
-  <div id="targets-container"></div>
+  <div id="hud-inner">
+    <div id="targets-container"></div>
+  </div>
 </div>
 
-<!-- Context Menu -->
-<div id="ctx-menu">
-  <div class="ctx-title">Insert shape</div>
-  <div class="shape-grid">
-    <button class="shape-btn" data-shape="cube">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><path d="M14 3L25 8.5V19.5L14 25L3 19.5V8.5L14 3Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/><path d="M14 3L14 25M3 8.5L25 8.5" stroke="rgba(255,255,255,0.25)" stroke-width="0.7"/></svg></div>
-      <div class="shape-label">Cube<span class="shape-trait">bouncy · light</span></div>
-    </button>
-    <button class="shape-btn" data-shape="sphere">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="10" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/><ellipse cx="14" cy="14" rx="10" ry="4" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/></svg></div>
-      <div class="shape-label">Sphere<span class="shape-trait">slippery · fast</span></div>
-    </button>
-    <button class="shape-btn" data-shape="pyramid">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><path d="M14 4L26 22H2L14 4Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/></svg></div>
-      <div class="shape-label">Pyramid<span class="shape-trait">sharp · deflects</span></div>
-    </button>
-    <button class="shape-btn" data-shape="torus">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><ellipse cx="14" cy="16" rx="10" ry="5" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="none"/><ellipse cx="14" cy="14" rx="10" ry="5" stroke="rgba(255,255,255,0.35)" stroke-width="0.7" fill="rgba(10,10,10,0.9)"/><ellipse cx="14" cy="14" rx="4" ry="2" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" fill="none"/></svg></div>
-      <div class="shape-label">Ring<span class="shape-trait">hollow · splits</span></div>
-    </button>
-    <button class="shape-btn" data-shape="wedge">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><path d="M4 22L24 22L24 8L4 22Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/></svg></div>
-      <div class="shape-label">Wedge<span class="shape-trait">heavy · anchored</span></div>
-    </button>
-    <button class="shape-btn" data-shape="diamond">
-      <div class="shape-icon"><svg viewBox="0 0 28 28" fill="none"><path d="M14 3L25 14L14 25L3 14L14 3Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/></svg></div>
-      <div class="shape-label">Diamond<span class="shape-trait">glassy · spreads</span></div>
-    </button>
-  </div>
-  <div class="ctx-divider"></div>
-  <button class="ctx-action" id="ctx-reset-shapes">
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 5.5A4.5 4.5 0 109.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 1l2.5 2-2 2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    Reset shapes
-  </button>
-  <button class="ctx-action danger" id="ctx-clear-shapes">
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 2.5L9 9.5M9 2.5L2 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-    Clear all shapes
-  </button>
-</div>
-
-<!-- Control Panel -->
-<div id="panel">
+<!-- Flow Panel -->
+<div class="widget" id="panel">
   <div id="panel-header">
     <div id="panel-title">FLOW</div>
-    <button id="btn-playpause">❚❚ PAUSE</button>
+    <button id="btn-pp">Intent</button>
   </div>
   <div id="panel-body">
-    <div class="ctrl-row">
-      <div class="ctrl-label"><span class="ctrl-name">AMOUNT</span><span class="ctrl-val" id="val-count">4000</span></div>
-      <input type="range" id="sl-count" min="500" max="8000" step="100" value="4000">
-    </div>
-    <div class="ctrl-row">
-      <div class="ctrl-label"><span class="ctrl-name">GRAVITY</span><span class="ctrl-val" id="val-gravity">9.8</span></div>
-      <input type="range" id="sl-gravity" min="1" max="30" step="0.1" value="9.8">
-    </div>
-    <div class="ctrl-row">
-      <div class="ctrl-label"><span class="ctrl-name">SPREAD</span><span class="ctrl-val" id="val-spread">0.30</span></div>
-      <input type="range" id="sl-spread" min="0.05" max="2.5" step="0.05" value="0.3">
-    </div>
-    <div class="ctrl-row">
-      <div class="ctrl-label"><span class="ctrl-name">BOUNCE</span><span class="ctrl-val" id="val-bounce">0.25</span></div>
-      <input type="range" id="sl-bounce" min="0" max="1.0" step="0.01" value="0.25">
-    </div>
-    <div class="ctrl-row">
-      <div class="ctrl-label"><span class="ctrl-name">SIZE</span><span class="ctrl-val" id="val-size">1.00</span></div>
-      <input type="range" id="sl-size" min="0.2" max="3.0" step="0.05" value="1.0">
-    </div>
-    <div class="divider"></div>
-    <div class="check-row">
-      <span class="ctrl-name">RAIN MODE</span>
-      <button class="tog" id="tog-rain">OFF</button>
-    </div>
-    <div class="divider"></div>
-    <div class="check-row">
-      <span class="ctrl-name">RESET PARTICLES</span>
-      <button class="tog" id="tog-reset">GO</button>
-    </div>
+    <div class="ctrl-row"><div class="ctrl-lbl"><span class="ctrl-nm">AMOUNT</span><span class="ctrl-vl" id="v-count">4000</span></div><input type="range" id="sl-count" min="500" max="8000" step="100" value="4000"></div>
+    <div class="ctrl-row"><div class="ctrl-lbl"><span class="ctrl-nm">GRAVITY</span><span class="ctrl-vl" id="v-grav">9.8</span></div><input type="range" id="sl-grav" min="1" max="30" step="0.1" value="9.8"></div>
+    <div class="ctrl-row"><div class="ctrl-lbl"><span class="ctrl-nm">SPREAD</span><span class="ctrl-vl" id="v-spread">0.30</span></div><input type="range" id="sl-spread" min="0.05" max="2.5" step="0.05" value="0.3"></div>
+    <div class="ctrl-row"><div class="ctrl-lbl"><span class="ctrl-nm">BOUNCE</span><span class="ctrl-vl" id="v-bounce">0.25</span></div><input type="range" id="sl-bounce" min="0" max="1.0" step="0.01" value="0.25"></div>
+    <div class="ctrl-row"><div class="ctrl-lbl"><span class="ctrl-nm">SIZE</span><span class="ctrl-vl" id="v-size">1.00</span></div><input type="range" id="sl-size" min="0.2" max="3.0" step="0.05" value="1.0"></div>
+    <div class="div"></div>
+    <div class="chk-row"><span class="ctrl-nm">RAIN</span><button class="tog" id="tog-rain">OFF</button></div>
+    <div class="div"></div>
+    <div class="chk-row"><span class="ctrl-nm">RESET PARTICLES</span><button class="tog" id="tog-reset">GO</button></div>
   </div>
 </div>
 
-<div id="hint">DRAG BUTTON · RIGHT CLICK TO ADD SHAPES · CLICK SHAPE TO ROTATE</div>
+<!-- Author Note -->
+<div class="widget" id="author-note">
+  <div class="widget-header" id="anote-header">
+    <span class="widget-title">AUTHOR'S NOTE</span>
+    <span class="widget-sub">2026</span>
+  </div>
+  <div id="anote-body">
+    <div id="anote-eye">On Design Today</div>
+    <div id="anote-text">In 2026, <em>design is no longer a discipline</em> — it is a conversation between intent and physics. The boundary between tool and creator has dissolved. Flows are <em>redirected, not engineered</em>. Constraints are placed, not drawn. The designer's gesture is now the angle of deflection. What falls is gravity. What <em>reaches its target</em> is intention.</div>
+    <div id="anote-sig">— on the nature of directed systems</div>
+  </div>
+</div>
+
+<div id="hint">DRAG SHAPES · SCROLL TO SCALE HELD SHAPE · RIGHT-CLICK SHAPE TO DELETE</div>
 <div id="shape-count"></div>
-<div id="complete-flash"></div>
 <button id="screenshot-btn">📸 CAPTURE MOMENT</button>
 <button id="next-btn">NEXT LEVEL →</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ── RENDERER ─────────────────────────────────────────────────────────────────
-let W = window.innerWidth, H = window.innerHeight;
-const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-renderer.setSize(W, H);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setClearColor(0x0a0a0a);
+'use strict';
+
+// ── RENDERER ──────────────────────────────────────────────────────────────────
+let W=window.innerWidth,H=window.innerHeight;
+const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setClearColor(0x0a0a0a);
 document.body.appendChild(renderer.domElement);
 
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x0a0a0a, 0.016);
+const scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x0a0a0a,0.016);
+const camera=new THREE.PerspectiveCamera(50,W/H,0.1,200);
+camera.position.set(0,1.5,28); camera.lookAt(0,0,0);
+scene.add(new THREE.AmbientLight(0xffffff,0.07));
+const mainL=new THREE.PointLight(0xfff5ee,3.2,70); mainL.position.set(11,-1,14); scene.add(mainL);
+const rimL=new THREE.PointLight(0x9aaabb,0.6,40); rimL.position.set(-9,5,10); scene.add(rimL);
 
-const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 200);
-camera.position.set(0, 1.5, 28);
-camera.lookAt(0, 0, 0);
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.07));
-const mainLight = new THREE.PointLight(0xfff5ee, 3.2, 70);
-mainLight.position.set(11, -1, 14); scene.add(mainLight);
-const rimLight = new THREE.PointLight(0x9aaabb, 0.6, 40);
-rimLight.position.set(-9, 5, 10); scene.add(rimLight);
-
-const orbCanvas = document.createElement('canvas');
-orbCanvas.width = orbCanvas.height = 256;
-const orbCtx = orbCanvas.getContext('2d');
-const og = orbCtx.createRadialGradient(128,128,0,128,128,128);
+// glow orb
+const oc=document.createElement('canvas'); oc.width=oc.height=256;
+const ox2=oc.getContext('2d'); const og=ox2.createRadialGradient(128,128,0,128,128,128);
 og.addColorStop(0,'rgba(255,255,248,1)'); og.addColorStop(0.08,'rgba(255,245,230,0.8)');
 og.addColorStop(0.3,'rgba(220,210,190,0.18)'); og.addColorStop(1,'rgba(0,0,0,0)');
-orbCtx.fillStyle=og; orbCtx.fillRect(0,0,256,256);
-const orbSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-  map: new THREE.CanvasTexture(orbCanvas), transparent:true,
-  blending:THREE.AdditiveBlending, depthWrite:false
-}));
-orbSprite.scale.set(22,22,1); orbSprite.position.set(11,-1,5); scene.add(orbSprite);
+ox2.fillStyle=og; ox2.fillRect(0,0,256,256);
+const orbS=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(oc),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+orbS.scale.set(22,22,1); orbS.position.set(11,-1,5); scene.add(orbS);
 
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(100,100),
-  new THREE.MeshStandardMaterial({color:0x050505, roughness:1.0})
-);
-floor.rotation.x = -Math.PI/2; floor.position.y = -9; scene.add(floor);
+const floorM=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x050505,roughness:1.0}));
+floorM.rotation.x=-Math.PI/2; floorM.position.y=-9; scene.add(floorM);
 
-// ── UTILITIES ─────────────────────────────────────────────────────────────────
-function screenToWorld(sx, sy) {
-  const ndcX=(sx/W)*2-1, ndcY=-(sy/H)*2+1;
-  const v = new THREE.Vector3(ndcX,ndcY,0.5).unproject(camera);
-  const dir = v.sub(camera.position).normalize();
-  const t = -camera.position.z / dir.z;
-  return new THREE.Vector3(camera.position.x+dir.x*t, camera.position.y+dir.y*t, 0);
+// overlay canvas
+const ov=document.createElement('canvas'); ov.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:50;';
+ov.width=W; ov.height=H; document.body.appendChild(ov); const ovCtx=ov.getContext('2d');
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function s2w(sx,sy){
+  const nx=(sx/W)*2-1,ny=-(sy/H)*2+1;
+  const v=new THREE.Vector3(nx,ny,0.5).unproject(camera);
+  const d=v.sub(camera.position).normalize(), t=-camera.position.z/d.z;
+  return new THREE.Vector3(camera.position.x+d.x*t,camera.position.y+d.y*t,0);
 }
+
+// ── DRAGGABLE WIDGET SYSTEM ───────────────────────────────────────────────────
+function makeDraggable(widget,header,opts){
+  opts=opts||{};
+  let drag=false,ox=0,oy=0;
+  header.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    // don't drag if clicking a button inside the header
+    if(e.target.tagName==='BUTTON'||e.target.closest('button'))return;
+    drag=true; header.classList.add('grabbing'); header.setPointerCapture(e.pointerId);
+    const r=widget.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+    widget.style.transition='none'; e.stopPropagation();
+  });
+  window.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    let nx=e.clientX-ox,ny=e.clientY-oy;
+    const ww=widget.offsetWidth,wh=widget.offsetHeight;
+    nx=Math.max(0,Math.min(W-ww,nx)); ny=Math.max(0,Math.min(H-wh,ny));
+    if(opts.clampLeft) nx=Math.min(nx,140);
+    widget.style.left=nx+'px'; widget.style.top=ny+'px';
+    widget.style.right='auto'; widget.style.bottom='auto';
+  });
+  window.addEventListener('pointerup',()=>{if(drag){drag=false;header.classList.remove('grabbing');}});
+}
+
+makeDraggable(document.getElementById('shape-inserter'),document.getElementById('si-header'),{clampLeft:true});
+makeDraggable(document.getElementById('game-hud'),document.getElementById('hud-header'));
+makeDraggable(document.getElementById('panel'),document.getElementById('panel-header'));
+makeDraggable(document.getElementById('author-note'),document.getElementById('anote-header'));
+
+// fix panel right-side initial position
+(()=>{const p=document.getElementById('panel');p.style.right='16px';p.style.top='70px';})();
 
 // ── GAME LEVELS ───────────────────────────────────────────────────────────────
-// Target zone: worldX position at floor level (y=-9), radius in world units
-// Colors: amber, cyan, rose
-const TARGET_COLORS_HEX = [0xffb347, 0x47d4ff, 0xff6b8a];
-const TARGET_COLORS_CSS = ['#ffb347','#47d4ff','#ff6b8a'];
-const TARGET_THRESHOLD = 0.65; // 65% fill = target met
+const TCOL=['#ffb347','#47d4ff','#ff6b8a'];
+const THRESH=0.65;
+const LEVELS=[{targets:[{x:5.5,r:2.8}]},{targets:[{x:-5.0,r:2.5},{x:6.0,r:2.5}]},{targets:[{x:-6.5,r:2.2},{x:0,r:2.0},{x:6.5,r:2.2}]}];
+let lvl=0,tgts=[],lvlDone=false,tCounts=[];
+const FILL_A=0.04,FLR=-9.0;
 
-const LEVELS = [
-  { targets: [{ x: 5.5, r: 2.8 }] },
-  { targets: [{ x: -5.0, r: 2.5 }, { x: 6.0, r: 2.5 }] },
-  { targets: [{ x: -6.5, r: 2.2 }, { x: 0, r: 2.0 }, { x: 6.5, r: 2.2 }] },
-];
-
-let currentLevel = 0;
-let levelTargets = []; // { x, r, fill, mesh (ring on floor), label }
-let levelComplete = false;
-let screenshotReady = false;
-
-// ── TARGET ZONES (floor ellipses) ────────────────────────────────────────────
-const FLOOR_Y = -9.0;
-const targetMeshes = [];
-
-function worldToFloorScreen(wx, wy) {
-  // project world coords to screen
-  const v = new THREE.Vector3(wx, wy, 0);
-  v.project(camera);
-  return { sx: (v.x+1)/2*W, sy: (-v.y+1)/2*H };
-}
-
-// We'll draw targets on a 2D overlay canvas
-const overlayCanvas = document.createElement('canvas');
-overlayCanvas.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:50;';
-overlayCanvas.width = W; overlayCanvas.height = H;
-document.body.appendChild(overlayCanvas);
-const overlayCtx = overlayCanvas.getContext('2d');
-
-function initLevel(lvlIdx) {
-  currentLevel = lvlIdx;
-  levelComplete = false;
-  screenshotReady = false;
+function initLevel(n){
+  lvl=n; lvlDone=false; tCounts=[];
   document.getElementById('screenshot-btn').classList.remove('visible');
   document.getElementById('next-btn').classList.remove('visible');
-
-  const lvl = LEVELS[lvlIdx];
-  levelTargets = lvl.targets.map((t, i) => ({
-    x: t.x,
-    r: t.r,
-    fill: 0,
-    colorHex: TARGET_COLORS_HEX[i],
-    colorCSS: TARGET_COLORS_CSS[i],
-    met: false,
-    idx: i,
-  }));
-
-  buildTargetHUD();
-  const total = LEVELS.length;
-  document.getElementById('level-val').textContent =
-    `${lvlIdx+1} · ${lvl.targets.length} TARGET${lvl.targets.length>1?'S':''}`;
+  tgts=LEVELS[n].targets.map((t,i)=>({x:t.x,r:t.r,fill:0,col:TCOL[i],met:false,idx:i}));
+  document.getElementById('level-val').textContent='LVL '+(n+1);
+  buildHUD();
 }
-
-function buildTargetHUD() {
-  const container = document.getElementById('targets-container');
-  container.innerHTML = '';
-  levelTargets.forEach((t, i) => {
-    const row = document.createElement('div');
-    row.className = 'target-row';
-    row.innerHTML = `
-      <div class="target-dot" style="background:${t.colorCSS}; box-shadow:0 0 6px ${t.colorCSS}44;"></div>
-      <div class="target-bar-bg"><div class="target-bar-fill" id="bar-${i}" style="width:0%;background:${t.colorCSS};box-shadow:0 0 4px ${t.colorCSS}88;"></div></div>
-      <span class="target-pct" id="pct-${i}">0%</span>
-      <span class="target-check" id="chk-${i}">✓</span>
-    `;
-    container.appendChild(row);
+function buildHUD(){
+  const c=document.getElementById('targets-container'); c.innerHTML='';
+  tgts.forEach((t,i)=>{
+    const row=document.createElement('div'); row.className='target-row';
+    row.innerHTML=`<div class="tdot" style="background:${t.col};box-shadow:0 0 5px ${t.col}55"></div><div class="tbar-bg"><div class="tbar-fill" id="bar${i}" style="width:0%;background:${t.col}"></div></div><span class="tpct" id="pct${i}">0%</span><span class="tchk" id="chk${i}">✓</span>`;
+    c.appendChild(row);
   });
 }
 
-// ── SHAPE DEFINITIONS ─────────────────────────────────────────────────────────
-const SHAPE_DEFS = {
-  cube:    { radius:1.55, bounce:1.0,  mass:1.0,  springK:6.0,  damping:8.0,  color:0xffffff, roughness:0.55, makeGeo:()=>new THREE.BoxGeometry(2.6,2.6,2.6),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(Math.PI/4,Math.PI/4,0),new THREE.Euler(0,0,Math.PI/4),new THREE.Euler(Math.PI/6,Math.PI/3,Math.PI/6)] },
-  sphere:  { radius:1.4,  bounce:1.3,  mass:0.8,  springK:6.0,  damping:7.0,  color:0xdddddd, roughness:0.15, makeGeo:()=>new THREE.SphereGeometry(1.4,32,20),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0)] },
-  pyramid: { radius:1.45, bounce:0.85, mass:1.2,  springK:5.5,  damping:8.0,  color:0xffffff, roughness:0.8,  makeGeo:()=>new THREE.ConeGeometry(1.5,2.8,4),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(0,Math.PI/2,0),new THREE.Euler(Math.PI,0,0),new THREE.Euler(Math.PI/2,0,0),new THREE.Euler(0,0,Math.PI/2)] },
-  torus:   { radius:1.7,  bounce:1.1,  mass:0.9,  springK:6.0,  damping:7.0,  color:0xcccccc, roughness:0.3,  makeGeo:()=>new THREE.TorusGeometry(1.2,0.42,14,40),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(Math.PI/2,0,0),new THREE.Euler(Math.PI/4,Math.PI/4,0),new THREE.Euler(0,Math.PI/3,Math.PI/6)] },
-  wedge:   { radius:1.35, bounce:0.6,  mass:2.2,  springK:9.0,  damping:14.0, color:0xffffff, roughness:0.9,  makeGeo:()=>new THREE.CylinderGeometry(0,1.8,2.2,3),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI*(2/3),0),new THREE.Euler(0,Math.PI*(4/3),0),new THREE.Euler(Math.PI/2,0,0),new THREE.Euler(0,0,Math.PI/2)] },
-  diamond: { radius:1.5,  bounce:1.5,  mass:0.7,  springK:5.0,  damping:6.0,  color:0xeeeeff, roughness:0.05, makeGeo:()=>new THREE.OctahedronGeometry(1.5,0),
-             orientPresets:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(0,0,Math.PI/6),new THREE.Euler(Math.PI/6,Math.PI/4,0)] },
+// ── SHAPE DEFS ────────────────────────────────────────────────────────────────
+const SDEFS={
+  cube:{baseR:1.55,bounce:1.0,springK:6.0,damping:8.0,color:0xffffff,rough:0.55,
+    makeGeo:s=>new THREE.BoxGeometry(2.6*s,2.6*s,2.6*s),
+    orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(Math.PI/4,Math.PI/4,0),new THREE.Euler(0,0,Math.PI/4),new THREE.Euler(Math.PI/6,Math.PI/3,Math.PI/6)]},
+  sphere:{baseR:1.4,bounce:1.3,springK:6.0,damping:7.0,color:0xdddddd,rough:0.15,
+    makeGeo:s=>new THREE.SphereGeometry(1.4*s,32,20),
+    orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0)]},
+  pyramid:{baseR:1.45,bounce:0.85,springK:5.5,damping:8.0,color:0xffffff,rough:0.8,
+    makeGeo:s=>new THREE.ConeGeometry(1.5*s,2.8*s,4),
+    orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(0,Math.PI/2,0),new THREE.Euler(Math.PI,0,0),new THREE.Euler(Math.PI/2,0,0),new THREE.Euler(0,0,Math.PI/2)]},
 };
 
 // ── SHAPE CLASS ───────────────────────────────────────────────────────────────
-class PhysShape {
-  constructor(type, startPos, rotEuler) {
-    this.type = type;
-    const def = SHAPE_DEFS[type];
-    this.def = def;
-    this.radius = def.radius;
-    this.pos = startPos.clone();
-    this.restPos = startPos.clone();
-    this.vel = new THREE.Vector3();
-    this.dragging = false;
-    this.orientIdx = 0;
-    this.targetEuler = rotEuler ? rotEuler.clone() : new THREE.Euler();
-    this.currentEuler = this.targetEuler.clone();
-
-    const mat = new THREE.MeshStandardMaterial({ color:def.color, roughness:def.roughness, metalness:type==='diamond'?0.15:0.02, transparent:type==='diamond', opacity:type==='diamond'?0.88:1.0 });
-    this.mesh = new THREE.Mesh(def.makeGeo(), mat);
-    this.mesh.rotation.copy(this.currentEuler);
-    this.mesh.position.copy(this.pos);
-    const eg = new THREE.EdgesGeometry(def.makeGeo(), 22);
-    const eop = type==='sphere'?0.12:type==='diamond'?0.4:0.22;
-    this.mesh.add(new THREE.LineSegments(eg, new THREE.LineBasicMaterial({color:0x888888,transparent:true,opacity:eop})));
+class Shape{
+  constructor(type,pos,rot,sc){
+    this.type=type; this.def=SDEFS[type]; this.sc=sc||1.0;
+    this.radius=this.def.baseR*this.sc;
+    this.pos=pos.clone(); this.rest=pos.clone();
+    this.vel=new THREE.Vector3(); this.dragging=false; this.oi=0;
+    this.tEul=rot?rot.clone():new THREE.Euler(); this.cEul=this.tEul.clone();
+    this._build();
+  }
+  _build(){
+    const d=this.def,s=this.sc;
+    const mat=new THREE.MeshStandardMaterial({color:d.color,roughness:d.rough,metalness:0.02});
+    const geo=d.makeGeo(s);
+    this.mesh=new THREE.Mesh(geo,mat);
+    this.mesh.rotation.copy(this.cEul); this.mesh.position.copy(this.pos);
+    const eg=new THREE.EdgesGeometry(d.makeGeo(s),22);
+    this.mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0x888888,transparent:true,opacity:0.22})));
     scene.add(this.mesh);
   }
-  cycleOrientation() {
-    const p = this.def.orientPresets;
-    this.orientIdx = (this.orientIdx+1) % p.length;
-    this.targetEuler = p[this.orientIdx].clone();
+  resize(sc){
+    scene.remove(this.mesh);
+    this.mesh.geometry.dispose(); this.mesh.material.dispose();
+    this.mesh.children.forEach(c=>{c.geometry&&c.geometry.dispose();c.material&&c.material.dispose();});
+    this.sc=sc; this.radius=this.def.baseR*sc; this._build();
+    this.mesh.rotation.copy(this.cEul); this.mesh.position.copy(this.pos); this.mesh.updateMatrixWorld(true);
   }
-  update(dt) {
-    this.currentEuler.x += (this.targetEuler.x - this.currentEuler.x)*0.1;
-    this.currentEuler.y += (this.targetEuler.y - this.currentEuler.y)*0.1;
-    this.currentEuler.z += (this.targetEuler.z - this.currentEuler.z)*0.1;
-    this.mesh.rotation.copy(this.currentEuler);
+  cycle(){const p=this.def.orients;this.oi=(this.oi+1)%p.length;this.tEul=p[this.oi].clone();}
+  update(dt){
+    this.cEul.x+=(this.tEul.x-this.cEul.x)*0.1;
+    this.cEul.y+=(this.tEul.y-this.cEul.y)*0.1;
+    this.cEul.z+=(this.tEul.z-this.cEul.z)*0.1;
+    this.mesh.rotation.copy(this.cEul);
     if(!this.dragging){
-      const xE=this.pos.x-this.restPos.x, yE=this.pos.y-this.restPos.y;
-      this.vel.x -= xE*this.def.springK*dt;
-      this.vel.y -= yE*this.def.springK*dt;
-      this.vel.x -= this.vel.x*this.def.damping*dt;
-      this.vel.y -= this.vel.y*this.def.damping*dt;
-      this.pos.x += this.vel.x*dt*60;
-      this.pos.y += this.vel.y*dt*60;
+      const xe=this.pos.x-this.rest.x,ye=this.pos.y-this.rest.y;
+      this.vel.x-=xe*this.def.springK*dt; this.vel.y-=ye*this.def.springK*dt;
+      this.vel.x-=this.vel.x*this.def.damping*dt; this.vel.y-=this.vel.y*this.def.damping*dt;
+      this.pos.x+=this.vel.x*dt*60; this.pos.y+=this.vel.y*dt*60;
     }
     this.pos.z=0;
-    const BX=13,BY_BOT=-8.5+this.radius,BY_TOP=14;
-    if(this.pos.x> BX){this.pos.x= BX;this.vel.x*=-0.4;}
-    if(this.pos.x<-BX){this.pos.x=-BX;this.vel.x*=-0.4;}
-    if(this.pos.y<BY_BOT){this.pos.y=BY_BOT;this.vel.y*=-0.35;}
-    if(this.pos.y>BY_TOP){this.pos.y=BY_TOP;this.vel.y*=-0.3;}
-    this.mesh.position.copy(this.pos);
-    this.mesh.updateMatrixWorld(true);
+    const BX=13,BBY=-8.5+this.radius,BTY=14;
+    if(this.pos.x>BX){this.pos.x=BX;this.vel.x*=-0.4;} if(this.pos.x<-BX){this.pos.x=-BX;this.vel.x*=-0.4;}
+    if(this.pos.y<BBY){this.pos.y=BBY;this.vel.y*=-0.35;} if(this.pos.y>BTY){this.pos.y=BTY;this.vel.y*=-0.3;}
+    this.mesh.position.copy(this.pos); this.mesh.updateMatrixWorld(true);
   }
-  sdf(px,py,pz) {
+  sdf(px,py,pz){
     const l=this.mesh.worldToLocal(new THREE.Vector3(px,py,pz));
-    const x=l.x,y=l.y,z=l.z;
-    if(this.type==='cube'){const qx=Math.abs(x)-1.3,qy=Math.abs(y)-1.3,qz=Math.abs(z)-1.3;return Math.sqrt(Math.max(qx,0)**2+Math.max(qy,0)**2+Math.max(qz,0)**2)+Math.min(Math.max(qx,qy,qz),0);}
-    if(this.type==='sphere'||this.type==='diamond') return Math.sqrt(x*x+y*y+z*z)-this.radius;
-    if(this.type==='torus'){const qr=Math.sqrt(x*x+z*z)-1.2;return Math.sqrt(qr*qr+y*y)-0.42;}
-    if(this.type==='pyramid'){const H=1.4,inR=1.5*Math.SQRT1_2,sl=Math.sqrt(inR*inR+(2*H)*(2*H)),nx=2*H/sl,ny=inR/sl,r2d=Math.max(Math.abs(x),Math.abs(z)),dS=r2d*nx+y*ny-inR*nx-(-H)*ny,dC=-H-y;if(dS<=0&&dC<=0)return Math.max(dS,dC);if(dS<=0)return dC;if(dC<=0)return dS;return Math.sqrt(dS*dS+dC*dC);}
-    if(this.type==='wedge'){const H=1.1,inR=0.9,sl=Math.sqrt(inR*inR+(2*H)*(2*H)),nx=2*H/sl,ny=inR/sl,s3=Math.sin(Math.PI/3),c3=Math.cos(Math.PI/3),r0=x,r1=-c3*x+s3*z,r2=-c3*x-s3*z,r2d=Math.max(r0,r1,r2),dS=r2d*nx+y*ny-inR*nx-(-H)*ny,dC=-H-y;if(dS<=0&&dC<=0)return Math.max(dS,dC);if(dS<=0)return dC;if(dC<=0)return dS;return Math.sqrt(dS*dS+dC*dC);}
+    const x=l.x,y=l.y,z=l.z,s=this.sc;
+    if(this.type==='cube'){const h=1.3*s,qx=Math.abs(x)-h,qy=Math.abs(y)-h,qz=Math.abs(z)-h;return Math.sqrt(Math.max(qx,0)**2+Math.max(qy,0)**2+Math.max(qz,0)**2)+Math.min(Math.max(qx,qy,qz),0);}
+    if(this.type==='sphere') return Math.sqrt(x*x+y*y+z*z)-this.radius;
+    if(this.type==='pyramid'){const H=1.4*s,inR=1.5*s*Math.SQRT1_2,sl=Math.sqrt(inR*inR+(2*H)*(2*H)),nx=2*H/sl,ny=inR/sl,r2=Math.max(Math.abs(x),Math.abs(z)),dS=r2*nx+y*ny-inR*nx+H*ny,dC=-H-y;if(dS<=0&&dC<=0)return Math.max(dS,dC);if(dS<=0)return dC;if(dC<=0)return dS;return Math.sqrt(dS*dS+dC*dC);}
     return Math.sqrt(x*x+y*y+z*z)-this.radius;
   }
-  dispose() {
-    scene.remove(this.mesh);
-    this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
-    this.mesh.children.forEach(c=>{if(c.geometry)c.geometry.dispose();if(c.material)c.material.dispose();});
+  dispose(){
+    scene.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh.material.dispose();
+    this.mesh.children.forEach(c=>{c.geometry&&c.geometry.dispose();c.material&&c.material.dispose();});
   }
 }
 
-// ── INITIAL SHAPES ─────────────────────────────────────────────────────────────
-const INIT_LAYOUT = [
-  { type:'cube',    pos:new THREE.Vector3( 0.4,  6.2,0), rot:new THREE.Euler(0,0.5,0.15) },
-  { type:'sphere',  pos:new THREE.Vector3(-0.3,  2.4,0) },
-  { type:'pyramid', pos:new THREE.Vector3( 0.3, -1.6,0), rot:new THREE.Euler(0,0.8,0) },
-  { type:'wedge',   pos:new THREE.Vector3(-0.2, -5.2,0), rot:new THREE.Euler(0,Math.PI/5,0) },
+// ── SHAPES ────────────────────────────────────────────────────────────────────
+const INIT=[
+  {type:'cube',   pos:new THREE.Vector3(0.4,6.2,0),  rot:new THREE.Euler(0,0.5,0.15)},
+  {type:'sphere', pos:new THREE.Vector3(-0.3,2.4,0)},
+  {type:'pyramid',pos:new THREE.Vector3(0.3,-1.6,0), rot:new THREE.Euler(0,0.8,0)},
 ];
-let shapes = [];
+let shapes=[];
+function buildInit(){shapes.forEach(s=>s.dispose());shapes=[];INIT.forEach(d=>shapes.push(new Shape(d.type,d.pos,d.rot||null)));updateCnt();}
+function addShape(t){shapes.push(new Shape(t,new THREE.Vector3((Math.random()-0.5)*4,10,0)));updateCnt();}
+function clearShapes(){shapes.forEach(s=>s.dispose());shapes=[];updateCnt();}
+function delShape(sh){const i=shapes.indexOf(sh);if(i<0)return;sh.dispose();shapes.splice(i,1);updateCnt();flashEl('flash-delete');}
+function updateCnt(){const e=document.getElementById('shape-count');e.textContent=shapes.length?shapes.length+' shapes':'';}
+function flashEl(id){const e=document.getElementById(id);e.classList.add('on');setTimeout(()=>e.classList.remove('on'),200);}
+buildInit();
 
-function buildInitialShapes() {
-  shapes.forEach(s=>s.dispose()); shapes=[];
-  INIT_LAYOUT.forEach(d=>shapes.push(new PhysShape(d.type, d.pos, d.rot||null)));
-  updateShapeCount();
-}
-function insertShape(type) {
-  shapes.push(new PhysShape(type, new THREE.Vector3((Math.random()-0.5)*4, 10, 0)));
-  updateShapeCount();
-}
-function clearAllShapes() { shapes.forEach(s=>s.dispose()); shapes=[]; updateShapeCount(); }
-function updateShapeCount() {
-  const el = document.getElementById('shape-count');
-  el.textContent = shapes.length>0 ? shapes.length+' shapes' : '';
-}
-buildInitialShapes();
-
-function resolveShapeCollisions() {
-  for(let a=0;a<shapes.length;a++){
-    for(let b=a+1;b<shapes.length;b++){
-      const sa=shapes[a],sb=shapes[b];
-      const dx=sb.pos.x-sa.pos.x,dy=sb.pos.y-sa.pos.y,dist=Math.sqrt(dx*dx+dy*dy),minD=sa.radius+sb.radius;
-      if(dist>0.001&&dist<minD){
-        const pen=minD-dist,nx=dx/dist,ny=dy/dist;
-        const wa=sa.dragging?0:0.5,wb=sb.dragging?0:0.5;
-        sa.pos.x-=nx*pen*wa; sa.pos.y-=ny*pen*wa;
-        sb.pos.x+=nx*pen*wb; sb.pos.y+=ny*pen*wb;
-        const dvx=sb.vel.x-sa.vel.x,dvy=sb.vel.y-sa.vel.y,dot=dvx*nx+dvy*ny;
-        if(dot<0){const j=(1+0.5)*dot*0.5;
-          if(!sa.dragging){sa.vel.x+=j*nx;sa.vel.y+=j*ny;}
-          if(!sb.dragging){sb.vel.x-=j*nx;sb.vel.y-=j*ny;}}
-      }
+function resolveCollisions(){
+  for(let a=0;a<shapes.length;a++)for(let b=a+1;b<shapes.length;b++){
+    const sa=shapes[a],sb=shapes[b];
+    const dx=sb.pos.x-sa.pos.x,dy=sb.pos.y-sa.pos.y,dist=Math.sqrt(dx*dx+dy*dy),minD=sa.radius+sb.radius;
+    if(dist>0.001&&dist<minD){
+      const pen=minD-dist,nx=dx/dist,ny=dy/dist,wa=sa.dragging?0:0.5,wb=sb.dragging?0:0.5;
+      sa.pos.x-=nx*pen*wa;sa.pos.y-=ny*pen*wa;sb.pos.x+=nx*pen*wb;sb.pos.y+=ny*pen*wb;
+      const dvx=sb.vel.x-sa.vel.x,dvy=sb.vel.y-sa.vel.y,dot=dvx*nx+dvy*ny;
+      if(dot<0){const j=(1+0.5)*dot*0.5;if(!sa.dragging){sa.vel.x+=j*nx;sa.vel.y+=j*ny;}if(!sb.dragging){sb.vel.x-=j*nx;sb.vel.y-=j*ny;}}
     }
   }
 }
 
-// ── DISPENSER BUTTON ──────────────────────────────────────────────────────────
-const dispenser = document.getElementById('dispenser');
-const ctaBtn = document.getElementById('cta-btn');
-const snapHint = document.getElementById('snap-hint');
+// inserter buttons
+document.querySelectorAll('.ins-btn').forEach(b=>b.addEventListener('click',()=>addShape(b.dataset.shape)));
+document.getElementById('btn-clear').addEventListener('click',clearShapes);
 
-let dispDragging=false, dispActuallyMoved=false;
-let dispDragOX=0, dispDragOY=0;
-let dispX=W/2, dispY=18, dispSnapped=true;
-const SNAP_ZONE_Y=60;
-
-function positionDispenser(cx,y) {
-  dispenser.style.left=cx+'px'; dispenser.style.top=y+'px'; dispenser.style.transform='translateX(-50%)';
-}
-positionDispenser(dispX,dispY);
-
-dispenser.addEventListener('pointerdown',e=>{
-  if(e.button!==0) return;
-  dispDragging=true; dispActuallyMoved=false;
-  dispenser.setPointerCapture(e.pointerId);
-  const rect=dispenser.getBoundingClientRect();
-  dispDragOX=e.clientX-(rect.left+rect.width/2);
-  dispDragOY=e.clientY-rect.top;
-  ctaBtn.classList.remove('snap-active');
-  e.stopPropagation();
-});
-window.addEventListener('pointermove',e=>{
-  if(!dispDragging) return;
-  const dx=e.clientX-(dispX+dispDragOX),dy=e.clientY-(dispY+dispDragOY);
-  if(Math.abs(dx)>4||Math.abs(dy)>4) dispActuallyMoved=true;
-  dispX=e.clientX-dispDragOX; dispY=e.clientY-dispDragOY;
-  const nearSnap=dispY<SNAP_ZONE_Y;
-  snapHint.classList.toggle('visible',nearSnap);
-  if(nearSnap){dispY=18; dispX=Math.max(60,Math.min(W-60,dispX));}
-  positionDispenser(dispX,dispY);
-});
-window.addEventListener('pointerup',e=>{
-  if(!dispDragging) return;
-  dispDragging=false; snapHint.classList.remove('visible');
-  if(dispY<SNAP_ZONE_Y){dispY=18;dispSnapped=true;ctaBtn.classList.add('snap-active');setTimeout(()=>ctaBtn.classList.remove('snap-active'),600);}
-  else dispSnapped=false;
-  positionDispenser(Math.max(60,Math.min(W-60,dispX)),dispY);
-});
-
-function getSpoutWorld() {
-  const rect=ctaBtn.getBoundingClientRect();
-  return screenToWorld(rect.left+rect.width/2, rect.bottom);
-}
-
-// ── CONTEXT MENU ──────────────────────────────────────────────────────────────
-const ctxMenu = document.getElementById('ctx-menu');
-function showCtxMenu(x,y){
-  ctxMenu.classList.add('visible');
-  let mx=x+2,my=y+2; if(mx+220>W)mx=x-222; if(my+340>H)my=y-342;
-  ctxMenu.style.left=mx+'px'; ctxMenu.style.top=my+'px';
-}
-function hideCtxMenu(){ctxMenu.classList.remove('visible');}
-renderer.domElement.addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY);});
-document.getElementById('panel').addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY);});
-window.addEventListener('mousedown',e=>{if(!ctxMenu.contains(e.target))hideCtxMenu();});
-window.addEventListener('keydown',e=>{if(e.key==='Escape')hideCtxMenu();});
-document.querySelectorAll('.shape-btn').forEach(btn=>btn.addEventListener('click',()=>{insertShape(btn.dataset.shape);hideCtxMenu();}));
-document.getElementById('ctx-reset-shapes').addEventListener('click',()=>{buildInitialShapes();hideCtxMenu();});
-document.getElementById('ctx-clear-shapes').addEventListener('click',()=>{clearAllShapes();hideCtxMenu();});
+// ── DISPENSER ─────────────────────────────────────────────────────────────────
+const dispEl=document.getElementById('dispenser'),ctaBtn=document.getElementById('cta-btn'),snapHint=document.getElementById('snap-hint');
+let dDrag=false,dMoved=false,dOX=0,dOY=0,dX=W/2,dY=18;
+const SNAPZONE=60;
+function posDsp(cx,y){dispEl.style.left=cx+'px';dispEl.style.top=y+'px';dispEl.style.transform='translateX(-50%)';}
+posDsp(dX,dY);
+dispEl.addEventListener('pointerdown',e=>{if(e.button)return;dDrag=true;dMoved=false;dispEl.setPointerCapture(e.pointerId);const r=dispEl.getBoundingClientRect();dOX=e.clientX-(r.left+r.width/2);dOY=e.clientY-r.top;ctaBtn.classList.remove('snap-active');e.stopPropagation();});
+window.addEventListener('pointermove',e=>{if(!dDrag)return;const dx=e.clientX-(dX+dOX),dy=e.clientY-(dY+dOY);if(Math.abs(dx)>4||Math.abs(dy)>4)dMoved=true;dX=e.clientX-dOX;dY=e.clientY-dOY;const ns=dY<SNAPZONE;snapHint.classList.toggle('visible',ns);if(ns){dY=18;dX=Math.max(60,Math.min(W-60,dX));}posDsp(dX,dY);});
+window.addEventListener('pointerup',e=>{if(!dDrag)return;dDrag=false;snapHint.classList.remove('visible');if(dY<SNAPZONE){dY=18;ctaBtn.classList.add('snap-active');setTimeout(()=>ctaBtn.classList.remove('snap-active'),600);}posDsp(Math.max(60,Math.min(W-60,dX)),dY);});
+function getSpout(){const r=ctaBtn.getBoundingClientRect();return s2w(r.left+r.width/2,r.bottom);}
 
 // ── PARTICLES ─────────────────────────────────────────────────────────────────
-const MAX_P=8000;
-const ppos=new Float32Array(MAX_P*3);
-const pvel=new Float32Array(MAX_P*3);
-const psz=new Float32Array(MAX_P);
-const page=new Float32Array(MAX_P);
-const plife=new Float32Array(MAX_P);
-const palive=new Uint8Array(MAX_P);
+const MP=8000,pp=new Float32Array(MP*3),pv=new Float32Array(MP*3),ps=new Float32Array(MP),pa=new Float32Array(MP),pl=new Float32Array(MP),pal=new Uint8Array(MP);
+const P={count:4000,gravity:9.8,spread:0.3,bounce:0.25,size:1.0,rain:false};
 
-const params={ count:4000, gravity:9.8, spread:0.3, bounce:0.25, size:1.0, rain:false };
-
-function spawnParticle(i) {
-  const b=i*3, sw=getSpoutWorld(), zSpread=1.2;
-  ppos[b]=(sw.x+(Math.random()-0.5)*params.spread);
-  ppos[b+1]=sw.y+0.2; ppos[b+2]=(Math.random()-0.5)*zSpread;
-  pvel[b]=(Math.random()-0.5)*0.08; pvel[b+1]=-0.3-Math.random()*0.3; pvel[b+2]=(Math.random()-0.5)*0.04;
-  psz[i]=0.5+Math.random()*0.9; plife[i]=9+Math.random()*5; page[i]=Math.random()*plife[i]; palive[i]=1;
-}
-for(let i=0;i<MAX_P;i++) spawnParticle(i);
+function spawn(i){const b=i*3,sw=getSpout();pp[b]=sw.x+(Math.random()-0.5)*P.spread;pp[b+1]=sw.y+0.2;pp[b+2]=(Math.random()-0.5)*1.2;pv[b]=(Math.random()-0.5)*0.08;pv[b+1]=-0.3-Math.random()*0.3;pv[b+2]=(Math.random()-0.5)*0.04;ps[i]=0.5+Math.random()*0.9;pl[i]=9+Math.random()*5;pa[i]=Math.random()*pl[i];pal[i]=1;}
+for(let i=0;i<MP;i++)spawn(i);
 
 const pGeo=new THREE.BufferGeometry();
-pGeo.setAttribute('position',new THREE.BufferAttribute(ppos,3));
-pGeo.setAttribute('size',new THREE.BufferAttribute(psz,1));
-
+pGeo.setAttribute('position',new THREE.BufferAttribute(pp,3));
+pGeo.setAttribute('size',new THREE.BufferAttribute(ps,1));
 const pMat=new THREE.ShaderMaterial({
-  uniforms:{uSize:{value:1.0}},
-  vertexShader:`attribute float size;varying float vFog;uniform float uSize;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);float d=-mv.z;gl_PointSize=size*uSize*(260.0/d);gl_Position=projectionMatrix*mv;vFog=clamp(d*0.025,0.0,1.0);}`,
-  fragmentShader:`varying float vFog;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*10.0);float soft=smoothstep(0.5,0.0,d)*0.5;float a=(core+soft)*(1.0-vFog*0.75);gl_FragColor=vec4(1.0,0.99,0.97,a*0.82);}`,
-  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  uniforms:{uSz:{value:1.0}},
+  vertexShader:`attribute float size;varying float vF;uniform float uSz;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);float d=-mv.z;gl_PointSize=size*uSz*(260.0/d);gl_Position=projectionMatrix*mv;vF=clamp(d*0.025,0.0,1.0);}`,
+  fragmentShader:`varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float c=exp(-d*10.0);float s=smoothstep(0.5,0.0,d)*0.5;float a=(c+s)*(1.0-vF*0.75);gl_FragColor=vec4(1.0,0.99,0.97,a*0.82);}`,
+  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
 });
-scene.add(new THREE.Points(pGeo, pMat));
+scene.add(new THREE.Points(pGeo,pMat));
 
-const PR=0.08;
-const _n=new THREE.Vector3();
-function sdfNorm(shape,px,py,pz){
-  const e=0.006,c=shape.sdf(px,py,pz);
-  _n.set(shape.sdf(px+e,py,pz)-c,shape.sdf(px,py+e,pz)-c,shape.sdf(px,py,pz+e)-c).normalize();
-}
+const PR=0.08,_n=new THREE.Vector3();
+function sdfN(sh,x,y,z){const e=0.006,c=sh.sdf(x,y,z);_n.set(sh.sdf(x+e,y,z)-c,sh.sdf(x,y+e,z)-c,sh.sdf(x,y,z+e)-c).normalize();}
 
-// ── TARGET ZONE COUNTING ──────────────────────────────────────────────────────
-// For each target, count particles within its XZ cylinder at floor level
-// We sample the live particle array each frame
-const TARGET_SAMPLE_WINDOW = 120; // frames to smooth over
-let frameCount = 0;
+// ── DRAG + SCALE ──────────────────────────────────────────────────────────────
+let mX=W/2,mY=H/2,cX=W/2,cY=H/2,cvx=0,cvy=0;
+const curEl=document.getElementById('cursor');
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+let dShape=null,dOff=new THREE.Vector3(),prevWP=null,dTime=0,dMov=false;
 
-// Rolling counts: for each target, keep a ring buffer of recent frame counts
-const FILL_ALPHA = 0.04; // smoothing
-let targetCounts = []; // smoothed count per target
+let scTimer=null;
+const scEl=document.getElementById('scale-ind');
+function showScale(v){scEl.textContent='SCALE '+v.toFixed(2)+'×';scEl.classList.add('on');clearTimeout(scTimer);scTimer=setTimeout(()=>scEl.classList.remove('on'),900);}
 
-function countParticlesInTargets() {
-  const N = Math.min(params.count, MAX_P);
-  // Raw counts this frame
-  const raw = levelTargets.map(()=>0);
-  let total = 0;
-  for(let i=0;i<N;i++){
-    if(!palive[i]) continue;
-    const b=i*3;
-    // Only count particles near the floor
-    if(ppos[b+1]>-7.5) continue; // above floor area
-    total++;
-    for(let t=0;t<levelTargets.length;t++){
-      const tgt=levelTargets[t];
-      const dx=ppos[b]-tgt.x, dz=ppos[b+2];
-      const d2=dx*dx+dz*dz;
-      if(d2<tgt.r*tgt.r) raw[t]++;
-    }
-  }
-  // Smooth
-  if(targetCounts.length!==levelTargets.length) targetCounts=levelTargets.map(()=>0);
-  for(let t=0;t<levelTargets.length;t++){
-    targetCounts[t]+=(raw[t]-targetCounts[t])*FILL_ALPHA;
-    // Fill = fraction of particles in this target vs expected share
-    const share = total>0 ? targetCounts[t]/total : 0;
-    const normalizedFill = Math.min(share/(1/Math.max(levelTargets.length,1))*0.7,1);
-    levelTargets[t].fill = normalizedFill;
-    levelTargets[t].met = normalizedFill >= TARGET_THRESHOLD;
-  }
-}
-
-function updateTargetHUD() {
-  levelTargets.forEach((t,i)=>{
-    const bar=document.getElementById('bar-'+i);
-    const pct=document.getElementById('pct-'+i);
-    const chk=document.getElementById('chk-'+i);
-    if(!bar||!pct||!chk) return;
-    bar.style.width=(t.fill*100).toFixed(1)+'%';
-    pct.textContent=Math.round(t.fill*100)+'%';
-    chk.classList.toggle('done',t.met);
-  });
-}
-
-function checkLevelComplete() {
-  if(levelComplete) return;
-  const allMet = levelTargets.length>0 && levelTargets.every(t=>t.met);
-  if(allMet) {
-    levelComplete=true;
-    // Flash
-    const flash=document.getElementById('complete-flash');
-    flash.classList.add('flash');
-    setTimeout(()=>flash.classList.remove('flash'),400);
-    // Show screenshot button
-    setTimeout(()=>{
-      document.getElementById('screenshot-btn').classList.add('visible');
-      if(currentLevel<LEVELS.length-1) document.getElementById('next-btn').classList.add('visible');
-    }, 600);
-  }
-}
-
-// ── SCREENSHOT ────────────────────────────────────────────────────────────────
-document.getElementById('screenshot-btn').addEventListener('click', ()=>{
-  // Render one more frame then capture
-  renderer.render(scene, camera);
-  const dataURL = renderer.domElement.toDataURL('image/png');
-  const a = document.createElement('a');
-  a.href = dataURL;
-  a.download = `particle-flow-level${currentLevel+1}.png`;
-  a.click();
-});
-
-document.getElementById('next-btn').addEventListener('click', ()=>{
-  if(currentLevel<LEVELS.length-1){
-    currentLevel++;
-    initLevel(currentLevel);
-    targetCounts=[];
-    for(let i=0;i<MAX_P;i++) spawnParticle(i);
-    buildInitialShapes();
-  }
-});
-
-// ── DRAG SHAPES ───────────────────────────────────────────────────────────────
-let mouseX=W/2,mouseY=H/2,cursorX=W/2,cursorY=H/2,cvx=0,cvy=0;
-const cursorEl=document.getElementById('cursor');
-const ray=new THREE.Raycaster();
-const mvNDC=new THREE.Vector2();
-let dragShape=null,dragOffset=new THREE.Vector3(),prevDragWP=null;
-let lmbDownShape=null,lmbDownTime=0,lmbMoved=false;
+const SC_MIN=0.3,SC_MAX=3.5,SC_STEP=0.09;
 
 renderer.domElement.addEventListener('mousedown',e=>{
-  if(e.button===0){
-    if(dispDragging) return;
-    mvNDC.set((e.clientX/W)*2-1,-(e.clientY/H)*2+1);
-    ray.setFromCamera(mvNDC,camera);
-    const hits=ray.intersectObjects(shapes.map(s=>s.mesh),true);
-    if(hits.length){
-      const sh=shapes.find(s=>s.mesh===hits[0].object||s.mesh.children.includes(hits[0].object));
-      if(sh){
-        lmbDownShape=sh;lmbDownTime=Date.now();lmbMoved=false;
-        dragShape=sh;sh.dragging=true;sh.vel.set(0,0,0);
-        const wp=screenToWorld(e.clientX,e.clientY);
-        dragOffset.set(wp.x-sh.pos.x,wp.y-sh.pos.y,0);
-        prevDragWP=wp.clone();
-      }
-    }
+  if(e.button!==0||dDrag)return;
+  ndc.set((e.clientX/W)*2-1,-(e.clientY/H)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObjects(shapes.map(s=>s.mesh),true);
+  if(hits.length){
+    const sh=shapes.find(s=>s.mesh===hits[0].object||s.mesh.children.includes(hits[0].object));
+    if(sh){dTime=Date.now();dMov=false;dShape=sh;sh.dragging=true;sh.vel.set(0,0,0);const wp=s2w(e.clientX,e.clientY);dOff.set(wp.x-sh.pos.x,wp.y-sh.pos.y,0);prevWP=wp.clone();}
   }
 });
+
+// Right-click on canvas: over shape → delete; no shape → nothing
+renderer.domElement.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  ndc.set((e.clientX/W)*2-1,-(e.clientY/H)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObjects(shapes.map(s=>s.mesh),true);
+  if(hits.length){
+    const sh=shapes.find(s=>s.mesh===hits[0].object||s.mesh.children.includes(hits[0].object));
+    if(sh){if(dShape===sh){dShape=null;prevWP=null;}delShape(sh);}
+  }
+});
+
 window.addEventListener('mousemove',e=>{
-  mouseX=e.clientX;mouseY=e.clientY;
-  if(dragShape){
-    const wp=screenToWorld(e.clientX,e.clientY);
-    if(prevDragWP){const dx=wp.x-prevDragWP.x,dy=wp.y-prevDragWP.y;if(Math.sqrt(dx*dx+dy*dy)>0.05)lmbMoved=true;}
-    dragShape.pos.set(wp.x-dragOffset.x,wp.y-dragOffset.y,0);
-    if(prevDragWP) dragShape.vel.set((wp.x-prevDragWP.x)*2.5,(wp.y-prevDragWP.y)*2.5,0);
-    prevDragWP=wp.clone();
+  mX=e.clientX;mY=e.clientY;
+  if(dShape){
+    const wp=s2w(e.clientX,e.clientY);
+    if(prevWP){const dx=wp.x-prevWP.x,dy=wp.y-prevWP.y;if(Math.sqrt(dx*dx+dy*dy)>0.05)dMov=true;}
+    dShape.pos.set(wp.x-dOff.x,wp.y-dOff.y,0);
+    if(prevWP)dShape.vel.set((wp.x-prevWP.x)*2.5,(wp.y-prevWP.y)*2.5,0);
+    prevWP=wp.clone();
   }
 });
 window.addEventListener('mouseup',e=>{
-  if(e.button===0&&dragShape){
-    if(!lmbMoved&&(Date.now()-lmbDownTime)<350) dragShape.cycleOrientation();
-    dragShape.restPos.set(dragShape.pos.x,dragShape.pos.y,0);
-    dragShape.dragging=false;dragShape=null;prevDragWP=null;lmbDownShape=null;
+  if(e.button===0&&dShape){
+    if(!dMov&&(Date.now()-dTime)<350)dShape.cycle();
+    dShape.rest.set(dShape.pos.x,dShape.pos.y,0);
+    dShape.dragging=false;dShape=null;prevWP=null;
   }
 });
 
-// ── PANEL CONTROLS ────────────────────────────────────────────────────────────
-function bindSlider(id,valId,key,fmt){
-  const sl=document.getElementById(id),vl=document.getElementById(valId);
-  sl.addEventListener('input',()=>{params[key]=parseFloat(sl.value);vl.textContent=fmt(params[key]);});
+// scroll to scale while holding
+window.addEventListener('wheel',e=>{
+  if(!dShape)return;
+  e.preventDefault();
+  const dir=e.deltaY>0?-1:1;
+  const ns=Math.max(SC_MIN,Math.min(SC_MAX,dShape.sc+dir*SC_STEP));
+  if(Math.abs(ns-dShape.sc)<0.001)return;
+  const oldR=dShape.sc/ns; // ratio to keep pos stable
+  dShape.resize(ns);
+  const wp=s2w(mX,mY);
+  dShape.pos.set(wp.x-dOff.x,wp.y-dOff.y,0);
+  dShape.mesh.position.copy(dShape.pos);
+  prevWP=wp.clone();
+  showScale(ns);
+},{passive:false});
+
+// ── PANEL SLIDERS ─────────────────────────────────────────────────────────────
+function bindSl(id,vid,key,fmt){const sl=document.getElementById(id),vl=document.getElementById(vid);sl.addEventListener('input',()=>{P[key]=parseFloat(sl.value);vl.textContent=fmt(P[key]);});}
+bindSl('sl-count','v-count','count',v=>Math.round(v));
+bindSl('sl-grav','v-grav','gravity',v=>v.toFixed(1));
+bindSl('sl-spread','v-spread','spread',v=>v.toFixed(2));
+bindSl('sl-bounce','v-bounce','bounce',v=>v.toFixed(2));
+bindSl('sl-size','v-size','size',v=>v.toFixed(2));
+
+// ── PLAY / PAUSE ──────────────────────────────────────────────────────────────
+let paused=false;
+const clk=new THREE.Clock();
+function setPaused(v){
+  paused=v;
+  const btn=document.getElementById('cta-btn'),lbl=document.getElementById('btn-label');
+  const ip=document.getElementById('icon-pause'),ipl=document.getElementById('icon-play'),pp2=document.getElementById('btn-pp');
+  if(paused){btn.classList.add('paused');ip.style.display='none';ipl.style.display='block';lbl.textContent='Play';pp2.textContent='▶ PLAY';pp2.classList.add('paused');}
+  else{btn.classList.remove('paused');ip.style.display='block';ipl.style.display='none';lbl.textContent='Pause';pp2.textContent='❚❚ PAUSE';pp2.classList.remove('paused');clk.getDelta();}
 }
-bindSlider('sl-count','val-count','count',v=>Math.round(v));
-bindSlider('sl-gravity','val-gravity','gravity',v=>v.toFixed(1));
-bindSlider('sl-spread','val-spread','spread',v=>v.toFixed(2));
-bindSlider('sl-bounce','val-bounce','bounce',v=>v.toFixed(2));
-bindSlider('sl-size','val-size','size',v=>v.toFixed(2));
+ctaBtn.addEventListener('click',e=>{if(!dMoved)setPaused(!paused);e.stopPropagation();});
+document.getElementById('btn-pp').addEventListener('click',()=>setPaused(!paused));
 
-// ── PLAY / PAUSE (FIXED — single source of truth) ─────────────────────────────
-let paused = false;
-const clock = new THREE.Clock();
+function makeTog(id,on,off){const b=document.getElementById(id);let s=false;b.addEventListener('click',()=>{s=!s;b.textContent=s?'ON':'OFF';b.classList.toggle('on',s);s?on():off();});}
+makeTog('tog-rain',()=>P.rain=true,()=>P.rain=false);
+document.getElementById('tog-reset').addEventListener('click',()=>{for(let i=0;i<MP;i++)spawn(i);});
 
-function setPaused(val) {
-  paused = val;
-  // Update CTA button
-  const btn  = document.getElementById('cta-btn');
-  const lbl  = document.getElementById('btn-label');
-  const ip   = document.getElementById('icon-pause');
-  const ipl  = document.getElementById('icon-play');
-  // Update panel button
-  const ppb  = document.getElementById('btn-playpause');
-
-  if (paused) {
-    btn.classList.add('paused');
-    ip.style.display = 'none'; ipl.style.display = 'block';
-    lbl.textContent = 'Play';
-    ppb.textContent = '▶ PLAY';
-    ppb.classList.add('paused');
-  } else {
-    btn.classList.remove('paused');
-    ip.style.display = 'block'; ipl.style.display = 'none';
-    lbl.textContent = 'Pause';
-    ppb.textContent = '❚❚ PAUSE';
-    ppb.classList.remove('paused');
-    clock.getDelta(); // consume accumulated delta so we don't get a huge dt jump
-  }
+// ── TARGET COUNTING ────────────────────────────────────────────────────────────
+function countTgts(){
+  const N=Math.min(P.count,MP),raw=tgts.map(()=>0);let tot=0;
+  for(let i=0;i<N;i++){if(!pal[i])continue;const b=i*3;if(pp[b+1]>-7.5)continue;tot++;for(let t=0;t<tgts.length;t++){const tg=tgts[t],dx=pp[b]-tg.x,dz=pp[b+2];if(dx*dx+dz*dz<tg.r*tg.r)raw[t]++;}}
+  if(tCounts.length!==tgts.length)tCounts=tgts.map(()=>0);
+  for(let t=0;t<tgts.length;t++){tCounts[t]+=(raw[t]-tCounts[t])*FILL_A;const sh=tot>0?tCounts[t]/tot:0;tgts[t].fill=Math.min(sh/(1/Math.max(tgts.length,1))*0.7,1);tgts[t].met=tgts[t].fill>=THRESH;}
+}
+function updateHUD(){tgts.forEach((t,i)=>{const bar=document.getElementById('bar'+i),pct=document.getElementById('pct'+i),chk=document.getElementById('chk'+i);if(!bar)return;bar.style.width=(t.fill*100).toFixed(1)+'%';pct.textContent=Math.round(t.fill*100)+'%';chk.classList.toggle('done',t.met);});}
+function checkDone(){
+  if(lvlDone)return;
+  if(tgts.length>0&&tgts.every(t=>t.met)){lvlDone=true;flashEl('flash-complete');setTimeout(()=>{document.getElementById('screenshot-btn').classList.add('visible');if(lvl<LEVELS.length-1)document.getElementById('next-btn').classList.add('visible');},600);}
 }
 
-// CTA button click = toggle (only when not dragged)
-ctaBtn.addEventListener('click', e => {
-  if (!dispActuallyMoved) setPaused(!paused);
-  e.stopPropagation();
-});
+// ── SCREENSHOT / NEXT ─────────────────────────────────────────────────────────
+document.getElementById('screenshot-btn').addEventListener('click',()=>{renderer.render(scene,camera);const a=document.createElement('a');a.href=renderer.domElement.toDataURL('image/png');a.download='particle-flow-lvl'+(lvl+1)+'.png';a.click();});
+document.getElementById('next-btn').addEventListener('click',()=>{if(lvl<LEVELS.length-1){lvl++;initLevel(lvl);tCounts=[];for(let i=0;i<MP;i++)spawn(i);buildInit();}});
 
-// Panel button mirrors
-document.getElementById('btn-playpause').addEventListener('click', () => setPaused(!paused));
+// ── TARGET OVERLAY ────────────────────────────────────────────────────────────
+function rgb(hex){return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;}
+function rgba(hex,a){return`rgba(${rgb(hex)},${a})`;}
 
-function makeTog(id,on,off){
-  const b=document.getElementById(id);let s=false;
-  b.addEventListener('click',()=>{s=!s;b.textContent=s?'ON':'OFF';b.classList.toggle('on',s);s?on():off();});
-}
-makeTog('tog-rain',()=>params.rain=true,()=>params.rain=false);
-document.getElementById('tog-reset').addEventListener('click',()=>{for(let i=0;i<MAX_P;i++)spawnParticle(i);});
+function drawOverlay(){
+  ovCtx.clearRect(0,0,W,H);
+  const t=Date.now()*0.001;
+  tgts.forEach(tg=>{
+    function proj(v){const c=v.clone().project(camera);return{x:(c.x+1)/2*W,y:(-c.y+1)/2*H};}
+    const cs=proj(new THREE.Vector3(tg.x,FLR,0));
+    const ls=proj(new THREE.Vector3(tg.x-tg.r,FLR,0));
+    const rs=proj(new THREE.Vector3(tg.x+tg.r,FLR,0));
+    const fs=proj(new THREE.Vector3(tg.x,FLR,tg.r*0.55));
+    const rx=(rs.x-ls.x)/2,ry=Math.abs(fs.y-cs.y)*1.1,cx=(rs.x+ls.x)/2,cy=cs.y;
+    const col=tg.col,met=tg.met,fill=tg.fill;
 
-// ── OVERLAY: DRAW TARGET ZONES ────────────────────────────────────────────────
-// We project world coords to screen for the ellipse drawing
-function drawTargetOverlay() {
-  overlayCtx.clearRect(0,0,W,H);
-  if(!levelTargets.length) return;
+    ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);ovCtx.beginPath();ovCtx.arc(0,0,rx,0,Math.PI*2);ovCtx.restore();
+    ovCtx.setLineDash(met?[]:[6,5]);ovCtx.lineDashOffset=-t*18;
+    ovCtx.strokeStyle=met?col:`rgba(${rgb(col)},${0.28+fill*0.5})`;ovCtx.lineWidth=met?2.5:1.4;
+    ovCtx.shadowColor=col;ovCtx.shadowBlur=met?12:2+fill*8;ovCtx.stroke();ovCtx.setLineDash([]);ovCtx.shadowBlur=0;
 
-  const t = Date.now()*0.001;
+    if(fill>0.01){ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);ovCtx.beginPath();ovCtx.arc(0,0,rx*0.87,-Math.PI/2,-Math.PI/2+fill*Math.PI*2);ovCtx.restore();ovCtx.strokeStyle=col;ovCtx.globalAlpha=0.45+fill*0.4;ovCtx.lineWidth=3.5;ovCtx.shadowColor=col;ovCtx.shadowBlur=7;ovCtx.stroke();ovCtx.globalAlpha=1;ovCtx.shadowBlur=0;}
 
-  levelTargets.forEach((tgt, i)=>{
-    // Project left and right edges of target circle to screen
-    const cWorld = new THREE.Vector3(tgt.x, FLOOR_Y, 0);
-    const lWorld = new THREE.Vector3(tgt.x-tgt.r, FLOOR_Y, 0);
-    const rWorld = new THREE.Vector3(tgt.x+tgt.r, FLOOR_Y, 0);
-    const fWorld = new THREE.Vector3(tgt.x, FLOOR_Y, tgt.r*0.55); // perspective depth
+    if(met){ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);const g=ovCtx.createRadialGradient(0,0,0,0,0,rx*0.84);g.addColorStop(0,rgba(col,0.1+Math.sin(t*3)*0.04));g.addColorStop(1,rgba(col,0));ovCtx.beginPath();ovCtx.arc(0,0,rx*0.84,0,Math.PI*2);ovCtx.fillStyle=g;ovCtx.fill();ovCtx.restore();}
 
-    // Project to NDC
-    function proj(v){
-      const c=v.clone().project(camera);
-      return {x:(c.x+1)/2*W, y:(-c.y+1)/2*H};
-    }
-    const cs=proj(cWorld);
-    const ls=proj(lWorld);
-    const rs=proj(rWorld);
-    const fs=proj(fWorld);
-
-    const rx = (rs.x-ls.x)/2;    // horizontal radius in screen pixels
-    const ry = Math.abs(fs.y-cs.y)*1.1; // vertical (perspective foreshortened)
-    const cx2 = (rs.x+ls.x)/2;
-    const cy2 = cs.y;
-
-    const color = tgt.colorCSS;
-    const fillRatio = tgt.fill;
-    const isMet = tgt.met;
-
-    // Outer dashed ring
-    overlayCtx.save();
-    overlayCtx.translate(cx2, cy2);
-    overlayCtx.scale(1, ry/rx);
-    overlayCtx.beginPath();
-    overlayCtx.arc(0, 0, rx, 0, Math.PI*2);
-    overlayCtx.restore();
-    overlayCtx.setLineDash(isMet ? [] : [6,5]);
-    overlayCtx.lineDashOffset = -t*18;
-    overlayCtx.strokeStyle = isMet
-      ? color
-      : `rgba(${hexToRgb(tgt.colorCSS)},${0.35+fillRatio*0.45})`;
-    overlayCtx.lineWidth = isMet ? 2.5 : 1.5;
-    overlayCtx.shadowColor = color;
-    overlayCtx.shadowBlur = isMet ? 14 : 4+fillRatio*10;
-    overlayCtx.stroke();
-    overlayCtx.setLineDash([]);
-    overlayCtx.shadowBlur=0;
-
-    // Fill arc (shows progress)
-    if(fillRatio>0.01) {
-      overlayCtx.save();
-      overlayCtx.translate(cx2, cy2);
-      overlayCtx.scale(1, ry/rx);
-      overlayCtx.beginPath();
-      overlayCtx.arc(0, 0, rx*0.88, -Math.PI/2, -Math.PI/2 + fillRatio*Math.PI*2);
-      overlayCtx.restore();
-      overlayCtx.strokeStyle = color;
-      overlayCtx.globalAlpha = 0.55+fillRatio*0.3;
-      overlayCtx.lineWidth = 3.5;
-      overlayCtx.shadowColor = color;
-      overlayCtx.shadowBlur = 8;
-      overlayCtx.stroke();
-      overlayCtx.globalAlpha = 1;
-      overlayCtx.shadowBlur = 0;
-    }
-
-    // Inner glow fill when met
-    if(isMet) {
-      overlayCtx.save();
-      overlayCtx.translate(cx2, cy2);
-      overlayCtx.scale(1, ry/rx);
-      const grd = overlayCtx.createRadialGradient(0,0,0,0,0,rx*0.85);
-      grd.addColorStop(0, hexToRgba(color,0.12+Math.sin(t*3)*0.04));
-      grd.addColorStop(1, hexToRgba(color,0));
-      overlayCtx.beginPath();
-      overlayCtx.arc(0, 0, rx*0.85, 0, Math.PI*2);
-      overlayCtx.fillStyle = grd;
-      overlayCtx.fill();
-      overlayCtx.restore();
-    }
-
-    // Label
-    overlayCtx.font = '10px Courier New';
-    overlayCtx.letterSpacing = '0.2em';
-    overlayCtx.fillStyle = isMet ? color : `rgba(${hexToRgb(color)},${0.35+fillRatio*0.4})`;
-    overlayCtx.textAlign = 'center';
-    overlayCtx.shadowColor = color;
-    overlayCtx.shadowBlur = isMet ? 10 : 4;
-    overlayCtx.fillText(isMet ? '✓ FILLED' : `TARGET ${String.fromCharCode(65+i)}`, cx2, cy2+ry+16);
-    overlayCtx.shadowBlur=0;
+    ovCtx.font='10px Courier New';ovCtx.textAlign='center';ovCtx.fillStyle=met?col:`rgba(${rgb(col)},${0.28+fill*0.4})`;ovCtx.shadowColor=col;ovCtx.shadowBlur=met?8:2;ovCtx.fillText(met?'✓ FILLED':`TARGET ${String.fromCharCode(65+tg.idx)}`,cx,cy+ry+15);ovCtx.shadowBlur=0;
   });
 }
-
-function hexToRgb(hex){
-  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-  return `${r},${g},${b}`;
-}
-function hexToRgba(hex,a){return `rgba(${hexToRgb(hex)},${a})`;}
 
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 initLevel(0);
 
 function tick(){
   requestAnimationFrame(tick);
-  const dt=Math.min(clock.getDelta(),0.033);
+  const dt=Math.min(clk.getDelta(),0.033);
 
-  // cursor
-  cvx+=(mouseX-cursorX)*0.18; cvy+=(mouseY-cursorY)*0.18;
-  cvx*=0.62; cvy*=0.62;
-  cursorX+=cvx; cursorY+=cvy;
-  const spd=Math.sqrt(cvx*cvx+cvy*cvy);
-  const ang=spd>0.5?Math.atan2(cvy,cvx)*180/Math.PI:0;
-  const stretch=Math.min(spd*0.55,13);
-  const cw=18+stretch,ch=Math.max(6,11-stretch*0.28);
-  cursorEl.style.transform=`translate(${cursorX-cw/2}px,${cursorY-ch/2}px) rotate(${ang}deg)`;
-  cursorEl.style.width=cw+'px'; cursorEl.style.height=ch+'px';
+  cvx+=(mX-cX)*0.18;cvy+=(mY-cY)*0.18;cvx*=0.62;cvy*=0.62;cX+=cvx;cY+=cvy;
+  const spd=Math.sqrt(cvx*cvx+cvy*cvy),ang=spd>0.5?Math.atan2(cvy,cvx)*180/Math.PI:0;
+  const str=Math.min(spd*0.55,13),cw=18+str,ch=Math.max(6,11-str*0.28);
+  curEl.style.transform=`translate(${cX-cw/2}px,${cY-ch/2}px) rotate(${ang}deg)`;
+  curEl.style.width=cw+'px';curEl.style.height=ch+'px';
 
-  if(paused){
-    drawTargetOverlay();
-    renderer.render(scene,camera);
-    return;
-  }
+  if(paused){drawOverlay();renderer.render(scene,camera);return;}
 
-  resolveShapeCollisions();
+  resolveCollisions();
   shapes.forEach(s=>s.update(dt));
-  pMat.uniforms.uSize.value=params.size;
-  const N=Math.min(params.count,MAX_P);
+  pMat.uniforms.uSz.value=P.size;
+  const N=Math.min(P.count,MP);
 
   for(let i=0;i<N;i++){
     const b=i*3;
-    if(!palive[i]){spawnParticle(i);continue;}
-    page[i]+=dt;
-    if(page[i]>plife[i]){spawnParticle(i);continue;}
-    pvel[b+1]-=params.gravity*dt;
-    if(params.rain){pvel[b]-=ppos[b]*0.4*dt;pvel[b+2]-=ppos[b+2]*0.3*dt;}
-    ppos[b]  +=pvel[b]  *dt;
-    ppos[b+1]+=pvel[b+1]*dt;
-    ppos[b+2]+=pvel[b+2]*dt;
-    ppos[b+2]-=ppos[b+2]*0.4*dt;
-    pvel[b+2]*=0.92;
+    if(!pal[i]){spawn(i);continue;}
+    pa[i]+=dt; if(pa[i]>pl[i]){spawn(i);continue;}
+    pv[b+1]-=P.gravity*dt;
+    if(P.rain){pv[b]-=pp[b]*0.4*dt;pv[b+2]-=pp[b+2]*0.3*dt;}
+    pp[b]+=pv[b]*dt;pp[b+1]+=pv[b+1]*dt;pp[b+2]+=pv[b+2]*dt;
+    pp[b+2]-=pp[b+2]*0.4*dt;pv[b+2]*=0.92;
     for(let s=0;s<shapes.length;s++){
-      const sh=shapes[s];
-      const d=sh.sdf(ppos[b],ppos[b+1],ppos[b+2]);
-      if(d<PR){
-        sdfNorm(sh,ppos[b],ppos[b+1],ppos[b+2]);
-        const pen=PR-d;
-        ppos[b]+=_n.x*pen;ppos[b+1]+=_n.y*pen;ppos[b+2]+=_n.z*pen;
-        const dot=pvel[b]*_n.x+pvel[b+1]*_n.y+pvel[b+2]*_n.z;
-        if(dot<0){
-          const bFactor=params.bounce*sh.def.bounce;
-          pvel[b]  -=(1+bFactor)*dot*_n.x;
-          pvel[b+1]-=(1+bFactor)*dot*_n.y;
-          pvel[b+2]-=(1+bFactor)*dot*_n.z;
-          pvel[b]  +=(Math.random()-0.5)*0.2;
-          pvel[b+2]+=(Math.random()-0.5)*0.08;
-        }
-      }
+      const sh=shapes[s],d=sh.sdf(pp[b],pp[b+1],pp[b+2]);
+      if(d<PR){sdfN(sh,pp[b],pp[b+1],pp[b+2]);const pen=PR-d;pp[b]+=_n.x*pen;pp[b+1]+=_n.y*pen;pp[b+2]+=_n.z*pen;const dot=pv[b]*_n.x+pv[b+1]*_n.y+pv[b+2]*_n.z;if(dot<0){const bF=P.bounce*sh.def.bounce;pv[b]-=(1+bF)*dot*_n.x;pv[b+1]-=(1+bF)*dot*_n.y;pv[b+2]-=(1+bF)*dot*_n.z;pv[b]+=(Math.random()-0.5)*0.2;pv[b+2]+=(Math.random()-0.5)*0.08;}}
     }
-    if(ppos[b+1]<-8.9){ppos[b+1]=-8.9;pvel[b+1]=Math.abs(pvel[b+1])*0.04;pvel[b]*=0.55;pvel[b+2]*=0.55;}
-    if(Math.abs(ppos[b])>22) spawnParticle(i);
-    pvel[b]*=0.997;
+    if(pp[b+1]<-8.9){pp[b+1]=-8.9;pv[b+1]=Math.abs(pv[b+1])*0.04;pv[b]*=0.55;pv[b+2]*=0.55;}
+    if(Math.abs(pp[b])>22)spawn(i);
+    pv[b]*=0.997;
   }
-  // kill any beyond N
-  for(let i=N;i<MAX_P;i++){if(palive[i]){palive[i]=0;ppos[i*3+1]=-9999;}}
-
+  for(let i=N;i<MP;i++){if(pal[i]){pal[i]=0;pp[i*3+1]=-9999;}}
   pGeo.attributes.position.needsUpdate=true;
 
-  countParticlesInTargets();
-  updateTargetHUD();
-  checkLevelComplete();
-  drawTargetOverlay();
-
+  countTgts(); updateHUD(); checkDone(); drawOverlay();
   renderer.render(scene,camera);
-  frameCount++;
 }
 
 tick();
 
-window.addEventListener('resize',()=>{
-  W=window.innerWidth;H=window.innerHeight;
-  camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);
-  overlayCanvas.width=W;overlayCanvas.height=H;
-});
-setTimeout(()=>{document.getElementById('hint').style.opacity='0';},7000);
+window.addEventListener('resize',()=>{W=window.innerWidth;H=window.innerHeight;camera.aspect=W/H;camera.updateProjectionMatrix();renderer.setSize(W,H);ov.width=W;ov.height=H;});
+setTimeout(()=>{document.getElementById('hint').style.opacity='0';},8000);
 </script>
 </body>
 </html>
