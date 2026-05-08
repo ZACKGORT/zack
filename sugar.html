@@ -28,7 +28,7 @@ canvas { display:block; }
 .widget-sub { font-size:8px; color:rgba(255,255,255,0.1); letter-spacing:0.1em; }
 
 /* SHAPE INSERTER */
-#shape-inserter { left:16px; top:80px; width:74px; }
+#shape-inserter { right:16px; top:80px; width:74px; left:auto; }
 #shape-inserter .widget-header { padding:8px 10px 6px; }
 #inserter-body { padding:8px; display:flex; flex-direction:column; gap:6px; }
 .ins-btn { display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:5px; padding:8px 5px 7px; cursor:none; color:#fff; width:100%; transition:background 0.12s,border-color 0.12s; }
@@ -40,7 +40,7 @@ canvas { display:block; }
 .ins-clear:hover { border-color:rgba(255,60,60,0.4); color:rgba(255,80,80,0.75); background:rgba(255,40,40,0.06); }
 
 /* GAME HUD */
-#game-hud { left:104px; top:80px; width:165px; }
+#game-hud { right:16px; top:16px; left:auto; bottom:auto; width:165px; }
 #hud-inner { padding:10px 11px; display:flex; flex-direction:column; gap:0; }
 .target-row { display:flex; align-items:center; gap:7px; margin-bottom:6px; }
 .tdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
@@ -51,7 +51,7 @@ canvas { display:block; }
 .tchk.done { opacity:1; }
 
 /* FLOW PANEL */
-#panel { right:16px; top:70px; width:186px; }
+#panel { left:16px; bottom:24px; top:auto; right:auto; width:186px; }
 #panel-header { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.04); cursor:grab; }
 #panel-header:active { cursor:grabbing; }
 #panel-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
@@ -73,7 +73,7 @@ input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); background
 .chk-row { display:flex; align-items:center; justify-content:space-between; }
 
 /* AUTHOR NOTE */
-#author-note { bottom:24px; left:16px; width:218px; }
+#author-note { top:16px; left:16px; bottom:auto; right:auto; width:218px; }
 #author-note .widget-header { padding:9px 12px 7px; }
 #anote-body { padding:12px 13px 13px; }
 #anote-eye { font-size:8px; letter-spacing:0.32em; color:rgba(255,255,255,0.13); text-transform:uppercase; margin-bottom:9px; }
@@ -99,7 +99,7 @@ input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); background
 #scale-ind.on { opacity:1; }
 
 #hint { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:0.22em; color:rgba(255,255,255,0.1); text-transform:uppercase; pointer-events:none; transition:opacity 1s; white-space:nowrap; z-index:10; }
-#shape-count { position:fixed; bottom:20px; right:16px; font-size:9px; letter-spacing:0.2em; color:rgba(255,255,255,0.12); text-transform:uppercase; pointer-events:none; }
+#shape-count { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:0.2em; color:rgba(255,255,255,0.12); text-transform:uppercase; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -196,7 +196,7 @@ input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); background
 // ── RENDERER ──────────────────────────────────────────────────────────────────
 let W=window.innerWidth,H=window.innerHeight;
 const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setClearColor(0x0a0a0a);
+renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,1.5)); renderer.setClearColor(0x0a0a0a);
 document.body.appendChild(renderer.domElement);
 
 const scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x0a0a0a,0.016);
@@ -220,7 +220,8 @@ floorM.rotation.x=-Math.PI/2; floorM.position.y=-9; scene.add(floorM);
 
 // overlay canvas
 const ov=document.createElement('canvas'); ov.style.cssText='position:fixed;top:0;left:0;pointer-events:none;z-index:50;';
-ov.width=W; ov.height=H; document.body.appendChild(ov); const ovCtx=ov.getContext('2d');
+ov.width=W; ov.height=H; document.body.appendChild(ov); const ovCtx=ov.getContext('2d',{willReadFrequently:false});
+let _ovFrame=0;
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function s2w(sx,sy){
@@ -231,12 +232,59 @@ function s2w(sx,sy){
 }
 
 // ── DRAGGABLE WIDGET SYSTEM ───────────────────────────────────────────────────
-function makeDraggable(widget,header,opts){
-  opts=opts||{};
+const WIDGETS=['shape-inserter','game-hud','panel','author-note'];
+const PAD=6; // minimum gap between widgets
+
+function getRect(id){
+  const el=document.getElementById(id),r=el.getBoundingClientRect();
+  return{id,el,x:r.left,y:r.top,w:r.width,h:r.height};
+}
+
+function rectsOverlap(a,b){
+  return a.x<b.x+b.w+PAD && a.x+a.w+PAD>b.x && a.y<b.y+b.h+PAD && a.y+a.h+PAD>b.y;
+}
+
+function resolveWidgetOverlaps(movedId){
+  // push overlapping widgets away from the one just moved, iteratively
+  for(let pass=0;pass<8;pass++){
+    let moved=false;
+    const rects=WIDGETS.map(getRect);
+    for(let i=0;i<rects.length;i++){
+      for(let j=i+1;j<rects.length;j++){
+        const a=rects[i],b=rects[j];
+        if(!rectsOverlap(a,b))continue;
+        // push the one that wasn't just moved
+        const pushB=(a.id===movedId);
+        const target=pushB?b:a;
+        const fixed=pushB?a:b;
+        // find minimum separation axis
+        const ox=(fixed.x+fixed.w/2)-(target.x+target.w/2);
+        const oy=(fixed.y+fixed.h/2)-(target.y+target.h/2);
+        const overlapX=(fixed.w/2+target.w/2+PAD)-Math.abs(ox);
+        const overlapY=(fixed.h/2+target.h/2+PAD)-Math.abs(oy);
+        let nx=target.x,ny=target.y;
+        if(overlapX<overlapY){
+          nx+=ox>0?-overlapX:overlapX;
+        } else {
+          ny+=oy>0?-overlapY:overlapY;
+        }
+        // clamp to viewport
+        nx=Math.max(0,Math.min(W-target.w,nx));
+        ny=Math.max(0,Math.min(H-target.h,ny));
+        target.el.style.left=nx+'px'; target.el.style.top=ny+'px';
+        target.x=nx; target.y=ny;
+        moved=true;
+      }
+    }
+    if(!moved)break;
+  }
+}
+
+function makeDraggable(widget,header){
   let drag=false,ox=0,oy=0;
+  const id=widget.id;
   header.addEventListener('pointerdown',e=>{
     if(e.button!==0)return;
-    // don't drag if clicking a button inside the header
     if(e.target.tagName==='BUTTON'||e.target.closest('button'))return;
     drag=true; header.classList.add('grabbing'); header.setPointerCapture(e.pointerId);
     const r=widget.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
@@ -244,23 +292,34 @@ function makeDraggable(widget,header,opts){
   });
   window.addEventListener('pointermove',e=>{
     if(!drag)return;
-    let nx=e.clientX-ox,ny=e.clientY-oy;
     const ww=widget.offsetWidth,wh=widget.offsetHeight;
-    nx=Math.max(0,Math.min(W-ww,nx)); ny=Math.max(0,Math.min(H-wh,ny));
-    if(opts.clampLeft) nx=Math.min(nx,140);
+    let nx=Math.max(0,Math.min(W-ww,e.clientX-ox));
+    let ny=Math.max(0,Math.min(H-wh,e.clientY-oy));
     widget.style.left=nx+'px'; widget.style.top=ny+'px';
     widget.style.right='auto'; widget.style.bottom='auto';
   });
-  window.addEventListener('pointerup',()=>{if(drag){drag=false;header.classList.remove('grabbing');}});
+  window.addEventListener('pointerup',()=>{
+    if(drag){drag=false;header.classList.remove('grabbing');resolveWidgetOverlaps(id);}
+  });
 }
 
-makeDraggable(document.getElementById('shape-inserter'),document.getElementById('si-header'),{clampLeft:true});
+makeDraggable(document.getElementById('shape-inserter'),document.getElementById('si-header'));
 makeDraggable(document.getElementById('game-hud'),document.getElementById('hud-header'));
 makeDraggable(document.getElementById('panel'),document.getElementById('panel-header'));
 makeDraggable(document.getElementById('author-note'),document.getElementById('anote-header'));
 
-// fix panel right-side initial position
-(()=>{const p=document.getElementById('panel');p.style.right='16px';p.style.top='70px';})();
+// resolve right/bottom anchors to left/top so draggable system works
+(()=>{
+  function pin(id){
+    const el=document.getElementById(id),r=el.getBoundingClientRect();
+    el.style.left=r.left+'px'; el.style.top=r.top+'px';
+    el.style.right='auto'; el.style.bottom='auto';
+  }
+  requestAnimationFrame(()=>{
+    WIDGETS.forEach(pin);
+    resolveWidgetOverlaps(null);
+  });
+})();
 
 // ── GAME LEVELS ───────────────────────────────────────────────────────────────
 const TCOL=['#ffb347','#47d4ff','#ff6b8a'];
@@ -290,13 +349,67 @@ function buildHUD(){
 const SDEFS={
   cube:{baseR:1.55,bounce:1.0,springK:6.0,damping:8.0,color:0xffffff,rough:0.55,
     makeGeo:s=>new THREE.BoxGeometry(2.6*s,2.6*s,2.6*s),
-    orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(Math.PI/4,Math.PI/4,0),new THREE.Euler(0,0,Math.PI/4),new THREE.Euler(Math.PI/6,Math.PI/3,Math.PI/6)]},
+    orients:[
+      new THREE.Euler(0,0,0),
+      new THREE.Euler(0,Math.PI/4,0),
+      new THREE.Euler(Math.PI/4,Math.PI/4,0),
+      new THREE.Euler(0,0,Math.PI/4),
+      new THREE.Euler(Math.PI/6,Math.PI/3,Math.PI/6),
+      new THREE.Euler(Math.PI/2,0,0),
+      new THREE.Euler(Math.PI/2,Math.PI/4,0),
+      new THREE.Euler(Math.PI/4,0,Math.PI/4),
+      new THREE.Euler(Math.PI/3,Math.PI/4,Math.PI/6),
+      new THREE.Euler(Math.PI/2,Math.PI/2,0),
+      new THREE.Euler(Math.PI,Math.PI/4,0),
+      new THREE.Euler(Math.PI/4,Math.PI/2,Math.PI/3),
+    ]},
   sphere:{baseR:1.4,bounce:1.3,springK:6.0,damping:7.0,color:0xdddddd,rough:0.15,
     makeGeo:s=>new THREE.SphereGeometry(1.4*s,32,20),
     orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0)]},
   pyramid:{baseR:1.45,bounce:0.85,springK:5.5,damping:8.0,color:0xffffff,rough:0.8,
     makeGeo:s=>new THREE.ConeGeometry(1.5*s,2.8*s,4),
-    orients:[new THREE.Euler(0,0,0),new THREE.Euler(0,Math.PI/4,0),new THREE.Euler(0,Math.PI/2,0),new THREE.Euler(Math.PI,0,0),new THREE.Euler(Math.PI/2,0,0),new THREE.Euler(0,0,Math.PI/2)]},
+    orients:[
+      // ── point up (default) ──
+      new THREE.Euler(0,0,0),
+      new THREE.Euler(0,Math.PI/4,0),
+      new THREE.Euler(0,Math.PI/2,0),
+      new THREE.Euler(0,Math.PI*3/4,0),
+      // ── point down ──
+      new THREE.Euler(Math.PI,0,0),
+      new THREE.Euler(Math.PI,Math.PI/4,0),
+      // ── point RIGHT (tip →) at flat attack ──
+      new THREE.Euler(0,0,-Math.PI/2),
+      new THREE.Euler(0,Math.PI/4,-Math.PI/2),
+      new THREE.Euler(0,Math.PI/2,-Math.PI/2),
+      new THREE.Euler(0,Math.PI*3/4,-Math.PI/2),
+      // ── point RIGHT angled down (~30°) ──
+      new THREE.Euler(Math.PI/6,0,-Math.PI/2),
+      new THREE.Euler(Math.PI/6,Math.PI/4,-Math.PI/2),
+      new THREE.Euler(Math.PI/6,Math.PI/2,-Math.PI/2),
+      // ── point RIGHT angled up (~30°) ──
+      new THREE.Euler(-Math.PI/6,0,-Math.PI/2),
+      new THREE.Euler(-Math.PI/6,Math.PI/4,-Math.PI/2),
+      // ── point RIGHT steep (~60°) ──
+      new THREE.Euler(Math.PI/3,0,-Math.PI/2),
+      new THREE.Euler(-Math.PI/3,0,-Math.PI/2),
+      // ── point LEFT (tip ←) at flat attack ──
+      new THREE.Euler(0,0,Math.PI/2),
+      new THREE.Euler(0,Math.PI/4,Math.PI/2),
+      new THREE.Euler(0,Math.PI/2,Math.PI/2),
+      new THREE.Euler(0,Math.PI*3/4,Math.PI/2),
+      // ── point LEFT angled down (~30°) ──
+      new THREE.Euler(Math.PI/6,0,Math.PI/2),
+      new THREE.Euler(Math.PI/6,Math.PI/4,Math.PI/2),
+      // ── point LEFT angled up (~30°) ──
+      new THREE.Euler(-Math.PI/6,0,Math.PI/2),
+      new THREE.Euler(-Math.PI/6,Math.PI/4,Math.PI/2),
+      // ── point LEFT steep (~60°) ──
+      new THREE.Euler(Math.PI/3,0,Math.PI/2),
+      new THREE.Euler(-Math.PI/3,0,Math.PI/2),
+      // ── diagonal combos ──
+      new THREE.Euler(Math.PI/4,Math.PI/4,Math.PI/4),
+      new THREE.Euler(-Math.PI/4,Math.PI/4,-Math.PI/4),
+    ]},
 };
 
 // ── SHAPE CLASS ───────────────────────────────────────────────────────────────
@@ -475,20 +588,38 @@ window.addEventListener('mouseup',e=>{
   }
 });
 
-// scroll to scale while holding
+// scroll: hold shape = scale it; free = fluid intensity/density
+let fluidTimer=null;
+function showFluid(){
+  const pct=Math.round((P.count-500)/(8000-500)*100);
+  scEl.textContent='FLOW '+pct+'%';
+  scEl.classList.add('on');
+  clearTimeout(fluidTimer);
+  fluidTimer=setTimeout(()=>scEl.classList.remove('on'),900);
+  document.getElementById('sl-count').value=P.count;
+  document.getElementById('v-count').textContent=Math.round(P.count);
+  document.getElementById('sl-size').value=P.size;
+  document.getElementById('v-size').textContent=P.size.toFixed(2);
+}
 window.addEventListener('wheel',e=>{
-  if(!dShape)return;
   e.preventDefault();
   const dir=e.deltaY>0?-1:1;
-  const ns=Math.max(SC_MIN,Math.min(SC_MAX,dShape.sc+dir*SC_STEP));
-  if(Math.abs(ns-dShape.sc)<0.001)return;
-  const oldR=dShape.sc/ns; // ratio to keep pos stable
-  dShape.resize(ns);
-  const wp=s2w(mX,mY);
-  dShape.pos.set(wp.x-dOff.x,wp.y-dOff.y,0);
-  dShape.mesh.position.copy(dShape.pos);
-  prevWP=wp.clone();
-  showScale(ns);
+  if(dShape){
+    const ns=Math.max(SC_MIN,Math.min(SC_MAX,dShape.sc+dir*SC_STEP));
+    if(Math.abs(ns-dShape.sc)<0.001)return;
+    dShape.resize(ns);
+    const wp=s2w(mX,mY);
+    dShape.pos.set(wp.x-dOff.x,wp.y-dOff.y,0);
+    dShape.mesh.position.copy(dShape.pos);
+    prevWP=wp.clone();
+    showScale(ns);
+  } else {
+    const step=Math.abs(e.deltaY)>50?200:100;
+    P.count=Math.max(500,Math.min(8000,P.count+dir*step));
+    P.size=0.55+((P.count-500)/(8000-500))*0.9;
+    P.size=Math.round(P.size*100)/100;
+    showFluid();
+  }
 },{passive:false});
 
 // ── PANEL SLIDERS ─────────────────────────────────────────────────────────────
@@ -592,16 +723,16 @@ function tick(){
     pp[b+2]-=pp[b+2]*0.4*dt;pv[b+2]*=0.92;
     for(let s=0;s<shapes.length;s++){
       const sh=shapes[s],d=sh.sdf(pp[b],pp[b+1],pp[b+2]);
-      if(d<PR){sdfN(sh,pp[b],pp[b+1],pp[b+2]);const pen=PR-d;pp[b]+=_n.x*pen;pp[b+1]+=_n.y*pen;pp[b+2]+=_n.z*pen;const dot=pv[b]*_n.x+pv[b+1]*_n.y+pv[b+2]*_n.z;if(dot<0){const bF=P.bounce*sh.def.bounce;pv[b]-=(1+bF)*dot*_n.x;pv[b+1]-=(1+bF)*dot*_n.y;pv[b+2]-=(1+bF)*dot*_n.z;pv[b]+=(Math.random()-0.5)*0.2;pv[b+2]+=(Math.random()-0.5)*0.08;}}
+      if(d<PR){sdfN(sh,pp[b],pp[b+1],pp[b+2]);const pen=PR-d;pp[b]+=_n.x*pen;pp[b+1]+=_n.y*pen;pp[b+2]+=_n.z*pen;const dot=pv[b]*_n.x+pv[b+1]*_n.y+pv[b+2]*_n.z;if(dot<0){pv[b]-=dot*_n.x*0.08;pv[b+1]-=dot*_n.y*0.08;pv[b+2]-=dot*_n.z*0.08;pv[b]+=(Math.random()-0.5)*0.18;pv[b+2]+=(Math.random()-0.5)*0.07;}}
     }
-    if(pp[b+1]<-8.9){pp[b+1]=-8.9;pv[b+1]=Math.abs(pv[b+1])*0.04;pv[b]*=0.55;pv[b+2]*=0.55;}
+    if(pp[b+1]<-8.9){pp[b+1]=-8.9;pv[b+1]=Math.abs(pv[b+1])*(0.28+Math.random()*0.18);pv[b]*=0.72;pv[b+2]*=0.72;}
     if(Math.abs(pp[b])>22)spawn(i);
     pv[b]*=0.997;
   }
   for(let i=N;i<MP;i++){if(pal[i]){pal[i]=0;pp[i*3+1]=-9999;}}
   pGeo.attributes.position.needsUpdate=true;
 
-  countTgts(); updateHUD(); checkDone(); drawOverlay();
+  countTgts(); updateHUD(); checkDone(); _ovFrame++;if(_ovFrame%2===0)drawOverlay();
   renderer.render(scene,camera);
 }
 
