@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Flow</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a0a; overflow:hidden; font-family:'Courier New',monospace; cursor:none; }
+canvas { display:block; }
+
+#cursor {
+  position:fixed; top:0; left:0; pointer-events:none; z-index:9999;
+  width:18px; height:11px; border-radius:50%;
+  background:rgba(255,255,248,0.92);
+  box-shadow:0 0 8px rgba(255,255,255,0.4);
+  will-change:transform;
+}
+
+/* ── DISPENSER PLAY/PAUSE BUTTON ── */
+#dispenser {
+  position:fixed; z-index:300;
+  top:18px; left:50%; transform:translateX(-50%);
+  user-select:none; touch-action:none;
+}
+
+#cta-btn {
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  background:#ffffff;
+  color:#0a0a0a;
+  border:none;
+  padding:0 20px 0 18px;
+  height:38px;
+  font-family:'Helvetica Neue',Arial,sans-serif;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  cursor:none;
+  border-radius:4px;
+  box-shadow:0 2px 16px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+  transition:box-shadow 0.15s, background 0.12s, color 0.12s;
+  position:relative;
+  white-space:nowrap;
+  min-width:100px;
+}
+#cta-btn:hover {
+  box-shadow:0 4px 24px rgba(255,255,255,0.18), 0 0 0 1px rgba(255,255,255,0.25);
+}
+#cta-btn.paused {
+  background:#0a0a0a;
+  color:#ffffff;
+  box-shadow:0 2px 16px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.18);
+}
+#cta-btn.paused:hover {
+  box-shadow:0 4px 24px rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.32);
+}
+#cta-btn.snap-active {
+  box-shadow:0 0 0 2px rgba(255,255,255,0.55), 0 4px 20px rgba(255,255,255,0.12);
+}
+#btn-icon {
+  width:11px; height:11px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+/* pause icon: two bars */
+#btn-icon.playing::before, #btn-icon.playing::after {
+  content:''; display:block; width:3px; height:10px;
+  background:currentColor; border-radius:1px;
+  position:absolute;
+}
+#btn-icon.playing::before { transform:translateX(-2.5px); }
+#btn-icon.playing::after  { transform:translateX(2.5px); }
+#btn-icon { position:relative; }
+/* play icon: triangle — drawn via inline SVG in JS */
+
+/* snap zone indicator (top edge glow) */
+#snap-hint {
+  position:fixed; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);
+  pointer-events:none; z-index:299; opacity:0; transition:opacity 0.3s;
+}
+#snap-hint.visible { opacity:1; }
+
+/* ── CONTEXT MENU ── */
+#ctx-menu {
+  position:fixed; z-index:500;
+  background:#111111;
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:8px;
+  padding:8px;
+  min-width:200px;
+  display:none;
+  box-shadow:0 8px 40px rgba(0,0,0,0.7);
+  font-family:'Helvetica Neue',Arial,sans-serif;
+}
+#ctx-menu.visible { display:block; }
+
+.ctx-title {
+  font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.2);
+  text-transform:uppercase; padding:4px 8px 8px; border-bottom:1px solid rgba(255,255,255,0.06);
+  margin-bottom:6px;
+}
+
+.shape-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:6px; margin-bottom:8px;
+}
+
+.shape-btn {
+  background:rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:6px;
+  padding:10px 8px;
+  cursor:none;
+  color:#fff;
+  text-align:center;
+  transition:background 0.12s, border-color 0.12s;
+  display:flex; flex-direction:column; align-items:center; gap:5px;
+}
+.shape-btn:hover {
+  background:rgba(255,255,255,0.09);
+  border-color:rgba(255,255,255,0.22);
+}
+.shape-icon {
+  width:32px; height:32px;
+  display:flex; align-items:center; justify-content:center;
+}
+.shape-icon svg { width:28px; height:28px; }
+.shape-label {
+  font-size:9px; letter-spacing:0.15em; text-transform:uppercase;
+  color:rgba(255,255,255,0.45);
+  display:flex; flex-direction:column; gap:2px; align-items:center;
+}
+.shape-trait {
+  font-size:8px; color:rgba(255,255,255,0.22); letter-spacing:0.05em;
+  text-transform:none;
+}
+
+.ctx-divider { height:1px; background:rgba(255,255,255,0.06); margin:6px 0; }
+
+.ctx-action {
+  background:transparent; border:none;
+  width:100%; padding:7px 8px;
+  text-align:left; cursor:none;
+  font-family:'Helvetica Neue',Arial,sans-serif;
+  font-size:10px; letter-spacing:0.1em; text-transform:uppercase;
+  color:rgba(255,255,255,0.3);
+  border-radius:4px;
+  transition:background 0.1s, color 0.1s;
+  display:flex; align-items:center; gap:8px;
+}
+.ctx-action:hover { background:rgba(255,255,255,0.05); color:rgba(255,255,255,0.6); }
+.ctx-action.danger:hover { background:rgba(255,60,60,0.1); color:rgba(255,80,80,0.7); }
+
+/* ── SIDE PANEL ── */
+#panel {
+  position:fixed; top:70px; right:16px; width:186px;
+  background:rgba(10,10,10,0.8); border:1px solid rgba(255,255,255,0.06);
+  backdrop-filter:blur(12px); z-index:100; border-radius:6px;
+}
+#panel-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.04);
+}
+#panel-title { font-size:9px; letter-spacing:0.3em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
+#btn-playpause {
+  background:transparent; border:1px solid rgba(255,255,255,0.12);
+  color:rgba(255,255,255,0.38); font-family:'Courier New',monospace;
+  font-size:9px; letter-spacing:0.1em; padding:3px 7px;
+  cursor:none; text-transform:uppercase; transition:all 0.15s; border-radius:3px;
+}
+#btn-playpause:hover { color:#fff; border-color:rgba(255,255,255,0.35); }
+#btn-playpause.paused { color:rgba(255,180,80,0.85); border-color:rgba(255,160,60,0.3); }
+#panel-body { padding:11px; display:flex; flex-direction:column; gap:9px; }
+.ctrl-row { display:flex; flex-direction:column; gap:4px; }
+.ctrl-label { display:flex; justify-content:space-between; align-items:baseline; }
+.ctrl-name { font-size:9px; letter-spacing:0.18em; color:rgba(255,255,255,0.18); text-transform:uppercase; }
+.ctrl-val  { font-size:9px; color:rgba(255,255,255,0.32); min-width:30px; text-align:right; }
+input[type=range] {
+  -webkit-appearance:none; width:100%; height:1px;
+  background:rgba(255,255,255,0.08); outline:none; cursor:none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none; width:8px; height:8px; border-radius:50%;
+  background:rgba(255,255,255,0.55); cursor:none; transition:transform 0.1s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); background:#fff; }
+.divider { height:1px; background:rgba(255,255,255,0.04); margin:1px 0; }
+.tog {
+  background:transparent; border:1px solid rgba(255,255,255,0.08);
+  color:rgba(255,255,255,0.22); font-family:'Courier New',monospace;
+  font-size:9px; letter-spacing:0.1em; padding:2px 7px;
+  cursor:none; text-transform:uppercase; transition:all 0.15s; border-radius:3px;
+}
+.tog:hover { color:rgba(255,255,255,0.55); border-color:rgba(255,255,255,0.25); }
+.tog.on { color:rgba(255,255,255,0.75); border-color:rgba(255,255,255,0.35); }
+.check-row { display:flex; align-items:center; justify-content:space-between; }
+
+#hint {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  font-size:9px; letter-spacing:0.28em; color:rgba(255,255,255,0.14);
+  text-transform:uppercase; pointer-events:none; transition:opacity 1s; white-space:nowrap;
+}
+
+/* Shape count badge */
+#shape-count {
+  position:fixed; bottom:20px; right:16px;
+  font-size:9px; letter-spacing:0.2em; color:rgba(255,255,255,0.14);
+  text-transform:uppercase; pointer-events:none;
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="snap-hint"></div>
+
+<div id="dispenser">
+  <button id="cta-btn">
+    <svg id="icon-pause" width="10" height="11" viewBox="0 0 10 11" fill="currentColor"><rect x="0" y="0" width="3.5" height="11" rx="1"/><rect x="6.5" y="0" width="3.5" height="11" rx="1"/></svg>
+    <svg id="icon-play"  width="10" height="11" viewBox="0 0 10 11" fill="currentColor" style="display:none"><polygon points="0,0 10,5.5 0,11"/></svg>
+    <span id="btn-label">sugar not salt</span>
+  </button>
+</div>
+
+<div id="hint">DRAG BUTTON · RIGHT CLICK TO ADD SHAPES · CLICK SHAPE TO ROTATE</div>
+<div id="shape-count"></div>
+
+<!-- Right-click context menu -->
+<div id="ctx-menu">
+  <div class="ctx-title">Insert shape</div>
+  <div class="shape-grid">
+    <button class="shape-btn" data-shape="cube">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <path d="M14 3L25 8.5V19.5L14 25L3 19.5V8.5L14 3Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/>
+          <path d="M14 3L14 25M3 8.5L25 8.5M14 3L25 8.5M14 3L3 8.5" stroke="rgba(255,255,255,0.25)" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <div class="shape-label">Cube<span class="shape-trait">bouncy · light</span></div>
+    </button>
+    <button class="shape-btn" data-shape="sphere">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="10" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/>
+          <ellipse cx="14" cy="14" rx="10" ry="4" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/>
+          <line x1="14" y1="4" x2="14" y2="24" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <div class="shape-label">Sphere<span class="shape-trait">slippery · fast</span></div>
+    </button>
+    <button class="shape-btn" data-shape="pyramid">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <path d="M14 4L26 22H2L14 4Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/>
+          <path d="M14 4L2 22M14 4L26 22" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <div class="shape-label">Pyramid<span class="shape-trait">sharp · deflects</span></div>
+    </button>
+    <button class="shape-btn" data-shape="torus">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <ellipse cx="14" cy="16" rx="10" ry="5" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="none"/>
+          <ellipse cx="14" cy="14" rx="10" ry="5" stroke="rgba(255,255,255,0.35)" stroke-width="0.7" fill="rgba(10,10,10,0.9)"/>
+          <ellipse cx="14" cy="14" rx="4" ry="2" stroke="rgba(255,255,255,0.5)" stroke-width="0.8" fill="none"/>
+        </svg>
+      </div>
+      <div class="shape-label">Ring<span class="shape-trait">hollow · splits flow</span></div>
+    </button>
+    <button class="shape-btn" data-shape="wedge">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <path d="M4 22L24 22L24 8L4 22Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/>
+          <path d="M4 22L24 8M14 22L14 8" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <div class="shape-label">Wedge<span class="shape-trait">heavy · anchored</span></div>
+    </button>
+    <button class="shape-btn" data-shape="diamond">
+      <div class="shape-icon">
+        <svg viewBox="0 0 28 28" fill="none">
+          <path d="M14 3L25 14L14 25L3 14L14 3Z" stroke="rgba(255,255,255,0.6)" stroke-width="1" fill="rgba(255,255,255,0.04)"/>
+          <path d="M3 14L25 14M14 3L14 25" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/>
+        </svg>
+      </div>
+      <div class="shape-label">Diamond<span class="shape-trait">glassy · spreads</span></div>
+    </button>
+  </div>
+  <div class="ctx-divider"></div>
+  <button class="ctx-action" id="ctx-reset-shapes">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 5.5A4.5 4.5 0 109.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M7 1l2.5 2-2 2.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Reset all shapes
+  </button>
+  <button class="ctx-action danger" id="ctx-clear-shapes">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2 2.5L9 9.5M9 2.5L2 9.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    Clear all shapes
+  </button>
+</div>
+
+<div id="panel">
+  <div id="panel-header">
+    <div id="panel-title">FLOW</div>
+    <button id="btn-playpause">❚❚ PAUSE</button>
+  </div>
+  <div id="panel-body">
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span class="ctrl-name">AMOUNT</span><span class="ctrl-val" id="val-count">4000</span></div>
+      <input type="range" id="sl-count" min="500" max="8000" step="100" value="4000">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span class="ctrl-name">GRAVITY</span><span class="ctrl-val" id="val-gravity">9.8</span></div>
+      <input type="range" id="sl-gravity" min="1" max="30" step="0.1" value="9.8">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span class="ctrl-name">SPREAD</span><span class="ctrl-val" id="val-spread">0.30</span></div>
+      <input type="range" id="sl-spread" min="0.05" max="2.5" step="0.05" value="0.3">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span class="ctrl-name">BOUNCE</span><span class="ctrl-val" id="val-bounce">0.25</span></div>
+      <input type="range" id="sl-bounce" min="0" max="1.0" step="0.01" value="0.25">
+    </div>
+    <div class="ctrl-row">
+      <div class="ctrl-label"><span class="ctrl-name">SIZE</span><span class="ctrl-val" id="val-size">1.00</span></div>
+      <input type="range" id="sl-size" min="0.2" max="3.0" step="0.05" value="1.0">
+    </div>
+    <div class="divider"></div>
+    <div class="check-row">
+      <span class="ctrl-name">RAIN MODE</span>
+      <button class="tog" id="tog-rain">OFF</button>
+    </div>
+    <div class="divider"></div>
+    <div class="check-row">
+      <span class="ctrl-name">RESET PARTICLES</span>
+      <button class="tog" id="tog-reset">GO</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── RENDERER ────────────────────────────────────────────────────────────────
+let W = window.innerWidth, H = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x0a0a0a);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0a0a, 0.016);
+
+const camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 200);
+camera.position.set(0, 1.5, 28);
+camera.lookAt(0, 0, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.07));
+const mainLight = new THREE.PointLight(0xfff5ee, 3.2, 70);
+mainLight.position.set(11, -1, 14); scene.add(mainLight);
+const rimLight = new THREE.PointLight(0x9aaabb, 0.6, 40);
+rimLight.position.set(-9, 5, 10); scene.add(rimLight);
+
+// glow orb
+const orbCanvas = document.createElement('canvas');
+orbCanvas.width = orbCanvas.height = 256;
+const orbCtx = orbCanvas.getContext('2d');
+const og = orbCtx.createRadialGradient(128,128,0,128,128,128);
+og.addColorStop(0,'rgba(255,255,248,1)'); og.addColorStop(0.08,'rgba(255,245,230,0.8)');
+og.addColorStop(0.3,'rgba(220,210,190,0.18)'); og.addColorStop(1,'rgba(0,0,0,0)');
+orbCtx.fillStyle=og; orbCtx.fillRect(0,0,256,256);
+const orbSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: new THREE.CanvasTexture(orbCanvas), transparent: true,
+  blending: THREE.AdditiveBlending, depthWrite: false
+}));
+orbSprite.scale.set(22,22,1); orbSprite.position.set(11,-1,5); scene.add(orbSprite);
+
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(100,100),
+  new THREE.MeshStandardMaterial({color:0x050505, roughness:1.0})
+);
+floor.rotation.x = -Math.PI/2; floor.position.y = -9; scene.add(floor);
+
+// ── UTILITIES ───────────────────────────────────────────────────────────────
+function screenToWorld(sx, sy) {
+  const ndcX=(sx/W)*2-1, ndcY=-(sy/H)*2+1;
+  const v = new THREE.Vector3(ndcX,ndcY,0.5).unproject(camera);
+  const dir = v.sub(camera.position).normalize();
+  const t = -camera.position.z / dir.z;
+  return new THREE.Vector3(camera.position.x+dir.x*t, camera.position.y+dir.y*t, 0);
+}
+
+// ── SHAPE DEFINITIONS ────────────────────────────────────────────────────────
+// Each shape type has distinct physics personality
+const SHAPE_DEFS = {
+  cube: {
+    radius: 1.55,
+    bounce: 1.0,
+    mass: 1.0,
+    springK: 6.0,
+    damping: 8.0,
+    color: 0xffffff,
+    roughness: 0.55,
+    makeGeo: () => new THREE.BoxGeometry(2.6,2.6,2.6),
+    orientPresets: [
+      new THREE.Euler(0,0,0), new THREE.Euler(0,Math.PI/4,0),
+      new THREE.Euler(Math.PI/4,Math.PI/4,0), new THREE.Euler(0,0,Math.PI/4),
+      new THREE.Euler(Math.PI/6,Math.PI/3,Math.PI/6),
+    ]
+  },
+  sphere: {
+    radius: 1.4,
+    bounce: 1.3,
+    mass: 0.8,
+    springK: 6.0,
+    damping: 7.0,
+    color: 0xdddddd,
+    roughness: 0.15,
+    makeGeo: () => new THREE.SphereGeometry(1.4,32,20),
+    orientPresets: [new THREE.Euler(0,0,0), new THREE.Euler(0,Math.PI/4,0)]
+  },
+  pyramid: {
+    radius: 1.45,
+    bounce: 0.85,
+    mass: 1.2,
+    springK: 5.5,
+    damping: 8.0,
+    color: 0xffffff,
+    roughness: 0.8,
+    makeGeo: () => new THREE.ConeGeometry(1.5,2.8,4),
+    orientPresets: [
+      new THREE.Euler(0,0,0), new THREE.Euler(0,Math.PI/4,0),
+      new THREE.Euler(0,Math.PI/2,0), new THREE.Euler(Math.PI,0,0),
+      new THREE.Euler(Math.PI/2,0,0), new THREE.Euler(0,0,Math.PI/2),
+    ]
+  },
+  torus: {
+    radius: 1.7,     // outer approx
+    bounce: 1.1,
+    mass: 0.9,
+    springK: 6.0,
+    damping: 7.0,
+    color: 0xcccccc,
+    roughness: 0.3,
+    makeGeo: () => new THREE.TorusGeometry(1.2, 0.42, 14, 40),
+    orientPresets: [
+      new THREE.Euler(0,0,0), new THREE.Euler(Math.PI/2,0,0),
+      new THREE.Euler(Math.PI/4,Math.PI/4,0), new THREE.Euler(0,Math.PI/3,Math.PI/6)
+    ]
+  },
+  wedge: {
+    radius: 1.35,
+    bounce: 0.6,
+    mass: 2.2,
+    springK: 9.0,
+    damping: 14.0,
+    color: 0xffffff,
+    roughness: 0.9,
+    makeGeo: () => new THREE.CylinderGeometry(0,1.8,2.2,3),
+    orientPresets: [
+      new THREE.Euler(0,0,0),
+      new THREE.Euler(0,Math.PI*(2/3),0),
+      new THREE.Euler(0,Math.PI*(4/3),0),
+      new THREE.Euler(Math.PI/2,0,0),
+      new THREE.Euler(0,0,Math.PI/2),
+    ]
+  },
+  diamond: {
+    radius: 1.5,
+    bounce: 1.5,      // very glassy — high bounce
+    mass: 0.7,
+    springK: 5.0,
+    damping: 6.0,     // less damping = more wobbly after drag
+    color: 0xeeeeff,
+    roughness: 0.05,
+    makeGeo: () => {
+      // Octahedron as diamond
+      const geo = new THREE.OctahedronGeometry(1.5, 0);
+      return geo;
+    },
+    orientPresets: [
+      new THREE.Euler(0,0,0), new THREE.Euler(0,Math.PI/4,0),
+      new THREE.Euler(0,0,Math.PI/6), new THREE.Euler(Math.PI/6,Math.PI/4,0)
+    ]
+  },
+};
+
+// ── SHAPE CLASS ──────────────────────────────────────────────────────────────
+class PhysShape {
+  constructor(type, startPos, rotEuler) {
+    this.type = type;
+    const def = SHAPE_DEFS[type];
+    this.def = def;
+    this.radius = def.radius;
+    this.pos = startPos.clone();
+    this.restPos = startPos.clone();
+    this.vel = new THREE.Vector3();
+    this.dragging = false;
+    this.orientIdx = 0;
+    this.targetEuler = rotEuler ? rotEuler.clone() : new THREE.Euler();
+    this.currentEuler = this.targetEuler.clone();
+
+    const mat = new THREE.MeshStandardMaterial({
+      color: def.color,
+      roughness: def.roughness,
+      metalness: type === 'diamond' ? 0.15 : 0.02,
+      transparent: type === 'diamond',
+      opacity: type === 'diamond' ? 0.88 : 1.0,
+    });
+    const geo = def.makeGeo();
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.rotation.copy(this.currentEuler);
+    this.mesh.position.copy(this.pos);
+
+    // Create a separate geometry instance for edges to avoid NaN bounding sphere
+    const edgeSourceGeo = def.makeGeo();
+    const eGeo = new THREE.EdgesGeometry(edgeSourceGeo, 22);
+    edgeSourceGeo.dispose();
+    const edgeOpacity = type === 'sphere' ? 0.12 : (type === 'diamond' ? 0.4 : 0.22);
+    this.mesh.add(new THREE.LineSegments(eGeo,
+      new THREE.LineBasicMaterial({color:0x888888, transparent:true, opacity:edgeOpacity})
+    ));
+
+    scene.add(this.mesh);
+  }
+
+  cycleOrientation() {
+    const presets = this.def.orientPresets;
+    this.orientIdx = (this.orientIdx + 1) % presets.length;
+    this.targetEuler = presets[this.orientIdx].clone();
+  }
+
+  update(dt) {
+    this.currentEuler.x += (this.targetEuler.x - this.currentEuler.x) * 0.1;
+    this.currentEuler.y += (this.targetEuler.y - this.currentEuler.y) * 0.1;
+    this.currentEuler.z += (this.targetEuler.z - this.currentEuler.z) * 0.1;
+    this.mesh.rotation.copy(this.currentEuler);
+
+    if (!this.dragging) {
+      const xErr = this.pos.x - this.restPos.x;
+      const yErr = this.pos.y - this.restPos.y;
+      this.vel.x -= xErr * this.def.springK * dt;
+      this.vel.y -= yErr * this.def.springK * dt;
+      this.vel.x -= this.vel.x * this.def.damping * dt;
+      this.vel.y -= this.vel.y * this.def.damping * dt;
+      this.pos.x += this.vel.x * dt * 60;
+      this.pos.y += this.vel.y * dt * 60;
+    }
+
+    this.pos.z = 0;
+    const BX=13, BY_BOT=-8.5+this.radius, BY_TOP=14;
+    if(this.pos.x >  BX){this.pos.x= BX; this.vel.x*=-0.4;}
+    if(this.pos.x < -BX){this.pos.x=-BX; this.vel.x*=-0.4;}
+    if(this.pos.y < BY_BOT){this.pos.y=BY_BOT; this.vel.y*=-0.35;}
+    if(this.pos.y > BY_TOP){this.pos.y=BY_TOP; this.vel.y*=-0.3;}
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.updateMatrixWorld(true);
+  }
+
+  sdf(px, py, pz) {
+    const l = this.mesh.worldToLocal(new THREE.Vector3(px,py,pz));
+    const x=l.x, y=l.y, z=l.z;
+
+    if (this.type==='cube') {
+      const qx=Math.abs(x)-1.3, qy=Math.abs(y)-1.3, qz=Math.abs(z)-1.3;
+      return Math.sqrt(Math.max(qx,0)**2+Math.max(qy,0)**2+Math.max(qz,0)**2)
+             +Math.min(Math.max(qx,qy,qz),0);
+    }
+
+    if (this.type==='sphere' || this.type==='diamond') {
+      return Math.sqrt(x*x+y*y+z*z)-this.radius;
+    }
+
+    if (this.type==='torus') {
+      // True torus SDF — particles can pass through the hole
+      const qr = Math.sqrt(x*x+z*z)-1.2;
+      return Math.sqrt(qr*qr+y*y)-0.42;
+    }
+
+    if (this.type==='pyramid') {
+      // ConeGeometry(radius=1.5, height=2.8, radialSegments=4)
+      // Local space: apex at y=+1.4, base at y=-1.4
+      // Face apothem (inradius of square) = 1.5 * cos(PI/4) = 1.0607
+      // The 4 slanted faces are described by: max(|x|,|z|) <= inR*(1 - (y+H)/(2H)) ... 
+      // Rewritten: the cone half-angle in the face-normal direction.
+      // Easiest correct form: signed dist to the 4-sided cone surface.
+      const H  = 1.4;
+      const inR = 1.5 * Math.SQRT1_2; // cos(PI/4) * 1.5 = 1.0607
+
+      // Project onto the cone's slant surface.
+      // In the plane of each face, the slant line goes from (0,H) to (inR,-H).
+      // Slant length and direction:
+      const sl = Math.sqrt(inR*inR + (2*H)*(2*H)); // slant edge length
+      const nx_slant =  (2*H) / sl; // normal x-component (pointing outward-ish)
+      const ny_slant =  inR   / sl; // normal y-component
+
+      // Distance from the 4 slant faces: each face is a half-plane.
+      // For face in XZ, use Chebyshev distance = max(|x|,|z|) for the radial part.
+      const r2d = Math.max(Math.abs(x), Math.abs(z));
+      // Signed distance to slant surface (positive = outside)
+      const dSlant = r2d * nx_slant + y * ny_slant - inR * nx_slant - (-H) * ny_slant;
+      // Cap distance (base at y=-H)
+      const dCap = -H - y; // positive below base
+
+      if (dSlant <= 0 && dCap <= 0) {
+        // Inside — return most negative (closest surface, as negative)
+        return Math.max(dSlant, dCap);
+      }
+      if (dSlant <= 0) return dCap;
+      if (dCap   <= 0) return dSlant;
+      return Math.sqrt(dSlant*dSlant + dCap*dCap);
+    }
+
+    if (this.type==='wedge') {
+      // CylinderGeometry(0, radius=1.8, height=2.2, radialSegments=3)
+      // Local space: apex at y=+1.1, base at y=-1.1
+      // Equilateral triangle, vertices at circumR=1.8, inradius=1.8*cos(PI/3)=0.9
+      const H   = 1.1;
+      const inR = 0.9; // 1.8 * cos(60°)
+
+      const sl   = Math.sqrt(inR*inR + (2*H)*(2*H));
+      const nx_s = (2*H) / sl;
+      const ny_s = inR   / sl;
+
+      // 3 outward face normals of equilateral triangle (in XZ), one vertex at +x:
+      const s3 = Math.sin(Math.PI/3);
+      const c3 = Math.cos(Math.PI/3);
+      // Outward normals: n0=(1,0), n1=(-c3, s3), n2=(-c3,-s3)
+      const r0 =  x;
+      const r1 = -c3*x + s3*z;
+      const r2 = -c3*x - s3*z;
+      const r2d = Math.max(r0, r1, r2); // max projection = distance to nearest face in XZ
+
+      const dSlant = r2d * nx_s + y * ny_s - inR * nx_s - (-H) * ny_s;
+      const dCap   = -H - y;
+
+      if (dSlant <= 0 && dCap <= 0) return Math.max(dSlant, dCap);
+      if (dSlant <= 0) return dCap;
+      if (dCap   <= 0) return dSlant;
+      return Math.sqrt(dSlant*dSlant + dCap*dCap);
+    }
+
+    return Math.sqrt(x*x+y*y+z*z)-this.radius;
+  }
+
+  dispose() {
+    scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
+    this.mesh.children.forEach(c=>{
+      if(c.geometry) c.geometry.dispose();
+      if(c.material) c.material.dispose();
+    });
+  }
+}
+
+// ── INITIAL SHAPES ───────────────────────────────────────────────────────────
+const INIT_LAYOUT = [
+  { type:'cube',    pos:new THREE.Vector3( 0.4,  6.2, 0), rot:new THREE.Euler(0, 0.5, 0.15) },
+  { type:'sphere',  pos:new THREE.Vector3(-0.3,  2.4, 0) },
+  { type:'pyramid', pos:new THREE.Vector3( 0.3, -1.6, 0), rot:new THREE.Euler(0, 0.8, 0) },
+  { type:'wedge',   pos:new THREE.Vector3(-0.2, -5.2, 0), rot:new THREE.Euler(0, Math.PI/5, 0) },
+];
+
+let shapes = [];
+
+function buildInitialShapes() {
+  shapes.forEach(s=>s.dispose()); shapes=[];
+  INIT_LAYOUT.forEach(d=>{
+    shapes.push(new PhysShape(d.type, d.pos, d.rot||null));
+  });
+  updateShapeCount();
+}
+
+function insertShape(type) {
+  // Find a safe vertical position above all existing shapes
+  const spawnY = 10;
+  const spawnX = (Math.random()-0.5)*4;
+  const s = new PhysShape(type, new THREE.Vector3(spawnX, spawnY, 0));
+  shapes.push(s);
+  updateShapeCount();
+}
+
+function clearAllShapes() {
+  shapes.forEach(s=>s.dispose()); shapes=[];
+  updateShapeCount();
+}
+
+function updateShapeCount() {
+  const el = document.getElementById('shape-count');
+  if(shapes.length>0) el.textContent = shapes.length + ' shapes';
+  else el.textContent = '';
+}
+
+buildInitialShapes();
+
+// inter-shape collision
+function resolveShapeCollisions() {
+  for(let a=0;a<shapes.length;a++){
+    for(let b=a+1;b<shapes.length;b++){
+      const sa=shapes[a], sb=shapes[b];
+      const dx=sb.pos.x-sa.pos.x, dy=sb.pos.y-sa.pos.y;
+      const dist=Math.sqrt(dx*dx+dy*dy);
+      const minD=sa.radius+sb.radius;
+      if(dist>0.001&&dist<minD){
+        const pen=minD-dist; const nx=dx/dist, ny=dy/dist;
+        const wa=sa.dragging?0:0.5, wb=sb.dragging?0:0.5;
+        sa.pos.x-=nx*pen*wa; sa.pos.y-=ny*pen*wa;
+        sb.pos.x+=nx*pen*wb; sb.pos.y+=ny*pen*wb;
+        const dvx=sb.vel.x-sa.vel.x, dvy=sb.vel.y-sa.vel.y;
+        const dot=dvx*nx+dvy*ny;
+        if(dot<0){
+          const j=(1+0.5)*dot*0.5;
+          if(!sa.dragging){sa.vel.x+=j*nx; sa.vel.y+=j*ny;}
+          if(!sb.dragging){sb.vel.x-=j*nx; sb.vel.y-=j*ny;}
+        }
+      }
+    }
+  }
+}
+
+// ── DISPENSER BUTTON ─────────────────────────────────────────────────────────
+const dispenser = document.getElementById('dispenser');
+const ctaBtn = document.getElementById('cta-btn');
+const snapHint = document.getElementById('snap-hint');
+
+let dispDragging = false;
+let dispActuallyMoved = false;   // true only if pointer moved enough to count as drag
+let dispDragOX=0, dispDragOY=0;
+let dispX = W/2, dispY = 18;
+let dispSnapped = true;
+
+const SNAP_ZONE_Y = 60; // pixels from top to trigger snap
+
+function positionDispenser(cx, y) {
+  dispenser.style.left = cx + 'px';
+  dispenser.style.top = y + 'px';
+  dispenser.style.transform = 'translateX(-50%)';
+}
+positionDispenser(dispX, dispY);
+
+dispenser.addEventListener('pointerdown', e=>{
+  if(e.button !== 0) return;
+  dispDragging = true;
+  dispActuallyMoved = false;
+  dispenser.setPointerCapture(e.pointerId);
+  const rect = dispenser.getBoundingClientRect();
+  dispDragOX = e.clientX - (rect.left + rect.width/2);
+  dispDragOY = e.clientY - rect.top;
+  ctaBtn.classList.remove('snap-active');
+  // Do NOT call preventDefault — that kills the click event
+  e.stopPropagation();
+});
+
+window.addEventListener('pointermove', e=>{
+  if(!dispDragging) return;
+  const dx = e.clientX - (dispX + dispDragOX);
+  const dy = e.clientY - (dispY + dispDragOY);
+  if(Math.abs(dx)>4 || Math.abs(dy)>4) dispActuallyMoved = true;
+  dispX = e.clientX - dispDragOX;
+  dispY = e.clientY - dispDragOY;
+
+  const nearSnap = dispY < SNAP_ZONE_Y;
+  snapHint.classList.toggle('visible', nearSnap);
+
+  if(nearSnap) {
+    dispY = 18;
+    dispX = Math.max(60, Math.min(W-60, dispX));
+  }
+
+  positionDispenser(dispX, dispY);
+});
+
+window.addEventListener('pointerup', e=>{
+  if(!dispDragging) return;
+  dispDragging = false;
+  snapHint.classList.remove('visible');
+
+  if(dispY < SNAP_ZONE_Y) {
+    dispY = 18;
+    dispSnapped = true;
+    ctaBtn.classList.add('snap-active');
+    setTimeout(()=>ctaBtn.classList.remove('snap-active'), 600);
+  } else {
+    dispSnapped = false;
+  }
+
+  positionDispenser(Math.max(60, Math.min(W-60, dispX)), dispY);
+});
+
+// Get spout world position from button center
+function getSpoutWorld() {
+  const rect = ctaBtn.getBoundingClientRect();
+  const cx = rect.left + rect.width/2;
+  const cy = rect.bottom;
+  return screenToWorld(cx, cy);
+}
+
+// ── CONTEXT MENU ─────────────────────────────────────────────────────────────
+const ctxMenu = document.getElementById('ctx-menu');
+
+function showCtxMenu(x, y) {
+  ctxMenu.classList.add('visible');
+  // Keep menu in viewport
+  let mx = x+2, my = y+2;
+  const mw=220, mh=340;
+  if(mx+mw > W) mx = x-mw-2;
+  if(my+mh > H) my = y-mh-2;
+  ctxMenu.style.left = mx+'px';
+  ctxMenu.style.top  = my+'px';
+}
+function hideCtxMenu() {
+  ctxMenu.classList.remove('visible');
+}
+
+renderer.domElement.addEventListener('contextmenu', e=>{ e.preventDefault(); showCtxMenu(e.clientX, e.clientY); });
+document.getElementById('panel').addEventListener('contextmenu', e=>{ e.preventDefault(); showCtxMenu(e.clientX, e.clientY); });
+window.addEventListener('mousedown', e=>{ if(!ctxMenu.contains(e.target)) hideCtxMenu(); });
+window.addEventListener('keydown', e=>{ if(e.key==='Escape') hideCtxMenu(); });
+
+document.querySelectorAll('.shape-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const type = btn.dataset.shape;
+    insertShape(type);
+    hideCtxMenu();
+  });
+});
+
+document.getElementById('ctx-reset-shapes').addEventListener('click', ()=>{
+  buildInitialShapes();
+  hideCtxMenu();
+});
+document.getElementById('ctx-clear-shapes').addEventListener('click', ()=>{
+  clearAllShapes();
+  hideCtxMenu();
+});
+
+// ── PARTICLES ─────────────────────────────────────────────────────────────────
+const MAX_P=8000;
+const ppos=new Float32Array(MAX_P*3);
+const pvel=new Float32Array(MAX_P*3);
+const psz=new Float32Array(MAX_P);
+const page=new Float32Array(MAX_P);
+const plife=new Float32Array(MAX_P);
+const palive=new Uint8Array(MAX_P);
+
+const params={ count:4000, gravity:9.8, spread:0.3, bounce:0.25, size:1.0, rain:false };
+
+function spawnParticle(i) {
+  const b=i*3;
+  const sw = getSpoutWorld();
+  const zSpread=1.2;
+  ppos[b]   = sw.x+(Math.random()-0.5)*params.spread;
+  ppos[b+1] = sw.y+0.2;
+  ppos[b+2] = (Math.random()-0.5)*zSpread;
+  pvel[b]   = (Math.random()-0.5)*0.08;
+  pvel[b+1] = -0.3-Math.random()*0.3;
+  pvel[b+2] = (Math.random()-0.5)*0.04;
+  psz[i]    = 0.5+Math.random()*0.9;
+  plife[i]  = 9+Math.random()*5;
+  page[i]   = Math.random()*plife[i];
+  palive[i] = 1;
+}
+for(let i=0;i<MAX_P;i++) spawnParticle(i);
+
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(ppos,3));
+pGeo.setAttribute('size',     new THREE.BufferAttribute(psz,1));
+
+const pMat = new THREE.ShaderMaterial({
+  uniforms:{ uSize:{value:1.0} },
+  vertexShader:`
+    attribute float size; varying float vFog; uniform float uSize;
+    void main(){
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      float d=-mv.z;
+      gl_PointSize=size*uSize*(260.0/d);
+      gl_Position=projectionMatrix*mv;
+      vFog=clamp(d*0.025,0.0,1.0);
+    }`,
+  fragmentShader:`
+    varying float vFog;
+    void main(){
+      vec2 uv=gl_PointCoord-0.5; float d=length(uv);
+      if(d>0.5) discard;
+      float core=exp(-d*10.0); float soft=smoothstep(0.5,0.0,d)*0.5;
+      float a=(core+soft)*(1.0-vFog*0.75);
+      gl_FragColor=vec4(1.0,0.99,0.97,a*0.82);
+    }`,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+});
+scene.add(new THREE.Points(pGeo, pMat));
+
+const PR=0.08;
+const _n=new THREE.Vector3();
+function sdfNorm(shape,px,py,pz){
+  const e=0.006, c=shape.sdf(px,py,pz);
+  _n.set(shape.sdf(px+e,py,pz)-c, shape.sdf(px,py+e,pz)-c, shape.sdf(px,py,pz+e)-c).normalize();
+}
+
+// ── DRAG SHAPES ───────────────────────────────────────────────────────────────
+let mouseX=W/2, mouseY=H/2;
+let cursorX=W/2, cursorY=H/2, cvx=0, cvy=0;
+const cursorEl = document.getElementById('cursor');
+
+const ray=new THREE.Raycaster();
+const mvNDC=new THREE.Vector2();
+let dragShape=null, dragOffset=new THREE.Vector3(), prevDragWP=null;
+let lmbDownShape=null, lmbDownTime=0, lmbMoved=false;
+
+renderer.domElement.addEventListener('mousedown', e=>{
+  if(e.button===0){
+    if(dispDragging) return;
+    mvNDC.set((e.clientX/W)*2-1, -(e.clientY/H)*2+1);
+    ray.setFromCamera(mvNDC, camera);
+    const hits = ray.intersectObjects(shapes.map(s=>s.mesh), true);
+    if(hits.length){
+      const sh = shapes.find(s=>s.mesh===hits[0].object||s.mesh.children.includes(hits[0].object));
+      if(sh){
+        lmbDownShape=sh; lmbDownTime=Date.now(); lmbMoved=false;
+        dragShape=sh; sh.dragging=true; sh.vel.set(0,0,0);
+        const wp = screenToWorld(e.clientX, e.clientY);
+        dragOffset.set(wp.x-sh.pos.x, wp.y-sh.pos.y, 0);
+        prevDragWP = wp.clone();
+      }
+    }
+  }
+});
+
+window.addEventListener('mousemove', e=>{
+  mouseX=e.clientX; mouseY=e.clientY;
+  if(dragShape){
+    const wp=screenToWorld(e.clientX,e.clientY);
+    if(prevDragWP){
+      const dx=wp.x-prevDragWP.x, dy=wp.y-prevDragWP.y;
+      if(Math.sqrt(dx*dx+dy*dy)>0.05) lmbMoved=true;
+    }
+    dragShape.pos.set(wp.x-dragOffset.x, wp.y-dragOffset.y, 0);
+    if(prevDragWP) dragShape.vel.set((wp.x-prevDragWP.x)*2.5,(wp.y-prevDragWP.y)*2.5,0);
+    prevDragWP=wp.clone();
+  }
+});
+
+window.addEventListener('mouseup', e=>{
+  if(e.button===0){
+    if(dragShape){
+      if(!lmbMoved && (Date.now()-lmbDownTime)<350) dragShape.cycleOrientation();
+      dragShape.restPos.set(dragShape.pos.x, dragShape.pos.y, 0);
+      dragShape.dragging=false; dragShape=null; prevDragWP=null; lmbDownShape=null;
+    }
+  }
+});
+
+// ── PANEL ─────────────────────────────────────────────────────────────────────
+function bindSlider(id,valId,key,fmt){
+  const sl=document.getElementById(id), vl=document.getElementById(valId);
+  sl.addEventListener('input',()=>{ params[key]=parseFloat(sl.value); vl.textContent=fmt(params[key]); });
+}
+bindSlider('sl-count','val-count','count',v=>Math.round(v));
+bindSlider('sl-gravity','val-gravity','gravity',v=>v.toFixed(1));
+bindSlider('sl-spread','val-spread','spread',v=>v.toFixed(2));
+bindSlider('sl-bounce','val-bounce','bounce',v=>v.toFixed(2));
+bindSlider('sl-size','val-size','size',v=>v.toFixed(2));
+
+let paused=false;
+function setPaused(val) {
+  paused = val;
+  const btn = document.getElementById('cta-btn');
+  const lbl = document.getElementById('btn-label');
+  const ip  = document.getElementById('icon-pause');
+  const ipl = document.getElementById('icon-play');
+  if(paused) {
+    btn.classList.add('paused');
+    ip.style.display='none'; ipl.style.display='block';
+    lbl.textContent='Play';
+  } else {
+    btn.classList.remove('paused');
+    ip.style.display='block'; ipl.style.display='none';
+    lbl.textContent='Pause';
+    clock.getDelta();
+  }
+}
+// CTA button click = play/pause (only when not a real drag)
+ctaBtn.addEventListener('click', e=>{
+  if(!dispActuallyMoved) { setPaused(!paused); }
+  e.stopPropagation();
+});
+// Panel button mirrors state
+document.getElementById('btn-playpause').addEventListener('click',function(){
+  setPaused(!paused);
+  this.textContent=paused?'▶ PLAY':'❚❚ PAUSE';
+  this.classList.toggle('paused',paused);
+});function makeTog(id,on,off){
+  const b=document.getElementById(id); let s=false;
+  b.addEventListener('click',()=>{ s=!s; b.textContent=s?'ON':'OFF'; b.classList.toggle('on',s); s?on():off(); });
+}
+makeTog('tog-rain',()=>params.rain=true,()=>params.rain=false);
+document.getElementById('tog-reset').addEventListener('click',()=>{
+  for(let i=0;i<MAX_P;i++) spawnParticle(i);
+});
+
+// ── MAIN LOOP ─────────────────────────────────────────────────────────────────
+const clock=new THREE.Clock();
+
+function tick(){
+  requestAnimationFrame(tick);
+  const dt=Math.min(clock.getDelta(),0.033);
+
+  // inertia cursor
+  cvx+=(mouseX-cursorX)*0.18; cvy+=(mouseY-cursorY)*0.18;
+  cvx*=0.62; cvy*=0.62;
+  cursorX+=cvx; cursorY+=cvy;
+  const spd=Math.sqrt(cvx*cvx+cvy*cvy);
+  const ang=spd>0.5?Math.atan2(cvy,cvx)*180/Math.PI:0;
+  const stretch=Math.min(spd*0.55,13);
+  const cw=18+stretch, ch=Math.max(6,11-stretch*0.28);
+  cursorEl.style.transform=`translate(${cursorX-cw/2}px,${cursorY-ch/2}px) rotate(${ang}deg)`;
+  cursorEl.style.width=cw+'px'; cursorEl.style.height=ch+'px';
+
+  if(paused) return;
+
+  resolveShapeCollisions();
+  shapes.forEach(s=>s.update(dt));
+
+  pMat.uniforms.uSize.value=params.size;
+  const N=Math.min(params.count,MAX_P);
+
+  for(let i=0;i<MAX_P;i++){
+    const b=i*3;
+    if(i>=N){if(palive[i]){palive[i]=0;ppos[b+1]=-9999;}continue;}
+    if(!palive[i]){spawnParticle(i);continue;}
+    page[i]+=dt;
+    if(page[i]>plife[i]){spawnParticle(i);continue;}
+
+    pvel[b+1]-=params.gravity*dt;
+
+    if(params.rain){pvel[b]-=ppos[b]*0.4*dt; pvel[b+2]-=ppos[b+2]*0.3*dt;}
+
+    ppos[b]  +=pvel[b]  *dt;
+    ppos[b+1]+=pvel[b+1]*dt;
+    ppos[b+2]+=pvel[b+2]*dt;
+    ppos[b+2]-=ppos[b+2]*0.4*dt;
+    pvel[b+2]*=0.92;
+
+    // shape collisions — use shape-specific bounce multiplier
+    for(let s=0;s<shapes.length;s++){
+      const sh=shapes[s];
+      const d=sh.sdf(ppos[b],ppos[b+1],ppos[b+2]);
+      if(d<PR){
+        sdfNorm(sh,ppos[b],ppos[b+1],ppos[b+2]);
+        const pen=PR-d;
+        ppos[b]  +=_n.x*pen; ppos[b+1]+=_n.y*pen; ppos[b+2]+=_n.z*pen;
+        const dot=pvel[b]*_n.x+pvel[b+1]*_n.y+pvel[b+2]*_n.z;
+        if(dot<0){
+          const bFactor=params.bounce*sh.def.bounce;
+          pvel[b]  -=(1+bFactor)*dot*_n.x;
+          pvel[b+1]-=(1+bFactor)*dot*_n.y;
+          pvel[b+2]-=(1+bFactor)*dot*_n.z;
+          pvel[b]  +=(Math.random()-0.5)*0.2;
+          pvel[b+2]+=(Math.random()-0.5)*0.08;
+
+        }
+      }
+    }
+
+    // Floor
+    if(ppos[b+1]<-8.9){
+      ppos[b+1]=-8.9; pvel[b+1]=Math.abs(pvel[b+1])*0.04;
+      pvel[b]*=0.55; pvel[b+2]*=0.55;
+    }
+    if(Math.abs(ppos[b])>22) spawnParticle(i);
+
+    pvel[b]*=0.997;
+  }
+
+  pGeo.attributes.position.needsUpdate=true;
+  renderer.render(scene,camera);
+}
+
+tick();
+
+window.addEventListener('resize',()=>{
+  W=window.innerWidth; H=window.innerHeight;
+  camera.aspect=W/H; camera.updateProjectionMatrix(); renderer.setSize(W,H);
+});
+setTimeout(()=>{ document.getElementById('hint').style.opacity='0'; },7000);
+</script>
+</body>
+</html>
