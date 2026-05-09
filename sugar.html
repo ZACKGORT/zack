@@ -424,16 +424,12 @@ camera.position.set(0,1.5,28);camera.lookAt(0,0,0);
 // Mobile: zoom out camera to give more viewport space for text
 if(isMobile){camera.position.z=44;}
 scene.add(new THREE.AmbientLight(0xffffff,0.07));
-const mainL=new THREE.PointLight(0xfff5ee,3.2,70);mainL.position.set(11,-1,14);scene.add(mainL);
-const rimL=new THREE.PointLight(0x9aaabb,0.6,40);rimL.position.set(-9,5,10);scene.add(rimL);
-
-const oc=document.createElement('canvas');oc.width=oc.height=256;
-const ox2=oc.getContext('2d');const og=ox2.createRadialGradient(128,128,0,128,128,128);
-og.addColorStop(0,'rgba(255,255,248,1)');og.addColorStop(0.08,'rgba(255,245,230,0.8)');
-og.addColorStop(0.3,'rgba(220,210,190,0.18)');og.addColorStop(1,'rgba(0,0,0,0)');
-ox2.fillStyle=og;ox2.fillRect(0,0,256,256);
-const orbS=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(oc),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
-orbS.scale.set(22,22,1);orbS.position.set(11,-1,5);scene.add(orbS);
+// Main light: high off-camera right — warm key light, not visible in scene
+const mainL=new THREE.PointLight(0xfff5ee,3.8,120);mainL.position.set(32,18,22);scene.add(mainL);
+// Rim light: off-camera left, cool fill — gives shape edges definition
+const rimL=new THREE.PointLight(0x9aaabb,1.1,80);rimL.position.set(-28,14,16);scene.add(rimL);
+// Subtle floor bounce: warm upward fill from below the scene
+const fillL=new THREE.PointLight(0xffe8c0,0.35,60);fillL.position.set(0,-22,8);scene.add(fillL);
 
 const floorM=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x050505,roughness:1.0}));
 floorM.rotation.x=-Math.PI/2;floorM.position.y=-9;scene.add(floorM);
@@ -1257,26 +1253,60 @@ function tick(){
     if(dTop<EDGE_ZONE&&dTop>-1.0){const t=1-(dTop/EDGE_ZONE);pv[b+1]-=t*t*EDGE_F*dt;}
     if(dBot<EDGE_ZONE&&dBot>-1.0){const t=1-(dBot/EDGE_ZONE);pv[b+1]+=t*t*EDGE_F*dt;}
 
-    // ── Non-airborne (settled on ground): allow z-drag to decay naturally ──
-    if(!airborne){pp[b+2]*=0.96;pv[b+2]*=0.94;}
+    // ── Non-airborne (settled on ground): rolling resistance ──
+    if(!airborne){
+      // Rolling friction: stronger deceleration than air drag, mimics granular settling
+      pv[b]*=0.91;pv[b+2]*=0.88;
+      pp[b+2]*=0.97;
+    }
 
     for(let s=0;s<shapes.length;s++){
       const sh=shapes[s],d=sh.sdf(pp[b],pp[b+1],pp[b+2]);
       if(d<PR){sdfN(sh,pp[b],pp[b+1],pp[b+2]);const pen=PR-d;pp[b]+=_n.x*pen;pp[b+1]+=_n.y*pen;pp[b+2]+=_n.z*pen;const dot=pv[b]*_n.x+pv[b+1]*_n.y+pv[b+2]*_n.z;if(dot<0){pv[b]-=dot*_n.x*0.08;pv[b+1]-=dot*_n.y*0.08;pv[b+2]-=dot*_n.z*0.08;pv[b]+=(Math.random()-0.5)*0.18;pv[b+2]+=(Math.random()-0.5)*0.07;}}
     }
-    // ── Ground bounce: full-axis splash ──
+    // ── Ground impact: realistic granular splash ──
     if(pp[b+1]<-8.9){
       pp[b+1]=-8.9;
-      const spd=Math.abs(pv[b+1]);
-      const bounce=P.bounce>0?P.bounce:(0.28+Math.random()*0.18);
-      pv[b+1]=spd*bounce;
-      // Splat energy distributes into x and z on impact
-      const splatE=spd*(0.35+Math.random()*0.25);
-      const splatAng=Math.random()*Math.PI*2;
-      pv[b]  +=Math.cos(splatAng)*splatE*0.6;
-      pv[b+2]+=Math.sin(splatAng)*splatE*0.55;
-      // Friction
-      pv[b]*=0.68;pv[b+2]*=0.68;
+      const vy=pv[b+1]; // negative (downward)
+      const impactSpd=Math.abs(vy);
+      const vx=pv[b], vz=pv[b+2];
+      const lateralSpd=Math.sqrt(vx*vx+vz*vz);
+
+      // Coefficient of restitution drops with impact speed (high-speed = more energy absorbed)
+      // Real granulars: COR ~0.4 slow, ~0.15 fast, ~0 at terminal
+      const COR=P.bounce*Math.max(0.05,1.0-impactSpd*0.09);
+      pv[b+1]=impactSpd*COR; // rebound — always upward
+
+      // Splash ejecta: particles spray at shallow angles (15°–40° from floor)
+      // Energy available for lateral splash = incoming KE minus rebound KE
+      const reboundFrac=COR*COR;
+      const splatPool=impactSpd*(1.0-reboundFrac)*0.55;
+
+      if(splatPool>0.05){
+        // Preserve incoming horizontal momentum (inertia carries forward)
+        const momentumBias=0.45; // fraction of lateral velocity that persists
+        pv[b]  = vx*momentumBias;
+        pv[b+2]= vz*momentumBias;
+
+        // Add radial ejecta — biased in direction of travel, shallow angle
+        // Ejecta angle from horizontal: 15°–38° (real wet/dry granulars)
+        const ejectAng=(0.26+Math.random()*0.38); // radians from floor plane
+        const ejectSpd=splatPool*(0.6+Math.random()*0.65);
+        const ejectYaw=Math.random()*Math.PI*2; // random azimuth
+        // Bias azimuth toward existing lateral travel direction
+        const travelYaw=(lateralSpd>0.1)?Math.atan2(vz,vx):ejectYaw;
+        const biasedYaw=travelYaw+( (Math.random()-0.5)*Math.PI*1.2 );
+        pv[b]  +=Math.cos(biasedYaw)*Math.cos(ejectAng)*ejectSpd;
+        pv[b+2]+=Math.sin(biasedYaw)*Math.cos(ejectAng)*ejectSpd;
+        pv[b+1]+=Math.sin(ejectAng)*ejectSpd; // small upward component from ejecta
+
+        // Rolling friction on lateral velocity after impact
+        const rollingFriction=0.62+Math.random()*0.1;
+        pv[b]*=rollingFriction;pv[b+2]*=rollingFriction;
+      } else {
+        // Very slow impact: just stop laterally (settle / stack)
+        pv[b]*=0.28;pv[b+2]*=0.28;
+      }
     }
     if(pp[b]<edgeL-1||pp[b]>edgeR+1)spawn(i);
     pv[b]*=0.997;
