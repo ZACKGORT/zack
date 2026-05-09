@@ -163,7 +163,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   /* Hide Add from top bar on mobile — it lives in bottom rail */
   #mb-add-btn{display:none!important;}
 
-  /* Panels drop down from top bar */
+  /* Panels drop down from top bar (note only) */
   .mb-panel{
     position:fixed;top:48px;left:0;right:0;
     background:rgba(10,10,10,0.94);
@@ -175,15 +175,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     overflow-y:auto;
   }
   .mb-panel.open{display:block;}
-  /* Add panel opens upward from bottom rail */
-  #mb-add-panel{
-    top:auto!important;bottom:44px!important;
-    border-bottom:none!important;
-    border-top:1px solid rgba(255,255,255,0.07)!important;
-    max-height:60vh;
-  }
-  /* Controls panel also opens upward from bottom rail */
-  #mb-ctrl-panel{
+  /* Flow + ctrl panels open upward from bottom rail */
+  #mb-flow-panel,#mb-ctrl-panel{
     top:auto!important;bottom:44px!important;
     border-bottom:none!important;
     border-top:1px solid rgba(255,255,255,0.07)!important;
@@ -251,9 +244,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   .mb-rail-btn:last-child{border-right:none;}
   .mb-rail-btn:active,.mb-rail-btn.open{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.9);}
   .mb-rail-btn svg{width:14px;height:14px;flex-shrink:0;}
-  /* Aa toggle active state */
-  #mb-text-tog.text-on{color:rgba(255,255,255,0.8);}
-  #mb-text-tog.text-off{color:rgba(255,255,255,0.22);}
 
   /* dispenser shifts down, clears top bar */
   #dispenser{top:58px!important;}
@@ -262,10 +252,58 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   #next-btn{bottom:96px!important;}
   #shape-count{display:none!important;}
 
+  /* ── SHAPE HUD: floating draggable widget ── */
+  #mb-shape-hud{
+    position:fixed;
+    bottom:60px;left:50%;transform:translateX(-50%);
+    width:auto;
+    display:flex;align-items:stretch;
+    background:rgba(10,10,10,0.88);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:8px;
+    backdrop-filter:blur(16px);
+    z-index:398;
+    touch-action:none;
+    user-select:none;
+    box-shadow:0 4px 24px rgba(0,0,0,0.5);
+    transition:transform 0.25s ease, bottom 0.25s ease;
+  }
+  .mb-shape-btn{
+    width:72px;height:64px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    font-family:'Courier New',monospace;
+    font-size:8px;letter-spacing:0.14em;text-transform:uppercase;
+    color:rgba(255,255,255,0.35);
+    border:none;background:transparent;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    border-right:1px solid rgba(255,255,255,0.06);
+    transition:background 0.12s,color 0.12s;
+    border-radius:0;
+  }
+  .mb-shape-btn:first-child{border-radius:8px 0 0 8px;}
+  .mb-shape-btn svg{opacity:0.55;transition:opacity 0.12s;}
+  .mb-shape-btn:active{background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.9);}
+  .mb-shape-btn:active svg{opacity:0.9;}
+  #mb-hud-clear{
+    width:44px;height:64px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    font-family:'Courier New',monospace;
+    font-size:7px;letter-spacing:0.1em;text-transform:uppercase;
+    color:rgba(255,80,80,0.3);
+    border:none;background:transparent;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    border-left:1px solid rgba(255,255,255,0.05);
+    border-radius:0 8px 8px 0;
+    transition:color 0.15s,background 0.12s;
+  }
+  #mb-hud-clear:active{color:rgba(255,80,80,0.8);background:rgba(255,40,40,0.06);}
+
   /* Floating text: smaller size & tighter line-height on mobile */
   /* Controlled via JS FONT_SIZE & LINE_H; also enforce via canvas override */
 }
-@media (min-width:601px){#mobile-bar,.mb-panel,#mobile-bottom-rail{display:none!important;}}
+@media (min-width:601px){#mobile-bar,.mb-panel,#mobile-bottom-rail,#mb-shape-hud{display:none!important;}}
 </style>
 </head>
 <body>
@@ -316,6 +354,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <div class="div"></div>
     <div class="chk-row"><span class="ctrl-nm">RAIN</span><button class="tog" id="tog-rain">OFF</button></div>
     <div class="div"></div>
+    <div class="chk-row"><span class="ctrl-nm">TEXT</span><button class="tog on" id="tog-text">ON</button></div>
+    <div class="div"></div>
     <div class="chk-row"><span class="ctrl-nm">RESET PARTICLES</span><button class="tog" id="tog-reset">GO</button></div>
     <div class="div"></div>
     <button class="ins-clear" id="btn-clear2" style="width:100%;background:transparent;border:1px solid rgba(255,60,60,0.15);color:rgba(255,80,80,0.38);font-family:'Courier New',monospace;font-size:8px;letter-spacing:0.1em;padding:5px 4px;cursor:none;text-transform:uppercase;border-radius:3px;transition:all 0.15s;">CLEAR ALL</button>
@@ -356,16 +396,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   <span id="zl-z">Z</span><span id="zl-c">C</span><span id="zl-k">K</span><span id="zl-g">G</span><span id="zl-r">R</span><span id="zl-t">T</span>
 </div>
 
-<!-- Desktop text toggle -->
-<div id="desktop-text-tog">
-  <button id="btn-text-tog" class="on">Aa TEXT</button>
-</div>
-
-<!-- MOBILE TOP BAR: Flow + Note -->
+<!-- MOBILE TOP BAR: Note only -->
 <div id="mobile-bar">
-  <button class="mb-btn" id="mb-flow-btn">Flow</button>
   <button class="mb-btn" id="mb-note-btn">Note</button>
 </div>
+<div class="mb-panel" id="mb-note-panel">
+  <div style="padding:16px 20px;">
+    <div style="font-size:8px;letter-spacing:0.25em;color:rgba(255,255,255,0.2);text-transform:uppercase;margin-bottom:8px;">On Design Today</div>
+    <div style="font-size:10px;line-height:1.75;color:rgba(255,255,255,0.32);letter-spacing:0.03em;">In 2026, <span style="color:rgba(255,255,255,0.55);">design is no longer a discipline</span> — it is a conversation between intent and physics. The boundary between tool and creator has dissolved. Flows are <span style="color:rgba(255,255,255,0.55);">redirected, not engineered</span>. Constraints are placed, not drawn. The designer's gesture is now the angle of deflection. What falls is gravity. What <span style="color:rgba(255,255,255,0.55);">reaches its target</span> is intention.</div>
+    <div style="margin-top:8px;font-size:8px;color:rgba(255,255,255,0.14);letter-spacing:0.12em;font-style:italic;">— on the nature of directed systems</div>
+    <div id="mb-anote-links">
+      <a href="https://zackgort.com" target="_blank" rel="noopener">zackgort.com</a>
+      <a href="https://zack.cx" target="_blank" rel="noopener">zack.cx</a>
+      <a href="https://neverever.land" target="_blank" rel="noopener">neverever.land</a>
+    </div>
+  </div>
+</div>
+
+<!-- Flow panel — opens upward from bottom rail -->
 <div class="mb-panel" id="mb-flow-panel">
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Pause</span>
@@ -400,46 +448,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <button class="mb-ctrl-btn" id="mb-tog-reset">↺</button>
   </div>
 </div>
-<div class="mb-panel" id="mb-note-panel">
-  <div style="padding:16px 20px;">
-    <div style="font-size:8px;letter-spacing:0.25em;color:rgba(255,255,255,0.2);text-transform:uppercase;margin-bottom:8px;">On Design Today</div>
-    <div style="font-size:10px;line-height:1.75;color:rgba(255,255,255,0.32);letter-spacing:0.03em;">In 2026, <span style="color:rgba(255,255,255,0.55);">design is no longer a discipline</span> — it is a conversation between intent and physics. The boundary between tool and creator has dissolved. Flows are <span style="color:rgba(255,255,255,0.55);">redirected, not engineered</span>. Constraints are placed, not drawn. The designer's gesture is now the angle of deflection. What falls is gravity. What <span style="color:rgba(255,255,255,0.55);">reaches its target</span> is intention.</div>
-    <div style="margin-top:8px;font-size:8px;color:rgba(255,255,255,0.14);letter-spacing:0.12em;font-style:italic;">— on the nature of directed systems</div>
-    <div id="mb-anote-links">
-      <a href="https://zackgort.com" target="_blank" rel="noopener">zackgort.com</a>
-      <a href="https://zack.cx" target="_blank" rel="noopener">zack.cx</a>
-      <a href="https://neverever.land" target="_blank" rel="noopener">neverever.land</a>
-    </div>
-  </div>
-</div>
 
-<!-- Add panel — opens from bottom rail -->
-<div class="mb-panel" id="mb-add-panel">
-  <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.05);">
-    <button class="mb-rail-btn" id="mb-add-cube" style="flex:1;height:60px;flex-direction:column;gap:4px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;font-size:9px;">
-      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/><path d="M12 2L12 22M2 7L22 7" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/></svg>
-      Cube
-    </button>
-    <button class="mb-rail-btn" id="mb-add-sphere" style="flex:1;height:60px;flex-direction:column;gap:4px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;font-size:9px;">
-      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/><ellipse cx="12" cy="12" rx="9" ry="3.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"/></svg>
-      Sphere
-    </button>
-    <button class="mb-rail-btn" id="mb-add-pyramid" style="flex:1;height:60px;flex-direction:column;gap:4px;border-radius:0;font-size:9px;">
-      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 3L22 20H2L12 3Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/></svg>
-      Pyramid
-    </button>
-  </div>
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Clear All</span>
-    <button class="mb-ctrl-btn" id="mb-clear" style="border-color:rgba(255,60,60,0.2);color:rgba(255,80,80,0.5);">Clear</button>
-  </div>
-</div>
-
-<!-- Controls panel — opens from bottom rail -->
+<!-- Controls panel — opens upward from bottom rail -->
 <div class="mb-panel" id="mb-ctrl-panel">
   <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Aa Text</span>
-    <button class="mb-tog-btn text-on" id="mb-text-tog-ctrl">On</button>
+    <span class="mb-ctrl-lbl">Text</span>
+    <button class="mb-tog-btn on" id="mb-text-tog">Aa On</button>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Font Size</span>
@@ -453,18 +467,35 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   </div>
 </div>
 
-<!-- MOBILE BOTTOM RAIL: Add shapes + Controls + Aa toggle -->
+<!-- SHAPE HUD: persistent always-visible strip above bottom rail -->
+<div id="mb-shape-hud">
+  <button class="mb-shape-btn" id="mb-add-cube">
+    <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="rgba(255,255,255,0.8)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><path d="M12 2L12 22M2 7L22 7" stroke="rgba(255,255,255,0.28)" stroke-width="0.7"/></svg>
+    Cube
+  </button>
+  <button class="mb-shape-btn" id="mb-add-sphere">
+    <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.8)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><ellipse cx="12" cy="12" rx="9" ry="3.5" stroke="rgba(255,255,255,0.22)" stroke-width="0.7"/><line x1="12" y1="3" x2="12" y2="21" stroke="rgba(255,255,255,0.22)" stroke-width="0.7"/></svg>
+    Sphere
+  </button>
+  <button class="mb-shape-btn" id="mb-add-pyramid">
+    <svg viewBox="0 0 24 24" fill="none" width="22" height="22"><path d="M12 3L22 20H2L12 3Z" stroke="rgba(255,255,255,0.8)" stroke-width="1.1" fill="rgba(255,255,255,0.04)"/><path d="M12 3L2 20M12 3L22 20" stroke="rgba(255,255,255,0.22)" stroke-width="0.7"/></svg>
+    Pyramid
+  </button>
+  <button id="mb-hud-clear">
+    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(255,80,80,0.5)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Clear
+  </button>
+</div>
+
+<!-- MOBILE BOTTOM RAIL: Flow + Controls -->
 <div id="mobile-bottom-rail">
-  <button class="mb-rail-btn" id="mb-rail-add-btn">
-    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="12" y1="7" x2="12" y2="17" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="7" y1="12" x2="17" y2="12" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/></svg>
-    Add
+  <button class="mb-rail-btn" id="mb-flow-btn">
+    <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><path d="M12 3v18M5 8l7-5 7 5" stroke="rgba(255,255,255,0.55)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Flow
   </button>
   <button class="mb-rail-btn" id="mb-rail-ctrl-btn">
-    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="6" cy="7" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="10" y1="7" x2="20" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="4" y1="7" x2="2" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><circle cx="16" cy="17" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="4" y1="17" x2="12" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="20" y1="17" x2="20" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="18" y1="17" x2="20" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" width="13" height="13"><circle cx="6" cy="7" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="10" y1="7" x2="20" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="2" y1="7" x2="4" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><circle cx="16" cy="17" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="4" y1="17" x2="14" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="18" y1="17" x2="22" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/></svg>
     Controls
-  </button>
-  <button class="mb-rail-btn" id="mb-text-tog" title="Toggle floating text">
-    Aa
   </button>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1084,7 +1115,30 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   const mbSizeSl=document.getElementById('mb-sl-size');
   if(mbSizeSl){mbSizeSl.value=P.size;const mbSzV=document.getElementById('mb-v-size');if(mbSzV)mbSzV.textContent=P.size.toFixed(2);}
 
-  // All closeable panels (top bar + bottom rail)
+  // ── Shape HUD nudge ─────────────────────────────────────────────────────────
+  // When an upward panel opens, push the HUD up so it isn't covered.
+  // Only applies when the HUD is in its default float position (not user-dragged).
+  const hud=document.getElementById('mb-shape-hud');
+  let hudUserDragged=false; // once user drags, we stop auto-nudging
+  const UPWARD_PANELS=['mb-flow-panel','mb-ctrl-panel'];
+
+  function nudgeHUD(){
+    if(hudUserDragged||!hud)return;
+    // find tallest currently-open upward panel
+    let maxH=0;
+    UPWARD_PANELS.forEach(id=>{
+      const p=document.getElementById(id);
+      if(p&&p.classList.contains('open'))maxH=Math.max(maxH,p.offsetHeight);
+    });
+    // HUD rests 16px above rail (44px) = bottom:60px baseline
+    // nudge: bottom = 60 + panel height
+    hud.style.bottom=(maxH>0?(44+maxH+16):60)+'px';
+    hud.style.top='auto';
+    hud.style.left='50%';
+    hud.style.transform='translateX(-50%)';
+  }
+
+  // All closeable panels
   const allPanels=()=>document.querySelectorAll('.mb-panel');
   const allBtns=()=>document.querySelectorAll('.mb-btn,.mb-rail-btn');
   function togglePanel(panel,btn){
@@ -1092,53 +1146,112 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
     allPanels().forEach(p=>p.classList.remove('open'));
     allBtns().forEach(b=>b.classList.remove('open'));
     if(!open){panel.classList.add('open');btn.classList.add('open');}
+    // nudge after a tick so panel has rendered height
+    requestAnimationFrame(nudgeHUD);
   }
 
-  // Top bar panels
-  const topPanels={
-    'mb-flow-btn':'mb-flow-panel',
-    'mb-note-btn':'mb-note-panel',
-  };
-  Object.entries(topPanels).forEach(([btnId,panelId])=>{
-    const btn=document.getElementById(btnId),panel=document.getElementById(panelId);
-    if(!btn||!panel)return;
-    btn.addEventListener('click',()=>togglePanel(panel,btn));
-  });
-
-  // Bottom rail: Add button
-  const railAddBtn=document.getElementById('mb-rail-add-btn');
-  const addPanel=document.getElementById('mb-add-panel');
-  if(railAddBtn&&addPanel){
-    railAddBtn.addEventListener('click',()=>togglePanel(addPanel,railAddBtn));
+  // Top bar: Note only (drops down)
+  const noteBtn=document.getElementById('mb-note-btn');
+  const notePanel=document.getElementById('mb-note-panel');
+  if(noteBtn&&notePanel){
+    noteBtn.addEventListener('click',()=>togglePanel(notePanel,noteBtn));
   }
 
-  // Bottom rail: Controls button
+  // Bottom rail: Flow
+  const flowBtn=document.getElementById('mb-flow-btn');
+  const flowPanel=document.getElementById('mb-flow-panel');
+  if(flowBtn&&flowPanel){
+    flowBtn.addEventListener('click',()=>togglePanel(flowPanel,flowBtn));
+  }
+
+  // Bottom rail: Controls
   const railCtrlBtn=document.getElementById('mb-rail-ctrl-btn');
   const ctrlPanel=document.getElementById('mb-ctrl-panel');
   if(railCtrlBtn&&ctrlPanel){
     railCtrlBtn.addEventListener('click',()=>togglePanel(ctrlPanel,railCtrlBtn));
   }
 
-  // Aa toggle: show/hide floating text layer
+  // Shape HUD buttons — direct tap
+  function bindHudBtn(id,type){
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      addShape(type);
+      allPanels().forEach(p=>p.classList.remove('open'));
+      allBtns().forEach(b=>b.classList.remove('open'));
+      requestAnimationFrame(nudgeHUD);
+    });
+  }
+  bindHudBtn('mb-add-cube','cube');
+  bindHudBtn('mb-add-sphere','sphere');
+  bindHudBtn('mb-add-pyramid','pyramid');
+  const mbHudClear=document.getElementById('mb-hud-clear');
+  if(mbHudClear)mbHudClear.addEventListener('click',()=>clearShapes());
+
+  // Shape HUD: draggable
+  (()=>{
+    if(!hud)return;
+    let dragging=false,startX=0,startY=0,origX=0,origY=0,moved=false;
+    requestAnimationFrame(()=>{
+      const r=hud.getBoundingClientRect();
+      hud.style.transform='none';
+      hud.style.left=r.left+'px';
+      hud.style.top=r.top+'px';
+      hud.style.bottom='auto';
+    });
+    hud.addEventListener('touchstart',e=>{
+      if(e.touches.length!==1)return;
+      const t=e.touches[0];
+      dragging=true;moved=false;
+      startX=t.clientX;startY=t.clientY;
+      const r=hud.getBoundingClientRect();
+      origX=r.left;origY=r.top;
+      hud.style.transition='none';
+      hud.style.transform='none';
+      hud.style.left=origX+'px';
+      hud.style.top=origY+'px';
+      hud.style.bottom='auto';
+    },{passive:true});
+    hud.addEventListener('touchmove',e=>{
+      if(!dragging||e.touches.length!==1)return;
+      const t=e.touches[0];
+      const dx=t.clientX-startX,dy=t.clientY-startY;
+      if(Math.abs(dx)>5||Math.abs(dy)>5)moved=true;
+      if(!moved)return;
+      hudUserDragged=true;
+      e.stopPropagation();
+      const r=hud.getBoundingClientRect();
+      const nx=Math.max(0,Math.min(window.innerWidth-r.width,origX+dx));
+      const ny=Math.max(0,Math.min(window.innerHeight-r.height,origY+dy));
+      hud.style.left=nx+'px';
+      hud.style.top=ny+'px';
+    },{passive:false});
+    hud.addEventListener('touchend',()=>{
+      dragging=false;
+      if(moved)hud.style.transition=''; // restore transition after drag
+    });
+  })();
+
+  // Aa toggle (now inside controls panel)
   let textVisible=true;
   const mbTextTog=document.getElementById('mb-text-tog');
   if(mbTextTog){
-    mbTextTog.classList.add('text-on');
     mbTextTog.addEventListener('click',()=>{
       textVisible=!textVisible;
       const tc2=document.getElementById('text-canvas');
       if(tc2)tc2.style.opacity=textVisible?'1':'0';
-      mbTextTog.classList.toggle('text-on',textVisible);
-      mbTextTog.classList.toggle('text-off',!textVisible);
-      allPanels().forEach(p=>p.classList.remove('open'));
-      allBtns().forEach(b=>b.classList.remove('open'));
+      mbTextTog.textContent=textVisible?'Aa On':'Aa Off';
+      mbTextTog.classList.toggle('on',textVisible);
     });
   }
 
+  // Close panels on outside tap
   document.addEventListener('click',e=>{
     if(!e.target.closest('#mobile-bar')&&!e.target.closest('#mobile-bottom-rail')&&!e.target.closest('.mb-panel')){
       allPanels().forEach(p=>p.classList.remove('open'));
       allBtns().forEach(b=>b.classList.remove('open'));
+      requestAnimationFrame(nudgeHUD);
     }
   });
 
@@ -1167,25 +1280,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   // Reset
   document.getElementById('mb-tog-reset').addEventListener('click',()=>{for(let i=0;i<MP;i++)spawn(i);});
 
-  // Add shapes — direct tap on icon buttons in the add panel
-  function bindAddBtn(id,type){
-    const btn=document.getElementById(id);
-    if(!btn)return;
-    btn.addEventListener('click',e=>{
-      e.stopPropagation();
-      addShape(type);
-      // close panel after adding
-      allPanels().forEach(p=>p.classList.remove('open'));
-      allBtns().forEach(b=>b.classList.remove('open'));
-    });
-  }
-  bindAddBtn('mb-add-cube','cube');
-  bindAddBtn('mb-add-sphere','sphere');
-  bindAddBtn('mb-add-pyramid','pyramid');
-  const mbClear=document.getElementById('mb-clear');
-  if(mbClear)mbClear.addEventListener('click',()=>{clearShapes();allPanels().forEach(p=>p.classList.remove('open'));allBtns().forEach(b=>b.classList.remove('open'));});
-
-  // Controls panel: font size
+  // Font size
   const mbFontDown=document.getElementById('mb-font-down');
   const mbFontUp=document.getElementById('mb-font-up');
   if(mbFontDown)mbFontDown.addEventListener('click',()=>setFontSize(FONT_SIZE-1));
