@@ -237,7 +237,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 <canvas id="text-canvas"></canvas>
 
 <div id="dispenser">
-  <button id="cta-btn"><span id="btn-label">Intent</span></button>
+  <button id="cta-btn"><span id="btn-label">Intent On</span></button>
 </div>
 
 <div class="widget" id="shape-inserter">
@@ -646,22 +646,26 @@ const SDEFS={
   cube:{baseR:1.55,springK:6.0,damping:8.0,color:0xffffff,rough:0.55,
     makeGeo:s=>new THREE.BoxGeometry(2.6*s,2.6*s,2.6*s),
     orients:[
-      // 0 — flat top face: symmetric even split, maximum catch area
+      // 0 — flat top (0°): maximum catch, symmetric split
       new THREE.Euler(0,0,0),
-      // 1 — ramp right ~30°: deflects flow firmly rightward
+      // 1 — ramp right 15° (π/12): gentle rightward bias
+      new THREE.Euler(0,0,-Math.PI/12),
+      // 2 — ramp left 15°: gentle leftward bias
+      new THREE.Euler(0,0,Math.PI/12),
+      // 3 — ramp right 30° (π/6): firm rightward deflection
       new THREE.Euler(0,0,-_E),
-      // 2 — ramp left ~30°: deflects flow firmly leftward
+      // 4 — ramp left 30°: firm leftward deflection
       new THREE.Euler(0,0,_E),
-      // 3 — steep ramp right ~52°: aggressive redirect, narrows catch
-      new THREE.Euler(0,0,-_T),
-      // 4 — steep ramp left ~52°
-      new THREE.Euler(0,0,_T),
-      // 5 — diamond / corner-up (Y-rot 45°, Z-rot 35°): splits to four directions, peak splitter
-      new THREE.Euler(0,_Q,Math.atan(1/Math.sqrt(2))),
-      // 6 — edge-on facing camera (X-rot 45°): narrow knife edge, parts stream into two columns
-      new THREE.Euler(_Q,0,0),
-      // 7 — angled chute: X+Z compound tilt, directs flow diagonally off-screen
-      new THREE.Euler(_E,0,-_Q),
+      // 5 — ramp right 45° (π/4): steep redirect, edge becomes a catcher
+      new THREE.Euler(0,0,-_Q),
+      // 6 — ramp left 45°: steep redirect left
+      new THREE.Euler(0,0,_Q),
+      // 7 — Y-45° + flat: face rotated 45° in XY plane, splits to left/right equally
+      new THREE.Euler(0,_Q,0),
+      // 8 — Y-45° + ramp right 30°: diagonal catch with rightward bias
+      new THREE.Euler(0,_Q,-_E),
+      // 9 — Y-45° + ramp left 30°: diagonal catch with leftward bias
+      new THREE.Euler(0,_Q,_E),
     ]},
   sphere:{baseR:1.4,springK:6.0,damping:7.0,color:0xdddddd,rough:0.15,
     makeGeo:s=>new THREE.SphereGeometry(1.4*s,isMobile?16:32,isMobile?12:20),
@@ -681,22 +685,26 @@ const SDEFS={
   pyramid:{baseR:1.45,springK:5.5,damping:8.0,color:0xffffff,rough:0.8,
     makeGeo:s=>new THREE.ConeGeometry(1.5*s,2.8*s,4),
     orients:[
-      // 0 — apex up, base down: standard; apex splits flow, base sits wide — balanced deflector
+      // 0 — apex up, face forward: apex splits flow cleanly down both sides
       new THREE.Euler(0,0,0),
-      // 1 — apex up, rotated 45° around Y: diamond-profile — corners deflect to diagonals
+      // 1 — apex up, Y-45°: edge-on profile, splits to sharp diagonals
       new THREE.Euler(0,_Q,0),
-      // 2 — inverted, apex down: funnel/concentrator — gathers flow toward centre below
+      // 2 — lean right 30°: apex tilts right, base catches left — biased rightward pour
+      new THREE.Euler(0,0,-_E),
+      // 3 — lean left 30°: apex tilts left, biased leftward pour
+      new THREE.Euler(0,0,_E),
+      // 4 — lean right 52° (π/3): aggressive ramp, most flow exits right off base edge
+      new THREE.Euler(0,0,-_T),
+      // 5 — lean left 52°: aggressive ramp left
+      new THREE.Euler(0,0,_T),
+      // 6 — inverted apex-down: concentrator, draws flow to a point beneath
       new THREE.Euler(_D,0,0),
-      // 3 — lying on side, point right: horizontal ramp, shoots flow sharply rightward
-      new THREE.Euler(0,0,-_H),
-      // 4 — lying on side, point left: shoots flow sharply leftward
-      new THREE.Euler(0,0,_H),
-      // 5 — leaning right ~40°: gentle angled ramp right, wide base still catches
-      new THREE.Euler(0,0,-0.7),
-      // 6 — leaning left ~40°: gentle angled ramp left
-      new THREE.Euler(0,0,0.7),
-      // 7 — inverted + Y-45°: funnel with rotated base — diagonal draw-in
+      // 7 — inverted + Y-45°: rotated concentrator, diagonal draw-in
       new THREE.Euler(_D,_Q,0),
+      // 8 — lean right 30° + Y-45°: edge-on ramp right, narrow deflection surface
+      new THREE.Euler(0,_Q,-_E),
+      // 9 — lean left 30° + Y-45°: edge-on ramp left
+      new THREE.Euler(0,_Q,_E),
     ]},
 };
 
@@ -1110,8 +1118,8 @@ const clk=new THREE.Clock();
 function setPaused(v){
   paused=v;
   const lbl=document.getElementById('btn-label'),pp2=document.getElementById('btn-pp');
-  if(paused){ctaBtn.classList.add('paused');lbl.textContent='Play';pp2.textContent='▶ PLAY';pp2.classList.add('paused');}
-  else{ctaBtn.classList.remove('paused');lbl.textContent='Pause';pp2.textContent='❚❚ PAUSE';pp2.classList.remove('paused');clk.getDelta();}
+  if(paused){ctaBtn.classList.add('paused');lbl.textContent='Intent Off';pp2.textContent='▶ INTENT ON';pp2.classList.add('paused');}
+  else{ctaBtn.classList.remove('paused');lbl.textContent='Intent On';pp2.textContent='❚❚ INTENT OFF';pp2.classList.remove('paused');clk.getDelta();}
 }
 ctaBtn.addEventListener('click',e=>{if(!dMoved)setPaused(!paused);e.stopPropagation();});
 document.getElementById('btn-pp').addEventListener('click',()=>setPaused(!paused));
