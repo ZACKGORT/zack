@@ -93,6 +93,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 .widget-body{overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;}
 .widget-body.collapsed{max-height:0!important;opacity:0;}
 @media (max-width:600px){#author-note{display:none!important;}}
+/* author note links */
+#anote-links{margin-top:9px;display:flex;gap:10px;flex-wrap:wrap;}
+#anote-links a{font-size:8px;color:rgba(255,255,255,0.22);letter-spacing:0.12em;text-decoration:none;text-transform:lowercase;transition:color 0.15s;}
+#anote-links a:hover{color:rgba(255,255,255,0.6);}
+/* mobile author note modal links */
+#mb-anote-links{margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;}
+#mb-anote-links a{font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:0.1em;text-decoration:none;padding:6px 0;}
+#mb-anote-links a:hover{color:rgba(255,255,255,0.7);}
 .widget:hover{
   background:rgba(22,20,18,0.94)!important;
   border-color:rgba(255,255,255,0.13)!important;
@@ -169,6 +177,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   .mb-panel.open{display:block;}
   /* Add panel opens upward from bottom rail */
   #mb-add-panel{
+    top:auto!important;bottom:44px!important;
+    border-bottom:none!important;
+    border-top:1px solid rgba(255,255,255,0.07)!important;
+    max-height:60vh;
+  }
+  /* Controls panel also opens upward from bottom rail */
+  #mb-ctrl-panel{
     top:auto!important;bottom:44px!important;
     border-bottom:none!important;
     border-top:1px solid rgba(255,255,255,0.07)!important;
@@ -326,6 +341,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
       <div id="anote-eye">On Design Today</div>
       <div id="anote-text">In 2026, <em>design is no longer a discipline</em> — it is a conversation between intent and physics. The boundary between tool and creator has dissolved. Flows are <em>redirected, not engineered</em>. Constraints are placed, not drawn. The designer's gesture is now the angle of deflection. What falls is gravity. What <em>reaches its target</em> is intention.</div>
       <div id="anote-sig">— on the nature of directed systems</div>
+      <div id="anote-links">
+        <a href="https://zackgort.com" target="_blank" rel="noopener">zackgort.com</a>
+        <a href="https://zack.cx" target="_blank" rel="noopener">zack.cx</a>
+        <a href="https://neverever.land" target="_blank" rel="noopener">neverever.land</a>
+      </div>
     </div>
   </div>
 </div>
@@ -341,10 +361,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   <button id="btn-text-tog" class="on">Aa TEXT</button>
 </div>
 
-<!-- MOBILE TOP BAR: Flow + Controls -->
+<!-- MOBILE TOP BAR: Flow + Note -->
 <div id="mobile-bar">
   <button class="mb-btn" id="mb-flow-btn">Flow</button>
-  <button class="mb-btn" id="mb-gear-btn">Controls</button>
+  <button class="mb-btn" id="mb-note-btn">Note</button>
 </div>
 <div class="mb-panel" id="mb-flow-panel">
   <div class="mb-ctrl-row">
@@ -354,17 +374,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Amount</span>
     <input class="mb-range" type="range" id="mb-sl-count" min="500" max="8000" step="100" value="8000">
-    <span class="mb-ctrl-val" id="mb-v-count">4000</span>
+    <span class="mb-ctrl-val" id="mb-v-count">8000</span>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Gravity</span>
-    <input class="mb-range" type="range" id="mb-sl-grav" min="1" max="30" step="0.1" value="4.2">
-    <span class="mb-ctrl-val" id="mb-v-grav">9.8</span>
+    <input class="mb-range" type="range" id="mb-sl-grav" min="1" max="30" step="0.1" value="3.3">
+    <span class="mb-ctrl-val" id="mb-v-grav">3.3</span>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Spread</span>
-    <input class="mb-range" type="range" id="mb-sl-spread" min="0.05" max="2.5" step="0.05" value="1.25">
-    <span class="mb-ctrl-val" id="mb-v-spread">0.30</span>
+    <input class="mb-range" type="range" id="mb-sl-spread" min="0.05" max="2.5" step="0.05" value="0.65">
+    <span class="mb-ctrl-val" id="mb-v-spread">0.65</span>
+  </div>
+  <div class="mb-ctrl-row">
+    <span class="mb-ctrl-lbl">Size</span>
+    <input class="mb-range" type="range" id="mb-sl-size" min="0.2" max="1.0" step="0.05" value="0.65">
+    <span class="mb-ctrl-val" id="mb-v-size">0.65</span>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Rain</span>
@@ -375,20 +400,46 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <button class="mb-ctrl-btn" id="mb-tog-reset">↺</button>
   </div>
 </div>
-<div class="mb-panel" id="mb-gear-panel">
-  <div id="mb-shape-row" style="display:none;">
-    <button class="mb-rail-btn" id="mb-add-cube" style="flex:1;height:52px;flex-direction:column;gap:3px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;">
-      <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/></svg>
-      <span style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.3);">Cube</span>
+<div class="mb-panel" id="mb-note-panel">
+  <div style="padding:16px 20px;">
+    <div style="font-size:8px;letter-spacing:0.25em;color:rgba(255,255,255,0.2);text-transform:uppercase;margin-bottom:8px;">On Design Today</div>
+    <div style="font-size:10px;line-height:1.75;color:rgba(255,255,255,0.32);letter-spacing:0.03em;">In 2026, <span style="color:rgba(255,255,255,0.55);">design is no longer a discipline</span> — it is a conversation between intent and physics. The boundary between tool and creator has dissolved. Flows are <span style="color:rgba(255,255,255,0.55);">redirected, not engineered</span>. Constraints are placed, not drawn. The designer's gesture is now the angle of deflection. What falls is gravity. What <span style="color:rgba(255,255,255,0.55);">reaches its target</span> is intention.</div>
+    <div style="margin-top:8px;font-size:8px;color:rgba(255,255,255,0.14);letter-spacing:0.12em;font-style:italic;">— on the nature of directed systems</div>
+    <div id="mb-anote-links">
+      <a href="https://zackgort.com" target="_blank" rel="noopener">zackgort.com</a>
+      <a href="https://zack.cx" target="_blank" rel="noopener">zack.cx</a>
+      <a href="https://neverever.land" target="_blank" rel="noopener">neverever.land</a>
+    </div>
+  </div>
+</div>
+
+<!-- Add panel — opens from bottom rail -->
+<div class="mb-panel" id="mb-add-panel">
+  <div style="display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,0.05);">
+    <button class="mb-rail-btn" id="mb-add-cube" style="flex:1;height:60px;flex-direction:column;gap:4px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;font-size:9px;">
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 2L22 7V17L12 22L2 17V7L12 2Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/><path d="M12 2L12 22M2 7L22 7" stroke="rgba(255,255,255,0.2)" stroke-width="0.7"/></svg>
+      Cube
     </button>
-    <button class="mb-rail-btn" id="mb-add-sphere" style="flex:1;height:52px;flex-direction:column;gap:3px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;">
-      <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/></svg>
-      <span style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.3);">Sphere</span>
+    <button class="mb-rail-btn" id="mb-add-sphere" style="flex:1;height:60px;flex-direction:column;gap:4px;border-right:1px solid rgba(255,255,255,0.06);border-radius:0;font-size:9px;">
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/><ellipse cx="12" cy="12" rx="9" ry="3.5" stroke="rgba(255,255,255,0.18)" stroke-width="0.7"/></svg>
+      Sphere
     </button>
-    <button class="mb-rail-btn" id="mb-add-pyramid" style="flex:1;height:52px;flex-direction:column;gap:3px;border-radius:0;">
-      <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 3L22 20H2L12 3Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/></svg>
-      <span style="font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.3);">Pyramid</span>
+    <button class="mb-rail-btn" id="mb-add-pyramid" style="flex:1;height:60px;flex-direction:column;gap:4px;border-radius:0;font-size:9px;">
+      <svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M12 3L22 20H2L12 3Z" stroke="rgba(255,255,255,0.55)" stroke-width="1.2" fill="rgba(255,255,255,0.04)"/></svg>
+      Pyramid
     </button>
+  </div>
+  <div class="mb-ctrl-row">
+    <span class="mb-ctrl-lbl">Clear All</span>
+    <button class="mb-ctrl-btn" id="mb-clear" style="border-color:rgba(255,60,60,0.2);color:rgba(255,80,80,0.5);">Clear</button>
+  </div>
+</div>
+
+<!-- Controls panel — opens from bottom rail -->
+<div class="mb-panel" id="mb-ctrl-panel">
+  <div class="mb-ctrl-row">
+    <span class="mb-ctrl-lbl">Aa Text</span>
+    <button class="mb-tog-btn text-on" id="mb-text-tog-ctrl">On</button>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Font Size</span>
@@ -400,37 +451,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <span class="mb-ctrl-lbl">Next Level</span>
     <button class="mb-ctrl-btn" id="mb-next-btn">→</button>
   </div>
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Clear All</span>
-    <button class="mb-ctrl-btn" id="mb-clear" style="border-color:rgba(255,60,60,0.2);color:rgba(255,80,80,0.5);">Clear</button>
-  </div>
 </div>
 
-<!-- Add panel — opens from bottom rail -->
-<div class="mb-panel" id="mb-add-panel">
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Cube</span>
-    <button class="mb-ctrl-btn" id="mb-add-cube">Add</button>
-  </div>
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Sphere</span>
-    <button class="mb-ctrl-btn" id="mb-add-sphere">Add</button>
-  </div>
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Pyramid</span>
-    <button class="mb-ctrl-btn" id="mb-add-pyramid">Add</button>
-  </div>
-  <div class="mb-ctrl-row">
-    <span class="mb-ctrl-lbl">Clear All</span>
-    <button class="mb-ctrl-btn" id="mb-clear" style="border-color:rgba(255,60,60,0.2);color:rgba(255,80,80,0.5);">Clear</button>
-  </div>
-</div>
-
-<!-- MOBILE BOTTOM RAIL: Add shapes + Aa toggle -->
+<!-- MOBILE BOTTOM RAIL: Add shapes + Controls + Aa toggle -->
 <div id="mobile-bottom-rail">
   <button class="mb-rail-btn" id="mb-rail-add-btn">
     <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="12" y1="7" x2="12" y2="17" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="7" y1="12" x2="17" y2="12" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/></svg>
     Add
+  </button>
+  <button class="mb-rail-btn" id="mb-rail-ctrl-btn">
+    <svg viewBox="0 0 24 24" fill="none" width="14" height="14"><circle cx="6" cy="7" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="10" y1="7" x2="20" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="4" y1="7" x2="2" y2="7" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><circle cx="16" cy="17" r="2" stroke="rgba(255,255,255,0.55)" stroke-width="1.2"/><line x1="4" y1="17" x2="12" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="20" y1="17" x2="20" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/><line x1="18" y1="17" x2="20" y2="17" stroke="rgba(255,255,255,0.4)" stroke-width="1.1"/></svg>
+    Controls
   </button>
   <button class="mb-rail-btn" id="mb-text-tog" title="Toggle floating text">
     Aa
@@ -915,7 +946,7 @@ function getSpout(){const r=ctaBtn.getBoundingClientRect();return s2w(r.left+r.w
 
 // ── PARTICLES ─────────────────────────────────────────────────────────────────
 const MP=8000,pp=new Float32Array(MP*3),pv=new Float32Array(MP*3),ps=new Float32Array(MP),pa=new Float32Array(MP),pl=new Float32Array(MP),pal=new Uint8Array(MP);
-const P={count:isMobile?2000:8000,gravity:4.2,spread:1.25,bounce:0.36,size:0.65,rain:false};
+const P={count:isMobile?8000:8000,gravity:isMobile?3.3:4.2,spread:isMobile?0.65:1.25,bounce:0.36,size:isMobile?0.65:0.65,rain:false};
 
 function spawn(i){const b=i*3,sw=getSpout();pp[b]=sw.x+(Math.random()-0.5)*P.spread;pp[b+1]=sw.y+0.2;pp[b+2]=(Math.random()-0.5)*1.2;pv[b]=(Math.random()-0.5)*0.08;pv[b+1]=-0.3-Math.random()*0.3;pv[b+2]=(Math.random()-0.5)*0.04;ps[i]=0.5+Math.random()*0.9;pl[i]=9+Math.random()*5;pa[i]=Math.random()*pl[i];pal[i]=1;}
 for(let i=0;i<MP;i++)spawn(i);
@@ -1036,41 +1067,56 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
 
   // Smaller font size on mobile by default
   FONT_SIZE=15;
-  // Sync amount slider to mobile default count
+
+  // Mobile particle defaults
+  P.count=8000;
+  P.gravity=3.3;
+  P.spread=0.65;
+  P.size=0.65;
+
+  // Sync sliders to mobile defaults
   const mbCountSl=document.getElementById('mb-sl-count');
   if(mbCountSl){mbCountSl.value=P.count;const mbCV=document.getElementById('mb-v-count');if(mbCV)mbCV.textContent=P.count;}
+  const mbGravSl=document.getElementById('mb-sl-grav');
+  if(mbGravSl){mbGravSl.value=P.gravity;const mbGV=document.getElementById('mb-v-grav');if(mbGV)mbGV.textContent=P.gravity.toFixed(1);}
+  const mbSpreadSl=document.getElementById('mb-sl-spread');
+  if(mbSpreadSl){mbSpreadSl.value=P.spread;const mbSV=document.getElementById('mb-v-spread');if(mbSV)mbSV.textContent=P.spread.toFixed(2);}
+  const mbSizeSl=document.getElementById('mb-sl-size');
+  if(mbSizeSl){mbSizeSl.value=P.size;const mbSzV=document.getElementById('mb-v-size');if(mbSzV)mbSzV.textContent=P.size.toFixed(2);}
 
-  // Override LINE_H for mobile: tighter
-  const _origGetFontMetrics=getFontMetrics;
-  // patch line height for mobile
-  window._mobileFontMetricsPatch=true;
+  // All closeable panels (top bar + bottom rail)
+  const allPanels=()=>document.querySelectorAll('.mb-panel');
+  const allBtns=()=>document.querySelectorAll('.mb-btn,.mb-rail-btn');
+  function togglePanel(panel,btn){
+    const open=panel.classList.contains('open');
+    allPanels().forEach(p=>p.classList.remove('open'));
+    allBtns().forEach(b=>b.classList.remove('open'));
+    if(!open){panel.classList.add('open');btn.classList.add('open');}
+  }
 
-  // panel toggle for TOP bar panels
-  const panels={
+  // Top bar panels
+  const topPanels={
     'mb-flow-btn':'mb-flow-panel',
-    'mb-gear-btn':'mb-gear-panel',
+    'mb-note-btn':'mb-note-panel',
   };
-  Object.entries(panels).forEach(([btnId,panelId])=>{
+  Object.entries(topPanels).forEach(([btnId,panelId])=>{
     const btn=document.getElementById(btnId),panel=document.getElementById(panelId);
     if(!btn||!panel)return;
-    btn.addEventListener('click',()=>{
-      const open=panel.classList.contains('open');
-      document.querySelectorAll('.mb-panel').forEach(p=>p.classList.remove('open'));
-      document.querySelectorAll('.mb-btn,.mb-rail-btn').forEach(b=>b.classList.remove('open'));
-      if(!open){panel.classList.add('open');btn.classList.add('open');}
-    });
+    btn.addEventListener('click',()=>togglePanel(panel,btn));
   });
 
-  // Bottom rail: Add button toggles add panel (opens upward)
+  // Bottom rail: Add button
   const railAddBtn=document.getElementById('mb-rail-add-btn');
   const addPanel=document.getElementById('mb-add-panel');
   if(railAddBtn&&addPanel){
-    railAddBtn.addEventListener('click',()=>{
-      const open=addPanel.classList.contains('open');
-      document.querySelectorAll('.mb-panel').forEach(p=>p.classList.remove('open'));
-      document.querySelectorAll('.mb-btn,.mb-rail-btn').forEach(b=>b.classList.remove('open'));
-      if(!open){addPanel.classList.add('open');railAddBtn.classList.add('open');}
-    });
+    railAddBtn.addEventListener('click',()=>togglePanel(addPanel,railAddBtn));
+  }
+
+  // Bottom rail: Controls button
+  const railCtrlBtn=document.getElementById('mb-rail-ctrl-btn');
+  const ctrlPanel=document.getElementById('mb-ctrl-panel');
+  if(railCtrlBtn&&ctrlPanel){
+    railCtrlBtn.addEventListener('click',()=>togglePanel(ctrlPanel,railCtrlBtn));
   }
 
   // Aa toggle: show/hide floating text layer
@@ -1084,13 +1130,15 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
       if(tc2)tc2.style.opacity=textVisible?'1':'0';
       mbTextTog.classList.toggle('text-on',textVisible);
       mbTextTog.classList.toggle('text-off',!textVisible);
+      allPanels().forEach(p=>p.classList.remove('open'));
+      allBtns().forEach(b=>b.classList.remove('open'));
     });
   }
 
   document.addEventListener('click',e=>{
     if(!e.target.closest('#mobile-bar')&&!e.target.closest('#mobile-bottom-rail')&&!e.target.closest('.mb-panel')){
-      document.querySelectorAll('.mb-panel').forEach(p=>p.classList.remove('open'));
-      document.querySelectorAll('.mb-btn,.mb-rail-btn').forEach(b=>b.classList.remove('open'));
+      allPanels().forEach(p=>p.classList.remove('open'));
+      allBtns().forEach(b=>b.classList.remove('open'));
     }
   });
 
@@ -1109,6 +1157,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   mbBindSl('mb-sl-count','mb-v-count','count',v=>Math.round(v));
   mbBindSl('mb-sl-grav','mb-v-grav','gravity',v=>v.toFixed(1));
   mbBindSl('mb-sl-spread','mb-v-spread','spread',v=>v.toFixed(2));
+  mbBindSl('mb-sl-size','mb-v-size','size',v=>v.toFixed(2));
 
   // Rain toggle
   let mbRain=false;
@@ -1118,19 +1167,35 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   // Reset
   document.getElementById('mb-tog-reset').addEventListener('click',()=>{for(let i=0;i<MP;i++)spawn(i);});
 
-  // Add shapes (from bottom add panel)
-  document.getElementById('mb-add-cube').addEventListener('click',()=>addShape('cube'));
-  document.getElementById('mb-add-sphere').addEventListener('click',()=>addShape('sphere'));
-  document.getElementById('mb-add-pyramid').addEventListener('click',()=>addShape('pyramid'));
-  document.getElementById('mb-clear').addEventListener('click',clearShapes);
+  // Add shapes — direct tap on icon buttons in the add panel
+  function bindAddBtn(id,type){
+    const btn=document.getElementById(id);
+    if(!btn)return;
+    btn.addEventListener('click',e=>{
+      e.stopPropagation();
+      addShape(type);
+      // close panel after adding
+      allPanels().forEach(p=>p.classList.remove('open'));
+      allBtns().forEach(b=>b.classList.remove('open'));
+    });
+  }
+  bindAddBtn('mb-add-cube','cube');
+  bindAddBtn('mb-add-sphere','sphere');
+  bindAddBtn('mb-add-pyramid','pyramid');
+  const mbClear=document.getElementById('mb-clear');
+  if(mbClear)mbClear.addEventListener('click',()=>{clearShapes();allPanels().forEach(p=>p.classList.remove('open'));allBtns().forEach(b=>b.classList.remove('open'));});
 
-  // Font size
-  document.getElementById('mb-font-down').addEventListener('click',()=>setFontSize(FONT_SIZE-1));
-  document.getElementById('mb-font-up').addEventListener('click',()=>setFontSize(FONT_SIZE+1));
-  document.getElementById('mb-font-val').textContent=FONT_SIZE;
+  // Controls panel: font size
+  const mbFontDown=document.getElementById('mb-font-down');
+  const mbFontUp=document.getElementById('mb-font-up');
+  if(mbFontDown)mbFontDown.addEventListener('click',()=>setFontSize(FONT_SIZE-1));
+  if(mbFontUp)mbFontUp.addEventListener('click',()=>setFontSize(FONT_SIZE+1));
+  const mbFontVal=document.getElementById('mb-font-val');
+  if(mbFontVal)mbFontVal.textContent=FONT_SIZE;
 
   // Next level
-  document.getElementById('mb-next-btn').addEventListener('click',()=>{
+  const mbNextBtn=document.getElementById('mb-next-btn');
+  if(mbNextBtn)mbNextBtn.addEventListener('click',()=>{
     if(lvl<LEVELS.length-1){lvl++;initLevel(lvl);tCounts=[];for(let i=0;i<MP;i++)spawn(i);buildInit();}
   });
 
@@ -1551,40 +1616,6 @@ document.querySelectorAll('.widget-collapse').forEach(btn=>{
     btn.innerHTML=collapsed?'&#9650;':'&#9660;';
   });
 });
-
-// ── MOBILE NOTE MODAL ─────────────────────────────────────────────────────────
-(()=>{
-  const modal=document.getElementById('mb-note-modal');
-  const mbNoteBtn=document.getElementById('mb-note-btn');
-  const mbNoteSave=document.getElementById('mb-note-save');
-  const mbNoteClose=document.getElementById('mb-note-close');
-  const mbNoteText=document.getElementById('mb-note-text');
-  if(!mbNoteBtn)return;
-  // restore
-  try{const s=localStorage.getItem('author_note_v1');if(s)mbNoteText.value=s;}catch(e){}
-  // sync with desktop note
-  function syncNote(txt){
-    const dt=document.getElementById('author-note-text');
-    if(dt)dt.value=txt;mbNoteText.value=txt;
-    try{localStorage.setItem('author_note_v1',txt);}catch(e){}
-  }
-  mbNoteBtn.addEventListener('click',()=>{
-    // also pull from desktop field
-    const dt=document.getElementById('author-note-text');
-    if(dt)mbNoteText.value=dt.value;
-    modal.style.display='flex';
-    document.querySelectorAll('.mb-panel').forEach(p=>p.classList.remove('open'));
-    document.querySelectorAll('.mb-btn').forEach(b=>b.classList.remove('open'));
-  });
-  mbNoteClose.addEventListener('click',()=>{modal.style.display='none';});
-  mbNoteSave.addEventListener('click',()=>{
-    syncNote(mbNoteText.value.trim());
-    mbNoteSave.textContent='Saved ✓';
-    setTimeout(()=>{mbNoteSave.textContent='Save';},1500);
-  });
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.style.display='none';});
-})();
-
 
 // stamp interaction time on widget pointerdown
 document.querySelectorAll('.widget').forEach(w => {
