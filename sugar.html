@@ -760,20 +760,36 @@ class Shape{
 }
 
 // ── SHAPES ────────────────────────────────────────────────────────────────────
-// Size variance bands per type: [min, max]
-const SIZE_VARIANCE={cube:[0.6,1.5],sphere:[0.55,1.4],pyramid:[0.65,1.6]};
-function randSc(type){const r=SIZE_VARIANCE[type]||[0.7,1.3];return r[0]+Math.random()*(r[1]-r[0]);}
+// Size variance bands per type: [min, max] — biased toward the lower end
+const SIZE_VARIANCE={cube:[0.55,1.05],sphere:[0.5,0.95],pyramid:[0.55,1.0]};
+// sqrt bias: Math.random() skews toward 0, so most results land in the lower half of the range
+function randSc(type){const r=SIZE_VARIANCE[type]||[0.55,1.0];return r[0]+Math.sqrt(Math.random())*(r[1]-r[0])*0.65;}
 
-const INIT=[
-  // Cube high up: ramp right (~30°) — primary deflector steering most flow toward target
-  {type:'cube',pos:new THREE.Vector3(0.4,6.2,0),rot:new THREE.Euler(0,0,-Math.PI/6),sc:1.0},
-  // Sphere mid: neutral lean — secondary bounce spreader below the cube
-  {type:'sphere',pos:new THREE.Vector3(-0.3,2.4,0),rot:new THREE.Euler(0.28,0,0),sc:0.85},
-  // Pyramid low: leaning right — final redirector funneling remainder into zone
-  {type:'pyramid',pos:new THREE.Vector3(0.3,-1.6,0),rot:new THREE.Euler(0,0,-0.7),sc:1.2},
+// Fixed vertical slots — shapes always cascade top→mid→low so the puzzle is readable.
+// Type and orientation are randomized each call so every layout is a fresh puzzle.
+const SLOTS=[
+  {pos:new THREE.Vector3(0.4, 6.2,0)},   // high
+  {pos:new THREE.Vector3(-0.3, 2.4,0)},  // mid
+  {pos:new THREE.Vector3(0.3,-1.6,0)},   // low
 ];
+const TYPES=['cube','sphere','pyramid'];
 let shapes=[];
-function buildInit(){shapes.forEach(s=>s.dispose());shapes=[];INIT.forEach(d=>shapes.push(new Shape(d.type,d.pos,d.rot||null,d.sc)));updateCnt();}
+
+function buildInit(){
+  shapes.forEach(s=>s.dispose());shapes=[];
+  // Shuffle a copy of TYPES so each slot gets a distinct shape type
+  const typePool=[...TYPES].sort(()=>Math.random()-0.5);
+  SLOTS.forEach((slot,i)=>{
+    const type=typePool[i];
+    const orients=SDEFS[type].orients;
+    // Pick a random orient index; for the top slot bias toward deflecting presets
+    const oi=Math.floor(Math.random()*orients.length);
+    const rot=orients[oi].clone();
+    const sc=randSc(type);
+    shapes.push(new Shape(type,slot.pos,rot,sc));
+  });
+  updateCnt();
+}
 function addShape(t){shapes.push(new Shape(t,new THREE.Vector3((Math.random()-0.5)*4,10,0),null,randSc(t)));updateCnt();}
 function clearShapes(){shapes.forEach(s=>s.dispose());shapes=[];updateCnt();}
 function delShape(sh){const i=shapes.indexOf(sh);if(i<0)return;sh.dispose();shapes.splice(i,1);updateCnt();flashEl('flash-delete');}
