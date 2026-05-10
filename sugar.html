@@ -240,7 +240,7 @@ body.paper #anote-sig{color:rgba(0,0,0,0.22);}
 body.paper #anote-links a{color:rgba(0,0,0,0.3);}
 body.paper #anote-links a:hover{color:rgba(0,0,0,0.7);}
 body.paper #hint{color:rgba(0,0,0,0.12);}
-body.paper #zckgrt-logo span{color:rgba(0,0,0,0.85);}
+body.paper #zckgrt-logo span{color:rgba(0,0,0,0.1);}
 body.paper #cta-btn{background:#111;color:#f0ece4;box-shadow:0 2px 16px rgba(0,0,0,0.15);}
 body.paper #cta-btn.paused{background:#f0ece4;color:#111;border:1px solid rgba(0,0,0,0.15);}
 body.paper #screenshot-btn{background:rgba(255,252,246,0.72);border-color:rgba(0,0,0,0.08);color:rgba(0,0,0,0.4);}
@@ -254,7 +254,7 @@ body.paper #theme-toggle:hover{color:rgba(0,0,0,0.65);border-color:rgba(0,0,0,0.
 
 /* ── FRANK LOGO ── */
 #zckgrt-logo{
-  position:fixed;left:54px;top:22px;z-index:300;
+  position:fixed;left:16px;top:16px;z-index:300;
   pointer-events:none;
 }
 #zckgrt-logo span{
@@ -262,7 +262,7 @@ body.paper #theme-toggle:hover{color:rgba(0,0,0,0.65);border-color:rgba(0,0,0,0.
   font-weight:900;
   font-size:13px;
   letter-spacing:0.18em;
-  color:rgba(255,255,255,1.0);
+  color:rgba(255,255,255,0.12);
   text-transform:uppercase;
   display:inline-block;
   transition:color 0.3s;
@@ -702,8 +702,8 @@ const LEVEL_TITLES = [
     "Precision is not a style. It is the only load-bearing decision you actually make.",
   ],
   [
-    "Chaos is the default. Craft is the decision to move through it anyway.",
-    "Intent curation isn't control — it's knowing which forces to work with and which to navigate around.",
+    "In a world caught in the wash of greater forces — have your own gravity.",
+    "Shine with your own intensity. The stream will find you.",
   ],
 ];
 
@@ -743,9 +743,9 @@ const SHAPE_COPY = {
     "A black hole doesn't negotiate. But its range is finite. That's the opening."
   ],
   neutronstar: [
-    "High density, outward force. It restrains what the black hole draws in.",
-    "The neutron star doesn't attract — it redirects. Place it to shape the path.",
-    "Dense enough to push back. Use it to guide the flow, not consume it."
+    "Have your own gravity. The stream will follow.",
+    "In a field dominated by greater forces — shine with your own intensity. Things will orient toward you.",
+    "Move it. Watch the stream chase. That's not metaphor."
   ]
 };
 
@@ -807,8 +807,7 @@ function _buildFloatText(lines, immediate) {
       totalH += rows * role.lineH;
       if (li < lines.length - 1) totalH += role.lineH * 0.55;
     });
-    const LOGO_BOTTOM = 22 + 20 + 14; // logo top + approx height + gap = ~56px
-    const PAD_TOP = Math.max(LOGO_BOTTOM, (H - totalH) * 0.42);
+    const PAD_TOP = Math.max(72, (H - totalH) * 0.42);
     const allChars = [];
     let y = PAD_TOP;
     lines.forEach((line, li) => {
@@ -1030,12 +1029,13 @@ class Attractor {
     this.vel = new THREE.Vector3();
     this.dragging = false;
     this._pulseT = 0;
-    this.pullStrength = type === 'neutronstar' ? 38.0 : 48.0;
-    this.radius = type === 'neutronstar' ? 0.32 : 0.55;  // BH default = sphere-equivalent (halved)
-    this.consumeRadius = type === 'neutronstar' ? 0.18 : 0.29;
-    this._bhRadiusMin = type === 'blackhole' ? 0.5625 : null;
-    this._bhRadiusMax = type === 'blackhole' ? 1.44375 : null;
-    this._bhPullBase  = type === 'blackhole' ? 28.0 : null; // pull at default size (gravity unchanged)
+    this.pullStrength = type === 'neutronstar' ? 35.0 : 28.0;   // NS pulls hard — stream chases it
+    this.radius = type === 'neutronstar' ? 0.32 : 1.1;
+    this.consumeRadius = type === 'neutronstar' ? 0.04 : 0.58;  // NS: near-zero consume — particles follow, not disappear
+    this.influenceR = type === 'neutronstar' ? 5.0 : null;      // NS: wide field so stream reaches it from far
+    this._bhRadiusMin = type === 'blackhole' ? 0.75 : null;
+    this._bhRadiusMax = type === 'blackhole' ? 1.65 : null;
+    this._bhPullBase  = type === 'blackhole' ? 28.0 : null;
     this._build();
   }
 
@@ -1244,7 +1244,7 @@ class Attractor {
     }
 
     // Dynamic Scale Based on Pull Strength
-    const basePull = this.type === 'neutronstar' ? 38.0 : 48.0;
+    const basePull = this.type === 'neutronstar' ? 38.0 : 28.0;
     const scale = Math.sqrt(this.pullStrength / basePull);
     this.mesh.scale.set(scale, scale, scale);
 
@@ -1296,7 +1296,7 @@ class Attractor {
   }
 
   sdf(px, py, pz) {
-    const basePull = this.type === 'neutronstar' ? 38.0 : 48.0;
+    const basePull = this.type === 'neutronstar' ? 38.0 : 28.0;
     const scale = Math.sqrt(this.pullStrength / basePull);
     const rScaled = this.radius * scale;
     const dx = px - this.pos.x, dy = py - this.pos.y, dz = pz - this.pos.z;
@@ -1322,40 +1322,35 @@ function destroyAttractors() {
 function applyAttractorForces(i, b, dt) {
   for (let a of attractors) {
     const dx = a.pos.x - pp[b], dy = a.pos.y - pp[b+1], dz = (a.pos.z || 0) - (pp[b+2] || 0);
-    const dist2 = dx * dx + dy * dy + dz * dz;
+    const dist2 = dx*dx + dy*dy + dz*dz;
     const dist = Math.sqrt(dist2);
+    if (dist < 0.001) continue;
 
-    const basePull = a.type === 'neutronstar' ? 38.0 : 48.0;
-    const scale = Math.sqrt(a.pullStrength / basePull);
-    const consumeR = a.consumeRadius * scale;
-    const pullR = Math.sqrt(a.pullStrength / 0.1);
+    if (a.type === 'blackhole') {
+      // Pure radial inward pull. 1/(dist²+softening) — dominant close, falls off fast.
+      // Softening=0.25: strong grip at close range, ignorable at distance.
+      const f = a.pullStrength * dt / (dist2 + 0.25);
+      pv[b]   += dx / dist * f;
+      pv[b+1] += dy / dist * f;
+      pv[b+2] += dz / dist * f;
+      // Consume threshold
+      if (dist < a.consumeRadius) { spawn(i); return true; }
 
-    if (dist < consumeR) { spawn(i); return true; }
-    if (dist < pullR && dist > 0.01) {
-      if (a.type === 'blackhole') {
-        // Long-range, smooth orbital gravity — 1/dist falloff keeps force consistent across distance
-        // Softening 0.2 — tighter close-range grab, higher peak force without expanding visually
-        const f = a.pullStrength * dt / (dist * dist + 0.2);
-        const nx = dx / dist, ny = dy / dist;
-        pv[b]   += nx * f;
-        pv[b+1] += ny * f;
-        pv[b+2] += dz / dist * f;
-        // Small tangential bias to encourage orbiting rather than straight infall
-        pv[b]   += -ny * f * 0.12;
-        pv[b+1] +=  nx * f * 0.12;
-      } else {
-        // Neutron star — attracts particles. Tight 1/(dist²+0.25) falloff, close-range only.
-        const f = a.pullStrength * dt / (dist2 + 0.25);
-        // Attraction: pull toward (positive direction)
-        pv[b]   += dx / dist * f * 0.9;
-        pv[b+1] += dy / dist * f * 0.9;
-        pv[b+2] += dz / dist * f * 0.9;
-        // Tangential swirl preserved — deflects incoming particles into arcs
-        const nx = dx / dist, ny = dy / dist;
-        const kick = a.pullStrength * dt * 0.20 / (dist + 0.7);
-        pv[b]   += -ny * kick;
-        pv[b+1] +=  nx * kick;
-      }
+    } else {
+      // Neutron star — the lead. Particles chase it wherever it goes.
+      // Strong attraction, near-zero consume radius: the stream follows, clusters, trails.
+      // It competes with the BH for the stream's attention — proximity and movement win.
+      const influenceR = a.influenceR || 5.0;
+      if (dist > influenceR) continue;
+
+      // Strong radial pull — enough to visibly pull particles away from the BH's basin
+      const f = a.pullStrength * dt / (dist2 + 0.12);
+      pv[b]   += dx / dist * f;
+      pv[b+1] += dy / dist * f;
+      pv[b+2] += dz / dist * f;
+
+      // Tiny consume radius — particles swarm it, not disappear into it
+      if (dist < a.consumeRadius) { spawn(i); return true; }
     }
   }
   return false;
@@ -1378,7 +1373,7 @@ function drawBlackHoleOverlay() {
     ovCtx.setLineDash([]);
 
     // Glow halos
-    const basePull = bh.type === 'neutronstar' ? 38.0 : 48.0;
+    const basePull = bh.type === 'neutronstar' ? 38.0 : 28.0;
     const scale = Math.sqrt(bh.pullStrength / basePull);
     const bhEdge = new THREE.Vector3(bh.pos.x + bh.radius * scale, bh.pos.y, 0).project(camera);
     const coreR = Math.abs((bhEdge.x + 1) / 2 * W - sx);
@@ -1499,26 +1494,26 @@ const SDEFS={
   cube:{baseR:1.55,springK:6.0,damping:8.0,color:0xffffff,rough:0.55,
     makeGeo:s=>new THREE.BoxGeometry(2.6*s,2.6*s,2.6*s),
     orients:[
-      // 0 — flat top: maximum catch surface, symmetric pour off both edges
+      // 0 — flat top (0°): maximum catch, symmetric split
       new THREE.Euler(0,0,0),
-      // 1 — edge splitter: stood on one bottom edge (X 45°), incoming stream hits a ridge and splits
-      new THREE.Euler(_Q,0,0),
-      // 2 — corner point: balanced on one corner (X+Z 35°), sheds everything in three directions
-      new THREE.Euler(0.615,_Q,0.615),
-      // 3 — aggressive ramp right (Z 45°): steep redirect — most flow exits right, little catch
+      // 1 — ramp right 15° (π/12): gentle rightward bias
+      new THREE.Euler(0,0,-Math.PI/12),
+      // 2 — ramp left 15°: gentle leftward bias
+      new THREE.Euler(0,0,Math.PI/12),
+      // 3 — ramp right 30° (π/6): firm rightward deflection
+      new THREE.Euler(0,0,-_E),
+      // 4 — ramp left 30°: firm leftward deflection
+      new THREE.Euler(0,0,_E),
+      // 5 — ramp right 45° (π/4): steep redirect, edge becomes a catcher
       new THREE.Euler(0,0,-_Q),
-      // 4 — aggressive ramp left
+      // 6 — ramp left 45°: steep redirect left
       new THREE.Euler(0,0,_Q),
-      // 5 — wall: stood on end (X 90°), presents a vertical face — deflects sideways, minimal catch
-      new THREE.Euler(_H,0,0),
-      // 6 — diagonal wall right (Y 45° + X 90°): narrow edge-on deflector, splits diagonally
-      new THREE.Euler(_H,_Q,0),
-      // 7 — tumbled: X 30° + Z 20° — no face is level, randomised cascade off compound angles
-      new THREE.Euler(_E,0,Math.PI/9),
-      // 8 — shallow ramp right (Z 20°): gentle bias, large usable catch surface still intact
-      new THREE.Euler(0,0,-Math.PI/9),
-      // 9 — shallow ramp left
-      new THREE.Euler(0,0,Math.PI/9),
+      // 7 — Y-45° + flat: face rotated 45° in XY plane, splits to left/right equally
+      new THREE.Euler(0,_Q,0),
+      // 8 — Y-45° + ramp right 30°: diagonal catch with rightward bias
+      new THREE.Euler(0,_Q,-_E),
+      // 9 — Y-45° + ramp left 30°: diagonal catch with leftward bias
+      new THREE.Euler(0,_Q,_E),
     ]},
   sphere:{baseR:1.4,springK:6.0,damping:7.0,color:0xdddddd,rough:0.15,
     makeGeo:s=>new THREE.SphereGeometry(1.4*s,32,20),
@@ -1691,7 +1686,7 @@ function resolveCollisions(){
   
   for(let a of attractors) {
     for(let sh of shapes) {
-      const basePull = a.type === 'neutronstar' ? 38.0 : 55.0;
+      const basePull = a.type === 'neutronstar' ? 38.0 : 28.0;
       const scale = Math.sqrt(a.pullStrength / basePull);
       const rScaled = a.radius * scale;
 
@@ -1872,27 +1867,15 @@ window.addEventListener('mouseup',e=>{
 window.addEventListener('wheel',e=>{
   e.preventDefault();
   const dir=e.deltaY>0?-1:1;
-  
+
   if(tAttractor){
     if(tAttractor.type === 'blackhole') {
-      // Size increases slowly; gravity increases significantly
-      const rMin = tAttractor._bhRadiusMin || 0.703125;
-      const rMax = tAttractor._bhRadiusMax || 0.721875;
-      const pullMin = 55.0;  // floor — compact but strong
-      const pullMax = 140.0;
-
-      // Normalize current state 0→1 across the scroll range
-      const t = (tAttractor.pullStrength - pullMin) / (pullMax - pullMin);
-      const newT = Math.max(0, Math.min(1, t + dir * 0.06));
-
-      // Gravity steps quickly; radius steps slowly (ease curve)
-      tAttractor.pullStrength = pullMin + newT * (pullMax - pullMin);
-      // Radius maps non-linearly — most of the range is at smaller sizes
-      tAttractor.radius = rMin + Math.pow(newT, 2.2) * (rMax - rMin);
-      tAttractor.consumeRadius = tAttractor.radius * 0.53;
+      const pullMin = 8.0, pullMax = 120.0;
+      tAttractor.pullStrength = Math.max(pullMin, Math.min(pullMax, tAttractor.pullStrength + dir * 6.0));
     } else {
-      // Neutron star — pull strength only, same as before
-      tAttractor.pullStrength = Math.max(5.0, Math.min(80.0, tAttractor.pullStrength + dir * 4.0));
+      // NS scroll: influence radius — how far the stream is willing to follow
+      const rMin = 2.0, rMax = 9.0;
+      tAttractor.influenceR = Math.max(rMin, Math.min(rMax, (tAttractor.influenceR || 5.0) + dir * 0.5));
     }
   } else if(dShape){
     const SC_MIN=0.3,SC_MAX=3.5,SC_STEP=0.09;
@@ -2156,7 +2139,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
     
     if(e.touches.length===2){
       if(tShape){ pinchDist0=getTouchDist(e);pinchSc0=tShape.sc;return; }
-      if(tAttractor){ pinchDist0=getTouchDist(e);aPinchPull0=tAttractor.pullStrength;return; }
+      if(tAttractor){ pinchDist0=getTouchDist(e);aPinchPull0=tAttractor.type==='neutronstar'?(tAttractor.influenceR||3.5)*10:tAttractor.pullStrength;return; }
     }
     
     ndc.set((t.clientX/W)*2-1,-(t.clientY/H)*2+1);
@@ -2196,17 +2179,10 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
         tMoved=true;
       } else if(tAttractor){
         if(tAttractor.type === 'blackhole') {
-          const ratio = d / pinchDist0;
-          const pullMin = 55.0, pullMax = 140.0;
-          const newPull = Math.max(pullMin, Math.min(pullMax, aPinchPull0 * ratio));
-          tAttractor.pullStrength = newPull;
-          const t = (newPull - pullMin) / (pullMax - pullMin);
-          const rMin = tAttractor._bhRadiusMin || 0.703125;
-          const rMax = tAttractor._bhRadiusMax || 0.721875;
-          tAttractor.radius = rMin + Math.pow(t, 2.2) * (rMax - rMin);
-          tAttractor.consumeRadius = tAttractor.radius * 0.53;
+          tAttractor.pullStrength = Math.max(8.0, Math.min(120.0, aPinchPull0*(d/pinchDist0)));
         } else {
-          tAttractor.pullStrength = Math.max(5.0, Math.min(80.0, aPinchPull0*(d/pinchDist0)));
+          const rMin = 1.2, rMax = 8.0;
+          tAttractor.influenceR = Math.max(rMin, Math.min(rMax, (aPinchPull0/10)*(d/pinchDist0)));
         }
         const wp=s2w(t.clientX,t.clientY);tAttractor.pos.set(wp.x-aDragOff.x,wp.y-aDragOff.y,0);
         tMoved=true;
