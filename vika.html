@@ -1116,7 +1116,10 @@ footer p {
         float t = speed * u_stop_time;
 
         vec2 uv = vUv;
+        uv += 0.00007 * snoise(vUv * 6.0 + vec2(0.0, 15.0 * cos(0.1 * u_time)));
+        uv.y += 0.00005;
         vec3 color = texture2D(u_texture, uv).xyz;
+        color += 0.0015 * u_background_color;
 
         vec2 cursor = uv - u_point.xy;
         cursor.x *= u_ratio;
@@ -1283,6 +1286,12 @@ function render() {
       shaderMaterial.uniforms.u_stop_randomizer.value = new THREE.Vector3(Math.random(), Math.random(), Math.random());
       shaderMaterial.uniforms.u_stop_time.value = 0;
       pointer.clicked = false;
+      // Re-seed the feedback buffer with a fresh cream background on every new flower
+      // so UV drift and color accumulation never span more than one animation cycle
+      renderer.setRenderTarget(renderTargets[0]);
+      renderer.setClearColor(backgroundColor, 1);
+      renderer.clear();
+      renderer.setRenderTarget(null);
     }
     shaderMaterial.uniforms.u_stop_time.value += delta;
     renderer.setRenderTarget(renderTargets[1]);
