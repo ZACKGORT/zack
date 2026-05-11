@@ -1196,15 +1196,11 @@ import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.151.0/
 const canvasEl = document.getElementById('sunflower-canvas');
 const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-const pointer = { x: 0.65, y: 0.3, clicked: false };
-// Seed flowers spaced apart so they don't compound-darken
-window.setTimeout(() => { pointer.x = 0.78; pointer.y = 0.62; pointer.clicked = true; isRendering = true; }, 2000);
-window.setTimeout(() => { pointer.x = 0.18; pointer.y = 0.38; pointer.clicked = true; isRendering = true; }, 4000);
-window.setTimeout(() => { pointer.x = 0.55; pointer.y = 0.82; pointer.clicked = true; isRendering = true; }, 6000);
+const pointer = { x: 0, y: 0, clicked: false };
 
-let isRendering = true;
+let isRendering = false;
 let renderer, shaderScene, mainScene, renderTargets, camera, clock;
-let basicMaterial, shaderMaterial;
+let basicMaterial, shaderMaterial, bgScene;
 const backgroundColor = new THREE.Color(0xf5f0e8);
 
 initScene();
@@ -1266,18 +1262,20 @@ function initScene() {
 
   basicMaterial = new THREE.MeshBasicMaterial({ transparent: false });
   const bgMat = new THREE.MeshBasicMaterial({ color: backgroundColor, transparent: false });
-  const coloredPlane = new THREE.Mesh(planeGeometry, bgMat);
+
+  // Persistent bg scene reused for buffer resets — created once, never recreated
+  bgScene = new THREE.Scene();
+  bgScene.add(new THREE.Mesh(planeGeometry, bgMat));
 
   shaderScene.add(new THREE.Mesh(planeGeometry, shaderMaterial));
-  mainScene.add(coloredPlane);
-  // Prime BOTH render targets with cream so feedback loop never starts from black
-  renderer.setRenderTarget(renderTargets[0]);
-  renderer.render(mainScene, camera);
-  renderer.setRenderTarget(renderTargets[1]);
-  renderer.render(mainScene, camera);
-  renderer.setRenderTarget(null);
-  mainScene.remove(coloredPlane);
   mainScene.add(new THREE.Mesh(planeGeometry, basicMaterial));
+
+  // Prime BOTH render targets with cream before anything runs
+  renderer.setRenderTarget(renderTargets[0]);
+  renderer.render(bgScene, camera);
+  renderer.setRenderTarget(renderTargets[1]);
+  renderer.render(bgScene, camera);
+  renderer.setRenderTarget(null);
 }
 
 function render() {
