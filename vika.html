@@ -1196,7 +1196,7 @@ import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.151.0/
 const canvasEl = document.getElementById('sunflower-canvas');
 const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-const pointer = { x: 0.65, y: 0.3, clicked: true };
+const pointer = { x: 0.65, y: 0.3, clicked: false };
 // Seed flowers spaced apart so they don't compound-darken
 window.setTimeout(() => { pointer.x = 0.78; pointer.y = 0.62; pointer.clicked = true; isRendering = true; }, 2000);
 window.setTimeout(() => { pointer.x = 0.18; pointer.y = 0.38; pointer.clicked = true; isRendering = true; }, 4000);
@@ -1270,8 +1270,12 @@ function initScene() {
 
   shaderScene.add(new THREE.Mesh(planeGeometry, shaderMaterial));
   mainScene.add(coloredPlane);
+  // Prime BOTH render targets with cream so feedback loop never starts from black
   renderer.setRenderTarget(renderTargets[0]);
   renderer.render(mainScene, camera);
+  renderer.setRenderTarget(renderTargets[1]);
+  renderer.render(mainScene, camera);
+  renderer.setRenderTarget(null);
   mainScene.remove(coloredPlane);
   mainScene.add(new THREE.Mesh(planeGeometry, basicMaterial));
 }
@@ -1287,6 +1291,15 @@ function render() {
       shaderMaterial.uniforms.u_stop_randomizer.value = new THREE.Vector3(Math.random(), Math.random(), Math.random());
       shaderMaterial.uniforms.u_stop_time.value = 0;
       pointer.clicked = false;
+      // Reset both buffers to cream before each flower so drift never accumulates across sessions
+      const bgScene = new THREE.Scene();
+      const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({ color: backgroundColor }));
+      bgScene.add(bgMesh);
+      renderer.setRenderTarget(renderTargets[0]);
+      renderer.render(bgScene, camera);
+      renderer.setRenderTarget(renderTargets[1]);
+      renderer.render(bgScene, camera);
+      renderer.setRenderTarget(null);
     }
     shaderMaterial.uniforms.u_stop_time.value += delta;
     renderer.setRenderTarget(renderTargets[1]);
