@@ -32,7 +32,8 @@ canvas{display:block;}
 #cta-btn:hover{box-shadow:0 4px 24px rgba(255,255,255,0.18);}
 #cta-btn.paused{background:#0a0a0a;color:#ffffff;}
 
-.widget{position:fixed;z-index:100;background:rgba(10,10,10,0.88);border:1px solid rgba(255,255,255,0.07);backdrop-filter:blur(14px);border-radius:6px;user-select:none;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease,box-shadow 0.35s ease;}
+/* Fix #1: removed backdrop-filter from .widget — was compositing 10+ layers separately on Chrome */
+.widget{position:fixed;z-index:100;background:rgba(8,8,8,0.94);border:1px solid rgba(255,255,255,0.07);border-radius:6px;user-select:none;transition:background 0.35s ease,border-color 0.35s ease,color 0.35s ease,box-shadow 0.35s ease;}
 .widget-header{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:grab;}
 .widget-title{font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.18);text-transform:uppercase;}
 .widget-sub{font-size:8px;color:rgba(255,255,255,0.1);letter-spacing:0.1em;}
@@ -517,7 +518,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   bottom:24px;left:50%;right:auto;top:auto;
   transform:translateX(-50%) scale(0.88);
   background:rgba(10,10,10,0.94);border:1px solid rgba(255,255,255,0.14);
-  backdrop-filter:blur(20px);border-radius:8px;padding:18px 20px 16px;
+  border-radius:8px;padding:18px 20px 16px;
   text-align:center;z-index:2000;pointer-events:none;
   opacity:0;transition:opacity 0.4s,transform 0.4s;
   box-shadow:0 8px 48px rgba(0,0,0,0.7);
@@ -744,9 +745,7 @@ body.disco #flash-complete.on{background:rgba(255,100,255,0.04);}
     <span id="mb-lvl-label">LVL 1</span>
     <button id="mb-lvl-next">›</button>
   </div>
-  <button class="mb-btn" id="mb-hide-ui-btn" aria-label="Hide UI" style="max-width:48px;flex:0 0 48px;">
-    <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><rect x="3" y="4" width="18" height="3" rx="1" fill="rgba(255,255,255,0.55)"/><rect x="3" y="10.5" width="18" height="3" rx="1" fill="rgba(255,255,255,0.55)"/><rect x="3" y="17" width="18" height="3" rx="1" fill="rgba(255,255,255,0.55)"/></svg>
-  </button>
+  <!-- hamburger removed; ui-hide is now on #orb-rail-toggle (mobile only) -->
 </div>
 <div class="mb-panel" id="mb-note-panel">
   <div id="mb-flavor-tabs">
@@ -1357,8 +1356,13 @@ function _positionNextBtn() {
 // ── RENDERER ──────────────────────────────────────────────────────────────────
 let W=window.innerWidth,H=window.innerHeight;
 const isMobile=window.innerWidth<=600;
-const renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
-renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?3.0:2.0));renderer.setClearColor(0x0a0a0a);
+// Fix #2: disable MSAA on mobile (Chrome composites it heavily)
+// Fix #3: preserveDrawingBuffer only when screenshot is requested
+const renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:false});
+renderer.setSize(W,H);
+// Fix #4: cap DPR at 2.0 on mobile (was 3.0) — cuts fill rate by 2.25×
+renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?2.0:2.0));
+renderer.setClearColor(0x0a0a0a);
 renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
 
@@ -1489,7 +1493,8 @@ function _tickSaltFloor(dt) {
 }
 
 // overlay canvas for targets (rendered in multi-pass WebGL)
-const _dpr = Math.min(devicePixelRatio, isMobile ? 3.0 : 2.0);
+// Fix #4: cap DPR at 2.0 on mobile (was 3.0) — matches renderer
+const _dpr = Math.min(devicePixelRatio, isMobile ? 2.0 : 2.0);
 const ov=document.createElement('canvas');
 ov.width=W*_dpr;ov.height=H*_dpr;const ovCtx=ov.getContext('2d');
 ovCtx.scale(_dpr,_dpr);
@@ -1551,11 +1556,17 @@ function buildTextChars(lvlN){
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
+// Fix #5: pre-allocate internal work vectors to avoid per-call THREE.Vector3 allocation
+// Returns a plain object {x,y,z,clone} — safe for all callers including prevWP=wp.clone()
+const _s2wV=new THREE.Vector3(),_s2wD=new THREE.Vector3();
 function s2w(sx,sy){
   const nx=(sx/W)*2-1,ny=-(sy/H)*2+1;
-  const v=new THREE.Vector3(nx,ny,0.5).unproject(camera);
-  const d=v.sub(camera.position).normalize(),t=-camera.position.z/d.z;
-  return new THREE.Vector3(camera.position.x+d.x*t,camera.position.y+d.y*t,0);
+  _s2wV.set(nx,ny,0.5).unproject(camera);
+  _s2wD.copy(_s2wV).sub(camera.position).normalize();
+  const t=-camera.position.z/_s2wD.z;
+  const rx=camera.position.x+_s2wD.x*t, ry=camera.position.y+_s2wD.y*t;
+  // Return lightweight object; clone() returns a THREE.Vector3 for callers that need it
+  return {x:rx,y:ry,z:0,clone(){return new THREE.Vector3(rx,ry,0);}};
 }
 
 // ── DRAGGABLE WIDGETS ─────────────────────────────────────────────────────────
@@ -2392,50 +2403,8 @@ function applyAttractorForces(i, b, dt) {
 function drawBlackHoleOverlay() {
   const t = Date.now() * 0.001;
 
-  // ── BH shadow casting onto shapes ───────────────────────────────────────────
-  // For each black hole, project a soft shadow ellipse onto each shape below it
-  attractors.forEach(bh => {
-    if (bh.type !== 'blackhole') return;
-    const bhC = bh.pos.clone().project(camera);
-    const bhSX = (bhC.x + 1) / 2 * W, bhSY = (-bhC.y + 1) / 2 * H;
-    const basePullBH = 57.0;
-    const scaleBH = Math.sqrt(bh.pullStrength / basePullBH);
-    const bhEdge = new THREE.Vector3(bh.pos.x + bh.radius * scaleBH, bh.pos.y, 0).project(camera);
-    const bhCoreR = Math.abs((bhEdge.x + 1) / 2 * W - bhSX);
-
-    // Shadow over each shape — proximity-weighted dark blob
-    shapes.forEach(sh => {
-      const shC = sh.pos.clone().project(camera);
-      const shSX = (shC.x + 1) / 2 * W, shSY = (-shC.y + 1) / 2 * H;
-      const shEdge = new THREE.Vector3(sh.pos.x + sh.radius, sh.pos.y, 0).project(camera);
-      const shR = Math.abs((shEdge.x + 1) / 2 * W - shSX) * 1.6;
-
-      // World-space distance BH → shape
-      const wdx = bh.pos.x - sh.pos.x, wdy = bh.pos.y - sh.pos.y;
-      const wdist = Math.sqrt(wdx*wdx + wdy*wdy);
-      const shadowStrength = Math.max(0, 1.0 - wdist / 14.0); // falls off over 14 world units
-      if (shadowStrength < 0.02) return;
-
-      // Shadow offset: BH casts shadow on far side of shape from emitter (top)
-      // Direction: from BH toward shape, continued past shape
-      const sOff = wdist > 0.1 ? { x: (sh.pos.x - bh.pos.x) / wdist, y: (sh.pos.y - bh.pos.y) / wdist } : { x: 0, y: -1 };
-      const shadowOffsetPx = shR * 0.4;
-
-      const shadowX = shSX + sOff.x * shadowOffsetPx * 0.5;
-      const shadowY = shSY + sOff.y * shadowOffsetPx * 0.5;
-      const shadowR = shR * (1.2 + shadowStrength * 0.6);
-      const alpha = shadowStrength * 0.72;
-
-      ovCtx.save();
-      const sg = ovCtx.createRadialGradient(shadowX, shadowY, 0, shadowX, shadowY, shadowR);
-      sg.addColorStop(0, `rgba(0,0,0,${alpha})`);
-      sg.addColorStop(0.55, `rgba(0,0,0,${alpha * 0.45})`);
-      sg.addColorStop(1, 'rgba(0,0,0,0)');
-      ovCtx.beginPath(); ovCtx.arc(shadowX, shadowY, shadowR, 0, Math.PI * 2);
-      ovCtx.fillStyle = sg; ovCtx.fill();
-      ovCtx.restore();
-    });
-  });
+  // Fix #6: BH shadow-casting pass removed — O(BH×shapes) radialGradients every 2 frames
+  // was a significant Chrome GPU overdraw contributor with no visible payoff on basketball level.
 
   attractors.forEach(bh => {
     // When project orbs are railed, skip drawing their rings/halos entirely
@@ -4492,12 +4461,18 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
     noteBtn.addEventListener('click',()=>togglePanel(notePanel,noteBtn));
   }
 
-  // Hide UI toggle
-  const hideUiBtn = document.getElementById('mb-hide-ui-btn');
-  if (hideUiBtn) {
-    hideUiBtn.addEventListener('click', () => {
+  // Hide UI toggle — repurposed from hamburger to the projects button on mobile
+  // On mobile, #orb-rail-toggle acts as the ui-hide toggle instead of opening the rail
+  const orbRailToggleEl = document.getElementById('orb-rail-toggle');
+  if (orbRailToggleEl) {
+    // Remove any existing click listener by replacing with a fresh clone
+    const orbRailClone = orbRailToggleEl.cloneNode(true);
+    orbRailToggleEl.parentNode.replaceChild(orbRailClone, orbRailToggleEl);
+    orbRailClone.addEventListener('click', () => {
       const hidden = document.body.classList.toggle('ui-hidden');
-      hideUiBtn.classList.toggle('active', hidden);
+      orbRailClone.classList.toggle('active', hidden);
+      // Keep text label in sync
+      orbRailClone.querySelector('.ort-dot') && (orbRailClone.querySelector('.ort-dot').style.background = hidden ? 'rgba(255,255,255,0.7)' : '');
     });
   }
 
@@ -4926,14 +4901,20 @@ function pushSpillHistory(v) {
   if (spillHistory.length > SPILL_HISTORY_MAX) spillHistory.shift();
 }
 
+// Fix #9: cache spill-graph canvas size — only resize when container changes
+let _sgLastW = 0;
 function drawSpillGraph() {
   const canvas = document.getElementById('spill-graph-canvas');
   if (!canvas) return;
-  const W2 = canvas.offsetWidth || 200;
-  canvas.width = W2 * (window.devicePixelRatio || 1);
-  canvas.height = 64 * (window.devicePixelRatio || 1);
-  const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
+  const W2 = canvas.offsetWidth || 200;
+  // Only invalidate GPU state when size actually changed
+  if (_sgLastW !== W2) {
+    canvas.width = W2 * dpr;
+    canvas.height = 64 * dpr;
+    _sgLastW = W2;
+  }
+  const ctx = canvas.getContext('2d');
   const cw = canvas.width, ch = canvas.height;
   ctx.clearRect(0, 0, cw, ch);
 
@@ -5116,14 +5097,32 @@ function checkDone(){
 
 // ── SCREENSHOT / NEXT ─────────────────────────────────────────────────────────
 document.getElementById('screenshot-btn').addEventListener('click',()=>{
-  renderer.clear();
-  renderer.render(scene,camera);
-  renderer.render(particleScene,camera);
-  renderer.render(orthoScene,orthoCam);
-  const a=document.createElement('a');
-  a.href=renderer.domElement.toDataURL('image/png');
-  a.download='particle-flow-lvl'+(lvl+1)+'.png';
-  a.click();
+  // Fix #3: render into a fresh WebGL context with preserveDrawingBuffer=true
+  // instead of keeping it on all the time. Falls back gracefully if creation fails.
+  try {
+    const sc2=document.createElement('canvas');
+    sc2.width=renderer.domElement.width; sc2.height=renderer.domElement.height;
+    const r2=new THREE.WebGLRenderer({canvas:sc2,antialias:true,preserveDrawingBuffer:true});
+    r2.setPixelRatio(renderer.getPixelRatio());
+    r2.setSize(W,H);
+    r2.setClearColor(0x0a0a0a);
+    r2.autoClear=false;
+    r2.clear();
+    r2.render(scene,camera);
+    r2.render(particleScene,camera);
+    r2.render(orthoScene,orthoCam);
+    const a=document.createElement('a');
+    a.href=sc2.toDataURL('image/png');
+    a.download='particle-flow-lvl'+(lvl+1)+'.png';
+    a.click();
+    r2.dispose();
+  } catch(e) {
+    // Fallback: use main canvas (may be blank without preserveDrawingBuffer)
+    const a=document.createElement('a');
+    a.href=renderer.domElement.toDataURL('image/png');
+    a.download='particle-flow-lvl'+(lvl+1)+'.png';
+    a.click();
+  }
 });
 document.getElementById('next-btn').addEventListener('click',()=>{if(lvl<LEVELS.length-1){lvl++;initLevel(lvl);tCounts=[];for(let i=0;i<MP;i++)spawn(i);buildInit();}});
 
@@ -5599,8 +5598,12 @@ function tick(){
   cvx+=(mX-cX)*0.18;cvy+=(mY-cY)*0.18;cvx*=0.62;cvy*=0.62;cX+=cvx;cY+=cvy;
   const spd=Math.sqrt(cvx*cvx+cvy*cvy),ang=spd>0.5?Math.atan2(cvy,cvx)*180/Math.PI:0;
   const str=Math.min(spd*0.55,13),cw=18+str,ch=Math.max(6,11-str*0.28);
-  curEl.style.transform=`translate(${cX-cw/2}px,${cY-ch/2}px) rotate(${ang}deg)`;
-  curEl.style.width=cw+'px';curEl.style.height=ch+'px';
+  // Fix #10: batch style writes, avoid per-frame forced recalc
+  const _newTf=`translate(${(cX-cw/2).toFixed(1)}px,${(cY-ch/2).toFixed(1)}px) rotate(${ang.toFixed(1)}deg)`;
+  if(curEl._tf!==_newTf){curEl.style.transform=_newTf;curEl._tf=_newTf;}
+  const _cwR=cw.toFixed(1)+'px',_chR=ch.toFixed(1)+'px';
+  if(curEl._cw!==_cwR){curEl.style.width=_cwR;curEl._cw=_cwR;}
+  if(curEl._ch!==_chR){curEl.style.height=_chR;curEl._ch=_chR;}
 
   if(paused){
     drawTextLayer();
@@ -5798,7 +5801,9 @@ function tick(){
   pGeo.attributes.position.needsUpdate=true;
 
   countTgts();updateHUD();checkDone();
+  // Fix #8: only mark overlay texture dirty when we actually redrew it
   _ovFrame++;if(_ovFrame%2===0){ drawOverlay(); drawBlackHoleOverlay(); ovTex.needsUpdate = true; }
+  // else ovTex reuses prior frame — no GPU upload
 
   // text cursor layer drawn every frame (above 3js, below widgets)
   drawTextLayer();
@@ -5824,7 +5829,7 @@ setTimeout(()=>{
 window.addEventListener('resize',()=>{
   W=window.innerWidth;H=window.innerHeight;
   camera.aspect=W/H;camera.updateProjectionMatrix();
-  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?3.0:2.0));
+  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?2.0:2.0));
   ov.width=W*_dpr;ov.height=H*_dpr;
   ovCtx.setTransform(_dpr,0,0,_dpr,0,0);
   tc.width=W*_dpr;tc.height=H*_dpr;
@@ -6441,6 +6446,7 @@ function _drawAim(){
 }
 
 // ── BULLET TIME ───────────────────────────────────────────────────────────────
+const _btArcV=new THREE.Vector3(); // Fix #5: reused across bullet-time arc frames
 function _btComputeArc(){
   if(!_bulletTime||!_bbBall) return false;
   const GRAV_SIM=7.2, MAX_V=30;
@@ -6457,8 +6463,8 @@ function _btComputeArc(){
   const arcPts=[];
   for(let s=0;s<STEPS;s++){
     pvy-=GRAV_SIM*simDt; px+=pvx*simDt; py+=pvy*simDt;
-    const psc=new THREE.Vector3(px,py,0).project(camera);
-    arcPts.push({sx:(psc.x+1)/2*W,sy:(-psc.y+1)/2*H,wx:px,wy:py});
+    _btArcV.set(px,py,0).project(camera);
+    arcPts.push({sx:(_btArcV.x+1)/2*W,sy:(-_btArcV.y+1)/2*H,wx:px,wy:py});
     const hd=Math.sqrt((px-HOOP.x)**2+(py-HOOP.y)**2);
     if(hd<minHoopDist) minHoopDist=hd;
   }
