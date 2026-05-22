@@ -28,7 +28,7 @@ canvas{display:block;}
 #text-canvas{position:fixed;inset:0;pointer-events:none;z-index:200;}
 
 #dispenser{position:fixed;z-index:300;top:18px;left:50%;transform:translateX(-50%);user-select:none;touch-action:none;}
-#cta-btn{display:flex;align-items:center;justify-content:center;gap:9px;background:#ffffff;color:#0a0a0a;border:none;padding:0 20px 0 18px;height:38px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:none;border-radius:4px;box-shadow:0 2px 16px rgba(0,0,0,0.4);transition:box-shadow 0.15s,background 0.12s;white-space:nowrap;min-width:100px;}
+#cta-btn{display:flex;align-items:center;justify-content:center;gap:9px;background:#ffffff;color:#0a0a0a;border:none;padding:0 20px 0 18px;height:38px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:none;border-radius:4px;transition:background 0.12s;white-space:nowrap;min-width:100px;}
 #cta-btn:hover{opacity:0.92;}
 #cta-btn.paused{background:#0a0a0a;color:#ffffff;}
 
@@ -54,9 +54,9 @@ canvas{display:block;}
 .target-row{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
 .tdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .tbar-bg{flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;}
-.tbar-fill{height:100%;border-radius:2px;transition:width 0.15s;}
+.tbar-fill{height:100%;border-radius:2px;}
 .tpct{font-size:8px;color:rgba(255,255,255,0.22);min-width:24px;text-align:right;}
-.tchk{font-size:9px;opacity:0;transition:opacity 0.3s;}
+.tchk{font-size:9px;opacity:0;}
 .tchk.done{opacity:1;}
 
 #panel{right:16px;top:90px;left:auto;bottom:auto;}
@@ -118,7 +118,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 
 /* ── SCORE TRACKER ── */
 #bb-score-tracker{
-  position:fixed;bottom:22px;right:22px;z-index:80;
+  position:fixed;bottom:22px;right:22px;z-index:400;
   font-family:'Helvetica Neue',Arial,sans-serif;font-weight:900;
   font-size:64px;line-height:1;letter-spacing:-0.04em;
   color:rgba(255,255,255,0.88);
@@ -482,10 +482,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     background:rgba(255,255,255,0.06);
   }
   body.ui-hidden #orb-rail,
+  body.ui-hidden #orb-rail-toggle,
   body.ui-hidden #screenshot-btn,
   body.ui-hidden #mb-shape-hud,
-  body.ui-hidden .orb-widget,
-  body.ui-hidden .mb-panel{
+  body.ui-hidden .orb-widget{
     opacity:0!important;
     pointer-events:none!important;
     transition:opacity 0.25s;
@@ -937,8 +937,8 @@ const CONTENT = {
 
   // Mobile flavor tab labels
   flavorTabs: {
-    sugar: 'insight',
-    salt:  'outlook',
+    sugar: '"sugar"',
+    salt:  'salt',
   },
 
   // Shape button labels (desktop + mobile)
@@ -1019,20 +1019,11 @@ const CONTENT = {
 // Per-flavor win statements (5 levels after removing old level 5)
 const LEVEL_COMPLETE_FLAVOR = {
   sugar: [
-    `design is a position; <br>best served with discretion.`,
-    `ahh, that's better.`,
-    `that's craft.`,
-    `very nice, well done.`,
-    `intake = mass; mass → gravity`,
-    `hope you enjoyed this. thank you!`,
+    ` `,
+
   ],
   salt: [
-    `reduction is a form of precision.`,
-    `go ahead and right-click those unused shapes.`,
-    `that wasn't so bad.`,
-    `if you moved the wormhole, that's like moving the goal posts, but a win is a win, I suppose.`,
-    `signal = gravity; gravity → infouence (maybe?).`,
-    `anyways :)`,
+  ` `,
   ],
 };
 function getLevelComplete(lvlN) {
@@ -1044,11 +1035,7 @@ const LEVEL_COMPLETE = LEVEL_COMPLETE_FLAVOR.sugar;
 
 // At rest: one title statement per level (default; overwritten by setFlavor)
 const LEVEL_TITLES = [
-  `"the best part is no part"<br>— space.X`,
-  `think different — steve.jobs`,
-  `the more u practice, the luckier i get.<br>— gary.player`,
-  `intake = mass; mass → gravity`,
-  `signal, multipliedl = gravity; gravity → infouence.`,
+` `,
   ``,
 ];
 
@@ -1056,19 +1043,10 @@ const LEVEL_TITLES = [
 // One statement per level per flavor. setFlavor() swaps these into LEVEL_TITLES.
 const FLAVOR_TITLES = {
   sugar: [
-    `sometimes, <br>design isn't design.`,
-    `more often, <br>design is simply balance.`,
-    `design may offer <br>pathways for intent.`,
-    `design can be defined as "anything not created by nature"`,
-    `design is intake.`,
-    `make mass; have gravity.`,
+  ` `,
   ],
   salt: [
-  `"the best part is no part"<br>— space.X`,
-    `kindly,<br>"take this with a pinch of salt"`,
-    `honestly folks, I wanted to include an auto-solve here, but it became prohibitively expensive from a compute standpoint.`,
-    `if the system allows it, <br>is it okay? is it ethical? <br>where does one draw the line?`,
-    `make mass; have gravity.`,
+  ` `,
   ],
 };
 
@@ -1489,12 +1467,25 @@ function _tickSaltFloor(dt) {
 
 // overlay canvas for targets (rendered in multi-pass WebGL)
 // Fix #4b: overlay canvas DPR 1.0 on mobile — composited by WebGL so 1x is sufficient
-const _dpr = Math.min(devicePixelRatio, isMobile ? 1.0 : 2.0);
+// Overlay canvas DPR locked to 1.0 — composited as a WebGL texture so bilinear
+// upscale is imperceptible; avoids 32MB texImage2D upload every 2 frames on HiDPI.
+const _dpr = 1.0;
 const ov=document.createElement('canvas');
 ov.width=W*_dpr;ov.height=H*_dpr;const ovCtx=ov.getContext('2d');
 ovCtx.scale(_dpr,_dpr);
 const ovTex = new THREE.CanvasTexture(ov);
 ovTex.minFilter = THREE.LinearFilter;
+// Fix Chrome: use ImageBitmap async path to decouple canvas rasterization from WebGL upload
+let _ovBitmapPending = false;
+function _uploadOverlayAsync() {
+  if(_ovBitmapPending) return;
+  _ovBitmapPending = true;
+  createImageBitmap(ov).then(bmp => {
+    ovTex.image = bmp;
+    ovTex.needsUpdate = true;
+    _ovBitmapPending = false;
+  });
+}
 const orthoScene = new THREE.Scene();
 const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 const ovMat = new THREE.MeshBasicMaterial({map: ovTex, transparent: true, depthTest: false, depthWrite: false});
@@ -1505,7 +1496,6 @@ let _ovFrame=0;
 
 // Particle Scene (rendered after shapes and targets so it sits on top)
 const particleScene = new THREE.Scene();
-particleScene.fog = scene.fog;
 
 // ── TEXT CURSOR LAYER (ported from cx.html) ───────────────────────────────────
 const tc=document.getElementById('text-canvas');
@@ -2243,6 +2233,12 @@ function applyAttractorForces(i, b, dt) {
   for (let a of attractors) {
     const dx = a.pos.x - pp[b], dy = a.pos.y - pp[b+1], dz = (a.pos.z || 0) - (pp[b+2] || 0);
     const dist2 = dx*dx + dy*dy + dz*dz;
+    // Fix perf: cull particles far from attractor before sqrt — saves sqrt on ~60% of particles
+    if (a.type === 'blackhole' && dist2 > 400) { // 20 world units²
+      const f = a.pullStrength * 2.8 * dt / (dist2 + 0.15);
+      pv[b]   += dx * f; pv[b+1] += dy * f; pv[b+2] += dz * f;
+      continue;
+    }
     const dist = Math.sqrt(dist2);
     if (dist < 0.001) continue;
 
@@ -2256,19 +2252,14 @@ function applyAttractorForces(i, b, dt) {
       // Orbital circularization: bleed off radial velocity, preserve tangential
       // This is what makes an accretion disc — particles settle into rings
       if (dist < a.radius * 12.0) {
-        const rx = pp[b] - a.pos.x, ry = pp[b+1] - a.pos.y;
-        const r = Math.sqrt(rx*rx + ry*ry) + 0.001;
-        // tangent unit vector (perpendicular to radial, in orbital direction)
-        const tx = -ry / r, ty = rx / r;
-        // current tangential speed
+        // Reuse dx/dy already computed; r ≈ dist projected to XY (saves sqrt)
+        const r2d = Math.sqrt(dx*dx + dy*dy) + 0.001;
+        const tx = dy / r2d, ty = -dx / r2d; // tangent (perpendicular to radial)
         const vTan = pv[b] * tx + pv[b+1] * ty;
-        // target circular orbital speed at this radius
-        const vCirc = Math.sqrt(Math.max(0, a.pullStrength / r));
-        // nudge toward circular orbit — damp excess radial, boost tangential
+        const vCirc = Math.sqrt(Math.max(0, a.pullStrength / r2d));
         const nudge = (vCirc - vTan) * 0.055;
         pv[b]   += tx * nudge;
         pv[b+1] += ty * nudge;
-        // flatten the disc: damp z strongly so the disc stays planar
         pv[b+2] *= 0.88;
       }
 
@@ -2638,7 +2629,7 @@ function initLevel(n){
     });
 
     // Default shader — keep dry-salt for this level
-    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*7.0)*1.1;float brightness=core*1.8+halo;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
     pMat.needsUpdate = true;
 
     // Level 5: waterfall ON by default
@@ -2650,7 +2641,7 @@ function initLevel(n){
     if (wfTog) { wfTog.textContent = 'ON'; wfTog.classList.add('on'); }
   } else {
     // Restore default dry-salt luminance shader for levels 1–4
-    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*7.0)*1.1;float brightness=core*1.8+halo;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
     pMat.needsUpdate = true;
 
     // Levels 1–4: waterfall OFF, hide the row
@@ -2693,7 +2684,7 @@ function initLevel(n){
     // No neutron stars on level 6
 
     // Same particle shader as level 5
-    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*7.0)*1.1;float brightness=core*1.8+halo;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
     pMat.needsUpdate = true;
 
     // Waterfall ON
@@ -2723,7 +2714,7 @@ function initLevel(n){
     setSl('sl-grav',11.0);  setVl('v-grav','11.0');
     setSl('sl-spread',0.5); setVl('v-spread','0.50');
     setSl('sl-size',P.size); setVl('v-size',String(P.size));
-    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = (isMobile ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*7.0)*1.1;float brightness=core*1.8+halo;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
     pMat.needsUpdate = true;
     if (emitterShape && emitterShape.mesh) { scene.remove(emitterShape.mesh); emitterShape.mesh.visible = false; }
     ['panel','game-hud','spill-graph-widget'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
@@ -3772,18 +3763,16 @@ const pMat=new THREE.ShaderMaterial({
   fragmentShader:`varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;
     // Hard core — incandescent white centre
     float core=exp(-d*28.0);
-    // Mid halo — warm glow ring
-    float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;
-    // Outer bloom — wide soft radiance
-    float bloom=smoothstep(0.5,0.0,d)*0.6;
-    float brightness=core*1.8+halo+bloom;
+    float halo=exp(-d*7.0)*1.1;
+    float brightness=core*1.8+halo;
     float a=brightness*(1.0-vF*0.72);
     // Colour: white-hot core → warm cream edge
     float warmth=1.0-d*0.9;
     gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`,
   transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
 });
-particleScene.add(new THREE.Points(pGeo,pMat));
+const pPoints = new THREE.Points(pGeo,pMat);
+scene.add(pPoints); // Fix: merged into main scene to eliminate a render() pass
 
 const PR=0.08,_n=new THREE.Vector3();
 function sdfN(sh,x,y,z){const e=0.006,c=sh.sdf(x,y,z);_n.set(sh.sdf(x+e,y,z)-c,sh.sdf(x,y+e,z)-c,sh.sdf(x,y,z+e)-c).normalize();}
@@ -5105,7 +5094,6 @@ document.getElementById('screenshot-btn').addEventListener('click',()=>{
     r2.autoClear=false;
     r2.clear();
     r2.render(scene,camera);
-    r2.render(particleScene,camera);
     r2.render(orthoScene,orthoCam);
     const a=document.createElement('a');
     a.href=sc2.toDataURL('image/png');
@@ -5629,7 +5617,6 @@ function tick(){
     ovTex.needsUpdate = true;
     renderer.clear();
     renderer.render(scene,camera);
-    renderer.render(particleScene,camera);
     renderer.render(orthoScene,orthoCam);
     return;
   }
@@ -5653,7 +5640,11 @@ function tick(){
   // Compute world-space viewport edges at z=0 for edge repulsion
   const edgeL=s2w(0,H/2).x,edgeR=s2w(W,H/2).x;
   const edgeT=s2w(W/2,0).y,edgeB=s2w(W/2,H).y;
-  const EDGE_ZONE=1.8,EDGE_F=18.0; // repulsion band width & force strength
+  const EDGE_ZONE=1.8,EDGE_F=18.0;
+  // Fix perf: cache loop-invariant mode flags as locals — JIT can treat as constants
+  const _pRain=P.rain, _pWaterfall=P.waterfall, _pGrav=P.gravity, _lvl6=lvl===6;
+  const _bbBallActive = _lvl6 && _bbBall && !_bbBall.dragging;
+  const _attLen = attractors.length; // cache length — avoids property lookup per iteration
 
   for(let i=0;i<N;i++){
     const b=i*3;
@@ -5676,32 +5667,17 @@ function tick(){
     
     if(applyAttractorForces(i,b,dt)) continue;
 
-    // ── ZenOrb (basketball) influence on main particle stream ─────────────────
-    // Applies only on the basketball level; pulls nearby stream particles toward
-    // the ball with a short-range soft field — doesn't disturb the global flow.
-    if (_bbBall && !_bbBall.dragging && lvl === 6) {
-      const zdx = _bbBall.pos.x - pp[b], zdy = _bbBall.pos.y - pp[b+1], zdz = (_bbBall.pos.z||0) - pp[b+2];
-      const zdist2 = zdx*zdx + zdy*zdy + zdz*zdz;
-      const ZEN_MAIN_R = 4.0;
-      if (zdist2 < ZEN_MAIN_R * ZEN_MAIN_R) {
-        const zdist = Math.sqrt(zdist2) + 0.001;
-        const falloff = 1.0 - zdist / ZEN_MAIN_R;
-        const zf = 2.8 * falloff * falloff * dt / zdist;
-        pv[b]   += zdx * zf;
-        pv[b+1] += zdy * zf;
-        pv[b+2] += zdz * zf * 0.4;
-      }
-    }
+    // ZenOrb pull handled by applyAttractorForces (_bbBall is in attractors)
     
     // Waterfall: each tier has its own gravity multiplier so layers fall at different speeds
-    const gravMult = P.waterfall ? (0.45 + pGravTier[i] * 0.55) : 1.0;
-    pv[b+1]-=(P.gravity+_zenGravSpike)*gravMult*dt;
-    if(P.rain){pv[b]-=pp[b]*0.4*dt;pv[b+2]-=pp[b+2]*0.3*dt;}
+    const gravMult = _pWaterfall ? (0.45 + pGravTier[i] * 0.55) : 1.0;
+    pv[b+1]-=(_pGrav+_zenGravSpike)*gravMult*dt;
+    if(_pRain){pv[b]-=pp[b]*0.4*dt;pv[b+2]-=pp[b+2]*0.3*dt;}
 
     // ── Freefall XY bias: damp z toward 0 while particle is airborne ──
     // In waterfall mode suppress z damping so the depth layers stay spread
     const airborne=pp[b+1]>-8.0;
-    if(airborne && !P.waterfall){
+    if(airborne && !_pWaterfall){
       pp[b+2]*=0.88;
       pv[b+2]*=0.80;
     }
@@ -5729,7 +5705,7 @@ function tick(){
     }
     
     // ── Attractor Collision (Bounce) ──
-    for (let a of attractors) {
+    for (let _ai=0;_ai<_attLen;_ai++) { const a=attractors[_ai];
       const bhd = a.sdf(pp[b], pp[b+1], pp[b+2]);
       if(bhd < PR) {
         const dx=pp[b]-a.pos.x,dy=pp[b+1]-a.pos.y,dz=pp[b+2]-(a.pos.z||0);
@@ -5817,20 +5793,19 @@ function tick(){
   for(let i=N;i<MP;i++){if(pal[i]){pal[i]=0;pp[i*3+1]=-9999;}}
   pGeo.attributes.position.needsUpdate=true;
 
-  // Fix perf: HUD DOM updates throttled on mobile (every 3rd frame vs every frame)
-  if(!isMobile||_ovFrame%3===0){ countTgts();updateHUD();checkDone(); }
+  // Fix perf: HUD DOM updates throttled — bar/pct changes <4% per frame so 15fps update is fine
+  if(_ovFrame%4===0){ countTgts();updateHUD();checkDone(); }
   // Fix #8+: overlay every 2nd frame desktop, every 3rd frame mobile
   _ovFrame++;
-  const _ovStride = isMobile ? 3 : 2;
-  if(_ovFrame%_ovStride===0){ drawOverlay(); drawBlackHoleOverlay(); ovTex.needsUpdate = true; }
+  const _ovStride = 2;
+  if(_ovFrame%_ovStride===0){ drawOverlay(); drawBlackHoleOverlay(); _uploadOverlayAsync(); }
   // else ovTex reuses prior frame — no GPU upload
 
-  // text cursor layer drawn every frame (above 3js, below widgets)
-  drawTextLayer();
+  // text cursor layer — every 2nd frame (cursor lerps at 11%/frame, imperceptible at 30fps update)
+  if(_ovFrame%2===0) drawTextLayer();
 
   renderer.clear();
-  renderer.render(scene,camera);
-  renderer.render(particleScene,camera);
+  renderer.render(scene,camera); // particles now in scene — saves one render() call
   // Fix perf: skip ortho overlay render on frames where texture wasn't updated
   if(ovTex.needsUpdate||_ovFrame===1) renderer.render(orthoScene,orthoCam);
 }
@@ -6003,7 +5978,7 @@ setTimeout(() => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Fix perf: mobile reduces hoop particle counts significantly
-var RIM_RING_COUNT  = isMobile ? 300 : 800;
+var RIM_RING_COUNT  = isMobile ? 300 : 800; // mobile reduced
 var RIM_CLOUD_COUNT = isMobile ? 400 : 1200;
 var NET_COUNT       = isMobile ? 1400 : 4200;
 
@@ -6045,7 +6020,7 @@ function _buildRimRing() {
   const ringMat=new THREE.ShaderMaterial({
     uniforms:{uPulse:{value:1.0}},
     vertexShader:`uniform float uPulse;void main(){gl_PointSize=4.2*uPulse;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*22.0);float halo=exp(-d*7.0)*0.7;float bloom=smoothstep(0.5,0.0,d)*0.5;float a=(core*1.8+halo+bloom)*0.95;vec3 col=mix(vec3(1.0,0.92,0.72),vec3(1.0,0.98,0.95),core);gl_FragColor=vec4(col,a);}`,
+    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*22.0);float halo=exp(-d*6.0)*0.8;float a=(core*1.8+halo)*0.95;vec3 col=mix(vec3(1.0,0.92,0.72),vec3(1.0,0.98,0.95),core);gl_FragColor=vec4(col,a);}`,
     transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
   });
   _rimRingPoints=new THREE.Points(_rimRingGeo,ringMat);
@@ -6174,7 +6149,7 @@ function _tickRimRing(dt) {
       Math.sqrt((bpx-HOOP.x)**2+(bpz-HOOP.z)**2) < HOOP.rimR*1.3;
 
     // Fix perf: throttle net particle physics to every 2nd frame on mobile
-    const _runNet = !isMobile || _rimRingFrame%2===0;
+    const _runNet = isMobile ? _rimRingFrame%2===0 : true;
     for(let i=0;i<NET_COUNT;i++){
       if(!_runNet){ _netPts[i*3]+=_netVel[i*3]*dt; _netPts[i*3+1]+=_netVel[i*3+1]*dt; _netPts[i*3+2]+=_netVel[i*3+2]*dt; continue; }
       _netAge[i]+=dt;
@@ -6341,7 +6316,7 @@ function _tickBBall(dt){
 
   const edgeL2=s2w(0,H/2).x-1.5, edgeR2=s2w(W,H/2).x+1.5;
   const BY_FLOOR=FLR+ballR+0.05; // ball rests on FLR ground
-  const BY_CEIL=s2w(W/2,0).y+ballR+0.05; // viewport top edge
+  const BY_CEIL=s2w(W/2,-60).y; // ~60px above viewport top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
     if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
@@ -6802,7 +6777,7 @@ setTimeout(()=>{
         _tickRimRing(scaledDt);
         _bbHaloDt=dt; // feed real dt to halo animator
         // Fix perf: throttle aim/score canvas redraws on mobile (every 2nd frame)
-        if(!isMobile||Math.floor(Date.now()/16)%2===0){
+        if(!isMobile || Math.floor(Date.now()/16)%2===0){
           if(_bulletTime){ _drawBulletTimeOverlay(); _drawScoreFlash(); }
           else { _drawAim(); _drawScoreFlash(); }
         }
