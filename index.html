@@ -128,6 +128,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   user-select:none;
 }
 #bb-score-tracker.flash{color:#ffd060;}
+/* ── MOBILE SCORE OVERRIDE ── */
+@media(max-width:600px){
+  #bb-score-tracker{
+    bottom:auto;right:auto;
+    top:52px;left:50%;transform:translateX(-50%);
+    font-size:36px;
+    text-align:center;
+    pointer-events:none;
+  }
+}
 
 /* ── ORB RAIL ── */
 #orb-rail{
@@ -174,13 +184,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 @media(max-width:600px){
   #bb-score-tracker{font-size:44px;bottom:14px;right:14px;}
   #orb-rail{width:100%;flex-direction:row;flex-wrap:wrap;
-    top:auto;bottom:60px;right:0;left:0;
+    top:auto;bottom:8px;right:0;left:0;
     justify-content:center;align-items:flex-end;padding:0 8px 8px;gap:8px;}
   #orb-rail .orb-widget{width:calc(50% - 4px)!important;flex:none;}
   #orb-rail-toggle{top:8px;right:8px;font-size:8px;}
 }
 
-/* ── STANDALONE ZACK.CX: HIDE GAME/LEVELING UI ── */
 #flavor-toggle{display:none!important;}
 #level-nav{display:none!important;}
 #game-hud{display:none!important;}
@@ -295,30 +304,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   #cursor{display:none!important;}
   body{cursor:auto;}
 
-  /* ── MOBILE LEVEL NAV (always-visible prev/next in top bar) ── */
-  #mb-lvl-nav{
-    display:flex;align-items:center;gap:0;
-    border-left:1px solid rgba(255,255,255,0.06);
-    flex-shrink:0;
-  }
-  #mb-lvl-prev,#mb-lvl-next{
-    width:38px;height:48px;
-    display:flex;align-items:center;justify-content:center;
-    background:transparent;border:none;
-    font-family:'Helvetica Neue',Arial,sans-serif;font-size:18px;font-weight:300;
-    color:rgba(255,255,255,0.35);
-    cursor:pointer;-webkit-tap-highlight-color:transparent;
-    transition:color 0.12s,background 0.12s;
-  }
-  #mb-lvl-prev:active,#mb-lvl-next:active{color:rgba(255,255,255,0.9);background:rgba(255,255,255,0.06);}
-  #mb-lvl-label{
-    font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.22em;
-    text-transform:uppercase;color:rgba(255,255,255,0.42);
-    min-width:38px;text-align:center;pointer-events:none;
-    white-space:nowrap;
-  }
+  /* ── MOBILE LEVEL NAV: hidden on basketball standalone ── */
+  #mb-lvl-nav{display:none!important;}
 
-  /* ── TOP BAR: Flow + Controls only ── */
+  /* ── TOP BAR: brand label only ── */
   #mobile-bar{
     position:fixed;top:0;left:0;right:0;height:48px;
     display:flex;align-items:stretch;
@@ -341,7 +330,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   }
   .mb-btn:last-child{border-right:none;}
   .mb-btn:active,.mb-btn.open{background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.85);}
-  /* Hide Add from top bar on mobile — it lives in bottom rail */
   #mb-add-btn{display:none!important;}
 
   /* Panels drop down from top bar (note only) */
@@ -356,15 +344,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     overflow-y:auto;
   }
   .mb-panel.open{display:block;}
-  /* Flow + ctrl panels open upward from bottom rail */
   #mb-flow-panel,#mb-ctrl-panel{
-    top:auto!important;bottom:44px!important;
+    top:auto!important;bottom:0!important;
     border-bottom:none!important;
     border-top:1px solid rgba(255,255,255,0.07)!important;
     max-height:60vh;
   }
 
-  /* panel rows inside mobile panel */
   .mb-ctrl-row{
     display:flex;align-items:center;gap:8px;
     padding:12px 20px;
@@ -402,7 +388,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   .mb-range{-webkit-appearance:none;flex:1;height:2px;background:rgba(255,255,255,0.1);outline:none;border-radius:1px;}
   .mb-range::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,0.6);cursor:pointer;}
 
-  /* ── BOTTOM RAIL: Add shapes ── */
+  /* ── HIDE bottom rail and shape HUD (basketball standalone) ── */
+  #mobile-bottom-rail{display:none!important;}
+  #mb-shape-hud{display:none!important;}
+
+  /* ── BOTTOM RAIL: Add shapes (hidden but keep styles for reference) ── */
   #mobile-bottom-rail{
     position:fixed;bottom:0;left:0;right:0;height:44px;
     display:flex;align-items:stretch;
@@ -1185,20 +1175,22 @@ function showShapeText(type, obj) {
   if(lvlDone) return; // don't override completion statement
   _textMode = 'shape';
   // Display XYZ coordinates of the clicked object
+  // For zenball (_isBBall), show only coordinates — no type label
+  const isBall = obj && obj._isBBall;
   let coordLine = '';
   if (obj && obj.pos) {
     const x = obj.pos.x.toFixed(2);
     const y = obj.pos.y.toFixed(2);
     const z = (obj.pos.z || 0).toFixed(2);
-    coordLine = `${type}  x: ${x}  y: ${y}  z: ${z}`;
+    coordLine = isBall ? `x: ${x}  y: ${y}  z: ${z}` : `${type}  x: ${x}  y: ${y}  z: ${z}`;
   } else if (obj && obj.x !== undefined) {
     // wormhole or target object
     const x = (obj.x || 0).toFixed(2);
     const y = (obj.y || 0).toFixed(2);
     const z = (obj.z || 0).toFixed(2);
-    coordLine = `${type}  x: ${x}  y: ${y}  z: ${z}`;
+    coordLine = isBall ? `x: ${x}  y: ${y}  z: ${z}` : `${type}  x: ${x}  y: ${y}  z: ${z}`;
   } else {
-    coordLine = `${type}  x: —  y: —  z: —`;
+    coordLine = isBall ? `x: —  y: —  z: —` : `${type}  x: —  y: —  z: —`;
   }
   _buildFloatText([coordLine], true);
 }
@@ -1206,14 +1198,15 @@ function showShapeText(type, obj) {
 // Live-update coordinate display while dragging
 function updateShapeCoords(type, obj) {
   if (_textMode !== 'shape' || lvlDone) return;
+  const isBall = obj && obj._isBBall;
   let coordLine = '';
   if (obj && obj.pos) {
     const x = obj.pos.x.toFixed(2);
     const y = obj.pos.y.toFixed(2);
     const z = (obj.pos.z || 0).toFixed(2);
-    coordLine = `${type}  x: ${x}  y: ${y}  z: ${z}`;
+    coordLine = isBall ? `x: ${x}  y: ${y}  z: ${z}` : `${type}  x: ${x}  y: ${y}  z: ${z}`;
   } else {
-    coordLine = `${type}  x: —  y: —  z: —`;
+    coordLine = isBall ? `x: —  y: —  z: —` : `${type}  x: —  y: —  z: —`;
   }
   textChars = [];
   getFontMetrics();
@@ -2494,7 +2487,7 @@ function drawBlackHoleOverlay() {
         ovCtx.font = '8px Courier New';
         ovCtx.fillStyle = 'rgba(255,220,100,0.28)';
         ovCtx.textAlign = 'center';
-        ovCtx.fillText('SINGULARITY', sx, sy + coreR + 14);
+        if (!bh._isBBall) ovCtx.fillText('SINGULARITY', sx, sy + coreR + 14);
       }
     } else {
       // NS: cosmic blue glow, no amber shift
@@ -3369,8 +3362,6 @@ function _syncOrbWidget(orb) {
   }
 
   // Desktop: track the orb unless user has anchored it.
-  // If anchored, check whether the orb has drifted close to the widget —
-  // if so, re-pair (clear the anchor) so tracking resumes naturally.
   const sc = orb.pos.clone().project(camera);
   const sx = (sc.x+1)/2*W;
   const sy = (-sc.y+1)/2*H;
@@ -5637,6 +5628,23 @@ function tick(){
     }
     
     if(applyAttractorForces(i,b,dt)) continue;
+
+    // ── ZenOrb (basketball) influence on main particle stream ─────────────────
+    // Applies only on the basketball level; pulls nearby stream particles toward
+    // the ball with a short-range soft field — doesn't disturb the global flow.
+    if (_bbBall && !_bbBall.dragging && lvl === 6) {
+      const zdx = _bbBall.pos.x - pp[b], zdy = _bbBall.pos.y - pp[b+1], zdz = (_bbBall.pos.z||0) - pp[b+2];
+      const zdist2 = zdx*zdx + zdy*zdy + zdz*zdz;
+      const ZEN_MAIN_R = 4.0;
+      if (zdist2 < ZEN_MAIN_R * ZEN_MAIN_R) {
+        const zdist = Math.sqrt(zdist2) + 0.001;
+        const falloff = 1.0 - zdist / ZEN_MAIN_R;
+        const zf = 2.8 * falloff * falloff * dt / zdist;
+        pv[b]   += zdx * zf;
+        pv[b+1] += zdy * zf;
+        pv[b+2] += zdz * zf * 0.4;
+      }
+    }
     
     // Waterfall: each tier has its own gravity multiplier so layers fall at different speeds
     const gravMult = P.waterfall ? (0.45 + pGravTier[i] * 0.55) : 1.0;
@@ -6157,6 +6165,27 @@ function _tickRimRing(dt) {
       }
     }
     _netGeo.attributes.position.needsUpdate=true;
+
+    // ── ZenOrb influence on net particles ────────────────────────────────────
+    // Strong enough to visibly bend the falling stream toward the ball —
+    // same character as the ground-particle interaction.
+    if (_bbBall && !_bbBall.dragging) {
+      const ZEN_NET_R = 7.0;   // wide radius — catches the whole stream column
+      const ZEN_NET_STR = 28.0; // strong enough to visibly deflect falling particles
+      const bx = _bbBall.pos.x, by = _bbBall.pos.y, bz = _bbBall.pos.z || 0;
+      for (let i = 0; i < NET_COUNT; i++) {
+        const b = i * 3;
+        const dx = bx - _netPts[b], dy = by - _netPts[b+1], dz = bz - _netPts[b+2];
+        const dist2 = dx*dx + dy*dy + dz*dz;
+        if (dist2 > ZEN_NET_R * ZEN_NET_R) continue;
+        const dist = Math.sqrt(dist2) + 0.001;
+        const falloff = 1.0 - dist / ZEN_NET_R;
+        const f = ZEN_NET_STR * falloff * falloff * dt / dist;
+        _netVel[b]   += dx * f;
+        _netVel[b+1] += dy * f;
+        _netVel[b+2] += dz * f;
+      }
+    }
   }
 
   const lightCount=_hoopPointLights.length;
@@ -6301,15 +6330,53 @@ function _registerScore(){
 
 function _scoreBurst(){
   const N=Math.min(P.count,MP); let count=0; const BURST=320;
+  // Ball velocity direction at moment of score (for directional splash bias)
+  const ballVx = _bbBall ? _bbBall.vel.x : 0;
+  const ballVy = _bbBall ? _bbBall.vel.y : -1;
+  const ballSpd = Math.sqrt(ballVx*ballVx + ballVy*ballVy) || 1;
+  const bvnx = ballVx / ballSpd, bvny = ballVy / ballSpd;
+
   for(let i=0;i<N&&count<BURST;i++){
     if(!pal[i]||pa[i]>pl[i]*0.6){
       const b=i*3;
       const angle=Math.random()*Math.PI*2;
       const rimR=HOOP.rimR*(0.3+Math.random()*0.9);
       pp[b]=HOOP.x+Math.cos(angle)*rimR; pp[b+1]=HOOP.y+(Math.random()-0.1)*0.4; pp[b+2]=HOOP.z+Math.sin(angle)*rimR;
-      const speed=4.0+Math.random()*9.0, upBias=0.4+Math.random()*1.8;
-      pv[b]=Math.cos(angle)*speed*(0.6+Math.random()*0.8); pv[b+1]=upBias*speed*0.55; pv[b+2]=Math.sin(angle)*speed*(0.6+Math.random()*0.8);
+
+      // Splash velocity: radial outward from rim + bias in ball's travel direction
+      // This creates a crown splash — particles arc away from the hoop plane
+      const radialSpeed = 4.0 + Math.random()*9.0;
+      const upBias = 0.4 + Math.random()*1.8;
+      // Rim-plane outward component
+      const rimOutX = Math.cos(angle) * (0.6 + Math.random()*0.8);
+      const rimOutZ = Math.sin(angle) * (0.6 + Math.random()*0.8);
+      // Ball-direction carry: ~30% bias so particles fan out like water through a hoop
+      const carryFrac = 0.28 + Math.random()*0.22;
+      pv[b]   = (rimOutX * radialSpeed) + bvnx * radialSpeed * carryFrac;
+      pv[b+1] = upBias * radialSpeed * 0.55 + bvny * radialSpeed * carryFrac * 0.5;
+      pv[b+2] = rimOutZ * radialSpeed;
+
       ps[i]=0.14+Math.random()*0.28; pl[i]=1.4+Math.random()*1.8; pa[i]=0; pal[i]=1; pGravTier[i]=Math.floor(Math.random()*3); count++;
+    }
+  }
+
+  // Slow hoop-plane ring: lower-speed particles in the rim plane that get
+  // visibly captured/deflected by the ZenOrb's boosted field
+  const RING = 80;
+  let ringCount = 0;
+  for(let i=0;i<N&&ringCount<RING;i++){
+    if(!pal[i]||pa[i]>pl[i]*0.45){
+      const b=i*3;
+      const angle=(ringCount/RING)*Math.PI*2 + Math.random()*0.18;
+      pp[b]=HOOP.x+Math.cos(angle)*HOOP.rimR*1.05;
+      pp[b+1]=HOOP.y + (Math.random()-0.5)*0.2;
+      pp[b+2]=HOOP.z+Math.sin(angle)*HOOP.rimR*1.05;
+      // Slow radial — ZenOrb can visibly bend/capture these
+      const ringSpd = 1.2 + Math.random()*2.4;
+      pv[b]   = Math.cos(angle)*ringSpd;
+      pv[b+1] = (Math.random()-0.3)*ringSpd*0.4;
+      pv[b+2] = Math.sin(angle)*ringSpd;
+      ps[i]=0.18+Math.random()*0.22; pl[i]=1.8+Math.random()*2.2; pa[i]=0; pal[i]=1; pGravTier[i]=0; ringCount++;
     }
   }
 }
@@ -6542,6 +6609,7 @@ function _drawScoreFlash(){
     if(!_isBBallActive()) return;
     if(_hoopDragging) return;
     if(_bulletTime){
+      // tap while in bullet-time = launch
       _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
       _bulletTime=false;
       const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
@@ -6549,11 +6617,22 @@ function _drawScoreFlash(){
     }
     const t=e.touches[0]; _aimDrag=true;
     _aimStart.x=t.clientX; _aimStart.y=t.clientY; _aimCurrent.x=t.clientX; _aimCurrent.y=t.clientY;
+    // ── Long-press to initiate bullet-time on mobile ──────────────────────────
+    if(_btLpTimer) clearTimeout(_btLpTimer);
+    _btLpTimer=setTimeout(()=>{
+      if(!_aimDrag) return; // finger was lifted — abort
+      const movDx=_aimCurrent.x-_aimStart.x, movDy=_aimCurrent.y-_aimStart.y;
+      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return; // too much movement
+      _aimDrag=false; // cancel normal aim drag
+      _bulletTime=true; // enter bullet-time
+      _btLpTimer=null;
+    }, 450);
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
 
   canvas.addEventListener('touchmove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.touches[0].clientX; _aimCurrent.y=e.touches[0].clientY; e.preventDefault(); },{capture:true,passive:false});
   canvas.addEventListener('touchend',e=>{
+    if(_btLpTimer){ clearTimeout(_btLpTimer); _btLpTimer=null; }
     if(!_aimDrag) return; _aimDrag=false;
     if(!_bbBall) return;
     const dx=_aimStart.x-_aimCurrent.x, dy=_aimStart.y-_aimCurrent.y;
@@ -6562,6 +6641,9 @@ function _drawScoreFlash(){
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
 })();
+
+// ── Bullet-time long-press timer ─────────────────────────────────────────────
+let _btLpTimer = null;
 
 window.addEventListener('keydown',e=>{
   if(e.code!=='Space'||!_bbBall||!(LEVELS[6]&&LEVELS[6].basketball)) return;
@@ -6669,7 +6751,7 @@ setTimeout(() => {
   // (orbs normally spawn on zen-mode lvl=5; we're on lvl=6 so spawn them here)
   _spawnProjectOrbs();
   _buildFloatText([
-    'cx = craft experience~',
+    'cx = craft experience',
     'i think. i make. <br>i write. i design. <br><br>— zack'
   ], true);
 }, 900);
