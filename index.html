@@ -2436,7 +2436,7 @@ function drawBlackHoleOverlay() {
     ovCtx.save();
     ovCtx.setLineDash([2, 5]); ovCtx.lineDashOffset = -t * 8;
     ovCtx.beginPath(); ovCtx.arc(sx, sy, pullR, 0, Math.PI * 2);
-    ovCtx.strokeStyle = bh.type === 'neutronstar' ? 'rgba(100,200,255,0.30)' : 'rgba(255,220,100,0.18)';
+    ovCtx.strokeStyle = bh.type === 'neutronstar' ? 'rgba(100,200,255,0.30)' : (bh._isProjectOrb ? 'rgba(255,255,255,0.04)' : 'rgba(255,220,100,0.18)');
     ovCtx.lineWidth = 1; ovCtx.stroke();
     ovCtx.setLineDash([]);
 
@@ -3245,7 +3245,7 @@ function _createOrbWidget(orb) {
   el.innerHTML = `
     <div class="orb-widget-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
       <div class="orb-widget-name" style="font-size:8px;letter-spacing:0.28em;text-transform:uppercase;color:${c}99;font-family:'Courier New',monospace;">${d.name}</div>
-      <button class="orb-widget-min" title="Minimize" style="background:none;border:none;padding:0 0 0 8px;cursor:pointer;color:rgba(255,255,255,0.22);font-size:13px;line-height:1;font-family:monospace;flex-shrink:0;transition:color 0.15s;" onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.22)'">–</button>
+      <button class="orb-widget-preview-btn" title="Preview" style="background:none;border:none;padding:0 0 0 8px;cursor:pointer;color:rgba(255,255,255,0.22);font-size:10px;line-height:1;font-family:monospace;flex-shrink:0;letter-spacing:0.05em;transition:color 0.15s;" onmouseover="this.style.color='rgba(255,255,255,0.6)'" onmouseout="this.style.color='rgba(255,255,255,0.22)'">⤢</button>
     </div>
     <div class="orb-widget-body">
       <div style="font-size:9px;line-height:1.6;color:rgba(255,255,255,0.38);font-family:'Courier New',monospace;letter-spacing:0.04em;margin-bottom:8px;">${d.desc || ''}</div>
@@ -3259,11 +3259,16 @@ function _createOrbWidget(orb) {
         ↗ visit
       </a>
     </div>
+    <div class="orb-widget-iframe-wrap" style="display:none;margin-top:8px;border-radius:3px;overflow:hidden;border:1px solid ${c}33;">
+      <iframe class="orb-widget-iframe" src="" loading="lazy"
+        style="width:100%;height:180px;border:none;display:block;background:#080808;"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+    </div>
   `;
 
   // On mobile: anchor immediately in a grid layout, don't track the orb
   el._userAnchored = isMobile;
-  el._minimized = false;
+  el._previewing = false;
 
   // Place initially off-screen; will be positioned on first _syncOrbWidget call
   el.style.left = '-9999px'; el.style.top = '-9999px';
@@ -3271,19 +3276,19 @@ function _createOrbWidget(orb) {
   // Inject into the right rail (not body) — CSS handles layout when rail is active
   document.body.appendChild(el);
 
-  // Minimize button
-  const minBtn = el.querySelector('.orb-widget-min');
-  minBtn.addEventListener('pointerdown', e=>{ e.stopPropagation(); });
-  minBtn.addEventListener('click', e=>{
+  // Preview toggle button
+  const previewBtn = el.querySelector('.orb-widget-preview-btn');
+  previewBtn.addEventListener('pointerdown', e=>{ e.stopPropagation(); });
+  previewBtn.addEventListener('click', e=>{
     e.stopPropagation();
-    _minimizeOrbWidget(idx);
+    _toggleOrbPreview(idx, d.url);
   });
 
   // Dragging — once user moves it, stop auto-tracking the orb
   let wDrag=false, wOX=0, wOY=0, wMoved=false;
   el.addEventListener('pointerdown', e=>{
     if(e.target.tagName==='A'||e.target.closest('a'))return;
-    if(e.target.closest('.orb-widget-min'))return;
+    if(e.target.closest('.orb-widget-preview-btn'))return;
     wDrag=true; wMoved=false;
     el.setPointerCapture(e.pointerId);
     const r=el.getBoundingClientRect(); wOX=e.clientX-r.left; wOY=e.clientY-r.top;
@@ -3306,41 +3311,31 @@ function _createOrbWidget(orb) {
   el.addEventListener('pointerup', ()=>{ if(wDrag){wDrag=false;el.style.cursor='grab';} });
 }
 
-function _minimizeOrbWidget(idx) {
+function _toggleOrbPreview(idx, url) {
   const el = document.getElementById(`orb-widget-${idx}`);
-  if(!el || el._minimized) return;
-  el._minimized = true;
-  const body = el.querySelector('.orb-widget-body');
-  const minBtn = el.querySelector('.orb-widget-min');
-  if(body) body.style.display = 'none';
-  if(minBtn) minBtn.style.display = 'none';
-  el.style.minWidth = '0';
-  el.style.maxWidth = 'none';
-  el.style.padding = '6px 10px';
-  el.style.cursor = 'default';
-  // Name label stays, no grab cursor since user clicks the orb to restore
-  const name = el.querySelector('.orb-widget-name');
-  if(name) name.style.marginBottom = '0';
-  const header = el.querySelector('.orb-widget-header');
-  if(header) header.style.marginBottom = '0';
-}
-
-function _expandOrbWidget(idx) {
-  const el = document.getElementById(`orb-widget-${idx}`);
-  if(!el || !el._minimized) return;
-  el._minimized = false;
-  const body = el.querySelector('.orb-widget-body');
-  const minBtn = el.querySelector('.orb-widget-min');
-  if(body) body.style.display = '';
-  if(minBtn) minBtn.style.display = '';
-  el.style.minWidth = '160px';
-  el.style.maxWidth = '190px';
-  el.style.padding = '10px 13px 11px';
-  el.style.cursor = 'grab';
-  const name = el.querySelector('.orb-widget-name');
-  if(name) name.style.marginBottom = '';
-  const header = el.querySelector('.orb-widget-header');
-  if(header) header.style.marginBottom = '5px';
+  if (!el) return;
+  const wrap = el.querySelector('.orb-widget-iframe-wrap');
+  const iframe = el.querySelector('.orb-widget-iframe');
+  const btn = el.querySelector('.orb-widget-preview-btn');
+  if (!wrap || !iframe) return;
+  const open = wrap.style.display === 'none';
+  if (open) {
+    // Expand to preview
+    if (!iframe.src || iframe.src === window.location.href) iframe.src = url;
+    wrap.style.display = 'block';
+    el.style.maxWidth = '320px';
+    el.style.minWidth = '280px';
+    btn.textContent = '✕';
+    btn.title = 'Close preview';
+  } else {
+    // Close preview — blank iframe to stop loading
+    wrap.style.display = 'none';
+    iframe.src = '';
+    el.style.maxWidth = '190px';
+    el.style.minWidth = '160px';
+    btn.textContent = '⤢';
+    btn.title = 'Preview';
+  }
 }
 
 function _syncOrbWidget(orb) {
@@ -3402,10 +3397,8 @@ function _removeOrbWidget(index) {
   if(el) el.remove();
 }
 
-// Orb click → expand its widget if minimized
-function _showProjectCard(orb) {
-  if(orb && orb.index != null) _expandOrbWidget(orb.index);
-}
+// Orb click → no-op (preview toggled via button only)
+function _showProjectCard(orb) {}
 function _hideProjectCard() {}
 
 function buildInit(){
@@ -4039,9 +4032,12 @@ function supernovaImpulse(wx, wy) {
     if (bdist < 16.0) {
       const tB = 1 - bdist / 16.0;
       const gravScale = (_bbBall._bbGravity || 17.0) / 17.0;
-      const fB = 11.0 * tB * tB * gravScale;
+      // Click is below ball (bdy > 0) → lower hemisphere → stronger impulse
+      // Click is above ball (bdy < 0) → upper hemisphere → softer touch
+      const hemiScale = bdy > 0 ? 1.45 : 0.55;
+      const fB = 11.0 * tB * tB * gravScale * hemiScale;
       _bbBall.vel.x += (bdx / bdist) * fB;
-      _bbBall.vel.y += (bdy / bdist) * fB + 2.5 * tB * gravScale;
+      _bbBall.vel.y += (bdy / bdist) * fB + 2.5 * tB * gravScale * hemiScale;
       const spd = Math.sqrt(_bbBall.vel.x**2 + _bbBall.vel.y**2);
       if (spd > _bbBall._bbMaxSpd) { const s = _bbBall._bbMaxSpd / spd; _bbBall.vel.x *= s; _bbBall.vel.y *= s; }
     }
@@ -6535,18 +6531,19 @@ function _drawScoreFlash(){
 window.addEventListener('keydown',e=>{
   if(e.code!=='Space'||!_bbBall||!(LEVELS[6]&&LEVELS[6].basketball)) return;
   e.preventDefault();
-  // Soft dribble — gentle upward tap, strength scales with how low the ball is
   const ballR=_bbBall.radius||0.72;
   const FLR=s2w(W/2,H).y;
   const BY_FLOOR=FLR+ballR+0.05;
-  const fromFloor=Math.max(0,_bbBall.pos.y-BY_FLOOR);
-  const maxH=6; // world units — low tap
-  const tapStrength=Math.sqrt(2*((_bbBall._bbGravity||17.0))*maxH);
-  // Only nudge if ball isn't already flying high
-  if(_bbBall.vel.y<tapStrength*0.5){
-    _bbBall.vel.y=Math.max(_bbBall.vel.y,0)+tapStrength*(0.55+fromFloor*0.04);
-    _bbBall.vel.x+=(Math.random()-0.5)*0.6;
-    HOOP._rimTiltVel+=(Math.random()-0.5)*0.3;
+  const onGround=_bbBall.pos.y<=BY_FLOOR+0.15;
+  if(onGround){
+    // Settle — kill all velocity
+    _bbBall.vel.x=0; _bbBall.vel.y=0;
+  } else {
+    // Slam down — override upward velocity, spike downward
+    const GRAV=_bbBall._bbGravity||17.0;
+    const slamV=Math.sqrt(2*GRAV*8); // enough to slam ~8 world units
+    _bbBall.vel.y=-slamV;
+    _bbBall.vel.x*=0.6; // bleed off horizontal slightly
   }
 });
 
