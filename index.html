@@ -92,7 +92,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   justify-content: center;
   background: rgba(10, 10, 10, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.07);
-  backdrop-filter: blur(14px);
   border-radius: 6px;
   color: rgba(255, 255, 255, 0.4);
   cursor: none;
@@ -165,7 +164,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 #orb-rail-toggle{
   position:fixed;top:16px;right:16px;z-index:500;
   background:rgba(10,10,10,0.88);border:1px solid rgba(255,255,255,0.1);
-  border-radius:4px;backdrop-filter:blur(14px);
+  border-radius:4px;
   font-family:'Courier New',monospace;font-size:9px;letter-spacing:0.18em;
   text-transform:uppercase;color:rgba(255,255,255,0.38);
   padding:0 11px;height:30px;cursor:none;
@@ -258,8 +257,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 /* ── LEVEL NAVIGATOR WIDGET ── */
 #level-nav{
   position:fixed;left:16px;bottom:80px;z-index:300;
-  background:rgba(10,10,10,0.88);border:1px solid rgba(255,255,255,0.07);
-  backdrop-filter:blur(14px);border-radius:6px;
+  background:rgba(10,10,10,0.88);border:1px solid rgba(255,255,255,0.07);border-radius:6px;
   padding:9px 10px 10px;user-select:none;width:260px;
 }
 #level-nav-title{font-size:8px;letter-spacing:0.3em;color:rgba(255,255,255,0.16);text-transform:uppercase;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;}
@@ -314,7 +312,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     display:flex;align-items:stretch;
     background:rgba(10,10,10,0.92);
     border-bottom:1px solid rgba(255,255,255,0.07);
-    backdrop-filter:blur(14px);
     z-index:400;
   }
   .mb-btn{
@@ -338,7 +335,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     position:fixed;top:48px;left:0;right:0;
     background:rgba(10,10,10,0.94);
     border-bottom:1px solid rgba(255,255,255,0.07);
-    backdrop-filter:blur(14px);
     z-index:399;
     display:none;
     max-height:55vh;
@@ -399,7 +395,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     display:flex;align-items:stretch;
     background:rgba(10,10,10,0.92);
     border-top:1px solid rgba(255,255,255,0.07);
-    backdrop-filter:blur(14px);
     z-index:400;
   }
   .mb-rail-btn{
@@ -436,7 +431,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     background:rgba(10,10,10,0.88);
     border:1px solid rgba(255,255,255,0.08);
     border-radius:8px;
-    backdrop-filter:blur(16px);
     z-index:398;
     touch-action:none;
     user-select:none;
@@ -764,8 +758,8 @@ body.disco #flash-complete.on{background:rgba(255,100,255,0.04);}
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Amount</span>
-    <input class="mb-range" type="range" id="mb-sl-count" min="500" max="8000" step="100" value="8000">
-    <span class="mb-ctrl-val" id="mb-v-count">8000</span>
+    <input class="mb-range" type="range" id="mb-sl-count" min="500" max="6000" step="100" value="4000">
+    <span class="mb-ctrl-val" id="mb-v-count">4000</span>
   </div>
   <div class="mb-ctrl-row">
     <span class="mb-ctrl-lbl">Gravity</span>
@@ -1358,10 +1352,11 @@ let W=window.innerWidth,H=window.innerHeight;
 const isMobile=window.innerWidth<=600;
 // Fix #2: disable MSAA on mobile (Chrome composites it heavily)
 // Fix #3: preserveDrawingBuffer only when screenshot is requested
-const renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:false});
+// Fix perf: powerPreference tells Chrome's GPU process scheduler to use the discrete GPU on dual-GPU systems
+const renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:false,powerPreference:'high-performance'});
 renderer.setSize(W,H);
 // Fix #4: cap DPR at 2.0 on mobile (was 3.0) — cuts fill rate by 2.25×
-renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?2.0:2.0));
+renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?1.5:2.0));
 renderer.setClearColor(0x0a0a0a);
 renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
@@ -1493,8 +1488,8 @@ function _tickSaltFloor(dt) {
 }
 
 // overlay canvas for targets (rendered in multi-pass WebGL)
-// Fix #4: cap DPR at 2.0 on mobile (was 3.0) — matches renderer
-const _dpr = Math.min(devicePixelRatio, isMobile ? 2.0 : 2.0);
+// Fix #4b: overlay canvas DPR 1.0 on mobile — composited by WebGL so 1x is sufficient
+const _dpr = Math.min(devicePixelRatio, isMobile ? 1.0 : 2.0);
 const ov=document.createElement('canvas');
 ov.width=W*_dpr;ov.height=H*_dpr;const ovCtx=ov.getContext('2d');
 ovCtx.scale(_dpr,_dpr);
@@ -2404,20 +2399,19 @@ function drawBlackHoleOverlay() {
   const t = Date.now() * 0.001;
 
   // Fix #6: BH shadow-casting pass removed — O(BH×shapes) radialGradients every 2 frames
-  // was a significant Chrome GPU overdraw contributor with no visible payoff on basketball level.
 
   attractors.forEach(bh => {
     // When project orbs are railed, skip drawing their rings/halos entirely
     if (_orbRailActive && bh._isProjectOrb) return;
 
-    const c = bh.pos.clone().project(camera);
-    const sx = (c.x + 1) / 2 * W, sy = (-c.y + 1) / 2 * H;
+    _ovV3.copy(bh.pos).setZ(bh.pos.z||0).project(camera);
+    const sx = (_ovV3.x + 1) / 2 * W, sy = (-_ovV3.y + 1) / 2 * H;
     // Smaller dotted rings — use actual influenceR for NS, tighter formula for BH
     const pullRadiusWorld = bh.type === 'neutronstar'
       ? (bh.influenceR || 4.0)   // NS: show actual area of influence
       : Math.sqrt(bh.pullStrength / 3.5); // BH: significantly smaller ring
-    const edge = new THREE.Vector3(bh.pos.x + pullRadiusWorld, bh.pos.y, 0).project(camera);
-    const pullR = Math.abs((edge.x + 1) / 2 * W - sx);
+    _ovV3.set(bh.pos.x + pullRadiusWorld, bh.pos.y, 0).project(camera);
+    const pullR = Math.abs((_ovV3.x + 1) / 2 * W - sx);
 
     ovCtx.save();
     ovCtx.setLineDash([2, 5]); ovCtx.lineDashOffset = -t * 8;
@@ -2429,8 +2423,9 @@ function drawBlackHoleOverlay() {
     // Glow halos
     const basePull = bh.type === 'neutronstar' ? 38.0 : 57.0;
     const scale = Math.sqrt(bh.pullStrength / basePull);
-    const bhEdge = new THREE.Vector3(bh.pos.x + bh.radius * scale, bh.pos.y, 0).project(camera);
-    const coreR = Math.abs((bhEdge.x + 1) / 2 * W - sx);
+    _ovV3.set(bh.pos.x + bh.radius * scale, bh.pos.y, 0).project(camera);
+    const coreR = Math.abs((_ovV3.x + 1) / 2 * W - sx);
+    if(coreR < 1) { ovCtx.restore(); return; } // skip if off-screen or degenerate
 
     if (bh.type === 'blackhole') {
       if (bh._zenOrb) {
@@ -2606,11 +2601,11 @@ function initLevel(n){
   // Level 5 (index 4): bouncing black hole — rubber-ball BH, neutron stars as gravitational toys
   // + viewport-side wormholes (vertical portals) that teleport the black hole
   if (n === 4) {
-    P.count = 8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82; P.size = 0.70;
+    P.count=isMobile?4000:8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82; P.size = 0.70;
     if (emitterShape) emitterShape.animateMorph(0);
     const setSl = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
     const setVl = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-    setSl('sl-count', 8000); setVl('v-count', 8000);
+    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
     setSl('sl-grav', 0.6); setVl('v-grav', '0.6');
     setSl('sl-spread', 1.4); setVl('v-spread', '1.40');
     setSl('sl-bounce', 0.82); setVl('v-bounce', '0.82');
@@ -2667,13 +2662,13 @@ function initLevel(n){
   }
   // Level 6 (index 5): clone of level 5 — bouncing BH, no NS, full-viewport rain from top
   if (n === 5) {
-    P.count = 8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82;
+    P.count=isMobile?4000:8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82;
     // Mobile: smaller particles = denser visual appearance
     P.size = isMobile ? 0.42 : 0.70;
     if (emitterShape) emitterShape.animateMorph(0);
     const setSl = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
     const setVl = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-    setSl('sl-count', 8000); setVl('v-count', 8000);
+    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
     setSl('sl-grav', 0.6); setVl('v-grav', '0.6');
     setSl('sl-spread', 1.4); setVl('v-spread', '1.40');
     setSl('sl-bounce', 0.82); setVl('v-bounce', '0.82');
@@ -2720,11 +2715,11 @@ function initLevel(n){
   const aimCv = document.getElementById('aim-canvas');
   if (aimCv) aimCv.style.display = isBball ? '' : 'none';
   if (isBball) {
-    P.count = 8000; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
+    P.count=isMobile?4000:8000; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
     P.size = isMobile ? 0.32 : 0.52; P.waterfall = true; _wfPhase = 0;
     const setSl = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
     const setVl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    setSl('sl-count',8000); setVl('v-count',8000);
+    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
     setSl('sl-grav',11.0);  setVl('v-grav','11.0');
     setSl('sl-spread',0.5); setVl('v-spread','0.50');
     setSl('sl-size',P.size); setVl('v-size',String(P.size));
@@ -3221,7 +3216,7 @@ function _createOrbWidget(orb) {
     background:rgba(6,4,2,0.88);
     border:1px solid ${c}44;
     border-left:2px solid ${c}bb;
-    border-radius:6px;backdrop-filter:blur(12px);
+    border-radius:6px;
     padding:10px 13px 11px;cursor:grab;
     pointer-events:auto;user-select:none;touch-action:none;
     box-shadow:0 0 18px ${c}18, 0 2px 12px rgba(0,0,0,0.5);
@@ -3683,7 +3678,8 @@ function getSpout(){
 
 // ── PARTICLES ─────────────────────────────────────────────────────────────────
 const MP=8000,pp=new Float32Array(MP*3),pv=new Float32Array(MP*3),ps=new Float32Array(MP),pa=new Float32Array(MP),pl=new Float32Array(MP),pal=new Uint8Array(MP);
-const P={count:isMobile?8000:8000,gravity:isMobile?3.3:4.2,spread:isMobile?0.65:1.25,bounce:0.36,size:isMobile?0.65:0.65,rain:false,waterfall:false};
+// Fix perf: mobile default particle count 4000 (was 8000) — halves the physics loop
+const P={count:isMobile?4000:8000,gravity:isMobile?3.3:4.2,spread:isMobile?0.65:1.25,bounce:0.36,size:isMobile?0.65:0.65,rain:false,waterfall:false};
 
 // Derive bounce from count+size: more particles & larger size → more bounce
 function derivedBounce(){
@@ -4401,7 +4397,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   FONT_SIZE=15;
 
   // Mobile particle defaults
-  P.count=8000;
+  P.count=isMobile?4000:8000;
   P.gravity=3.3;
   P.spread=0.65;
   P.size=0.65;
@@ -5202,52 +5198,55 @@ document.querySelectorAll('.lvl-nav-btn').forEach(btn=>{
 // ── TARGET OVERLAY ────────────────────────────────────────────────────────────
 function rgb(hex){return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;}
 function rgba(hex,a){return`rgba(${rgb(hex)},${a})`;}
+// Scratch vectors reused every drawOverlay call — zero allocation
+const _ovV3 = new THREE.Vector3();
+function _ovProj(x,y,z){ _ovV3.set(x,y,z).project(camera); return {x:(_ovV3.x+1)/2*W,y:(-_ovV3.y+1)/2*H}; }
+
 function drawOverlay(){
   ovCtx.clearRect(0,0,W,H);
   const t=Date.now()*0.001;
   tgts.forEach(tg=>{
-    function proj(v){const c=v.clone().project(camera);return{x:(c.x+1)/2*W,y:(-c.y+1)/2*H};}
-    const cs=proj(new THREE.Vector3(tg.x,FLR,0));
-    const ls=proj(new THREE.Vector3(tg.x-tg.r,FLR,0));
-    const rs=proj(new THREE.Vector3(tg.x+tg.r,FLR,0));
-    const fs=proj(new THREE.Vector3(tg.x,FLR,tg.r*0.55));
+    const cs=_ovProj(tg.x,FLR,0);
+    const ls=_ovProj(tg.x-tg.r,FLR,0);
+    const rs=_ovProj(tg.x+tg.r,FLR,0);
+    const fs=_ovProj(tg.x,FLR,tg.r*0.55);
     const rx=(rs.x-ls.x)/2,ry=Math.abs(fs.y-cs.y)*1.1,cx=(rs.x+ls.x)/2,cy=cs.y;
     const col=tg.col,met=tg.met,fill=tg.fill;
     ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);ovCtx.beginPath();ovCtx.arc(0,0,rx,0,Math.PI*2);ovCtx.restore();
     ovCtx.setLineDash(met?[]:[6,5]);ovCtx.lineDashOffset=-t*18;
     ovCtx.strokeStyle=met?col:`rgba(${rgb(col)},${0.28+fill*0.5})`;ovCtx.lineWidth=met?2.5:1.4;
-    ovCtx.shadowColor=col;ovCtx.shadowBlur=met?12:2+fill*8;ovCtx.stroke();ovCtx.setLineDash([]);ovCtx.shadowBlur=0;
-    if(fill>0.01){ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);ovCtx.beginPath();ovCtx.arc(0,0,rx*0.87,-Math.PI/2,-Math.PI/2+fill*Math.PI*2);ovCtx.restore();ovCtx.strokeStyle=col;ovCtx.globalAlpha=0.45+fill*0.4;ovCtx.lineWidth=3.5;ovCtx.shadowColor=col;ovCtx.shadowBlur=7;ovCtx.stroke();ovCtx.globalAlpha=1;ovCtx.shadowBlur=0;}
+    ovCtx.stroke();ovCtx.setLineDash([]);
+    if(fill>0.01){ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);ovCtx.beginPath();ovCtx.arc(0,0,rx*0.87,-Math.PI/2,-Math.PI/2+fill*Math.PI*2);ovCtx.restore();ovCtx.strokeStyle=col;ovCtx.globalAlpha=0.45+fill*0.4;ovCtx.lineWidth=3.5;ovCtx.stroke();ovCtx.globalAlpha=1;}
     if(met){ovCtx.save();ovCtx.translate(cx,cy);ovCtx.scale(1,ry/rx);const g=ovCtx.createRadialGradient(0,0,0,0,0,rx*0.84);g.addColorStop(0,rgba(col,0.1+Math.sin(t*3)*0.04));g.addColorStop(1,rgba(col,0));ovCtx.beginPath();ovCtx.arc(0,0,rx*0.84,0,Math.PI*2);ovCtx.fillStyle=g;ovCtx.fill();ovCtx.restore();}
-    ovCtx.font='10px Courier New';ovCtx.textAlign='center';ovCtx.fillStyle=met?col:`rgba(${rgb(col)},${0.28+fill*0.4})`;ovCtx.shadowColor=col;ovCtx.shadowBlur=met?8:2;ovCtx.fillText(met?'✓ FILLED':`TARGET ${String.fromCharCode(65+tg.idx)}`,cx,cy+ry+15);ovCtx.shadowBlur=0;
+    ovCtx.font='10px Courier New';ovCtx.textAlign='center';ovCtx.fillStyle=met?col:`rgba(${rgb(col)},${0.28+fill*0.4})`;ovCtx.fillText(met?'✓ FILLED':`TARGET ${String.fromCharCode(65+tg.idx)}`,cx,cy+ry+15);
   });
 
   // ── Wormhole overlay ──
   if(wormhole.active) {
     wormhole.phase = (wormhole.phase || 0) + 0.016;
     const tw = wormhole.phase;
-    function projW(v){const c=v.clone().project(camera);return{x:(c.x+1)/2*W,y:(-c.y+1)/2*H};}
+    const projW=(x,y,z)=>_ovProj(x,y,z);
 
     // ENTRANCE — dashed ring only, no fill (fill occludes incoming particles)
-    const eC = projW(new THREE.Vector3(wormhole.entranceX,FLR,0));
-    const eL = projW(new THREE.Vector3(wormhole.entranceX-wormhole.entranceR,FLR,0));
-    const eR2= projW(new THREE.Vector3(wormhole.entranceX+wormhole.entranceR,FLR,0));
-    const eF = projW(new THREE.Vector3(wormhole.entranceX,FLR,wormhole.entranceR*0.55));
+    const eC = _ovProj(wormhole.entranceX,FLR,0);
+    const eL = _ovProj(wormhole.entranceX-wormhole.entranceR,FLR,0);
+    const eR2= _ovProj(wormhole.entranceX+wormhole.entranceR,FLR,0);
+    const eF = _ovProj(wormhole.entranceX,FLR,wormhole.entranceR*0.55);
     const erx=(eR2.x-eL.x)/2, ery=Math.abs(eF.y-eC.y)*1.1;
     const ecx=(eR2.x+eL.x)/2, ecy=eC.y;
     ovCtx.save(); ovCtx.translate(ecx,ecy); ovCtx.scale(1,ery/erx); ovCtx.beginPath(); ovCtx.arc(0,0,erx,0,Math.PI*2); ovCtx.restore();
     ovCtx.setLineDash([8,5]); ovCtx.lineDashOffset=-tw*22;
     ovCtx.strokeStyle=`rgba(0,220,200,${0.55+Math.sin(tw*2.5)*0.18})`; ovCtx.lineWidth=2.0;
-    ovCtx.shadowColor='rgba(0,220,200,0.8)'; ovCtx.shadowBlur=10; ovCtx.stroke();
-    ovCtx.setLineDash([]); ovCtx.shadowBlur=0;
+    ovCtx.stroke();
+    ovCtx.setLineDash([]);
     ovCtx.font='9px Courier New'; ovCtx.textAlign='center';
     ovCtx.fillStyle='rgba(0,220,200,0.5)'; ovCtx.fillText('WORMHOLE ENTRANCE',ecx,ecy+ery+14);
 
     // EXIT — ceiling portal, draggable
-    const xC = projW(new THREE.Vector3(wormhole.exitX,wormhole.exitY,0));
-    const xL = projW(new THREE.Vector3(wormhole.exitX-wormhole.exitR,wormhole.exitY,0));
-    const xR2= projW(new THREE.Vector3(wormhole.exitX+wormhole.exitR,wormhole.exitY,0));
-    const xF = projW(new THREE.Vector3(wormhole.exitX,wormhole.exitY,wormhole.exitR*0.55));
+    const xC = _ovProj(wormhole.exitX,wormhole.exitY,0);
+    const xL = _ovProj(wormhole.exitX-wormhole.exitR,wormhole.exitY,0);
+    const xR2= _ovProj(wormhole.exitX+wormhole.exitR,wormhole.exitY,0);
+    const xF = _ovProj(wormhole.exitX,wormhole.exitY,wormhole.exitR*0.55);
     const xrx=(xR2.x-xL.x)/2, xry=Math.abs(xF.y-xC.y)*1.1+4;
     const xcx=(xR2.x+xL.x)/2, xcy=xC.y;
     wormhole._screenX=xcx; wormhole._screenY=xcy; wormhole._screenR=xrx+10;
@@ -5258,8 +5257,8 @@ function drawOverlay(){
     ovCtx.save(); ovCtx.translate(xcx,xcy); ovCtx.scale(1,xry/xrx); ovCtx.beginPath(); ovCtx.arc(0,0,xrx,0,Math.PI*2); ovCtx.restore();
     ovCtx.setLineDash([6,4]); ovCtx.lineDashOffset=tw*18;
     ovCtx.strokeStyle=`rgba(180,100,255,${0.62+Math.sin(tw*2.1)*0.18})`; ovCtx.lineWidth=1.8;
-    ovCtx.shadowColor='rgba(160,80,255,0.7)'; ovCtx.shadowBlur=12; ovCtx.stroke();
-    ovCtx.setLineDash([]); ovCtx.shadowBlur=0;
+    ovCtx.stroke();
+    ovCtx.setLineDash([]);
     ovCtx.font='9px Courier New'; ovCtx.textAlign='center';
     ovCtx.fillStyle=`rgba(180,100,255,${wormhole.dragging?0.9:0.55})`;
     ovCtx.fillText(wormhole.dragging?'EXIT ✦':'EXIT (drag)', xcx, xcy-xry-6);
@@ -5316,8 +5315,8 @@ function drawOverlay(){
 
       // ── Draw one perspective portal disc ──────────────────────────────────
       function drawPerspectivePortal(worldX, worldY, label, screenCache, parts, side) {
-        const ctr = projP(new THREE.Vector3(worldX, worldY, 0));
-        const edgePt = projP(new THREE.Vector3(worldX + pp.r, worldY, 0));
+        const ctr = _ovProj(worldX, worldY, 0);
+        const edgePt = _ovProj(worldX + pp.r, worldY, 0);
         const sr = Math.max(28, Math.abs(edgePt.x - ctr.x));
         const cx = ctr.x, cy = ctr.y;
         screenCache.x = cx; screenCache.y = cy; screenCache.r = sr;
@@ -5473,8 +5472,6 @@ function drawOverlay(){
         ovCtx.lineDashOffset = (pi % 2 === 0 ? 1 : -1) * tw * 28;
         ovCtx.strokeStyle = `rgba(${col},${0.72 + Math.sin(tw*2.2+pi)*0.18 + excited*0.2})`;
         ovCtx.lineWidth = 2.0 + excited * 1.2;
-        ovCtx.shadowColor = `rgba(${col},${0.6 + excited*0.35})`;
-        ovCtx.shadowBlur = 14 + excited * 18;
         // re-draw path after state changes
         ovCtx.save();
         ovCtx.translate(cx, cy);
@@ -5482,7 +5479,7 @@ function drawOverlay(){
         ovCtx.beginPath(); ovCtx.ellipse(0, 0, ry, ry, 0, 0, Math.PI*2);
         ovCtx.restore();
         ovCtx.stroke();
-        ovCtx.setLineDash([]); ovCtx.shadowBlur = 0;
+        ovCtx.setLineDash([]);
 
         // ── Inner rim highlight ───────────────────────────────────────────────
         ovCtx.save();
@@ -5507,8 +5504,8 @@ function drawOverlay(){
       }
 
       // Tiny faint connector line between the two portals
-      const cA = projP(new THREE.Vector3(pp.a.x, pp.a.y, 0));
-      const cB = projP(new THREE.Vector3(pp.b.x, pp.b.y, 0));
+      const cA = _ovProj(pp.a.x, pp.a.y, 0);
+      const cB = _ovProj(pp.b.x, pp.b.y, 0);
       ovCtx.setLineDash([2, 8]);
       ovCtx.lineDashOffset = tw * 14;
       ovCtx.beginPath(); ovCtx.moveTo(cA.x, cA.y); ovCtx.lineTo(cB.x, cB.y);
@@ -5526,11 +5523,15 @@ function drawOverlay(){
 }
 
 // ── TEXT CURSOR LAYER DRAW (cx.html port) ─────────────────────────────────────
+let _textLayerWasClear = false;
 function drawTextLayer(){
-  tctx.clearRect(0,0,W,H);
-
-  // fade alpha
+  // fade alpha first so early-exit is accurate
   lvlTextAlpha+=(lvlTextAlphaTgt-lvlTextAlpha)*0.04;
+  // Fix perf: skip the expensive clearRect+draw pass when nothing is visible
+  const _textEmpty = textChars.length===0 && lvlTextAlpha<0.01;
+  if(_textEmpty){if(!_textLayerWasClear){tctx.clearRect(0,0,W,H);_textLayerWasClear=true;}return;}
+  _textLayerWasClear=false;
+  tctx.clearRect(0,0,W,H);
 
   if(textChars.length===0&&lvlTextAlpha<0.01)return;
 
@@ -5800,9 +5801,12 @@ function tick(){
   for(let i=N;i<MP;i++){if(pal[i]){pal[i]=0;pp[i*3+1]=-9999;}}
   pGeo.attributes.position.needsUpdate=true;
 
-  countTgts();updateHUD();checkDone();
-  // Fix #8: only mark overlay texture dirty when we actually redrew it
-  _ovFrame++;if(_ovFrame%2===0){ drawOverlay(); drawBlackHoleOverlay(); ovTex.needsUpdate = true; }
+  // Fix perf: HUD DOM updates throttled on mobile (every 3rd frame vs every frame)
+  if(!isMobile||_ovFrame%3===0){ countTgts();updateHUD();checkDone(); }
+  // Fix #8+: overlay every 2nd frame desktop, every 3rd frame mobile
+  _ovFrame++;
+  const _ovStride = isMobile ? 3 : 2;
+  if(_ovFrame%_ovStride===0){ drawOverlay(); drawBlackHoleOverlay(); ovTex.needsUpdate = true; }
   // else ovTex reuses prior frame — no GPU upload
 
   // text cursor layer drawn every frame (above 3js, below widgets)
@@ -5811,7 +5815,8 @@ function tick(){
   renderer.clear();
   renderer.render(scene,camera);
   renderer.render(particleScene,camera);
-  renderer.render(orthoScene,orthoCam);
+  // Fix perf: skip ortho overlay render on frames where texture wasn't updated
+  if(ovTex.needsUpdate||_ovFrame===1) renderer.render(orthoScene,orthoCam);
 }
 
 tick();
@@ -5829,7 +5834,7 @@ setTimeout(()=>{
 window.addEventListener('resize',()=>{
   W=window.innerWidth;H=window.innerHeight;
   camera.aspect=W/H;camera.updateProjectionMatrix();
-  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?2.0:2.0));
+  renderer.setSize(W,H);renderer.setPixelRatio(Math.min(devicePixelRatio,isMobile?1.5:2.0));
   ov.width=W*_dpr;ov.height=H*_dpr;
   ovCtx.setTransform(_dpr,0,0,_dpr,0,0);
   tc.width=W*_dpr;tc.height=H*_dpr;
@@ -6425,8 +6430,8 @@ function _drawAim(){
   // Always draw halo HUD on basketball level
   if(lvl===6&&_bbBall&&_hoopGroup) _drawBballHUD(ctx,dpr);
   if(!_aimDrag||!_bbBall) return;
-  const bsc=_bbBall.pos.clone().project(camera);
-  const bsx=(bsc.x+1)/2*W, bsy=(-bsc.y+1)/2*H;
+  _ovV3.copy(_bbBall.pos).project(camera);
+  const bsx=(_ovV3.x+1)/2*W, bsy=(-_ovV3.y+1)/2*H;
   const dx=_aimStart.x-_aimCurrent.x, dy=_aimStart.y-_aimCurrent.y;
   const dist=Math.sqrt(dx*dx+dy*dy), maxDrag=200, power=Math.min(dist/maxDrag,1.0);
   const STEPS=48, vx0=dx/maxDrag*30, vy0=-dy/maxDrag*30, GRAV_SIM=7.2;
@@ -6434,8 +6439,8 @@ function _drawAim(){
   let px=_bbBall.pos.x,py=_bbBall.pos.y,pvx=vx0,pvy=vy0,first=true;
   for(let s=0;s<STEPS;s++){
     const simDt=0.075; pvy-=GRAV_SIM*simDt; px+=pvx*simDt; py+=pvy*simDt;
-    const psc=new THREE.Vector3(px,py,0).project(camera);
-    const psx=(psc.x+1)/2*W, psy=(-psc.y+1)/2*H;
+    _ovV3.set(px,py,0).project(camera);
+    const psx=(_ovV3.x+1)/2*W, psy=(-_ovV3.y+1)/2*H;
     if(first){ctx.moveTo(psx,psy);first=false;}else ctx.lineTo(psx,psy);
   }
   ctx.stroke(); ctx.setLineDash([]);
@@ -6447,6 +6452,9 @@ function _drawAim(){
 
 // ── BULLET TIME ───────────────────────────────────────────────────────────────
 const _btArcV=new THREE.Vector3(); // Fix #5: reused across bullet-time arc frames
+// Fix perf: pre-allocated arc points array — no per-frame object creation
+const _BT_STEPS=60;
+const _btArcPts=Array.from({length:_BT_STEPS},()=>({sx:0,sy:0,wx:0,wy:0}));
 function _btComputeArc(){
   if(!_bulletTime||!_bbBall) return false;
   const GRAV_SIM=7.2, MAX_V=30;
@@ -6458,19 +6466,19 @@ function _btComputeArc(){
   const mag=Math.sqrt(vx*vx+vy*vy);
   if(mag>MAX_V){vx*=MAX_V/mag;vy*=MAX_V/mag;}
   _btLaunchVx=vx; _btLaunchVy=vy;
-  const STEPS=60, simDt=tFlight/STEPS;
+  const simDt=tFlight/_BT_STEPS;
   let px=_bbBall.pos.x,py=_bbBall.pos.y,pvx=vx,pvy=vy,minHoopDist=Infinity;
-  const arcPts=[];
-  for(let s=0;s<STEPS;s++){
+  for(let s=0;s<_BT_STEPS;s++){
     pvy-=GRAV_SIM*simDt; px+=pvx*simDt; py+=pvy*simDt;
     _btArcV.set(px,py,0).project(camera);
-    arcPts.push({sx:(_btArcV.x+1)/2*W,sy:(-_btArcV.y+1)/2*H,wx:px,wy:py});
+    const pt=_btArcPts[s];
+    pt.sx=(_btArcV.x+1)/2*W; pt.sy=(-_btArcV.y+1)/2*H; pt.wx=px; pt.wy=py;
     const hd=Math.sqrt((px-HOOP.x)**2+(py-HOOP.y)**2);
     if(hd<minHoopDist) minHoopDist=hd;
   }
   const targetLockOn=minHoopDist<HOOP.rimR*1.1?1.0:0.0;
   _btLockOn+=(targetLockOn-_btLockOn)*0.18;
-  return{arcPts,tFlight,vx,vy};
+  return{arcPts:_btArcPts,tFlight,vx,vy};
 }
 
 function _drawBulletTimeOverlay(){
@@ -6484,10 +6492,10 @@ function _drawBulletTimeOverlay(){
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
   const arc=_btComputeArc(); if(!arc) return;
   const{arcPts,tFlight}=arc, n=arcPts.length;
-  const bsc=_bbBall.pos.clone().project(camera);
-  const bsx=(bsc.x+1)/2*W,bsy=(-bsc.y+1)/2*H;
-  const hsc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera);
-  const hsx=(hsc.x+1)/2*W,hsy=(-hsc.y+1)/2*H;
+  _ovV3.copy(_bbBall.pos).project(camera);
+  const bsx=(_ovV3.x+1)/2*W,bsy=(-_ovV3.y+1)/2*H;
+  _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
+  const hsx=(_ovV3.x+1)/2*W,hsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(bsx)||!isFinite(bsy)||!isFinite(hsx)||!isFinite(hsy)) return;
   const locked=_btLockOn;
   const arcR=255,arcG=Math.round(180+locked*75),arcB=Math.round(40+locked*160);
@@ -6528,8 +6536,8 @@ function _drawBballHUD(ctx,dpr){
   _bbHaloT+=_bbHaloDt;
 
   // ── Shared screen positions ───────────────────────────────────────────────
-  const bsc=_bbBall.pos.clone().project(camera);
-  const bsx=(bsc.x+1)/2*W, bsy=(-bsc.y+1)/2*H;
+  _ovV3.copy(_bbBall.pos).project(camera);
+  const bsx=(_ovV3.x+1)/2*W, bsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(bsx)||!isFinite(bsy)) return;
   // Cursor: use bullet-time mouse or live mouse position
   const cx=_bulletTime?_bulletTimeMouse.x:mX;
@@ -6538,8 +6546,8 @@ function _drawBballHUD(ctx,dpr){
   // ── Project outermost glow layer (radius * 3.6) to screen pixels ────────
   // This matches the faint outer halo ring visible around the zen orb
   const outerGlowR3d=_bbBall.radius*3.60;
-  const glowEdge=new THREE.Vector3(_bbBall.pos.x+outerGlowR3d,_bbBall.pos.y,_bbBall.pos.z||0).project(camera);
-  const outerScreenR=Math.max(16,Math.abs((glowEdge.x+1)/2*W - bsx));
+  _ovV3.set(_bbBall.pos.x+outerGlowR3d,_bbBall.pos.y,_bbBall.pos.z||0).project(camera);
+  const outerScreenR=Math.max(16,Math.abs((_ovV3.x+1)/2*W - bsx));
 
   // ── 1. Outer halo dot: rides glow ring perimeter, tracks cursor ───────────
   const toCursorA=Math.atan2(cy-bsy, cx-bsx);
@@ -6605,8 +6613,8 @@ function _drawScoreFlash(){
   HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-0.028);
   const ac=_getAimCanvas(); if(!ac||_aimDrag) return;
   const ctx=ac.getContext('2d'); const f=HOOP.scoreFlash;
-  const hsc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera);
-  const hsx=(hsc.x+1)/2*W, hsy=(-hsc.y+1)/2*H;
+  _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
+  const hsx=(_ovV3.x+1)/2*W, hsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(hsx)||!isFinite(hsy)) return;
   const grd=ctx.createRadialGradient(hsx,hsy,0,hsx,hsy,180*f);
   grd.addColorStop(0,`rgba(255,180,40,${f*0.45})`);
@@ -6770,8 +6778,11 @@ setTimeout(()=>{
         if(_bbBall&&!_bbBall.dragging) _tickBBall(scaledDt);
         _tickRimRing(scaledDt);
         _bbHaloDt=dt; // feed real dt to halo animator
-        if(_bulletTime){ _drawBulletTimeOverlay(); _drawScoreFlash(); }
-        else { _drawAim(); _drawScoreFlash(); }
+        // Fix perf: throttle aim/score canvas redraws on mobile (every 2nd frame)
+        if(!isMobile||Math.floor(Date.now()/16)%2===0){
+          if(_bulletTime){ _drawBulletTimeOverlay(); _drawScoreFlash(); }
+          else { _drawAim(); _drawScoreFlash(); }
+        }
       }
     };
   }
