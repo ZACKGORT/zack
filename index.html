@@ -1641,6 +1641,7 @@ var _netPts=null,_netVel=null,_netAge=null,_netLife=null,_netSpawnAngle=0;
 var _hoopGlowMeshes=[],_hoopPointLights=[];
 var _rimRingT=0;
 var _bbCursorDotA=0; // smoothed cursor halo dot angle (wrap-safe)
+var _bbHaloDotA=0;   // smoothed outer halo dot angle (wrap-safe)
 var _bulletTime=false,_bulletTimeScale=1.0,_bulletTimeMouse={x:0,y:0};
 var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
@@ -6443,9 +6444,15 @@ function _drawBballHUD(ctx,dpr){
   // ── 1. Outer halo dot: rides glow ring perimeter, tracks cursor ───────────
   const toCursorA=Math.atan2(cy-bsy, cx-bsx);
   const cursorDistB=Math.sqrt((cx-bsx)**2+(cy-bsy)**2);
-  const farFrac=Math.min(1.0,cursorDistB/(outerScreenR*1.8));
+  // Dead zone: ignore proximity within the glow ring itself
+  const farFrac=Math.min(1.0,Math.max(0,(cursorDistB-outerScreenR*0.5)/(outerScreenR*1.3)));
   const idleAngle=_bbHaloT*0.55;
-  const haloDotA=farFrac>0.02 ? toCursorA*farFrac+idleAngle*(1-farFrac) : idleAngle;
+  // Wrap-safe smoothed lerp — same fix as cursor dot
+  const haloDotTarget=farFrac>0.05 ? toCursorA : idleAngle;
+  let haloDotDelta=haloDotTarget-_bbHaloDotA;
+  haloDotDelta=haloDotDelta-Math.round(haloDotDelta/(Math.PI*2))*Math.PI*2;
+  _bbHaloDotA+=haloDotDelta*(farFrac>0.05 ? 0.14 : 0.07);
+  const haloDotA=_bbHaloDotA;
   const hdx=Math.cos(haloDotA)*outerScreenR;
   const hdy=Math.sin(haloDotA)*outerScreenR;
   const hdPulse=0.8+Math.sin(_bbHaloT*3.1)*0.2;
