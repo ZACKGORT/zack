@@ -1640,6 +1640,7 @@ var _rimCloudA=null,_rimCloudT=null,_rimCloudSA=null,_rimCloudST=null;
 var _netPts=null,_netVel=null,_netAge=null,_netLife=null,_netSpawnAngle=0;
 var _hoopGlowMeshes=[],_hoopPointLights=[];
 var _rimRingT=0;
+var _bbCursorDotA=0; // smoothed cursor halo dot angle (wrap-safe)
 var _bulletTime=false,_bulletTimeScale=1.0,_bulletTimeMouse={x:0,y:0};
 var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
@@ -6096,6 +6097,17 @@ function _tickRimRing(dt) {
     const NET_DAMPEN=0.94;
     const NET_BOTTOM=FLR+0.05; // ground level — particles react here
 
+    // ── Ball collision: push net particles away when ball enters hoop zone ──
+    const ballCollR=_bbBall ? _bbBall.radius*1.6 : 0;
+    const bpx=_bbBall ? _bbBall.pos.x : 0;
+    const bpy=_bbBall ? _bbBall.pos.y : 0;
+    const bpz=_bbBall ? (_bbBall.pos.z||0) : 0;
+    // Only active when ball is within the net zone (below rim, above floor)
+    const ballInNetZone=_bbBall &&
+      bpy < HOOP.y+ballCollR &&
+      bpy > NET_BOTTOM+ballCollR &&
+      Math.sqrt((bpx-HOOP.x)**2+(bpz-HOOP.z)**2) < HOOP.rimR*1.3;
+
     for(let i=0;i<NET_COUNT;i++){
       _netAge[i]+=dt;
       if(_netAge[i]>=_netLife[i]){ _spawnNetParticle(i); continue; }
@@ -6114,6 +6126,21 @@ function _tickRimRing(dt) {
         const inF=CONE_FORCE*coneT*coneT;
         _netVel[b]+=(toCX/toDist)*inF*dt;
         _netVel[b+2]+=(toCZ/toDist)*inF*dt;
+      }
+
+      // ── Ball proximity repulsion ──────────────────────────────────────────
+      if(ballInNetZone){
+        const ndx=_netPts[b]-bpx, ndy=_netPts[b+1]-bpy, ndz=_netPts[b+2]-bpz;
+        const nd=Math.sqrt(ndx*ndx+ndy*ndy+ndz*ndz)+0.001;
+        if(nd<ballCollR*2.2){
+          // Soft repulsion: strongest at contact, fades to zero at 2.2r
+          const overlap=1.0-(nd/(ballCollR*2.2));
+          const force=22.0*overlap*overlap;
+          // Bias downward slightly to simulate ball pushing net through
+          _netVel[b]+=(ndx/nd)*force*dt;
+          _netVel[b+1]+=(ndy/nd)*force*dt - 2.5*overlap*dt;
+          _netVel[b+2]+=(ndz/nd)*force*dt;
+        }
       }
 
       _netVel[b]*=NET_DAMPEN; _netVel[b+1]*=NET_DAMPEN; _netVel[b+2]*=NET_DAMPEN;
@@ -6182,11 +6209,14 @@ function _tickBBall(dt){
   if(radDist>0.001){
     const closestRingX=rimCX+(rdx/radDist)*HOOP.rimR;
     const closestRingZ=rimCZ+(rdz/radDist)*HOOP.rimR;
-    const anchorX=HOOP.x+HOOP.rimR;
-    const rimOffsetFromAnchor=anchorX-closestRingX;
-    // Combined tilt: primary + diving-board oscillator
+    // contactDirX: signed X component of the radial hit direction (-1=left, +1=right)
+    const contactDirX=rdx/radDist;
+    // rimOffsetX: signed X offset of contact point from rim center
+    const rimOffsetX=closestRingX-rimCX;
+    // Combined tilt: primary + diving-board, applied along X for visual
     const combinedTilt=HOOP._rimTilt+HOOP._dbTilt;
-    const tiltedRingY=HOOP.y+Math.sin(combinedTilt)*rimOffsetFromAnchor;
+    // Tilt displaces Y based on signed X offset from rim center
+    const tiltedRingY=HOOP.y+Math.sin(combinedTilt)*rimOffsetX;
     const toX=b.pos.x-closestRingX,toY=b.pos.y-tiltedRingY,toZ=(b.pos.z||0)-closestRingZ;
     const toRimDist=Math.sqrt(toX*toX+toY*toY+toZ*toZ);
     const minDist=HOOP.rimTube+ballR;
@@ -6197,37 +6227,25 @@ function _tickBBall(dt){
       if(b.pos.z!==undefined) b.pos.z+=nz*pen*1.1;
       const vDotN=b.vel.x*nx+b.vel.y*ny+(b.vel.z||0)*nz;
       if(vDotN<0){
-        // leverFrac: 0 = right edge (anchor), 1 = left edge (free end)
-        const leverFrac=Math.max(0,rimOffsetFromAnchor)/(HOOP.rimR*2);
-        const REST_RIM=0.55+leverFrac*0.32;
+        // edgeFrac: 0 at rim center, ramps to 1 in outer 40% of the rim ring
+        const edgeFrac=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
+        const REST_RIM=0.55+edgeFrac*0.32;
         b.vel.x-=(1+REST_RIM)*vDotN*nx; b.vel.y-=(1+REST_RIM)*vDotN*ny;
         if(b.vel.z!==undefined) b.vel.z-=(1+REST_RIM)*vDotN*nz;
-        b.vel.x*=0.85+leverFrac*0.08; b.vel.y*=0.85+leverFrac*0.08;
+        b.vel.x*=0.85+edgeFrac*0.08; b.vel.y*=0.85+edgeFrac*0.08;
         const impactSpeed=Math.abs(vDotN);
+        const downImpact=Math.max(0,-ny)*impactSpeed;
 
-        // ── Directional diving-board edge detection ──────────────────────────
-        // leverFrac near 1 = left (free) edge; leverFrac near 0 = right (anchor) edge
-        const leftEdgeFrac =Math.max(0,(leverFrac-0.52)/0.48);  // ramps 0→1 across left half
-        const rightEdgeFrac=Math.max(0,((1.0-leverFrac)-0.52)/0.48); // ramps 0→1 across right half
-
-        if(leftEdgeFrac>0.02){
-          // Left edge hit: free end dips down, then oscillates back up — like a springboard
-          // Downward component of impact drives the tip; ball bouncing inward adds lateral kick
-          const downImpact=Math.max(0,-ny)*impactSpeed;
-          const dbImpulse=(downImpact*2.0)*leftEdgeFrac*2.8;
-          HOOP._dbVel+=dbImpulse;   // positive = left side dips (leverArm is max here)
-          HOOP._rimTiltVel+=downImpact*leftEdgeFrac*HOOP._rimImpulseScale*0.5;
+        // ── Symmetric diving-board response ──────────────────────────────────
+        // contactDirX: +1 = right-side hit, -1 = left-side hit.
+        // _dbTilt > 0 = right side low; _dbVel drives it in that direction.
+        // So multiplying by contactDirX makes either side dip correctly.
+        if(edgeFrac>0.02){
+          HOOP._dbVel+=downImpact*edgeFrac*2.8*contactDirX;
+          HOOP._rimTiltVel+=downImpact*edgeFrac*HOOP._rimImpulseScale*0.5*contactDirX;
         }
 
-        if(rightEdgeFrac>0.02){
-          // Right edge hit: anchor-side dips — free left end kicks upward then wobbles down
-          const downImpact=Math.max(0,-ny)*impactSpeed;
-          const dbImpulse=downImpact*rightEdgeFrac*1.6;
-          HOOP._dbVel-=dbImpulse;   // negative = right side dips, left end rises first
-          HOOP._rimTiltVel-=downImpact*rightEdgeFrac*HOOP._rimImpulseScale*0.35;
-        }
-
-        HOOP.scoreFlash=Math.max(HOOP.scoreFlash,0.22+leverFrac*0.18);
+        HOOP.scoreFlash=Math.max(HOOP.scoreFlash,0.22+edgeFrac*0.18);
       }
     }
   }
@@ -6369,6 +6387,7 @@ function _drawBulletTimeOverlay(){
   const bsx=(bsc.x+1)/2*W,bsy=(-bsc.y+1)/2*H;
   const hsc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera);
   const hsx=(hsc.x+1)/2*W,hsy=(-hsc.y+1)/2*H;
+  if(!isFinite(bsx)||!isFinite(bsy)||!isFinite(hsx)||!isFinite(hsy)) return;
   const locked=_btLockOn;
   const arcR=255,arcG=Math.round(180+locked*75),arcB=Math.round(40+locked*160);
   ctx.save();
@@ -6410,6 +6429,7 @@ function _drawBballHUD(ctx,dpr){
   // ── Shared screen positions ───────────────────────────────────────────────
   const bsc=_bbBall.pos.clone().project(camera);
   const bsx=(bsc.x+1)/2*W, bsy=(-bsc.y+1)/2*H;
+  if(!isFinite(bsx)||!isFinite(bsy)) return;
   // Cursor: use bullet-time mouse or live mouse position
   const cx=_bulletTime?_bulletTimeMouse.x:mX;
   const cy=_bulletTime?_bulletTimeMouse.y:mY;
@@ -6440,11 +6460,18 @@ function _drawBballHUD(ctx,dpr){
   const CURSOR_R=18;
   const toBallA=Math.atan2(bsy-cy, bsx-cx);
   const ballDist=Math.sqrt((bsx-cx)**2+(bsy-cy)**2);
-  const ballFarFrac=Math.min(1.0,ballDist/(CURSOR_R*2.2));
+  // Smooth frac: 0 when cursor ON ball, 1 when far away. Use a dead zone near center.
+  const ballFarFrac=Math.min(1.0,Math.max(0,(ballDist-CURSOR_R*0.5)/(CURSOR_R*2.2)));
   const idleAngle2=_bbHaloT*(-0.7);
-  const cursorDotA=ballFarFrac>0.02
-    ? toBallA*ballFarFrac+idleAngle2*(1-ballFarFrac)
-    : idleAngle2;
+  // Wrap-safe angle lerp: always interpolate across the shorter arc
+  if(typeof _bbCursorDotA==='undefined') _bbCursorDotA=idleAngle2;
+  const targetA=ballFarFrac>0.05 ? toBallA : idleAngle2;
+  let dA=targetA-_bbCursorDotA;
+  // Normalize delta to [-π, π] to avoid spinning around the long way
+  dA=dA-Math.round(dA/(Math.PI*2))*Math.PI*2;
+  const lerpRate=ballFarFrac>0.05 ? 0.18 : 0.08;
+  _bbCursorDotA+=dA*lerpRate;
+  const cursorDotA=_bbCursorDotA;
 
   ctx.save();
   ctx.beginPath();
@@ -6473,6 +6500,7 @@ function _drawScoreFlash(){
   const ctx=ac.getContext('2d'); const f=HOOP.scoreFlash;
   const hsc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera);
   const hsx=(hsc.x+1)/2*W, hsy=(-hsc.y+1)/2*H;
+  if(!isFinite(hsx)||!isFinite(hsy)) return;
   const grd=ctx.createRadialGradient(hsx,hsy,0,hsx,hsy,180*f);
   grd.addColorStop(0,`rgba(255,180,40,${f*0.45})`);
   grd.addColorStop(0.4,`rgba(255,120,20,${f*0.18})`);
