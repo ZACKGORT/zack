@@ -1164,6 +1164,14 @@ function _buildFloatText(lines, immediate) {
 // ── RENDERER ──────────────────────────────────────────────────────────────────
 let W=window.innerWidth,H=window.innerHeight;
 const isMobile=window.innerWidth<=600;
+
+// Chrome detection (isolates Chrome/Chromium from Safari/Firefox)
+const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+
+// Centralized particle limits (adjust these numbers to tune performance)
+const BASE_COUNT = isMobile 
+  ? (isChrome ? 3000 : 4000) 
+  : (isChrome ? 5000 : 8000);
 // Fix #2: disable MSAA on mobile (Chrome composites it heavily)
 // Fix #3: preserveDrawingBuffer only when screenshot is requested
 // Fix perf: powerPreference tells Chrome's GPU process scheduler to use the discrete GPU on dual-GPU systems
@@ -2357,11 +2365,11 @@ function initLevel(n){
   // Level 5 (index 4): bouncing black hole — rubber-ball BH, neutron stars as gravitational toys
   // + viewport-side wormholes (vertical portals) that teleport the black hole
   if (n === 4) {
-    P.count=isMobile?4000:8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82; P.size = 0.70;
+    P.count=BASE_COUNT; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82; P.size = 0.70;
     if (emitterShape) emitterShape.animateMorph(0);
     const setSl = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
     const setVl = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
+    setSl('sl-count',BASE_COUNT); setVl('v-count',BASE_COUNT);
     setSl('sl-grav', 0.6); setVl('v-grav', '0.6');
     setSl('sl-spread', 1.4); setVl('v-spread', '1.40');
     setSl('sl-bounce', 0.82); setVl('v-bounce', '0.82');
@@ -2418,13 +2426,13 @@ function initLevel(n){
   }
   // Level 6 (index 5): clone of level 5 — bouncing BH, no NS, full-viewport rain from top
   if (n === 5) {
-    P.count=isMobile?4000:8000; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82;
+    P.count=BASE_COUNT; P.gravity = 2.2; P.spread = 1.4; P.bounce = 0.82;
     // Mobile: smaller particles = denser visual appearance
     P.size = isMobile ? 0.42 : 0.70;
     if (emitterShape) emitterShape.animateMorph(0);
     const setSl = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
     const setVl = (id, v) => { const el = document.getElementById(id); if(el) el.textContent = v; };
-    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
+    setSl('sl-count',BASE_COUNT); setVl('v-count',BASE_COUNT);
     setSl('sl-grav', 0.6); setVl('v-grav', '0.6');
     setSl('sl-spread', 1.4); setVl('v-spread', '1.40');
     setSl('sl-bounce', 0.82); setVl('v-bounce', '0.82');
@@ -2471,11 +2479,11 @@ function initLevel(n){
   const aimCv = document.getElementById('aim-canvas');
   if (aimCv) aimCv.style.display = isBball ? '' : 'none';
   if (isBball) {
-    P.count=isMobile?4000:8000; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
+    P.count=BASE_COUNT; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
     P.size = isMobile ? 0.32 : 0.52; P.waterfall = true; _wfPhase = 0;
     const setSl = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
     const setVl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    setSl('sl-count',isMobile?4000:8000); setVl('v-count',isMobile?4000:8000);
+    setSl('sl-count',BASE_COUNT); setVl('v-count',BASE_COUNT);
     setSl('sl-grav',11.0);  setVl('v-grav','11.0');
     setSl('sl-spread',0.5); setVl('v-spread','0.50');
     setSl('sl-size',P.size); setVl('v-size',String(P.size));
@@ -2695,7 +2703,7 @@ class Shape{
     });
     // drive particles
     P.spread=isMobile?(0.65-mv*0.62):(1.25-mv*1.22);
-    P.count=Math.round(isMobile?(8000-mv*4000):(8000-mv*5000));
+P.count=BASE_COUNT;
     P.gravity=isMobile?(3.3+mv*1.2):(4.2+mv*2.0);
     syncBounce();
   }
@@ -3433,9 +3441,9 @@ function getSpout(){
 }
 
 // ── PARTICLES ─────────────────────────────────────────────────────────────────
-const MP=8000,pp=new Float32Array(MP*3),pv=new Float32Array(MP*3),ps=new Float32Array(MP),pa=new Float32Array(MP),pl=new Float32Array(MP),pal=new Uint8Array(MP);
-// Fix perf: mobile default particle count 4000 (was 8000) — halves the physics loop
-const P={count:isMobile?4000:8000,gravity:isMobile?3.3:4.2,spread:isMobile?0.65:1.25,bounce:0.36,size:isMobile?0.65:0.65,rain:false,waterfall:false};
+const MP=BASE_COUNT, pp=new Float32Array(MP*3), pv=new Float32Array(MP*3), ps=new Float32Array(MP), pa=new Float32Array(MP), pl=new Float32Array(MP), pal=new Uint8Array(MP);
+// Particle state initializes to our browser-specific BASE_COUNT
+const P={count:BASE_COUNT,gravity:isMobile?3.3:4.2,spread:isMobile?0.65:1.25,bounce:0.36,size:isMobile?0.65:0.65,rain:false,waterfall:false};
 
 // Derive bounce from count+size: more particles & larger size → more bounce
 function derivedBounce(){
@@ -4085,6 +4093,7 @@ function setFontSize(sz){
 }
 document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parseFloat(e.target.value)));
 
+
 // ── MOBILE BAR ────────────────────────────────────────────────────────────────
 (function(){
   if(window.innerWidth>600)return;
@@ -4093,7 +4102,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   FONT_SIZE=15;
 
   // Mobile particle defaults
-  P.count=isMobile?4000:8000;
+  P.count=BASE_COUNT;
   P.gravity=3.3;
   P.spread=0.65;
   P.size=0.65;
@@ -5662,9 +5671,10 @@ setTimeout(() => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Fix perf: mobile reduces hoop particle counts significantly
-var RIM_RING_COUNT  = isMobile ? 300 : 800;
-var RIM_CLOUD_COUNT = isMobile ? 400 : 1200;
-var NET_COUNT       = isMobile ? 1400 : 4200;
+var RIM_RING_COUNT  = isMobile ? (isChrome ? 200 : 300) : (isChrome ? 500 : 800);
+var RIM_CLOUD_COUNT = isMobile ? (isChrome ? 250 : 400) : (isChrome ? 700 : 1200);
+var NET_COUNT       = isMobile ? (isChrome ? 900 : 1400) : (isChrome ? 2800 : 4200);
+
 
 function _buildHoop() {
   if (_hoopGroup) {
