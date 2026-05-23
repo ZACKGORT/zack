@@ -1197,21 +1197,18 @@ const rimL=new THREE.PointLight(0x9aaabb,1.1,80);rimL.position.set(-28,14,16);sc
 const fillL=new THREE.PointLight(0xffe8c0,0.35,60);fillL.position.set(0,-22,8);scene.add(fillL);
 
 // ── FLOOR WASH LIGHTS ────────────────────────────────────────────────────────
-// Low-angle warm light sitting just above the floor, illuminates shapes from below
-// and makes the floor catch light from objects above it.
 const sugarFloorWashL = new THREE.PointLight(0xfff0d0, 2.8, 55);
 sugarFloorWashL.position.set(0, -7.2, 4);
-scene.add(sugarFloorWashL);
+if (!isChrome) scene.add(sugarFloorWashL);
 
-// Second floor wash from the left to fill shadows under shapes
 const sugarFloorWashL2 = new THREE.PointLight(0xffe0b0, 1.6, 45);
 sugarFloorWashL2.position.set(-8, -7.0, 2);
-scene.add(sugarFloorWashL2);
+if (!isChrome) scene.add(sugarFloorWashL2);
 
 // ── PARTICLE GLOW LIGHTS ──────────────────────────────────────────────────────
 // A pool of PointLights repositioned each frame to sample particles —
 // gives the particle swarm a warm self-illuminating glow on surrounding surfaces.
-const _PGLOW_COUNT = 10;
+const _PGLOW_COUNT = isChrome ? 0 : 10; // Suppress particle glow lights on Chrome
 const _pGlowLights = [];
 for (let i = 0; i < _PGLOW_COUNT; i++) {
   const l = new THREE.PointLight(0xfff8e8, 0, 12);
@@ -1554,8 +1551,10 @@ class Attractor {
         this.mesh.add(this.core);
 
         // Point light — warm golden glow emanating from orb
-        this._zenLight = new THREE.PointLight(0xfff8e8, 6.0, 30);
-        this.mesh.add(this._zenLight);
+        if (!isChrome) {
+          this._zenLight = new THREE.PointLight(0xfff8e8, 6.0, 30);
+          this.mesh.add(this._zenLight);
+        }
 
         // Glow corona layers — barely visible, just a breath of light
         const glowLayers = [
@@ -1631,8 +1630,10 @@ class Attractor {
       this.mesh.add(this.core);
 
       // Point Light — cosmic blue tint, slightly brighter
-      this.light = new THREE.PointLight(0x88ccff, 2.2, 14);
-      this.mesh.add(this.light);
+      if (!isChrome) {
+        this.light = new THREE.PointLight(0x88ccff, 2.2, 14);
+        this.mesh.add(this.light);
+      }
 
       // Glow corona — cosmic blue, more luminous
       const glowLayers = [
@@ -2658,8 +2659,10 @@ class Shape{
     const eg=new THREE.EdgesGeometry(d.makeGeo(s),22);
     this.mesh.add(new THREE.LineSegments(eg,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.18})));
     // ── Sun-style PointLight + glow corona ──
-    const shapeLight = new THREE.PointLight(0xfff8e8, 4.0, 20);
-    this.mesh.add(shapeLight);
+    if (!isChrome) {
+      const shapeLight = new THREE.PointLight(0xfff8e8, 4.0, 20);
+      this.mesh.add(shapeLight);
+    }
     const baseR = this.def.baseR * s;
     const glowDefs = [
       { r: baseR * 1.3,  color: 0xffffff,  opacity: 0.06 },
@@ -5698,7 +5701,7 @@ function _buildRimRing() {
   _hoopGlowMeshes=[]; _hoopPointLights=[];
   _hoopGroup.children.filter(c=>c.isLight).forEach(l=>_hoopGroup.remove(l));
 
-  const lightCount=4;
+  const lightCount = isChrome ? 0 : 4;
   for(let i=0;i<lightCount;i++){
     const angle=(i/lightCount)*Math.PI*2;
     const light=new THREE.PointLight(0xfff8e8,12.0,60);
