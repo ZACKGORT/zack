@@ -1424,6 +1424,19 @@ var _bulletTime=false,_bulletTimeScale=1.0,_bulletTimeMouse={x:0,y:0};
 var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
+// ── ZenOrb Twirl: ball-on-a-string / fidget-spinner physics ──────────────────
+// The FINGER is the fixed pivot. The BALL dangles on a tether and builds
+// orbital momentum from circular finger motion — like twirling keys on a chain.
+var _twirlActive=false;
+var _twirlFx=0,_twirlFy=0;          // finger world position (updated each move)
+var _twirlFxPrev=0,_twirlFyPrev=0;  // previous frame finger world pos (for pivot velocity)
+var _twirlFxScreen=0,_twirlFyScreen=0; // raw screen coords
+// Ball state in polar coords relative to the pivot (finger)
+var _twirlBallAngle=0;           // angle of ball from pivot (world radians)
+var _twirlBallDist=0;            // tether length (world units) — loosely constrained
+var _twirlAngVel=0;              // angular velocity (rad/s) — the spin that builds up
+var _twirlRadVel=0;              // radial velocity (tether stretch/slack)
+var _twirlLastT=0;
 var _hoopVelX=0,_hoopVelY=0,_prevHoopX=0,_prevHoopY=0,_hoopDragStartT=0;
 var HOOP={
   x:3.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
@@ -5505,11 +5518,14 @@ function _spawnBall(){
   HOOP._dbTilt=0; HOOP._dbVel=0;
 }
 
-function _tickBBall(dt){
+function _tickBBall(dt, realDt){
   if(!_bbBall||_bbBall.dragging) return;
+  // realDt: used for gravity so ball falls at consistent speed even in slowmo
+  // dt (scaledDt): used for position/velocity integration to keep slowmo feel
+  if(realDt===undefined) realDt=dt;
   const b=_bbBall;
   const GRAV=b._bbGravity||17.0;
-  b.vel.y-=GRAV*dt; b.pos.x+=b.vel.x*dt; b.pos.y+=b.vel.y*dt;
+  b.vel.y-=GRAV*realDt; b.pos.x+=b.vel.x*dt; b.pos.y+=b.vel.y*dt;
 
   // ── Primary rim spring (stiff, well-damped — keeps rim roughly level) ──────
   const rimTiltSpring=-HOOP._rimSpringK*HOOP._rimTilt;
@@ -5822,6 +5838,53 @@ function _drawBballHUD(ctx,dpr){
   const hdx=Math.cos(haloDotA)*outerScreenR;
   const hdy=Math.sin(haloDotA)*outerScreenR;
   const hdPulse=0.8+Math.sin(_bbHaloT*3.1)*0.2;
+
+  // ── Twirl mode: draw tether string + orbit trail ─────────────────────────
+  if(_twirlActive){
+    const fsx=_twirlFxScreen, fsy=_twirlFyScreen;
+    _ovV3.copy(_bbBall.pos).project(camera);
+    const ballSx=(_ovV3.x+1)/2*W, ballSy=(-_ovV3.y+1)/2*H;
+    const twirlScreenR=Math.sqrt((ballSx-fsx)**2+(ballSy-fsy)**2);
+    const spinSpeed=Math.abs(_twirlAngVel);
+    const spinGlow=Math.min(1,spinSpeed/12);
+
+    ctx.save();
+    // String/tether line from finger to ball
+    const grad=ctx.createLinearGradient(fsx,fsy,ballSx,ballSy);
+    grad.addColorStop(0,`rgba(255,220,80,${0.12+spinGlow*0.25})`);
+    grad.addColorStop(0.5,`rgba(255,200,60,${0.22+spinGlow*0.35})`);
+    grad.addColorStop(1,`rgba(255,180,40,${0.08+spinGlow*0.15})`);
+    ctx.beginPath(); ctx.moveTo(fsx,fsy); ctx.lineTo(ballSx,ballSy);
+    ctx.strokeStyle=grad;
+    ctx.lineWidth=1.2+spinGlow*1.5;
+    ctx.setLineDash([3,4]);
+    ctx.lineDashOffset=-((_bbHaloT*_twirlAngVel*40)%7);
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Orbit ghost ring (faint circle at current tether radius, centered on finger)
+    ctx.beginPath(); ctx.arc(fsx,fsy,twirlScreenR,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(255,210,80,${0.06+spinGlow*0.14})`;
+    ctx.lineWidth=1.0; ctx.stroke();
+
+    // Finger pivot dot — glows brighter as spin builds
+    ctx.beginPath(); ctx.arc(fsx,fsy,3+spinGlow*2,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,230,100,${0.5+spinGlow*0.45})`; ctx.fill();
+    ctx.beginPath(); ctx.arc(fsx,fsy,8+spinGlow*5,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,200,60,${0.06+spinGlow*0.1})`; ctx.fill();
+
+    // Speed arc: sweeps around finger pivot to show accumulated spin energy
+    if(spinSpeed>0.5){
+      const arcLen=Math.min(Math.PI*2, spinSpeed/14*Math.PI*2);
+      const arcDir=_twirlAngVel>0?1:-1;
+      ctx.beginPath();
+      ctx.arc(fsx,fsy,twirlScreenR*0.92,_twirlBallAngle,_twirlBallAngle+arcLen*arcDir);
+      ctx.strokeStyle=`rgba(255,210,80,${0.1+spinGlow*0.3})`;
+      ctx.lineWidth=2+spinGlow*2; ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.beginPath(); ctx.arc(bsx+hdx,bsy+hdy,2.8*hdPulse,0,Math.PI*2);
   ctx.fillStyle='rgba(255,210,80,0.72)'; ctx.fill();
@@ -5881,6 +5944,191 @@ function _drawScoreFlash(){
   ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
 }
 
+// ── ZENORB TWIRL: ball-on-a-string / fidget-spinner physics ──────────────────
+// The finger IS the pivot. The ball hangs on a loose tether and accumulates
+// angular momentum as you sweep your finger in circles — like twirling keys.
+// Physics model: polar coordinates around the moving pivot.
+//   - Tether acts as a spring (loose — not rigid): ball can lag behind, dangle
+//   - Angular momentum accumulates from the torque your circular finger motion
+//     imparts through the string tension (Coriolis / centripetal coupling)
+//   - No direct control of spin rate — you build it like a real fidget spinner
+
+function _zenorbOuterScreenR(){
+  if(!_bbBall) return{bsx:W/2,bsy:H/2,r:40};
+  _ovV3.copy(_bbBall.pos).project(camera);
+  const bsx=(_ovV3.x+1)/2*W, bsy=(-_ovV3.y+1)/2*H;
+  const outerGlowR3d=_bbBall.radius*3.60;
+  _ovV3.set(_bbBall.pos.x+outerGlowR3d,_bbBall.pos.y,_bbBall.pos.z||0).project(camera);
+  return{bsx,bsy,r:Math.max(16,Math.abs((_ovV3.x+1)/2*W - bsx))};
+}
+function _zenorbHaloHit(sx,sy){
+  if(!_bbBall) return false;
+  const{bsx,bsy,r}=_zenorbOuterScreenR();
+  const d=Math.sqrt((sx-bsx)**2+(sy-bsy)**2);
+  return d>=r*0.4 && d<=r*2.2; // generous grab zone
+}
+
+function _startZenorbTwirl(sx,sy){
+  if(!_bbBall) return;
+  _twirlActive=true;
+  _twirlFxScreen=sx; _twirlFyScreen=sy;
+  const fw=s2w(sx,sy);
+  _twirlFx=fw.x; _twirlFy=fw.y;
+  _twirlFxPrev=fw.x; _twirlFyPrev=fw.y;
+  _twirlLastT=performance.now();
+  // Initial polar coords: ball relative to pivot
+  const dx=_bbBall.pos.x-fw.x, dy=_bbBall.pos.y-fw.y;
+  _twirlBallAngle=Math.atan2(dy,dx);
+  _twirlBallDist=Math.max(0.8,Math.sqrt(dx*dx+dy*dy));
+  _twirlRadVel=0;
+  // Seed angular velocity from ball's existing velocity (smooth handoff)
+  const tx=-Math.sin(_twirlBallAngle), ty=Math.cos(_twirlBallAngle);
+  const tang=_bbBall.vel.x*tx+_bbBall.vel.y*ty;
+  _twirlAngVel=_twirlBallDist>0.1 ? tang/_twirlBallDist : 0;
+  _bbBall.vel.set(0,0,0);
+}
+
+function _updateZenorbTwirl(sx,sy){
+  if(!_twirlActive) return;
+  _twirlFxScreen=sx; _twirlFyScreen=sy;
+  const fw=s2w(sx,sy);
+  _twirlFxPrev=_twirlFx; _twirlFyPrev=_twirlFy;
+  _twirlFx=fw.x; _twirlFy=fw.y;
+}
+
+function _tickZenorbTwirl(dt){
+  if(!_twirlActive||!_bbBall) return;
+  const TETHER_REST=_twirlBallDist; // rest length = current (loose tether doesn't pull inward)
+  const TETHER_K=18.0;   // spring stiffness (resists stretching beyond rest)
+  const TETHER_DAMP=0.65; // radial damping
+  const ANG_DRAG=0.995;  // angular drag per second — very low so spin persists
+  const GRAVITY=_bbBall._bbGravity||17.0;
+
+  // ── Pivot velocity this frame ─────────────────────────────────────────────
+  const pvx=(_twirlFx-_twirlFxPrev)/(dt||0.016);
+  const pvy=(_twirlFy-_twirlFyPrev)/(dt||0.016);
+
+  // ── Ball absolute velocity from polar state ───────────────────────────────
+  // v_ball = v_pivot + d/dt(r*e_r)
+  //        = v_pivot + (rdot * e_r) + (r * angVel * e_theta)
+  const er_x=Math.cos(_twirlBallAngle), er_y=Math.sin(_twirlBallAngle);
+  const et_x=-er_y, et_y=er_x; // tangent (perp to radial, in spin direction)
+
+  // ── Tether force: loose spring — only pulls when stretched beyond rest, never pushes
+  // This lets the ball dangle and lag behind naturally
+  // Rest length adapts slowly to keep the tether "loose not taut"
+  const stretch=_twirlBallDist; // current length
+  // Soft tether: spring force only when significantly stretched
+  // Gives the "loose chain / dangling key" feel — ball swings freely at short distances
+  const SLACK=0.1; // fraction of rest below which tether is fully slack
+  const stretchRatio=stretch/Math.max(0.5,_twirlBallDist);
+  // Centripetal acceleration from orbit: ω²r — this is the real string tension in circular motion
+  const centripetalA=_twirlAngVel*_twirlAngVel*_twirlBallDist;
+
+  // ── Pivot acceleration (how fast the finger is changing velocity) ──────────
+  // This torque is what ACTUALLY drives the spin — when you sweep your finger
+  // in a circle, the offset from ball-to-pivot creates a torque on the angular momentum.
+  // Torque = r × F_pivot (cross product in 2D = scalar)
+  const pivAccX=(pvx-0)/(dt||0.016)*dt*0; // we'll use pivot displacement directly
+  // The key physics: moving the pivot creates a force on the ball via the tether.
+  // Force = -k*(r - r0)*e_r (spring) — projection onto tangent gives angular impulse.
+  // Simpler: compute the angle from pivot to ball, and how the pivot motion
+  // rotates that angle. That's the most intuitive fidget-spinner feel.
+
+  // ── Core fidget-spinner: pivot moves, string pulls ball ──────────────────
+  // New pivot position
+  const newPivX=_twirlFx, newPivY=_twirlFy;
+  // Vector from new pivot to current ball position
+  const toBallX=_bbBall.pos.x-newPivX, toBallY=_bbBall.pos.y-newPivY;
+  const toBallDist=Math.sqrt(toBallX*toBallX+toBallY*toBallY)||0.001;
+  const newAngle=Math.atan2(toBallY,toBallX);
+
+  // Angular impulse from pivot movement:
+  // When the pivot moves, the ball's angle relative to pivot changes.
+  // This is the PRIMARY driver of spin — sweeping your finger in a circle
+  // constantly repositions the pivot, which winds up the angular momentum.
+  let angleDelta=newAngle-_twirlBallAngle;
+  // Normalize to [-π, π]
+  angleDelta=angleDelta-Math.round(angleDelta/(Math.PI*2))*Math.PI*2;
+  // Angular velocity gets an impulse from how much the angle changed due to pivot motion.
+  // This feels like the "string going taut then loose" — pivot displacement tangentially
+  // drives spin. Scale by a coupling factor: how taut the tether is.
+  const tautness=Math.min(1.0,toBallDist/Math.max(0.5,_twirlBallDist));
+  // The angular impulse is strongest when the string is taut and pivot sweeps tangentially.
+  // Use angleDelta/dt as the "forced angular velocity" and blend it in with coupling:
+  const forcedAngV=angleDelta/(dt||0.016);
+  // Coupling: how much pivot-induced angle change feeds into accumulated spin
+  // High tautness + large pivot sweep = strong spin transfer (like whipping a chain)
+  const COUPLING=0.38;
+  _twirlAngVel+=forcedAngV*COUPLING*(0.4+tautness*0.6);
+
+  // ── Gravity acts on the ball in polar coords ──────────────────────────────
+  // Gravity tangential component: -g * cos(angle) where angle measured from downward
+  // In our coord system: downward is -y, angle=0 is rightward
+  // Gravity torque = -g * cos(angle - π) = g * cos(angle) ... no:
+  // Tangential gravity = -GRAVITY * (horizontal component of e_r) ?
+  // Simpler: gravity accelerates the ball in -y. Project onto tangent:
+  // a_tangential = -g * (e_y · e_theta) = -g * cos(angle)  [since e_theta.y = cos(angle)]
+  // This gives pendulum-like swinging when stationary, blending into orbital when spinning
+  const gravTangential=-GRAVITY*Math.cos(_twirlBallAngle); // pendulum restoring force
+  _twirlAngVel+=(gravTangential/_twirlBallDist)*dt*0.6; // scale down — don't overpower spin
+
+  // ── Angular drag (air resistance, very gentle) ────────────────────────────
+  _twirlAngVel*=Math.pow(ANG_DRAG, dt*60);
+  // Clamp
+  _twirlAngVel=Math.max(-22,Math.min(22,_twirlAngVel));
+
+  // ── Update angle from accumulated angular velocity ────────────────────────
+  _twirlBallAngle=newAngle + _twirlAngVel*dt*(1.0-COUPLING*0.5);
+  // ^ blend: the new angle from pivot motion + the accumulated spin advance
+
+  // ── Radial dynamics: loose tether spring ─────────────────────────────────
+  // Tether only resists when ball tries to fly FURTHER than tether length.
+  // Below that: ball swings freely (slack string).
+  const TARGET_DIST=_twirlBallDist; // tether doesn't change length (inextensible ideal)
+  // Centrifugal "force" in rotating frame pushes outward: ω²r
+  const centrifugal=_twirlAngVel*_twirlAngVel*_twirlBallDist;
+  // Radial gravity: -g * sin(angle) (radial component, can stretch tether)
+  const gravRadial=-GRAVITY*Math.sin(_twirlBallAngle);
+  // For inextensible tether: clamp distance, derive radial vel from it
+  // For loose/stretchy feel: let it breathe a bit
+  _twirlRadVel+=(gravRadial-centrifugal*0.05)*dt; // gentle breathing
+  _twirlRadVel*=Math.pow(TETHER_DAMP,dt*60);
+  _twirlBallDist=Math.max(0.5,Math.min(6.0,toBallDist)); // stay at physical distance
+
+  // ── Set ball world position ───────────────────────────────────────────────
+  _bbBall.pos.x=newPivX+Math.cos(_twirlBallAngle)*_twirlBallDist;
+  _bbBall.pos.y=newPivY+Math.sin(_twirlBallAngle)*_twirlBallDist;
+  _bbBall.vel.set(0,0,0);
+  _bbBall.mesh.position.set(_bbBall.pos.x,_bbBall.pos.y,_bbBall.pos.z||0);
+  _bbBall.mesh.updateMatrixWorld(true);
+}
+
+function _releaseZenorbTwirl(){
+  if(!_twirlActive||!_bbBall) return;
+  _twirlActive=false;
+  // Release velocity = pivot velocity + tangential orbital velocity
+  // tangential v = ω × r (in the direction perpendicular to ball-pivot vector)
+  const tx=-Math.sin(_twirlBallAngle), ty=Math.cos(_twirlBallAngle);
+  // Pivot velocity at release (last frame)
+  const c=s2w(W/2,H/2), cr=s2w(W/2+1,H/2);
+  const pivVx=(_twirlFx-_twirlFxPrev)/(0.016); // approx
+  const pivVy=(_twirlFy-_twirlFyPrev)/(0.016);
+  // Orbital velocity from accumulated spin
+  const orbV=_twirlAngVel*_twirlBallDist;
+  let worldVx=tx*orbV + pivVx*0.4;
+  let worldVy=ty*orbV + pivVy*0.4;
+  // Clamp
+  const maxSpd=_bbBall._bbMaxSpd||36;
+  const spd=Math.sqrt(worldVx*worldVx+worldVy*worldVy);
+  if(spd>maxSpd){ worldVx*=maxSpd/spd; worldVy*=maxSpd/spd; }
+  _bbBall.vel.x=worldVx;
+  _bbBall.vel.y=worldVy;
+  _bbBall._wasThrown=true;
+  HOOP.streak=0;
+  _twirlAngVel*=0.7; // bleed off remaining spin
+}
+
 // ── INPUT: drag-aim (touch), bullet-time fire (click), spacebar dribble ──────
 (function _initBBallInput(){
   const canvas=renderer.domElement;
@@ -5893,11 +6141,14 @@ function _drawScoreFlash(){
       _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
       _bulletTime=false;
       const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
-      e.stopImmediatePropagation();
+      e.stopImmediatePropagation(); return;
     }
+    // Desktop: no twirl — halo ring grab is mobile-only
   },{capture:true});
 
-  window.addEventListener('mousemove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.clientX; _aimCurrent.y=e.clientY; });
+  window.addEventListener('mousemove',e=>{
+    if(!_aimDrag) return; _aimCurrent.x=e.clientX; _aimCurrent.y=e.clientY;
+  });
   window.addEventListener('mouseup',e=>{
     if(!_aimDrag||e.button!==0) return;
     _aimDrag=false;
@@ -5914,23 +6165,28 @@ function _drawScoreFlash(){
       const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
       e.stopImmediatePropagation(); return;
     }
-    const t=e.touches[0]; _aimDrag=true;
+    const t=e.touches[0];
+    // ── Mobile-only: any touch near the zenorb → twirl mode ───────────────────
+    if(isMobile && _bbBall){
+      const{bsx,bsy,r}=_zenorbOuterScreenR();
+      const d=Math.sqrt((t.clientX-bsx)**2+(t.clientY-bsy)**2);
+      if(d<=r*1.4){
+        _startZenorbTwirl(t.clientX,t.clientY);
+        e.stopImmediatePropagation(); return;
+      }
+    }
+    // Core touch → aim drag (no longpress; bullet-time entered via right-click/context on desktop only)
+    _aimDrag=true;
     _aimStart.x=t.clientX; _aimStart.y=t.clientY; _aimCurrent.x=t.clientX; _aimCurrent.y=t.clientY;
-    // ── Long-press to initiate bullet-time on mobile ──────────────────────────
-    if(_btLpTimer) clearTimeout(_btLpTimer);
-    _btLpTimer=setTimeout(()=>{
-      if(!_aimDrag) return; // finger was lifted — abort
-      const movDx=_aimCurrent.x-_aimStart.x, movDy=_aimCurrent.y-_aimStart.y;
-      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return; // too much movement
-      _aimDrag=false; // cancel normal aim drag
-      _bulletTime=true; // enter bullet-time
-      _btLpTimer=null;
-    }, 450);
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
 
-  canvas.addEventListener('touchmove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.touches[0].clientX; _aimCurrent.y=e.touches[0].clientY; e.preventDefault(); },{capture:true,passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    if(_twirlActive){ _updateZenorbTwirl(e.touches[0].clientX,e.touches[0].clientY); e.preventDefault(); return; }
+    if(!_aimDrag) return; _aimCurrent.x=e.touches[0].clientX; _aimCurrent.y=e.touches[0].clientY; e.preventDefault();
+  },{capture:true,passive:false});
   canvas.addEventListener('touchend',e=>{
+    if(_twirlActive){ _releaseZenorbTwirl(); e.stopImmediatePropagation(); return; }
     if(_btLpTimer){ clearTimeout(_btLpTimer); _btLpTimer=null; }
     if(!_aimDrag) return; _aimDrag=false;
     if(!_bbBall) return;
@@ -6033,7 +6289,8 @@ setTimeout(()=>{
         const targetScale=_bulletTime?0.08:1.0;
         _bulletTimeScale+=( targetScale-_bulletTimeScale)*Math.min(1.0,dt*6.0);
         const scaledDt=dt*Math.max(0.07,_bulletTimeScale);
-        if(_bbBall&&!_bbBall.dragging) _tickBBall(scaledDt);
+        if(_bbBall&&!_bbBall.dragging) _tickBBall(scaledDt, dt);
+        _tickZenorbTwirl(dt);
         _tickRimRing(scaledDt);
         _bbHaloDt=dt; // feed real dt to halo animator
         // Fix perf: throttle aim/score canvas redraws on mobile (every 2nd frame)
