@@ -1063,15 +1063,21 @@ function _positionNextBtn() {
     btn.style.top = '';
     btn.style.bottom = '68px';
   }
+  // On mobile bball, align overlays to the centered column left edge
+  const mobileBballLeft = (isMobile && lvl === 6)
+    ? Math.round((W - Math.min(W * 0.78, W)) / 2) + 'px'
+    : null;
   // CTA button below text block
   const overlay = document.getElementById('stmt-overlay');
   if (overlay && _textBlockBottomY > 0 && _textBlockBottomY < window.innerHeight - 60) {
     overlay.style.top = (_textBlockBottomY + 22) + 'px';
+    if (mobileBballLeft) overlay.style.left = mobileBballLeft;
   }
-  // Dots + arrows above text block (stored in _textBlockTopY)
+  // Dots + arrows above text block
   const topNav = document.getElementById('stmt-top-nav');
   if (topNav && _textBlockTopY > 0) {
     topNav.style.top = Math.max(16, _textBlockTopY - 28) + 'px';
+    if (mobileBballLeft) topNav.style.left = mobileBballLeft;
   }
 }
 let _textTitleIdx = 0; // which title line is showing (alternates on level)
@@ -1161,8 +1167,12 @@ function _buildFloatText(lines, immediate, useDisplay) {
     getFontMetrics();
     // Basketball level: column matches original screenshot — left-rail, not full width
     const isBball = lvl === 6;
-    const colFrac = isBball ? 0.42 : COL_W_FRAC;
-    const maxW = Math.min(W * colFrac, W - PAD_X - (isBball ? 40 : 220));
+    // Mobile bball: wider column, centered horizontally, pinned near top
+    const mobileBball = isBball && isMobile;
+    const colFrac = mobileBball ? 0.78 : (isBball ? 0.42 : COL_W_FRAC);
+    const maxW = mobileBball
+      ? W * colFrac
+      : Math.min(W * colFrac, W - PAD_X - (isBball ? 40 : 220));
     // Level 5 has no shapes panel obscuring the scene — allow wider text column
     const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.55, W - PAD_X - 180) : maxW;
 
@@ -1212,8 +1222,14 @@ function _buildFloatText(lines, immediate, useDisplay) {
         }
       }
     });
-    const PAD_TOP = isBball ? Math.max(52, (H - totalH) * 0.38) : Math.max(72, (H - totalH) * 0.38);
+    const PAD_TOP = mobileBball
+      ? 58  // just below mobile bar (48px) + small gap
+      : isBball
+        ? Math.max(52, (H - totalH) * 0.38)
+        : Math.max(72, (H - totalH) * 0.38);
     _textBlockTopY = PAD_TOP;
+    // Mobile bball: center the column horizontally; otherwise use fixed left margin
+    const textPadX = mobileBball ? Math.round((W - effectiveMaxW) / 2) : PAD_X;
     const allChars = [];
     let y = PAD_TOP;
     lines.forEach((line, li) => {
@@ -1228,7 +1244,7 @@ function _buildFloatText(lines, immediate, useDisplay) {
       });
       if (row.length) rows.push(row.join(' '));
       rows.forEach(r => {
-        let rx = PAD_X;
+        let rx = textPadX;
         for (let ci = 0; ci < r.length; ci++) {
           allChars.push({
             ch: r[ci],
