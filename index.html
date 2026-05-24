@@ -1277,7 +1277,7 @@ function _buildFloatText(lines, immediate, useDisplay) {
     const colFrac = mobileBball ? 0.92 : (isBball ? 0.42 : COL_W_FRAC);
     const maxW = mobileBball
       ? W * colFrac
-      : Math.min(W * colFrac, W - PAD_X - (isBball ? 40 : 220));
+      : Math.min(W * colFrac, isBball ? W - PAD_X - 40 : COL_W_MAX);
     // Level 5 has no shapes panel obscuring the scene — allow wider text column
     const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.55, W - PAD_X - 180) : maxW;
 
@@ -1572,7 +1572,8 @@ function getFontMetrics(){
 }
 // Column: left-biased — desktop gets more width now that h1 is smaller
 const PAD_X = 54;
-const COL_W_FRAC = 0.40; // 40% of viewport — up from 34%; fills space better with smaller type
+const COL_W_FRAC = 0.24; // desktop column — capped at 360px
+const COL_W_MAX = 360;  // hard pixel ceiling keeps text tight on wide screens
 
 function buildTextChars(lvlN){
   _textTitleIdx = 0;
@@ -5298,11 +5299,11 @@ function tick(){
     if (_bbBall && !_bbBall.dragging && lvl === 6) {
       const zdx = _bbBall.pos.x - pp[b], zdy = _bbBall.pos.y - pp[b+1], zdz = (_bbBall.pos.z||0) - pp[b+2];
       const zdist2 = zdx*zdx + zdy*zdy + zdz*zdz;
-      const ZEN_MAIN_R = 7.0;
+      const ZEN_MAIN_R = 10.0;
       if (zdist2 < ZEN_MAIN_R * ZEN_MAIN_R) {
         const zdist = Math.sqrt(zdist2) + 0.001;
         const falloff = 1.0 - zdist / ZEN_MAIN_R;
-        const zf = 6.5 * falloff * falloff * dt / zdist;
+        const zf = 14.0 * falloff * falloff * dt / zdist;
         pv[b]   += zdx * zf;
         pv[b+1] += zdy * zf;
         pv[b+2] += zdz * zf * 0.4;
