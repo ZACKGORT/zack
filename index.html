@@ -529,12 +529,41 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   font-family:'Space Mono',monospace;
   font-size:9px;font-weight:700;
   letter-spacing:0.16em;text-transform:uppercase;
-  color:#0a0a0a;background:#ffffff;border:none;
+  color:#ffffff;background:#0a0a0a;border:1.5px solid #ffffff;
   padding:10px 24px;border-radius:3px;
   cursor:none;text-decoration:none;
-  transition:opacity 0.15s;display:inline-block;
+  transition:background 0.15s,color 0.15s,border-color 0.15s;display:inline-block;
 }
-#stmt-cta-btn:hover{opacity:0.88;}
+#stmt-cta-btn:hover,#stmt-cta-btn:focus{background:#ffffff;color:#0a0a0a;outline:none;}
+
+/* ── MOBILE STATEMENT OVERLAY: left-column layout, right side clear for hoop ── */
+@media(max-width:600px){
+  #stmt-top-nav{
+    left:20px!important;
+    top:56px!important;
+    max-width:62vw;
+  }
+  #stmt-overlay{
+    left:20px!important;
+    max-width:64vw;
+  }
+  #stmt-cta-btn{
+    cursor:pointer;
+    font-size:10px;
+    padding:11px 20px;
+    border-width:1.5px;
+  }
+  /* dots and arrows use pointer on mobile */
+  .stmt-dot,.stmt-arrow{ cursor:pointer; }
+
+  /* ── TEXT HIDDEN STATE ── */
+  body.mb-text-hidden #stmt-top-nav,
+  body.mb-text-hidden #stmt-overlay,
+  body.mb-text-hidden #text-canvas{ opacity:0!important; pointer-events:none!important; transition:opacity 0.3s; }
+  #mb-text-vis-btn{ transition:color 0.15s,background 0.15s; }
+  body.mb-text-hidden #mb-text-vis-btn{ color:rgba(255,255,255,0.22)!important; }
+  #mb-text-vis-btn.text-on{ color:rgba(255,255,255,0.85)!important; background:rgba(255,255,255,0.06); }
+}
 
 /* ── SLAM DUNK TOAST ── */
 #slam-dunk-toast{
@@ -737,6 +766,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <span id="mb-lvl-label">LVL 1</span>
     <button id="mb-lvl-next">›</button>
   </div>
+  <!-- text visibility toggle -->
+  <button class="mb-btn" id="mb-text-vis-btn" style="font-size:8px;letter-spacing:0.18em;">Aa</button>
   <!-- hamburger removed; ui-hide is now on #orb-rail-toggle (mobile only) -->
 </div>
 <div class="mb-panel" id="mb-note-panel">
@@ -1063,10 +1094,8 @@ function _positionNextBtn() {
     btn.style.top = '';
     btn.style.bottom = '68px';
   }
-  // On mobile bball, align overlays to the centered column left edge
-  const mobileBballLeft = (isMobile && lvl === 6)
-    ? Math.round((W - Math.min(W * 0.78, W)) / 2) + 'px'
-    : null;
+  // On mobile bball, pin overlays to left edge with breathing room for hoop
+  const mobileBballLeft = (isMobile && lvl === 6) ? '16px' : null;
   // CTA button below text block
   const overlay = document.getElementById('stmt-overlay');
   if (overlay && _textBlockBottomY > 0 && _textBlockBottomY < window.innerHeight - 60) {
@@ -1167,14 +1196,15 @@ function _buildFloatText(lines, immediate, useDisplay) {
     getFontMetrics();
     // Basketball level: column matches original screenshot — left-rail, not full width
     const isBball = lvl === 6;
-    // Mobile bball: wider column, centered horizontally, pinned near top
+    // Mobile bball: left-aligned column, right side clear for hoop
     const mobileBball = isBball && isMobile;
-    const colFrac = mobileBball ? 0.78 : (isBball ? 0.42 : COL_W_FRAC);
+    const mobilePadX = isMobile ? 20 : PAD_X; // tighter left edge on mobile
+    const colFrac = mobileBball ? 0.62 : (isBball ? 0.42 : COL_W_FRAC);
     const maxW = mobileBball
       ? W * colFrac
-      : Math.min(W * colFrac, W - PAD_X - (isBball ? 40 : 220));
+      : Math.min(W * colFrac, W - mobilePadX - (isBball ? 40 : 220));
     // Level 5 has no shapes panel obscuring the scene — allow wider text column
-    const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.55, W - PAD_X - 180) : maxW;
+    const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.55, W - mobilePadX - 180) : maxW;
 
     // Expand any <br> tags into actual separate lines, preserving parent role
     const expandedLines = [];
@@ -1223,13 +1253,13 @@ function _buildFloatText(lines, immediate, useDisplay) {
       }
     });
     const PAD_TOP = mobileBball
-      ? 58  // just below mobile bar (48px) + small gap
+      ? Math.max(64, 48 + (H - 48 - totalH) * 0.30)  // vertically balanced below mobile bar
       : isBball
         ? Math.max(52, (H - totalH) * 0.38)
         : Math.max(72, (H - totalH) * 0.38);
     _textBlockTopY = PAD_TOP;
-    // Mobile bball: center the column horizontally; otherwise use fixed left margin
-    const textPadX = mobileBball ? Math.round((W - effectiveMaxW) / 2) : PAD_X;
+    // Mobile: use smaller left pad; desktop: fixed PAD_X
+    const textPadX = mobilePadX;
     const allChars = [];
     let y = PAD_TOP;
     lines.forEach((line, li) => {
@@ -1425,25 +1455,32 @@ const TYPO = {
 };
 function getFontMetrics(){
   const sz = Math.max(10, FONT_SIZE);
-  // Display: large serif h1 — kept compact so it doesn't dominate the scene
-  const displaySz = Math.round(Math.min(W * 0.038, 44));
+  // Display: large serif h1
+  // Mobile: much larger — needs to read at arm's length; desktop: capped smaller to not dominate scene
+  const displaySz = isMobile
+    ? Math.round(Math.min(W * 0.072, 52))   // ~28px on 390px screen
+    : Math.round(Math.min(W * 0.038, 44));
   TYPO.display.size  = displaySz;
   TYPO.display.charW = displaySz * 0.56;
-  TYPO.display.lineH = displaySz * 1.18;
+  TYPO.display.lineH = displaySz * 1.22;
   // Headline (non-bball levels): normal body-ish size
   TYPO.headline.size = sz;
   TYPO.headline.charW = sz * 0.62;
   TYPO.headline.lineH = sz * 1.65;
   // Pull quote: medium italic serif — ~1.15× body
-  const pullSz = Math.round(sz * 1.15);
+  const pullSz = isMobile
+    ? Math.round(Math.min(W * 0.042, 22))   // ~16px on 390px
+    : Math.round(sz * 1.15);
   TYPO.pull.size  = pullSz;
   TYPO.pull.charW = pullSz * 0.52;
-  TYPO.pull.lineH = pullSz * 1.5;
-  // Body: small monospace — noticeably smaller than display
-  const bodySz = Math.round(Math.min(W * 0.010, 11));
+  TYPO.pull.lineH = pullSz * 1.55;
+  // Body: monospace paragraph — readable on both platforms
+  const bodySz = isMobile
+    ? Math.round(Math.min(W * 0.030, 14))   // ~12px on 390px screen
+    : Math.round(Math.min(W * 0.014, 15));  // ~15px on desktop
   TYPO.body.size  = bodySz;
   TYPO.body.charW = bodySz * 0.62;
-  TYPO.body.lineH = bodySz * 1.9;
+  TYPO.body.lineH = bodySz * 1.85;
   return { CHAR_W: TYPO.body.charW, LINE_H: TYPO.body.lineH };
 }
 // Column: left-biased, narrow — keeps text away from right panel chrome
@@ -2317,6 +2354,7 @@ function drawBlackHoleOverlay() {
 
     _ovV3.copy(bh.pos).setZ(bh.pos.z||0).project(camera);
     const sx = (_ovV3.x + 1) / 2 * W, sy = (-_ovV3.y + 1) / 2 * H;
+    if(!isFinite(sx)||!isFinite(sy)) return; // attractor behind camera or degenerate — skip
     // Smaller dotted rings — use actual influenceR for NS, tighter formula for BH
     const pullRadiusWorld = bh.type === 'neutronstar'
       ? (bh.influenceR || 4.0)   // NS: show actual area of influence
@@ -2346,6 +2384,7 @@ function drawBlackHoleOverlay() {
           { r: coreR * 2.8, a: 0.04, col: '255,240,140' },
           { r: coreR * 1.4, a: 0.08, col: '255,255,220' },
         ].forEach(({ r, a, col }) => {
+          if(!isFinite(r)||r<=0) return;
           const g = ovCtx.createRadialGradient(sx, sy, 0, sx, sy, r);
           g.addColorStop(0, `rgba(${col},${a})`);
           g.addColorStop(1, `rgba(${col},0)`);
@@ -2369,6 +2408,7 @@ function drawBlackHoleOverlay() {
           { r: coreR * 2.8, a: 0.04, col: '255,240,140' },
           { r: coreR * 1.4, a: 0.08, col: '255,255,220' },
         ].forEach(({ r, a, col }) => {
+          if(!isFinite(r)||r<=0) return;
           const g = ovCtx.createRadialGradient(sx, sy, 0, sx, sy, r);
           g.addColorStop(0, `rgba(${col},${a})`);
           g.addColorStop(1, `rgba(${col},0)`);
@@ -2392,6 +2432,7 @@ function drawBlackHoleOverlay() {
         { r: coreR * 3.5, a: 0.13, col: '80,180,255' },
         { r: coreR * 1.8, a: 0.35, col: '160,220,255' },
       ].forEach(({ r, a, col }) => {
+        if(!isFinite(r)||r<=0) return;
         const g = ovCtx.createRadialGradient(sx, sy, 0, sx, sy, r);
         g.addColorStop(0, `rgba(${col},${a})`);
         g.addColorStop(1, `rgba(${col},0)`);
@@ -2410,11 +2451,14 @@ function drawBlackHoleOverlay() {
       ovCtx.strokeStyle = `rgba(${flareCol},${ft * 0.8})`;
       ovCtx.lineWidth = 2.5 * ft;
       ovCtx.stroke();
-      const fg = ovCtx.createRadialGradient(sx, sy, 0, sx, sy, flareR * 0.8);
-      fg.addColorStop(0, `rgba(${flareCol},${ft * 0.25})`);
-      fg.addColorStop(1, `rgba(${flareCol},0)`);
-      ovCtx.beginPath(); ovCtx.arc(sx, sy, flareR * 0.8, 0, Math.PI * 2);
-      ovCtx.fillStyle = fg; ovCtx.fill();
+      const flareInner = flareR * 0.8;
+      if(isFinite(flareInner)&&flareInner>0){
+        const fg = ovCtx.createRadialGradient(sx, sy, 0, sx, sy, flareInner);
+        fg.addColorStop(0, `rgba(${flareCol},${ft * 0.25})`);
+        fg.addColorStop(1, `rgba(${flareCol},0)`);
+        ovCtx.beginPath(); ovCtx.arc(sx, sy, flareInner, 0, Math.PI * 2);
+        ovCtx.fillStyle = fg; ovCtx.fill();
+      }
     }
 
     ovCtx.restore();
@@ -3174,11 +3218,13 @@ function _createOrbWidget(orb) {
       <div class="orb-widget-body">
         <a href="${d.url}" target="_blank" rel="noopener"
            style="display:block;font-family:'Helvetica Neue',Arial,sans-serif;font-size:${isMobile?'11':'9'}px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
-                  color:#000;background:#fff;border:none;padding:${isMobile?'10px 9px':'6px 9px'};
-                  text-decoration:none;text-align:center;transition:opacity 0.12s;
+                  color:#fff;background:#000;border:1.5px solid #fff;padding:${isMobile?'10px 9px':'6px 9px'};
+                  text-decoration:none;text-align:center;transition:background 0.12s,color 0.12s;
                   -webkit-tap-highlight-color:transparent;"
-           onmouseover="this.style.opacity='0.75';"
-           onmouseout="this.style.opacity='1';">
+           onmouseover="this.style.background='#fff';this.style.color='#000';"
+           onmouseout="this.style.background='#000';this.style.color='#fff';"
+           onfocus="this.style.background='#fff';this.style.color='#000';"
+           onblur="this.style.background='#000';this.style.color='#fff';">
           ↗ visit
         </a>
       </div>
@@ -4347,6 +4393,18 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
     noteBtn.addEventListener('click',()=>togglePanel(notePanel,noteBtn));
   }
 
+  // Text on/off toggle in mobile header
+  const mbTextVisBtn = document.getElementById('mb-text-vis-btn');
+  if(mbTextVisBtn){
+    mbTextVisBtn.classList.add('text-on'); // start ON
+    mbTextVisBtn.addEventListener('click',()=>{
+      const hidden = document.body.classList.toggle('mb-text-hidden');
+      mbTextVisBtn.classList.toggle('text-on', !hidden);
+      // Also hide/show the canvas text chars
+      lvlTextAlphaTgt = hidden ? 0 : 1;
+    });
+  }
+
   // Hide UI toggle — repurposed from hamburger to the projects button on mobile
   // On mobile, #orb-rail-toggle acts as the ui-hide toggle instead of opening the rail
   const orbRailToggleEl = document.getElementById('orb-rail-toggle');
@@ -5064,6 +5122,7 @@ function drawTextLayer(){
 
   // bloom circle under cursor — skip on mobile (cursor is CSS div; bloom is ~4% opacity, invisible)
   if(!isMobile){
+    if(isFinite(bX)&&isFinite(bY)&&BLOOM_R>0){
     const grad=tctx.createRadialGradient(bX,bY,0,bX,bY,BLOOM_R);
     grad.addColorStop(0,'rgba(255,255,248,0.04)');
     grad.addColorStop(0.4,'rgba(255,255,248,0.015)');
@@ -5075,6 +5134,7 @@ function drawTextLayer(){
     tctx.beginPath();tctx.arc(eX,eY,4,0,Math.PI*2);tctx.fill();
     tctx.fillStyle='rgba(255,255,248,0.9)';
     tctx.beginPath();tctx.arc(mX,mY,1.5,0,Math.PI*2);tctx.fill();
+    } // end isFinite guard
   }
 }
 
@@ -6121,7 +6181,9 @@ function _drawScoreFlash(){
   _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
   const hsx=(_ovV3.x+1)/2*W, hsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(hsx)||!isFinite(hsy)) return;
-  const grd=ctx.createRadialGradient(hsx,hsy,0,hsx,hsy,180*f);
+  const flashR = 180*f;
+  if(!isFinite(flashR)||flashR<=0) return;
+  const grd=ctx.createRadialGradient(hsx,hsy,0,hsx,hsy,flashR);
   grd.addColorStop(0,`rgba(255,180,40,${f*0.45})`);
   grd.addColorStop(0.4,`rgba(255,120,20,${f*0.18})`);
   grd.addColorStop(1,'rgba(255,80,0,0)');
@@ -6161,29 +6223,30 @@ function _drawScoreFlash(){
       const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
       e.stopImmediatePropagation(); return;
     }
-    const t=e.touches[0]; _aimDrag=true;
+    const t=e.touches[0];
+    // ── Mobile: only long-press for bullet-time; no swipe-to-launch ──────────
+    // Record touch start position for long-press movement threshold only
     _aimStart.x=t.clientX; _aimStart.y=t.clientY; _aimCurrent.x=t.clientX; _aimCurrent.y=t.clientY;
-    // ── Long-press to initiate bullet-time on mobile ──────────────────────────
+    // Long-press to initiate bullet-time on mobile
     if(_btLpTimer) clearTimeout(_btLpTimer);
     _btLpTimer=setTimeout(()=>{
-      if(!_aimDrag) return; // finger was lifted — abort
       const movDx=_aimCurrent.x-_aimStart.x, movDy=_aimCurrent.y-_aimStart.y;
-      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return; // too much movement
-      _aimDrag=false; // cancel normal aim drag
+      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return; // too much movement — cancel
       _bulletTime=true; // enter bullet-time
       _btLpTimer=null;
     }, 450);
+    // Do NOT set _aimDrag on mobile — swipe trajectory is disabled on touch
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
 
-  canvas.addEventListener('touchmove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.touches[0].clientX; _aimCurrent.y=e.touches[0].clientY; e.preventDefault(); },{capture:true,passive:false});
+  canvas.addEventListener('touchmove',e=>{
+    // Track finger position for long-press threshold; no aim drag on mobile
+    if(e.touches.length>0){ _aimCurrent.x=e.touches[0].clientX; _aimCurrent.y=e.touches[0].clientY; }
+  },{capture:true,passive:true});
   canvas.addEventListener('touchend',e=>{
+    // Clear long-press timer on finger lift
     if(_btLpTimer){ clearTimeout(_btLpTimer); _btLpTimer=null; }
-    if(!_aimDrag) return; _aimDrag=false;
-    if(!_bbBall) return;
-    const dx=_aimStart.x-_aimCurrent.x, dy=_aimStart.y-_aimCurrent.y;
-    const dist=Math.sqrt(dx*dx+dy*dy), maxDrag=160, power=Math.min(dist/maxDrag,1.0);
-    if(power>0.03){ _bbBall.vel.x=(dx/maxDrag)*28; _bbBall.vel.y=(-dy/maxDrag)*28; }
+    // No swipe-to-launch on mobile — supernova tap handled by outer touchend handler
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
 })();
