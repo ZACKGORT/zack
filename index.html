@@ -6298,11 +6298,54 @@ function _drawScoreFlash(){
     const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
   });
 
+  // ── Mobile touch: long-press for bullet-time, tap-to-fire. No swipe aiming. ──
+  if(isMobile){
+    let _btHoldStart={x:0,y:0};
+    canvas.addEventListener('touchstart',e=>{
+      if(!_isBBallActive()) return;
+      if(_hoopDragging) return;
+      if(_bulletTime){
+        // tap while in bullet-time = launch
+        _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
+        _bulletTime=false;
+        const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
+        e.stopImmediatePropagation(); return;
+      }
+      const t=e.touches[0];
+      _btHoldStart.x=t.clientX; _btHoldStart.y=t.clientY;
+      // Update aim target while finger is held so bullet-time aims correctly
+      _bulletTimeMouse.x=t.clientX; _bulletTimeMouse.y=t.clientY;
+      if(_btLpTimer) clearTimeout(_btLpTimer);
+      _btLpTimer=setTimeout(()=>{
+        _btLpTimer=null;
+        _bulletTime=true; // enter bullet-time — no movement check, just time
+      }, 600);
+      e.stopImmediatePropagation();
+    },{capture:true,passive:false});
+
+    canvas.addEventListener('touchmove',e=>{
+      if(!e.touches.length) return;
+      const t=e.touches[0];
+      // Always update aim target so bullet-time follows the finger
+      _bulletTimeMouse.x=t.clientX; _bulletTimeMouse.y=t.clientY;
+      // If finger moves significantly before timer fires, cancel long-press
+      if(_btLpTimer){
+        const dx=t.clientX-_btHoldStart.x, dy=t.clientY-_btHoldStart.y;
+        if(Math.sqrt(dx*dx+dy*dy)>28){ clearTimeout(_btLpTimer); _btLpTimer=null; }
+      }
+    },{capture:true,passive:false});
+
+    canvas.addEventListener('touchend',e=>{
+      if(_btLpTimer){ clearTimeout(_btLpTimer); _btLpTimer=null; }
+      // No swipe-to-shoot on mobile — only bullet-time tap-to-fire
+      e.stopImmediatePropagation();
+    },{capture:true,passive:false});
+  } else {
+  // ── Desktop touch (fallback): original swipe + long-press ────────────────────
   canvas.addEventListener('touchstart',e=>{
     if(!_isBBallActive()) return;
     if(_hoopDragging) return;
     if(_bulletTime){
-      // tap while in bullet-time = launch
       _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
       _bulletTime=false;
       const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
@@ -6310,14 +6353,13 @@ function _drawScoreFlash(){
     }
     const t=e.touches[0]; _aimDrag=true;
     _aimStart.x=t.clientX; _aimStart.y=t.clientY; _aimCurrent.x=t.clientX; _aimCurrent.y=t.clientY;
-    // ── Long-press to initiate bullet-time on mobile ──────────────────────────
     if(_btLpTimer) clearTimeout(_btLpTimer);
     _btLpTimer=setTimeout(()=>{
-      if(!_aimDrag) return; // finger was lifted — abort
+      if(!_aimDrag) return;
       const movDx=_aimCurrent.x-_aimStart.x, movDy=_aimCurrent.y-_aimStart.y;
-      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return; // too much movement
-      _aimDrag=false; // cancel normal aim drag
-      _bulletTime=true; // enter bullet-time
+      if(Math.sqrt(movDx*movDx+movDy*movDy)>18) return;
+      _aimDrag=false;
+      _bulletTime=true;
       _btLpTimer=null;
     }, 450);
     e.stopImmediatePropagation();
@@ -6333,6 +6375,7 @@ function _drawScoreFlash(){
     if(power>0.03){ _bbBall.vel.x=(dx/maxDrag)*28; _bbBall.vel.y=(-dy/maxDrag)*28; }
     e.stopImmediatePropagation();
   },{capture:true,passive:false});
+  } // end desktop touch
 })();
 
 // ── Bullet-time long-press timer ─────────────────────────────────────────────
@@ -6439,7 +6482,7 @@ setTimeout(()=>{
         // Fix perf: throttle aim/score canvas redraws on mobile (every 2nd frame)
         if(!isMobile||Math.floor(Date.now()/16)%2===0){
           if(_bulletTime){ _drawBulletTimeOverlay(); _drawScoreFlash(); }
-          else { _drawAim(); _drawScoreFlash(); }
+          else if(!isMobile){ _drawAim(); _drawScoreFlash(); } else { _drawScoreFlash(); }
         }
       }
     };
