@@ -6308,16 +6308,31 @@ function _drawBballHUD(ctx,dpr){
 }
 
 function _drawScoreFlash(){
-  if(HOOP.scoreFlash<=0){
-    // Only clear if bullet-time overlay isn't already owning the canvas
-    if(!_bulletTime){ const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height); }
+  // On mobile, bullet-time overlay and _drawAim don't run — we own the canvas here
+  if(isMobile&&!_bulletTime){
+    const ac=_getAimCanvas(); if(!ac) return;
+    const dpr=Math.min(window.devicePixelRatio||1,1.5);
+    if(ac.width!==W*dpr){ac.width=W*dpr;ac.height=H*dpr;}
+    const ctx=ac.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+    if(lvl===6&&_bbBall&&_hoopGroup) _drawBballHUD(ctx,dpr);
+    if(HOOP.scoreFlash<=0) return;
+    HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-0.056);
+    const f=HOOP.scoreFlash;
+    _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
+    const hsx=(_ovV3.x+1)/2*W, hsy=(-_ovV3.y+1)/2*H;
+    if(!isFinite(hsx)||!isFinite(hsy)) return;
+    const grd=ctx.createRadialGradient(hsx,hsy,0,hsx,hsy,180*f);
+    grd.addColorStop(0,`rgba(255,180,40,${f*0.45})`);
+    grd.addColorStop(0.4,`rgba(255,120,20,${f*0.18})`);
+    grd.addColorStop(1,'rgba(255,80,0,0)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
     return;
   }
-  HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-(isMobile?0.056:0.028));
+  // Desktop: canvas was already cleared by _drawAim or _drawBulletTimeOverlay this frame
+  if(HOOP.scoreFlash<=0) return;
+  HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-0.028);
   const ac=_getAimCanvas(); if(!ac||_aimDrag) return;
   const ctx=ac.getContext('2d'); const f=HOOP.scoreFlash;
-  // Only clear when not in bullet-time — overlay already cleared for this frame
-  if(!_bulletTime) ctx.clearRect(0,0,ac.width,ac.height);
   _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
   const hsx=(_ovV3.x+1)/2*W, hsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(hsx)||!isFinite(hsy)) return;
