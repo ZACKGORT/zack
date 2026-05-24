@@ -547,12 +547,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 }
 .stmt-dot.active{background:rgba(255,255,255,0.85);transform:scale(1.3);}
 /* ── STATEMENT OVERLAY — bottom CTA ── */
-#stmt-overlay{
-  position:fixed;top:200px;left:54px;z-index:250;
-  display:flex;align-items:center;
-  pointer-events:auto;
-  transition:top 0.35s cubic-bezier(0.22,1,0.36,1);
-}
+#stmt-overlay{ display:none!important; }
 #stmt-cta-btn{
   font-family:'Space Mono',monospace;
   font-size:9px;font-weight:700;
@@ -1253,11 +1248,20 @@ function _buildFloatText(lines, immediate, useDisplay) {
         }
       }
     });
-    const PAD_TOP = mobileBball
-      ? 82  // mobile: below bar (48px) + comfortable breathing room before h1
-      : isBball
-        ? Math.max(56, (H - totalH) * 0.32)   // desktop bball: higher up, more scene visible
-        : Math.max(72, (H - totalH) * 0.38);
+    let PAD_TOP;
+    if (mobileBball) {
+      // Project the top of the hoop backboard to screen-y, then add a gap.
+      // HOOP.y = 3.8 (rim), boardH = 2.6 → top of board ≈ y + boardH*0.5 + small margin
+      const hoopTopWorld = HOOP.y + HOOP.boardH * 0.5 + 0.6;
+      const _htv = new THREE.Vector3(HOOP.x, hoopTopWorld, HOOP.z).project(camera);
+      const hoopTopScreenY = (-_htv.y + 1) / 2 * H;
+      // Start text 24px below the projected hoop top, but no higher than 55% down the screen
+      PAD_TOP = Math.max(hoopTopScreenY + 24, H * 0.52);
+    } else if (isBball) {
+      PAD_TOP = Math.max(56, (H - totalH) * 0.32);
+    } else {
+      PAD_TOP = Math.max(72, (H - totalH) * 0.38);
+    }
     _textBlockTopY = PAD_TOP;
     // Mobile bball: center the column horizontally; otherwise use fixed left margin
     const textPadX = mobileBball ? Math.round((W - effectiveMaxW) / 2) : PAD_X;
@@ -5857,7 +5861,7 @@ function _tickBBall(dt){
 
   const edgeL2=s2w(0,H/2).x-1.5, edgeR2=s2w(W,H/2).x+1.5;
   const BY_FLOOR=FLR+ballR+0.05; // ball rests on FLR ground
-  const BY_CEIL=s2w(W/2,-60).y; // ~60px above viewport top
+  const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
     if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
