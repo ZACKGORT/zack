@@ -1735,7 +1735,7 @@ var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
 var _hoopVelX=0,_hoopVelY=0,_prevHoopX=0,_prevHoopY=0,_hoopDragStartT=0;
 var HOOP={
-  x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
+  x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.11,
   boardW:3.6,boardH:2.6,boardDepth:0.12,
   scored:false,scoreFlash:0,totalScore:0,streak:0,
   _lastBallY:null,_inFrontOfRim:false,_passThroughArmed:false,
@@ -3167,17 +3167,19 @@ let _orbRailActive = true; // default: railed
           if (el && el.parentNode !== document.body) document.body.appendChild(el);
           if (el) {
             el.style.position = 'fixed'; el._userAnchored = false;
-            // Collapse to minimal link chip
-            el.style.padding = '0';
+            // Floating card: full card visible, compact styling, no iframe
+            el.style.padding = '10px 12px 10px';
             el.style.border = '1px solid rgba(255,255,255,0.55)';
-            el.style.width = 'auto';
+            el.style.width = '200px';
             const full = el.querySelector('.orb-card-full');
             const chip = el.querySelector('.orb-card-chip');
-            if (full) full.style.display = 'none';
-            if (chip) chip.style.display = 'block';
-            // Hide iframe wrap if open
+            if (full) full.style.display = 'block';
+            if (chip) chip.style.display = 'none';
+            // Hide iframe wrap and preview btn in float mode
             const iw = el.querySelector('.orb-widget-iframe-wrap');
             if (iw) iw.style.display = 'none';
+            const pb = el.querySelector('.orb-widget-preview-btn');
+            if (pb) pb.style.display = 'none';
           }
           if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
         }
@@ -3674,12 +3676,14 @@ function resolveCollisions(){
   }
 
   // ── Zen orb ↔ Project orb bumper collisions ──────────────────────────────
-  // Always active on lvl 5 — works in both railed and minimized states.
-  // When railed the attractor mesh is hidden but position is still valid;
-  // when minimized the orbs float free as pinball bumpers.
-  if(lvl===5&&_projectOrbs.length){
-    const zenArr=attractors.filter(a=>a._bouncingBH);
-    for(const zen of zenArr){
+  // Active on lvl 5 (zen) and lvl 6 (basketball).
+  // Project orbs act as pinball bumpers — zen hits them and they pop away energetically.
+  if((lvl===5||lvl===6)&&_projectOrbs.length){
+    const zenArr=attractors.filter(a=>a._bouncingBH&&!a._isBBall);
+    // On basketball level use the ball itself as the zen collider
+    const bbArr=(lvl===6&&_bbBall&&!_bbBall.dragging)?[_bbBall]:[];
+    const colliders=[...zenArr,...bbArr];
+    for(const zen of colliders){
       const zenScale=Math.sqrt(zen.pullStrength/57.0);
       const zenR=zen.radius*zenScale*1.1;
       for(const orb of _projectOrbs){
@@ -3687,44 +3691,43 @@ function resolveCollisions(){
         if(!orbAtt||orbAtt.dragging) continue;
         const dx=orbAtt.pos.x-zen.pos.x, dy=orbAtt.pos.y-zen.pos.y;
         const dist=Math.sqrt(dx*dx+dy*dy)||0.001;
-        const minD=zenR+orbAtt.radius*1.4; // slightly enlarged bumper surface
+        const minD=zenR+orbAtt.radius*1.4;
         if(dist>=minD) continue;
 
         const nx=dx/dist, ny=dy/dist;
         const pen=minD-dist;
 
-        // Bumper: orb is a heavy immovable pin — absorbs almost no momentum
-        // Zen bounces off with high restitution + speed bonus
+        // ── Zen/ball is the heavy collider: push it out, reflect normally ──
+        zen.pos.x-=nx*pen*0.5; zen.pos.y-=ny*pen*0.5;
+        const zenApproach=zen.vel.x*(-nx)+zen.vel.y*(-ny);
+        if(zenApproach>0){
+          zen.vel.x+=nx*zenApproach*0.8;
+          zen.vel.y+=ny*zenApproach*0.8;
+        }
+
+        // ── Orb is the pinball bumper: pop away with superelastic energy ──
+        // Push orb cleanly out of overlap
+        orbAtt.pos.x+=nx*pen*0.5; orbAtt.pos.y+=ny*pen*0.5;
         const incomingSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2);
-        const approach=zen.vel.x*(-nx)+zen.vel.y*(-ny); // how fast zen is closing
-        const BUMPER_RESTITUTION=1.35; // superelastic — adds energy like a pinball bumper
-        const MIN_EXIT_SPD=Math.max(incomingSpd*BUMPER_RESTITUTION, 6.0);
-
-        // Push zen cleanly out of overlap first
-        zen.pos.x-=nx*pen; zen.pos.y-=ny*pen;
-
-        // Reflect + boost zen velocity
-        if(approach>0){
-          zen.vel.x+=nx*approach*BUMPER_RESTITUTION;
-          zen.vel.y+=ny*approach*BUMPER_RESTITUTION;
+        const BUMPER_RESTITUTION=1.55; // superelastic — adds energy on every hit
+        const MIN_POP_SPD=Math.max(incomingSpd*BUMPER_RESTITUTION, 10.0);
+        // Reflect orb velocity away from collision normal
+        const orbApproach=orbAtt.vel.x*nx+orbAtt.vel.y*ny;
+        if(orbApproach<0){
+          orbAtt.vel.x-=(1+BUMPER_RESTITUTION)*orbApproach*nx;
+          orbAtt.vel.y-=(1+BUMPER_RESTITUTION)*orbApproach*ny;
         }
-        // Guarantee minimum exit speed so slow grazes still pop
-        const exitSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2)||0.001;
-        if(exitSpd<MIN_EXIT_SPD){
-          zen.vel.x=(zen.vel.x/exitSpd)*MIN_EXIT_SPD;
-          zen.vel.y=(zen.vel.y/exitSpd)*MIN_EXIT_SPD;
-        }
-
-        // Orb bumper: tiny reactive kick so it feels alive, not frozen
-        if(!_orbRailActive){
-          const orbKick=1.8+incomingSpd*0.12;
-          orbAtt.vel.x+=nx*orbKick; orbAtt.vel.y+=ny*orbKick;
+        // Guarantee minimum pop speed regardless of incoming angle
+        const orbSpd=Math.sqrt(orbAtt.vel.x**2+orbAtt.vel.y**2)||0.001;
+        if(orbSpd<MIN_POP_SPD){
+          orbAtt.vel.x=(orbAtt.vel.x/orbSpd)*MIN_POP_SPD;
+          orbAtt.vel.y=(orbAtt.vel.y/orbSpd)*MIN_POP_SPD;
         }
 
         // Flash the orb widget border on hit
         const el=document.getElementById(`orb-widget-${orb.index}`);
         if(el){ el.style.borderColor=orb.data.color||'#fff';
-          setTimeout(()=>{ el.style.borderColor=''; },180); }
+          setTimeout(()=>{ el.style.borderColor=''; },220); }
 
         _zenGravSpike=Math.max(_zenGravSpike,18.0);
       }
@@ -5532,8 +5535,9 @@ function tick(){
     const b=i*3;
     if(!pal[i]){spawn(i);continue;}
     pa[i]+=dt;if(pa[i]>pl[i]){
-      if(P.waterfall){
+      if(P.waterfall&&pl[i]>3.0){
         // Asymmetric wave: fast attack to max, long slow decay to near-zero, repeat
+        // Only applies to normal waterfall drops (pl > 3s); burst particles always respawn immediately
         // t = 0→1 over one cycle
         const pOffset = (i / N) * 0.18; // small phase spread for texture
         const t = ((_wfPhase + pOffset) % (Math.PI * 2)) / (Math.PI * 2); // 0→1
@@ -6165,46 +6169,100 @@ function _tickBBall(dt){
   const radDist=Math.sqrt(rdx*rdx+rdz*rdz);
   const ballR=b.radius*Math.sqrt(b.pullStrength/57.0)*0.7;
 
-  if(radDist>0.001){
-    const closestRingX=rimCX+(rdx/radDist)*HOOP.rimR;
-    const closestRingZ=rimCZ+(rdz/radDist)*HOOP.rimR;
-    // contactDirX: signed X component of the radial hit direction (-1=left, +1=right)
-    const contactDirX=rdx/radDist;
-    // rimOffsetX: signed X offset of contact point from rim center
-    const rimOffsetX=closestRingX-rimCX;
-    // Combined tilt: primary + diving-board, applied along X for visual
-    const combinedTilt=HOOP._rimTilt+HOOP._dbTilt;
-    // Tilt displaces Y based on signed X offset from rim center
-    const tiltedRingY=HOOP.y+Math.sin(combinedTilt)*rimOffsetX;
-    const toX=b.pos.x-closestRingX,toY=b.pos.y-tiltedRingY,toZ=(b.pos.z||0)-closestRingZ;
-    const toRimDist=Math.sqrt(toX*toX+toY*toY+toZ*toZ);
-    const minDist=HOOP.rimTube+ballR;
-    if(toRimDist<minDist&&toRimDist>0.001){
-      const nx=toX/toRimDist,ny=toY/toRimDist,nz=toZ/toRimDist;
-      const pen=minDist-toRimDist;
-      b.pos.x+=nx*pen*1.1; b.pos.y+=ny*pen*1.1;
-      if(b.pos.z!==undefined) b.pos.z+=nz*pen*1.1;
-      const vDotN=b.vel.x*nx+b.vel.y*ny+(b.vel.z||0)*nz;
-      if(vDotN<0){
-        // edgeFrac: 0 at rim center, ramps to 1 in outer 40% of the rim ring
-        const edgeFrac=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
-        const REST_RIM=0.55+edgeFrac*0.32;
-        b.vel.x-=(1+REST_RIM)*vDotN*nx; b.vel.y-=(1+REST_RIM)*vDotN*ny;
-        if(b.vel.z!==undefined) b.vel.z-=(1+REST_RIM)*vDotN*nz;
-        b.vel.x*=0.85+edgeFrac*0.08; b.vel.y*=0.85+edgeFrac*0.08;
-        const impactSpeed=Math.abs(vDotN);
-        const downImpact=Math.max(0,-ny)*impactSpeed;
+  // ── Multi-sample toroidal rim collision ──────────────────────────────────────
+  // Sample N points around the rim ring. This catches grazes at left/right posts
+  // that a single XZ-nearest-point test misses when the ball is near rim-height.
+  const combinedTilt = HOOP._rimTilt + HOOP._dbTilt;
+  const minDist = HOOP.rimTube + ballR;
+  const RIM_SAMPLES = 24; // enough resolution to never miss a graze
+  let bestPen = -Infinity, bestNx = 0, bestNy = 1, bestNz = 0;
+  let bestContactDirX = 0, bestSampleAngle = 0;
+  let hitFound = false;
 
-        // ── Symmetric diving-board response ──────────────────────────────────
-        // contactDirX: +1 = right-side hit, -1 = left-side hit.
-        // _dbTilt > 0 = right side low; _dbVel drives it in that direction.
-        // So multiplying by contactDirX makes either side dip correctly.
-        if(edgeFrac>0.02){
-          HOOP._dbVel+=downImpact*edgeFrac*2.8*contactDirX;
-          HOOP._rimTiltVel+=downImpact*edgeFrac*HOOP._rimImpulseScale*0.5*contactDirX;
+  for (let si = 0; si < RIM_SAMPLES; si++) {
+    const ang = (si / RIM_SAMPLES) * Math.PI * 2;
+    const sRx = rimCX + Math.cos(ang) * HOOP.rimR;
+    const sRz = rimCZ + Math.sin(ang) * HOOP.rimR;
+    // Tilt: Y displacement based on this sample's X offset from rim center
+    const sOffX = Math.cos(ang) * HOOP.rimR; // = sRx - rimCX
+    const sRy   = HOOP.y + Math.sin(combinedTilt) * sOffX;
+
+    const toX = b.pos.x - sRx;
+    const toY = b.pos.y - sRy;
+    const toZ = (b.pos.z || 0) - sRz;
+    const d = Math.sqrt(toX*toX + toY*toY + toZ*toZ);
+    if (d < minDist && d > 0.001) {
+      const pen = minDist - d;
+      if (pen > bestPen) {
+        bestPen = pen;
+        bestNx = toX/d; bestNy = toY/d; bestNz = toZ/d;
+        bestContactDirX = Math.cos(ang); // signed X component of this sample's radial direction
+        bestSampleAngle = ang;
+        hitFound = true;
+      }
+    }
+  }
+
+  if (hitFound) {
+    const pen = bestPen;
+    const nx = bestNx, ny = bestNy, nz = bestNz;
+    const contactDirX = bestContactDirX;
+
+    // Push ball out of rim tube
+    b.pos.x += nx * pen * 1.05;
+    b.pos.y += ny * pen * 1.05;
+    if (b.pos.z !== undefined) b.pos.z += nz * pen * 1.05;
+
+    const vDotN = b.vel.x*nx + b.vel.y*ny + (b.vel.z||0)*nz;
+    if (vDotN < 0) {
+      // edgeFrac: 0 at front/back of rim, ramps to 1 at left/right posts
+      // |contactDirX| = 1 at 3/9 o'clock (posts), 0 at 12/6 o'clock (front/back)
+      const edgeFrac = Math.max(0, (Math.abs(contactDirX) - 0.55) / 0.45);
+      // Restitution: softer at front/back (ball rattles in), sharper at posts (kick out)
+      const REST_RIM = 0.50 + edgeFrac * 0.38;
+      // Normal impulse
+      b.vel.x -= (1 + REST_RIM) * vDotN * nx;
+      b.vel.y -= (1 + REST_RIM) * vDotN * ny;
+      if (b.vel.z !== undefined) b.vel.z -= (1 + REST_RIM) * vDotN * nz;
+      // Tangential friction: rim surface slows the ball, more at posts
+      const friction = 0.82 + edgeFrac * 0.10;
+      b.vel.x *= friction; b.vel.y *= friction;
+
+      const impactSpeed = Math.abs(vDotN);
+      const downImpact  = Math.max(0, -ny) * impactSpeed;
+
+      // Rim tilt response: post hits drive the diving-board oscillator
+      if (edgeFrac > 0.02) {
+        HOOP._dbVel     += downImpact * edgeFrac * 3.2 * contactDirX;
+        HOOP._rimTiltVel+= downImpact * edgeFrac * HOOP._rimImpulseScale * 0.55 * contactDirX;
+      }
+      // Any rim hit excites the primary spring slightly (vibration feel)
+      HOOP._rimTiltVel += downImpact * 0.18 * contactDirX;
+
+      HOOP.scoreFlash = Math.max(HOOP.scoreFlash, 0.20 + edgeFrac * 0.22);
+    }
+  }
+
+  // ── Backboard collision ───────────────────────────────────────────────────
+  // Board is at z = HOOP.z - (rimR + small gap), spanning boardW × boardH
+  {
+    const boardZ  = HOOP.z - HOOP.rimR - 0.28;
+    const halfW   = HOOP.boardW * 0.5;
+    const boardTop= HOOP.y + HOOP.boardH * 0.62;
+    const boardBot= HOOP.y - HOOP.boardH * 0.38;
+    const bz = b.pos.z || 0;
+    // Only test when ball is in front of board and within board extents
+    if (b.pos.x > HOOP.x - halfW && b.pos.x < HOOP.x + halfW &&
+        b.pos.y > boardBot        && b.pos.y < boardTop) {
+      const dz = bz - boardZ;
+      if (dz > 0 && dz < ballR + 0.12) {
+        // Ball touching front face of board
+        b.pos.z = boardZ + ballR + 0.02;
+        if ((b.vel.z || 0) < 0) {
+          b.vel.z = -(b.vel.z || 0) * 0.58;
+          // Bank: preserve XY with slight damping
+          b.vel.x *= 0.94; b.vel.y *= 0.94;
         }
-
-        HOOP.scoreFlash=Math.max(HOOP.scoreFlash,0.22+edgeFrac*0.18);
       }
     }
   }
