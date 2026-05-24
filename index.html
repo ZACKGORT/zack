@@ -6502,8 +6502,17 @@ function _drawBulletTimeOverlay(){
   const dpr=Math.min(window.devicePixelRatio||1,isMobile?1.5:2.0);
   if(ac.width!==W*dpr){ac.width=W*dpr;ac.height=H*dpr;}
   const ctx=ac.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  const vg=ctx.createRadialGradient(W/2,H/2,W*0.2,W/2,H/2,W*0.78);
-  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,0.28)`);
+  // Smooth vignette: 8 stops on a cubic ease-in curve — eliminates banding
+  const vg=ctx.createRadialGradient(W/2,H/2,W*0.15,W/2,H/2,W*0.82);
+  const _va=(t)=>(t*t*t*0.30).toFixed(4); // cubic ease-in, max opacity 0.30
+  vg.addColorStop(0,   'rgba(0,0,0,0)');
+  vg.addColorStop(0.20,`rgba(0,0,0,${_va(0.20)})`);
+  vg.addColorStop(0.38,`rgba(0,0,0,${_va(0.38)})`);
+  vg.addColorStop(0.52,`rgba(0,0,0,${_va(0.52)})`);
+  vg.addColorStop(0.65,`rgba(0,0,0,${_va(0.65)})`);
+  vg.addColorStop(0.78,`rgba(0,0,0,${_va(0.78)})`);
+  vg.addColorStop(0.90,`rgba(0,0,0,${_va(0.90)})`);
+  vg.addColorStop(1.00,`rgba(0,0,0,${_va(1.00)})`);
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
   const arc=_btComputeArc(); if(!arc) return;
   const{arcPts,tFlight}=arc, n=arcPts.length;
@@ -6624,7 +6633,6 @@ function _drawBballHUD(ctx,dpr){
 }
 
 function _drawScoreFlash(){
-  // On mobile, bullet-time overlay and _drawAim don't run — we own the canvas here
   if(isMobile&&!_bulletTime){
     const ac=_getAimCanvas(); if(!ac) return;
     const dpr=Math.min(window.devicePixelRatio||1,1.5);
@@ -6644,7 +6652,6 @@ function _drawScoreFlash(){
     ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
     return;
   }
-  // Desktop: canvas was already cleared by _drawAim or _drawBulletTimeOverlay this frame
   if(HOOP.scoreFlash<=0) return;
   HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-0.028);
   const ac=_getAimCanvas(); if(!ac||_aimDrag) return;
@@ -6901,31 +6908,31 @@ const STATEMENTS = [
     h1: 'i craft experiences for digital intent.',
     p: 'e-commerce • fintech • saas',
     pull: '"think. make. write. design."',
-    cta: { label: 'See the work', href: '#' },
+
   },
   {
     h1: 'thinker & maker',
-    p: 'From bootstrap startups to A-list agencies working with blue-chip clients on a global stage — forging a career in information architecture and scalable interaction (& design) systems built for both entrepreneur & enterprise.',
+    p: 'from bootstrap startups to A-list agencies working with blue-chip clients on a global stage — forging a career in information architecture and scalable interaction (& design) systems built for both entrepreneur & enterprise.',
     pull: 'design systems, user experience, accessibility & compliance',
-    cta: { label: 'Explore projects', href: '#' },
+
   },
   {
-    h1: 'AI-think, therefore AI-am — I think.',
-    p: 'One of the ways I am thinking about intent is in how we structure it for ourselves while communicating effectively and efficiently with our robot counterparts — this is my answer, so far.',
+    h1: '"a.i. think, therefore a.i. am"',
+    p: 'one of the ways I am thinking about intent is in how we structure it for ourselves while communicating effectively and efficiently with our robot counterparts — this is my answer, so far.',
     pull: '"off to neverever.land"',
-    cta: { label: 'Get in touch', href: 'mailto:zack@reasonably.cc' },
+
   },
   {
-    h1: 'The Tokenization of Craft. ',
+    h1: 'the tokenization of craft. ',
     p: 'i am an artist. i went to art school. i studied 3d animation & motion graphics. i lacked the funds to complete my degree. i found work as a graphic designer, then web designer, then ux designer, then product designer.  <br><br>my point is: I built all of this for free, using this to assist. ',
     pull: '"i built my craft by being crafty — when prudence is preferred."',
-    cta: { label: "Let's talk", href: 'mailto:zack@reasonably.cc' },
+
   },
   {
-    h1: 'Copy this em—effer!',
+    h1: 'copy this em—effer!',
     p: 'bookmark this site. use it em—phatically.',
     pull: '"craft matters in communication."',
-    cta: { label: 'Try emdash', href: 'https://www.emdash.click' },
+
   },
 ];
 
