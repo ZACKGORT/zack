@@ -6308,10 +6308,16 @@ function _drawBballHUD(ctx,dpr){
 }
 
 function _drawScoreFlash(){
-  if(HOOP.scoreFlash<=0) return;
+  if(HOOP.scoreFlash<=0){
+    // Only clear if bullet-time overlay isn't already owning the canvas
+    if(!_bulletTime){ const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height); }
+    return;
+  }
   HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-(isMobile?0.056:0.028));
   const ac=_getAimCanvas(); if(!ac||_aimDrag) return;
   const ctx=ac.getContext('2d'); const f=HOOP.scoreFlash;
+  // Only clear when not in bullet-time — overlay already cleared for this frame
+  if(!_bulletTime) ctx.clearRect(0,0,ac.width,ac.height);
   _ovV3.set(HOOP.x,HOOP.y,HOOP.z).project(camera);
   const hsx=(_ovV3.x+1)/2*W, hsy=(-_ovV3.y+1)/2*H;
   if(!isFinite(hsx)||!isFinite(hsy)) return;
