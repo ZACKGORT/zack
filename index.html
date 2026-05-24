@@ -1198,6 +1198,7 @@ function showLevelTitle(lvlN, immediate) {
 
 function showShapeText(type, obj) {
   if(lvlDone) return; // don't override completion statement
+  if(lvl === 6) return; // basketball: statement system owns the text canvas
   _textMode = 'shape';
   // Display XYZ coordinates of the clicked object
   // For zenball (_isBBall), show only coordinates — no type label
@@ -1255,6 +1256,7 @@ function updateShapeCoords(type, obj) {
 
 function revertToTitle() {
   if (_textMode !== 'shape') return;
+  if (lvl === 6) return; // basketball: statement system owns the text canvas
   showLevelTitle(lvl, false);
 }
 
@@ -1277,9 +1279,9 @@ function _buildFloatText(lines, immediate, useDisplay) {
     const colFrac = mobileBball ? 0.88 : (isBball ? 0.42 : COL_W_FRAC);
     const maxW = mobileBball
       ? W * colFrac
-      : Math.min(W * colFrac, isBball ? W - PAD_X - 40 : COL_W_MAX);
-    // Level 5 has no shapes panel obscuring the scene — allow wider text column
-    const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.55, W - PAD_X - 180) : maxW;
+      : Math.min(W * colFrac, isBball ? COL_W_MAX : COL_W_MAX);
+    // Level 4 (wormhole) can go slightly wider; all others respect COL_W_MAX
+    const effectiveMaxW = (lvl === 4) ? Math.min(W * 0.38, W - PAD_X - 180) : maxW;
 
     // Expand any <br> tags into actual separate lines, preserving parent role
     const expandedLines = [];
@@ -3528,34 +3530,60 @@ function resolveCollisions(){
     }
   }
 
-  // ── Zen orb ↔ Project orb bumper collisions ───────────────────────────────
+  // ── Zen orb ↔ Project orb bumper collisions ──────────────────────────────
+  // Always active on lvl 5 — works in both railed and minimized states.
+  // When railed the attractor mesh is hidden but position is still valid;
+  // when minimized the orbs float free as pinball bumpers.
   if(lvl===5&&_projectOrbs.length){
     const zenArr=attractors.filter(a=>a._bouncingBH);
-    const orbAtts=attractors.filter(a=>a._isProjectOrb);
     for(const zen of zenArr){
       const zenScale=Math.sqrt(zen.pullStrength/57.0);
       const zenR=zen.radius*zenScale*1.1;
-      for(const orb of orbAtts){
-        if(orb.dragging)continue;
-        const dx=orb.pos.x-zen.pos.x,dy=orb.pos.y-zen.pos.y;
+      for(const orb of _projectOrbs){
+        const orbAtt=orb._attractor;
+        if(!orbAtt||orbAtt.dragging) continue;
+        const dx=orbAtt.pos.x-zen.pos.x, dy=orbAtt.pos.y-zen.pos.y;
         const dist=Math.sqrt(dx*dx+dy*dy)||0.001;
-        const minD=zenR+orb.radius;
-        if(dist<minD){
-          const nx=dx/dist,ny=dy/dist;
-          const pen=minD-dist;
-          zen.pos.x-=nx*pen*0.5;zen.pos.y-=ny*pen*0.5;
-          orb.pos.x+=nx*pen*0.5;orb.pos.y+=ny*pen*0.5;
-          const RESTITUTION=0.75;
-          const relDot=zen.vel.x*(-nx)+zen.vel.y*(-ny);
-          if(relDot>0){
-            zen.vel.x+=nx*relDot*(1+RESTITUTION);
-            zen.vel.y+=ny*relDot*(1+RESTITUTION);
-          }
-          // Kick the orb — it's a free NS so it bounces naturally
-          const kickStr=2.2+Math.sqrt(zen.vel.x**2+zen.vel.y**2)*0.18;
-          orb.vel.x+=nx*kickStr;orb.vel.y+=ny*kickStr;
-          _zenGravSpike=Math.max(_zenGravSpike,14.0);
+        const minD=zenR+orbAtt.radius*1.4; // slightly enlarged bumper surface
+        if(dist>=minD) continue;
+
+        const nx=dx/dist, ny=dy/dist;
+        const pen=minD-dist;
+
+        // Bumper: orb is a heavy immovable pin — absorbs almost no momentum
+        // Zen bounces off with high restitution + speed bonus
+        const incomingSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2);
+        const approach=zen.vel.x*(-nx)+zen.vel.y*(-ny); // how fast zen is closing
+        const BUMPER_RESTITUTION=1.35; // superelastic — adds energy like a pinball bumper
+        const MIN_EXIT_SPD=Math.max(incomingSpd*BUMPER_RESTITUTION, 6.0);
+
+        // Push zen cleanly out of overlap first
+        zen.pos.x-=nx*pen; zen.pos.y-=ny*pen;
+
+        // Reflect + boost zen velocity
+        if(approach>0){
+          zen.vel.x+=nx*approach*BUMPER_RESTITUTION;
+          zen.vel.y+=ny*approach*BUMPER_RESTITUTION;
         }
+        // Guarantee minimum exit speed so slow grazes still pop
+        const exitSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2)||0.001;
+        if(exitSpd<MIN_EXIT_SPD){
+          zen.vel.x=(zen.vel.x/exitSpd)*MIN_EXIT_SPD;
+          zen.vel.y=(zen.vel.y/exitSpd)*MIN_EXIT_SPD;
+        }
+
+        // Orb bumper: tiny reactive kick so it feels alive, not frozen
+        if(!_orbRailActive){
+          const orbKick=1.8+incomingSpd*0.12;
+          orbAtt.vel.x+=nx*orbKick; orbAtt.vel.y+=ny*orbKick;
+        }
+
+        // Flash the orb widget border on hit
+        const el=document.getElementById(`orb-widget-${orb.index}`);
+        if(el){ el.style.borderColor=orb.data.color||'#fff';
+          setTimeout(()=>{ el.style.borderColor=''; },180); }
+
+        _zenGravSpike=Math.max(_zenGravSpike,18.0);
       }
     }
   }
@@ -4942,7 +4970,8 @@ function checkDone(){
   if(lvlDone)return;
 
   // Level 6: zen mode — no win condition
-  if (lvl === 5) return;
+  // Level 7 (basketball): no win condition — empty tgts array would otherwise trigger done
+  if (lvl === 5 || lvl === 6) return;
 
   // Level 5: win when all 3 NS have been caught in the BH's gravity well (hit by BH)
   if (lvl === 4) {
@@ -5119,22 +5148,30 @@ function drawTextLayer(){
   // Restore to compositor when drawing
   if(tc.style.display==='none') tc.style.display='';
 
-  // Perf: skip redraw if chars are all settled AND cursor/blob hasn't moved appreciably
-  // Always redraw on alpha transitions (text fading in/out)
-  const _blobMoved = Math.abs(bX-_textPrevBX)>0.4 || Math.abs(bY-_textPrevBY)>0.4;
+  // Perf: skip redraw only when blob has fully converged to cursor AND no chars are in repel range
+  // Never skip during bullet time — aim arc animates every frame and mX/mY are frozen by design
+  const _curX = _bulletTime ? _bulletTimeMouse.x : mX;
+  const _curY = _bulletTime ? _bulletTimeMouse.y : mY;
+  const _blobNotConverged = Math.abs(bX - _curX) > 0.8 || Math.abs(bY - _curY) > 0.8;
   const _alphaTransitioning = Math.abs(lvlTextAlpha - (lvlTextAlpha > 0.99 ? 1 : lvlTextAlphaTgt)) > 0.005;
-  if(!isMobile && !_blobMoved && !_alphaTransitioning && _textMaxVel < 0.12 && !_textLayerWasClear){
+  // Keep drawing while cursor is within repel range of any char (effect is live)
+  let _cursorNearText = false;
+  if (!_blobNotConverged && !_bulletTime) {
+    for (const p of textChars) {
+      const _pdx = p.x - bX, _pdy = p.y - bY;
+      if (_pdx * _pdx + _pdy * _pdy < REPEL_R * REPEL_R) { _cursorNearText = true; break; }
+    }
+  }
+  if(!isMobile && !_bulletTime && !_blobNotConverged && !_cursorNearText && !_alphaTransitioning && _textMaxVel < 0.12 && !_textLayerWasClear){
     // Still need to advance blob physics even when skipping draw
-    bX+=(mX-bX)*BLOB_LERP;bY+=(mY-bY)*BLOB_LERP;
-    _textPrevBX=bX;_textPrevBY=bY;
+    bX+=(_curX-bX)*BLOB_LERP;bY+=(_curY-bY)*BLOB_LERP;
     return;
   }
-  _textPrevBX=bX;_textPrevBY=bY;
 
   tctx.clearRect(0,0,W,H);
 
   // blob cursor follow (smooth like cx.html)
-  bX+=(mX-bX)*BLOB_LERP;bY+=(mY-bY)*BLOB_LERP;
+  bX+=((_bulletTime?_bulletTimeMouse.x:mX)-bX)*BLOB_LERP;bY+=((_bulletTime?_bulletTimeMouse.y:mY)-bY)*BLOB_LERP;
 
   tctx.textBaseline='top';
 
@@ -5168,7 +5205,7 @@ function drawTextLayer(){
     if (ballScreenR > 0) {
       const bdx = p.x - ballSX, bdy = p.y - ballSY;
       const bd = Math.sqrt(bdx * bdx + bdy * bdy);
-      const BALL_REPEL = ballScreenR * (isMobile ? 1.0 : 1.8);
+      const BALL_REPEL = ballScreenR * (isMobile ? 1.0 : 0.66);
       if (bd < BALL_REPEL && bd > 0.5) {
         const f = (1 - bd / BALL_REPEL);
         p.vx += (bdx / bd) * f * f * 18;
@@ -5991,6 +6028,7 @@ function _tickBBall(dt){
 }
 
 var _lastActionWasSpacebar = false;
+var _spacebarSlamTimer = null; // clears slam-dunk eligibility after window expires
 
 function _registerScore(){
   HOOP.totalScore++; HOOP.streak++; HOOP.scoreFlash=1.0; HOOP.scored=true;
@@ -6391,6 +6429,12 @@ window.addEventListener('keydown',e=>{
   // Soft dribble — maintain existing ball physics
   if (_bbBall) {
     _lastActionWasSpacebar = true;
+    // Slam dunk only counts if ball scores within 1.8s of spacebar hit
+    if (_spacebarSlamTimer) clearTimeout(_spacebarSlamTimer);
+    _spacebarSlamTimer = setTimeout(() => {
+      _lastActionWasSpacebar = false;
+      _spacebarSlamTimer = null;
+    }, 1800);
     const ballR = _bbBall.radius || 0.72;
     const FLR = s2w(W/2, H).y;
     const BY_FLOOR = FLR + ballR + 0.05;
@@ -6495,9 +6539,9 @@ setTimeout(()=>{
 // A thin HTML overlay handles the dot-nav and CTA button only.
 const STATEMENTS = [
   {
-    h1: 'i craft experiences <br>for digital intent.',
+    h1: 'i craft experiences for digital intent.',
     p: 'From bootstrap startups to A-list agencies working with blue-chip clients on a global stage — I turn unclear briefs into clear, scalable, low-friction architectural design systems.',
-    pull: '"clarity is the ultimate luxury product."',
+    pull: '"think. make. write. design."',
     cta: { label: 'See the work', href: '#' },
   },
   {
@@ -6507,15 +6551,15 @@ const STATEMENTS = [
     cta: { label: 'Explore projects', href: '#' },
   },
   {
-    h1: 'Left-handed. Autodidactic. Relentless.',
+    h1: 'Left-handed. Autodidactic. Curious.',
     p: 'No formal pedigree, just twenty years of making things that work. COVID and AI reshuffled the deck — still at the table, still dealing.',
-    pull: '"the best time to build was yesterday."',
+    pull: '"thinker & maker for digital intent"',
     cta: { label: 'Get in touch', href: 'mailto:zack@reasonably.cc' },
   },
   {
-    h1: 'Motion is the message.',
-    p: 'The way something moves tells you everything about the brand behind it. Stiff is insecure. Fluid is confident. Every particle in this room has a reason.',
-    pull: '"physics is just design with consequences."',
+    h1: 'e-motion. ',
+    p: 'So, this site is a self-aware statement of the status quo.',
+    pull: '"message. meaning. markup. mechanics."',
     cta: { label: "Let's talk", href: 'mailto:zack@reasonably.cc' },
   },
 ];
