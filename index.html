@@ -837,12 +837,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 <!-- Mobile compact link list: replaces orb-rail widgets on mobile -->
 <div id="mb-link-list">
   <div class="mb-link-row">
-    <span class="mb-link-name">zackgort.com/career</span>
-    <a class="mb-link-cta" href="https://www.zackgort.com/career" target="_blank" rel="noopener">visit ↗</a>
-  </div>
-  <div class="mb-link-row">
     <span class="mb-link-name">zackgort.com</span>
     <a class="mb-link-cta" href="https://www.zackgort.com" target="_blank" rel="noopener">visit ↗</a>
+  </div>
+  <div class="mb-link-row">
+    <span class="mb-link-name">zackgort.com/career</span>
+    <a class="mb-link-cta" href="https://www.zackgort.com/career" target="_blank" rel="noopener">visit ↗</a>
   </div>
   <div class="mb-link-row">
     <span class="mb-link-name">neverever.land</span>
@@ -3119,11 +3119,11 @@ let shapes=[];
 
 // ── PROJECT ORBS (Level 6) ────────────────────────────────────────────────────
 const PROJECT_DATA = [
-  { name: 'zackgort.com/career', url: 'https://www.zackgort.com/career', desc: 'twenty years of work',       color: '#ff7eb3', colorHex: 0xff7eb3 },
-  { name: 'zackgort.com',   url: 'https://www.zackgort.com',   desc: 'portfolio & work',            color: '#7eb3ff', colorHex: 0x7eb3ff },
-  { name: 'neverever.land', url: 'https://www.neverever.land', desc: 'a place for lost things',    color: '#b3ff7e', colorHex: 0xb3ff7e },
-  { name: 'reasonably.cc',  url: 'https://www.reasonably.cc',  desc: 'calm tools for clear minds', color: '#ffb37e', colorHex: 0xffb37e },
-  { name: 'emdash.click',   url: 'https://www.emdash.click',   desc: 'the pause between thoughts',  color: '#d4ff7e', colorHex: 0xd4ff7e },
+  { name: 'zackgort.com',        url: 'https://www.zackgort.com',        desc: 'portfolio & work',            color: '#7eb3ff', colorHex: 0x7eb3ff },
+  { name: 'zackgort.com/career', url: 'https://www.zackgort.com/career', desc: 'twenty years of work',        color: '#ff7eb3', colorHex: 0xff7eb3 },
+  { name: 'neverever.land',      url: 'https://www.neverever.land',      desc: 'a place for lost things',     color: '#b3ff7e', colorHex: 0xb3ff7e },
+  { name: 'reasonably.cc',       url: 'https://www.reasonably.cc',       desc: 'calm tools for clear minds',  color: '#ffb37e', colorHex: 0xffb37e },
+  { name: 'emdash.click',        url: 'https://www.emdash.click',        desc: 'the pause between thoughts',  color: '#d4ff7e', colorHex: 0xd4ff7e },
 ];
 
 let _projectOrbs = [];
@@ -3359,6 +3359,36 @@ function _createOrbWidget(orb) {
   previewBtn.addEventListener('click', e=>{
     e.stopPropagation();
     _toggleOrbPreview(idx, d.url);
+    // Desktop: if we just opened, focus this widget → sync statement
+    if (!isMobile) {
+      const wrap = el.querySelector('.orb-widget-iframe-wrap');
+      if (wrap && wrap.style.display !== 'none') {
+        // Just expanded — make this the active widget
+        if (_activeWidgetIdx !== idx) {
+          // Close the previous active widget's preview (already handled by _focusWidget,
+          // but _toggleOrbPreview already opened this one — just update state + statement)
+          if (_activeWidgetIdx !== -1 && _activeWidgetIdx !== idx) {
+            const prev = document.getElementById(`orb-widget-${_activeWidgetIdx}`);
+            if (prev) {
+              const pw = prev.querySelector('.orb-widget-iframe-wrap');
+              const pi = prev.querySelector('.orb-widget-iframe');
+              const pb = prev.querySelector('.orb-widget-preview-btn');
+              if (pw && pw.style.display !== 'none') {
+                pw.style.display = 'none';
+                if (pi) pi.src = '';
+                if (pb) { pb.textContent = '⤢'; pb.title = 'Preview'; }
+              }
+            }
+          }
+          _activeWidgetIdx = idx;
+          const stmtIdx = STMT_WIDGET_MAP.indexOf(idx);
+          if (stmtIdx !== -1 && stmtIdx !== _stmtIdx) {
+            _stmtIdx = stmtIdx;
+            _buildStatement(_stmtIdx, false);
+          }
+        }
+      }
+    }
   });
 
   // Dragging — once user moves it, stop auto-tracking the orb
@@ -3386,6 +3416,9 @@ function _createOrbWidget(orb) {
     e.stopPropagation();
   });
   el.addEventListener('pointerup', ()=>{ if(wDrag){wDrag=false;el.style.cursor='grab';} });
+
+  // Desktop: clicking the widget card focuses its paired statement
+  _wireWidgetFocusClick(el, idx);
 }
 
 function _toggleOrbPreview(idx, url) {
@@ -3409,6 +3442,75 @@ function _toggleOrbPreview(idx, url) {
     btn.textContent = '⤢';
     btn.title = 'Preview';
   }
+}
+
+// ── STATEMENT ↔ WIDGET PAIRING (desktop only) ─────────────────────────────────
+// Each STATEMENT index maps to a PROJECT_DATA widget index (1-to-1 for 0..3).
+// Statement 4 (if added) falls back to widget 4. Widget 4 (emdash) has no paired
+// statement — clicking it does nothing to the statement system.
+
+const STMT_WIDGET_MAP = [0, 1, 2, 3, 4]; // statement i → widget index
+
+// Track which widget currently has its iframe expanded (desktop)
+let _activeWidgetIdx = -1; // -1 = none yet
+
+// Called by both score and widget-click to switch active widget + statement
+// desktop-only; on mobile this is a no-op
+function _focusWidget(widgetIdx, animate) {
+  if (isMobile) return;
+  // Close previously open widget (if different)
+  if (_activeWidgetIdx !== -1 && _activeWidgetIdx !== widgetIdx) {
+    const prev = document.getElementById(`orb-widget-${_activeWidgetIdx}`);
+    if (prev) {
+      const wrap = prev.querySelector('.orb-widget-iframe-wrap');
+      const iframe = prev.querySelector('.orb-widget-iframe');
+      const btn = prev.querySelector('.orb-widget-preview-btn');
+      if (wrap && wrap.style.display !== 'none') {
+        wrap.style.display = 'none';
+        if (iframe) iframe.src = '';
+        if (btn) { btn.textContent = '⤢'; btn.title = 'Preview'; }
+      }
+    }
+  }
+  _activeWidgetIdx = widgetIdx;
+  // Expand target widget
+  const data = PROJECT_DATA[widgetIdx];
+  if (data) _toggleOrbPreviewOpen(widgetIdx, data.url);
+  // Sync statement to match widget
+  const stmtIdx = STMT_WIDGET_MAP.indexOf(widgetIdx);
+  if (stmtIdx !== -1 && stmtIdx !== _stmtIdx) {
+    _stmtIdx = stmtIdx;
+    _buildStatement(_stmtIdx, animate !== false ? false : true);
+  }
+}
+
+// Like _toggleOrbPreview but only opens (never closes)
+function _toggleOrbPreviewOpen(idx, url) {
+  const el = document.getElementById(`orb-widget-${idx}`);
+  if (!el) return;
+  const wrap = el.querySelector('.orb-widget-iframe-wrap');
+  const iframe = el.querySelector('.orb-widget-iframe');
+  const btn = el.querySelector('.orb-widget-preview-btn');
+  if (!wrap || !iframe) return;
+  if (wrap.style.display !== 'none') return; // already open
+  if (!iframe.src || iframe.src === window.location.href) iframe.src = url;
+  wrap.style.display = 'block';
+  if (btn) { btn.textContent = '✕'; btn.title = 'Close preview'; }
+}
+
+// Wire up widget-click → focus statement (desktop only)
+// Called from _createOrbWidget after element creation
+function _wireWidgetFocusClick(el, idx) {
+  if (isMobile) return;
+  el.addEventListener('click', (e) => {
+    // Don't intercept link clicks or drag completions
+    if (e.target.tagName === 'A' || e.target.closest('a')) return;
+    // Find which statement maps to this widget
+    const stmtIdx = STMT_WIDGET_MAP.indexOf(idx);
+    if (stmtIdx === -1) return; // no paired statement (e.g. widget 4)
+    // Focus this widget (expand preview, switch statement)
+    _focusWidget(idx, false);
+  });
 }
 
 function _syncOrbWidget(orb) {
@@ -6181,9 +6283,14 @@ function _registerScore(){
   // Score text suppressed on basketball level — statement panel owns left-side copy
   if(_hoopGroup){ const rimL=_hoopGroup.children.find(c=>c.isLight); if(rimL){rimL.intensity=6.0;setTimeout(()=>{rimL.intensity=1.2;},400);} }
   HOOP._rimTiltVel+=0.6*(Math.random()>0.5?1:-1);
-  // Cycle to next statement on each score
+  // Cycle statement + advance to next widget on score (desktop only)
   _stmtIdx=(_stmtIdx+1)%STATEMENTS.length;
   _buildStatement(_stmtIdx,false);
+  // Desktop: expand the widget paired to the new statement
+  if (!isMobile) {
+    const nextWidgetIdx = STMT_WIDGET_MAP[_stmtIdx];
+    if (nextWidgetIdx !== undefined) _focusWidget(nextWidgetIdx, false);
+  }
   _scoreBurst();
 }
 
@@ -6693,27 +6800,33 @@ setTimeout(()=>{
 const STATEMENTS = [
   {
     h1: 'i craft experiences for digital intent.',
-    p: 'From bootstrap startups to A-list agencies working with blue-chip clients on a global stage — I turn unclear briefs into clear, scalable, low-friction architectural design systems.',
+    p: 'e-commerce • fintech • saas',
     pull: '"think. make. write. design."',
     cta: { label: 'See the work', href: '#' },
   },
   {
-    h1: 'Design is a systems problem.',
-    p: 'Every interface I build is an argument for how things should work. I think in flows, tokens, and edge cases — then I make it feel effortless.',
-    pull: '"good design disappears into the experience."',
+    h1: 'thinker & maker',
+    p: 'From bootstrap startups to A-list agencies working with blue-chip clients on a global stage — forging a career in information architecture and scalable interaction (& design) systems built for both entrepreneur & enterprise.',
+    pull: 'design systems, user experience, accessibility & compliance',
     cta: { label: 'Explore projects', href: '#' },
   },
   {
-    h1: 'Left-handed. Autodidactic. Curious.',
-    p: 'No formal pedigree, just twenty years of making things that work. COVID and AI reshuffled the deck — still at the table, still dealing.',
-    pull: '"thinker & maker for digital intent"',
+    h1: 'AI-think, therefore AI-am — I think.',
+    p: 'One of the ways I am thinking about intent is in how we structure it for ourselves while communicating effectively and efficiently with our robot counterparts — this is my answer, so far.',
+    pull: '"off to neverever.land"',
     cta: { label: 'Get in touch', href: 'mailto:zack@reasonably.cc' },
   },
   {
-    h1: 'e-motion. ',
-    p: 'So, this site is a self-aware statement of the status quo.',
-    pull: '"message. meaning. markup. mechanics."',
+    h1: 'The Tokenization of Craft. ',
+    p: 'i am an artist. i went to art school. i studied 3d animation & motion graphics. i lacked the funds to complete my degree. i found work as a graphic designer, then web designer, then ux designer, then product designer.  <br><br>my point is: I built all of this for free, using this to assist. ',
+    pull: '"i built my craft by being crafty — when prudence is preferred."',
     cta: { label: "Let's talk", href: 'mailto:zack@reasonably.cc' },
+  },
+  {
+    h1: 'Copy this em—effer!',
+    p: 'bookmark this site. use it em—phatically.',
+    pull: '"craft matters in communication."',
+    cta: { label: 'Try emdash', href: 'https://www.emdash.click' },
   },
 ];
 
@@ -6789,8 +6902,8 @@ setTimeout(() => {
   _spawnProjectOrbs();
   // Auto-expand iframes on desktop only (collapsed by default on mobile)
   if (!isMobile) setTimeout(() => {
-    _toggleOrbPreview(1, PROJECT_DATA[1].url); // zackgort.com (unchanged)
-    _toggleOrbPreview(2, PROJECT_DATA[2].url); // neverever.land
+    _toggleOrbPreview(0, PROJECT_DATA[0].url); // zackgort.com — expanded at load (paired with statement 0)
+    _activeWidgetIdx = 0; // track widget 0 as initially active
   }, 600);
 }, 900);
 
