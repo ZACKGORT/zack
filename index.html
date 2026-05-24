@@ -4097,6 +4097,21 @@ function supernovaImpulse(wx, wy) {
     }
   }
 
+  // ── Basketball: supernova shockwave blasts net/waterfall stream ─────────────
+  if (lvl === 6 && _netPts) {
+    for (let i = 0; i < NET_COUNT; i++) {
+      const b = i * 3;
+      const dx = _netPts[b] - wx, dy = _netPts[b+1] - wy, dz = _netPts[b+2];
+      const dist = Math.sqrt(dx*dx + dy*dy + dz*dz) || 0.001;
+      if (dist > SUPERNOVA_R) continue;
+      const t = 1 - dist / SUPERNOVA_R;
+      const f = SUPERNOVA_F * t * t;
+      _netVel[b]   += (dx / dist) * f;
+      _netVel[b+1] += (dy / dist) * f + SUPERNOVA_LIFT * t;
+      _netVel[b+2] += (dz / dist) * f;
+    }
+  }
+
   flashEl('flash-complete');
 }
 
@@ -5341,11 +5356,11 @@ function tick(){
     if (_bbBall && !_bbBall.dragging && lvl === 6) {
       const zdx = _bbBall.pos.x - pp[b], zdy = _bbBall.pos.y - pp[b+1], zdz = (_bbBall.pos.z||0) - pp[b+2];
       const zdist2 = zdx*zdx + zdy*zdy + zdz*zdz;
-      const ZEN_MAIN_R = 10.0;
+      const ZEN_MAIN_R = 16.0;
       if (zdist2 < ZEN_MAIN_R * ZEN_MAIN_R) {
         const zdist = Math.sqrt(zdist2) + 0.001;
         const falloff = 1.0 - zdist / ZEN_MAIN_R;
-        const zf = 14.0 * falloff * falloff * dt / zdist;
+        const zf = 28.0 * falloff * falloff * dt / zdist;
         pv[b]   += zdx * zf;
         pv[b+1] += zdy * zf;
         pv[b+2] += zdz * zf * 0.4;
@@ -5863,8 +5878,8 @@ function _tickRimRing(dt) {
     // Strong enough to visibly bend the falling stream toward the ball —
     // same character as the ground-particle interaction.
     if (_bbBall && !_bbBall.dragging) {
-      const ZEN_NET_R = 7.0;   // wide radius — catches the whole stream column
-      const ZEN_NET_STR = 28.0; // strong enough to visibly deflect falling particles
+      const ZEN_NET_R = 12.0;   // wide radius — catches the whole stream column
+      const ZEN_NET_STR = 52.0; // strong enough to visibly deflect falling particles
       const bx = _bbBall.pos.x, by = _bbBall.pos.y, bz = _bbBall.pos.z || 0;
       for (let i = 0; i < NET_COUNT; i++) {
         const b = i * 3;
@@ -5879,6 +5894,7 @@ function _tickRimRing(dt) {
         _netVel[b+2] += dz * f;
       }
     }
+
   }
 
   const lightCount=_hoopPointLights.length;
@@ -6027,6 +6043,20 @@ function _tickBBall(dt){
   if(!HOOP._passThroughArmed&&ballAboveRim&&ballInsideRim) HOOP._passThroughArmed=true;
   if(HOOP._passThroughArmed&&ballBelowRim&&ballInsideRim&&b.vel.y<0){ HOOP._passThroughArmed=false; _registerScore(); }
   if(HOOP._passThroughArmed&&!ballInsideRim) HOOP._passThroughArmed=false;
+
+  // ── Ball spin: angular velocity driven by linear velocity, decays to rest ───
+  if (b._bbAngVel === undefined) b._bbAngVel = 0;
+  // Target spin rate = lateral velocity / ball radius (rolling contact model)
+  const targetAngVel = -b.vel.x / (b.radius * 1.4);
+  // Airborne: spin freely, blending toward roll rate loosely
+  // Grounded: snap tightly to roll rate (surface contact)
+  const onGround = b.pos.y <= BY_FLOOR + 0.15;
+  const angBlend = onGround ? 0.22 : 0.06;
+  b._bbAngVel += (targetAngVel - b._bbAngVel) * angBlend;
+  // Decay: spin slows when ball is slow (air drag + internal damping)
+  const spdFrac = Math.min(1.0, spd / 4.0);
+  b._bbAngVel *= 1.0 - dt * (onGround ? 3.5 : 1.2) * (1.0 - spdFrac * 0.6);
+  b.mesh.rotation.z += b._bbAngVel * dt;
 
   b.mesh.position.set(b.pos.x,b.pos.y,b.pos.z||0);
   b.mesh.updateMatrixWorld(true);
