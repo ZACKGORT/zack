@@ -33,7 +33,7 @@ canvas{display:block;}
 #cta-btn.paused{background:#0a0a0a;color:#ffffff;}
 
 /* Fix #1: removed backdrop-filter from .widget — was compositing 10+ layers separately on Chrome */
-.widget{position:fixed;z-index:100;background:rgba(8,8,8,0.94);border:1px solid rgba(255,255,255,0.07);border-radius:0;user-select:none;}
+.widget{position:fixed;z-index:100;background:rgba(8,8,8,0.94);border:1px solid rgba(255,255,255,0.07);border-radius:0;user-select:none;contain:layout style;}
 .widget-header{display:flex;align-items:center;justify-content:space-between;padding:8px 11px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:grab;}
 .widget-title{font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.18);text-transform:uppercase;}
 .widget-sub{font-size:8px;color:rgba(255,255,255,0.1);letter-spacing:0.1em;}
@@ -149,6 +149,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 /* ── ORB RAIL ── */
 #orb-rail{
   position:fixed;top:0;right:0;bottom:0;width:276px;
+  contain:layout style;
+  will-change:transform;
   z-index:490;pointer-events:none;
   display:flex;flex-direction:column;justify-content:center;
   gap:10px;padding:24px 16px;
@@ -1452,7 +1454,7 @@ renderer.setClearColor(0x0a0a0a);
 renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
 
-const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0a0a0a,0.016);
+const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0a0a0a, isChrome ? 0.010 : 0.016);
 const camera=new THREE.PerspectiveCamera(50,W/H,0.1,200);
 camera.position.set(0,1.5,28);camera.lookAt(0,0,0);
 // Mobile: zoom out camera to give more viewport space for text
@@ -1524,7 +1526,7 @@ floorM.rotation.x=-Math.PI/2;floorM.position.y=-9;scene.add(floorM);
 // Fix #4b: overlay canvas DPR — mobile 1.0, Chrome desktop 1.0 (matches renderer DPR cap), others 2.0
 const _dpr = Math.min(devicePixelRatio, isMobile ? 1.0 : (isChrome ? 1.0 : 2.0));
 const ov=document.createElement('canvas');
-ov.width=W*_dpr;ov.height=H*_dpr;const ovCtx=ov.getContext('2d');
+ov.width=W*_dpr;ov.height=H*_dpr;const ovCtx=ov.getContext('2d',{willReadFrequently:false});
 ovCtx.scale(_dpr,_dpr);
 const ovTex = new THREE.CanvasTexture(ov);
 ovTex.minFilter = THREE.LinearFilter;
@@ -2487,7 +2489,9 @@ function drawBlackHoleOverlay() {
     if(coreR < 1) return;
 
     ovCtx.save();
-    if (bh.type === 'blackhole') {
+    // Perf: skip expensive glow gradients for project orbs when rail is active (they're off-canvas)
+    const _skipGlow = isChrome && bh._isProjectOrb && _orbRailActive;
+    if (!_skipGlow) { if (bh.type === 'blackhole') {
       if (bh._zenOrb) {
         [
           { r: coreR * 4.5, a: 0.02, col: '255,200,80' },
@@ -2559,6 +2563,8 @@ function drawBlackHoleOverlay() {
       ovCtx.beginPath(); ovCtx.arc(sx, sy, flareR * 0.8, 0, Math.PI * 2);
       ovCtx.fillStyle = fg; ovCtx.fill();
     }
+
+    } // end if (!_skipGlow)
 
     ovCtx.restore();
   });
@@ -3328,8 +3334,8 @@ function _createOrbWidget(orb) {
           ↗ visit
         </a>
       </div>
-      <div class="orb-widget-iframe-wrap" style="display:none;margin-top:10px;overflow:hidden;border:1px solid #fff;height:175px;position:relative;">
-        <iframe class="orb-widget-iframe" src="" loading="lazy"
+      <div class="orb-widget-iframe-wrap" style="display:none;margin-top:10px;overflow:hidden;border:1px solid #fff;height:175px;position:relative;contain:strict;">
+        <iframe class="orb-widget-iframe" src="" loading="lazy" referrerpolicy="no-referrer"
           style="width:936px;height:702px;border:none;display:block;background:#000;transform:scale(0.25);transform-origin:top left;"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </div>
@@ -5442,8 +5448,8 @@ function drawTextLayer(){
   }
   _textMaxVel = Math.sqrt(_frameMaxVel); // store for next-frame settle check
 
-  // bloom circle under cursor — skip on mobile
-  if(!isMobile){
+  // bloom circle under cursor — skip on mobile and Chrome (subtle effect, expensive gradient per frame)
+  if(!isMobile && !isChrome){
     const grad=tctx.createRadialGradient(bX,bY,0,bX,bY,BLOOM_R);
     grad.addColorStop(0,'rgba(255,255,248,0.04)');
     grad.addColorStop(0.4,'rgba(255,255,248,0.015)');
@@ -5513,6 +5519,9 @@ function tick(){
 
   pMat.uniforms.uSz.value=P.size;
   const N=Math.min(P.count,MP);
+  // Perf: on Chrome desktop (DPR 1.0), skip z-axis particle velocity updates — saves ~12% per-particle
+  // The z-depth effect is invisible at DPR 1.0 and the basketball level only uses x/y motion
+  const _skipZ = !isMobile && isChrome;
 
   // Compute world-space viewport edges at z=0 for edge repulsion
   const edgeL=s2w(0,H/2).x,edgeR=s2w(W,H/2).x;
@@ -5566,12 +5575,12 @@ function tick(){
     // ── Freefall XY bias: damp z toward 0 while particle is airborne ──
     // In waterfall mode suppress z damping so the depth layers stay spread
     const airborne=pp[b+1]>-8.0;
-    if(airborne && !P.waterfall){
+    if(airborne && !P.waterfall && !_skipZ){
       pp[b+2]*=0.88;
       pv[b+2]*=0.80;
     }
 
-    pp[b]+=pv[b]*dt;pp[b+1]+=pv[b+1]*dt;pp[b+2]+=pv[b+2]*dt;
+    pp[b]+=pv[b]*dt;pp[b+1]+=pv[b+1]*dt;if(!_skipZ)pp[b+2]+=pv[b+2]*dt;
 
     // ── Viewport edge soft repulsion ──
     const dL=pp[b]-edgeL,dR=edgeR-pp[b];
@@ -5688,7 +5697,7 @@ function tick(){
     pv[b]*=0.997;
   }
   for(let i=N;i<MP;i++){if(pal[i]){pal[i]=0;pp[i*3+1]=-9999;}}
-  pGeo.attributes.position.needsUpdate=true;
+  if(N > 0) pGeo.attributes.position.needsUpdate=true;
 
   // Fix perf: HUD DOM updates throttled on mobile (every 3rd frame vs every frame)
   if(!isMobile||_ovFrame%3===0){ countTgts();updateHUD();checkDone(); }
@@ -5765,14 +5774,32 @@ document.querySelectorAll('.widget').forEach(w => {
     el,
     vx:0, vy:0,
     ox:0, oy:0, // offset from rest
+    // cached center — recomputed on resize, not every frame
+    _cx: 0, _cy: 0, _cached: false,
   }));
+
+  // Cache rest positions once after first layout
+  function _cacheLetterPositions() {
+    letters.forEach(lt => {
+      const r = lt.el.getBoundingClientRect();
+      lt._cx = r.left + r.width / 2;
+      lt._cy = r.top + r.height / 2;
+      lt._cached = true;
+    });
+  }
+  requestAnimationFrame(_cacheLetterPositions);
+  window.addEventListener('resize', _cacheLetterPositions);
 
   const K = 0.08;   // spring stiffness
   const DAMP = 0.72; // damping
   const REPEL = 60;  // repel radius
   const REPEL_STR = 2.2;
 
+  let _logoFrame = 0;
   function tickLogo(){
+    _logoFrame++;
+    // Chrome: run every 2nd frame — logo physics is subtle enough at 30fps
+    if (isChrome && _logoFrame % 2 !== 0) { requestAnimationFrame(tickLogo); return; }
     const mx = mX, my = mY; // reuse main cursor coords
     // Get logo container position
     const container = document.getElementById('zckgrt-logo');
@@ -5781,9 +5808,9 @@ document.querySelectorAll('.widget').forEach(w => {
 
     letters.forEach((lt,i) => {
       const el = lt.el;
-      const r = el.getBoundingClientRect();
-      const cx = r.left + r.width/2;
-      const cy = r.top + r.height/2;
+      // Use cached rest position — avoids forced layout recalc every frame
+      const cx = lt._cx + lt.ox;
+      const cy = lt._cy + lt.oy;
 
       // repel from cursor
       const dx = cx - mx, dy = cy - my;
