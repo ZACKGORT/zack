@@ -6624,9 +6624,19 @@ function _drawScoreFlash(){
     const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
   });
 
-  // ── Mobile touch: long-press for bullet-time, tap-to-fire. No swipe aiming. ──
+  // ── Mobile touch: grab/flick ball OR long-press for bullet-time, tap-to-fire ──
   if(isMobile){
     let _btHoldStart={x:0,y:0};
+    // Helper: is the touch hitting the ball's screen area?
+    function _touchHitsBall(cx,cy){
+      if(!_bbBall) return false;
+      const sc=_bbBall.pos.clone().project(camera);
+      const sx=(sc.x+1)/2*W, sy=(-sc.y+1)/2*H;
+      const edge=new THREE.Vector3(_bbBall.pos.x+_bbBall.radius,_bbBall.pos.y,_bbBall.pos.z||0).project(camera);
+      const visualR=Math.abs((edge.x+1)/2*W-sx);
+      const touchR=Math.max(52,visualR*1.5); // generous touch target
+      return Math.sqrt((cx-sx)**2+(cy-sy)**2)<touchR;
+    }
     canvas.addEventListener('touchstart',e=>{
       if(!_isBBallActive()) return;
       if(_hoopDragging) return;
@@ -6638,6 +6648,8 @@ function _drawScoreFlash(){
         e.stopImmediatePropagation(); return;
       }
       const t=e.touches[0];
+      // If finger is on the ball, let it fall through to the attractor drag system
+      if(_touchHitsBall(t.clientX,t.clientY)) return;
       _btHoldStart.x=t.clientX; _btHoldStart.y=t.clientY;
       // Update aim target while finger is held so bullet-time aims correctly
       _bulletTimeMouse.x=t.clientX; _bulletTimeMouse.y=t.clientY;
@@ -6663,6 +6675,8 @@ function _drawScoreFlash(){
 
     canvas.addEventListener('touchend',e=>{
       if(_btLpTimer){ clearTimeout(_btLpTimer); _btLpTimer=null; }
+      // If the attractor system has the ball, let touchend fall through to apply throw
+      if(tAttractor&&tAttractor===_bbBall) return;
       // No swipe-to-shoot on mobile — only bullet-time tap-to-fire
       e.stopImmediatePropagation();
     },{capture:true,passive:false});
