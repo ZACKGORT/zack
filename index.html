@@ -2768,8 +2768,10 @@ function initLevel(n){
   const aimCv = document.getElementById('aim-canvas');
   if (aimCv) aimCv.style.display = isBball ? '' : 'none';
   if (isBball) {
-    P.count=BASE_COUNT; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
+    P.count = (isChrome && !isMobile) ? Math.round(BASE_COUNT * 0.55) : BASE_COUNT;
+    P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
     P.size = isMobile ? 0.32 : 0.52; P.waterfall = true; _wfPhase = 0;
+    _bbGravScale = 0;
     const setSl = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
     const setVl = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
     setSl('sl-count',BASE_COUNT); setVl('v-count',BASE_COUNT);
@@ -3923,6 +3925,7 @@ window.addEventListener('keyup',e=>{if(e.key==='Shift'){shiftDown=false;if(dShap
 let tAttractor=null,aDragOff=new THREE.Vector3();
 // Zen-orb particle gravity spike: spikes when BH touches a project orb, decays back
 let _zenGravSpike=0;
+let _bbGravScale=0; // 0=no gravity, 1=full gravity — driven by ball speed on level 6
 
 // ── Throw velocity tracking for bouncing BH ───────────────────────────────────
 // Ring buffer of recent world-space attractor positions while dragging
@@ -5441,11 +5444,11 @@ function tick(){
     if (_bbBall && !_bbBall.dragging && lvl === 6) {
       const zdx = _bbBall.pos.x - pp[b], zdy = _bbBall.pos.y - pp[b+1], zdz = (_bbBall.pos.z||0) - pp[b+2];
       const zdist2 = zdx*zdx + zdy*zdy + zdz*zdz;
-      const ZEN_MAIN_R = 16.0;
+      const ZEN_MAIN_R = 10.0;
       if (zdist2 < ZEN_MAIN_R * ZEN_MAIN_R) {
         const zdist = Math.sqrt(zdist2) + 0.001;
         const falloff = 1.0 - zdist / ZEN_MAIN_R;
-        const zf = 28.0 * falloff * falloff * dt / zdist;
+        const zf = 10.0 * falloff * falloff * dt / zdist;
         pv[b]   += zdx * zf;
         pv[b+1] += zdy * zf;
         pv[b+2] += zdz * zf * 0.4;
@@ -5454,7 +5457,8 @@ function tick(){
     
     // Waterfall: each tier has its own gravity multiplier so layers fall at different speeds
     const gravMult = P.waterfall ? (0.45 + pGravTier[i] * 0.55) : 1.0;
-    pv[b+1]-=(P.gravity+_zenGravSpike)*gravMult*dt;
+    const gravScale = (lvl === 6 && _bbBall) ? _bbGravScale : 1.0;
+    pv[b+1]-=(P.gravity+_zenGravSpike)*gravMult*gravScale*dt;
     if(P.rain){pv[b]-=pp[b]*0.4*dt;pv[b+2]-=pp[b+2]*0.3*dt;}
 
     // ── Freefall XY bias: damp z toward 0 while particle is airborne ──
@@ -5739,7 +5743,7 @@ setTimeout(() => {
 // Fix perf: mobile reduces hoop particle counts significantly
 var RIM_RING_COUNT  = isMobile ? (isChrome ? 200 : 300)  : (isChrome ? 500  : 800);
 var RIM_CLOUD_COUNT = isMobile ? (isChrome ? 250 : 400)  : (isChrome ? 700  : 1200);
-var NET_COUNT       = isMobile ? (isChrome ? 900 : 1400) : (isChrome ? 2800 : 4200);
+var NET_COUNT       = isMobile ? (isChrome ? 900 : 1400) : (isChrome ? 1200 : 2200);
 
 function _buildHoop() {
   if (_hoopGroup) {
@@ -5843,10 +5847,9 @@ function _spawnNetParticle(i) {
   _netVel[b]=-Math.cos(angle)*inwardSpd+(Math.random()-0.5)*0.1;
   _netVel[b+1]=-downSpd;
   _netVel[b+2]=-Math.sin(angle)*inwardSpd+(Math.random()-0.5)*0.08;
-  // Lifetime: long enough for particles to reach FLR (-9.0) from hoop (~3.8)
-  // Drop = ~12.8 units, slowest tier speed ~0.6+grav — use ~4s max life
-  const lifetimes=[3.8,2.2,1.0];
-  _netLife[i]=lifetimes[tier]+Math.random()*1.2;
+  // Lifetime: shorter stream — particles expire before hitting floor
+  const lifetimes=[2.2,1.4,0.7];
+  _netLife[i]=lifetimes[tier]+Math.random()*0.7;
   _netAge[i]=0;
 }
 
@@ -5963,8 +5966,8 @@ function _tickRimRing(dt) {
     // Strong enough to visibly bend the falling stream toward the ball —
     // same character as the ground-particle interaction.
     if (_bbBall && !_bbBall.dragging) {
-      const ZEN_NET_R = 12.0;   // wide radius — catches the whole stream column
-      const ZEN_NET_STR = 52.0; // strong enough to visibly deflect falling particles
+      const ZEN_NET_R = 8.0;
+      const ZEN_NET_STR = 22.0;
       const bx = _bbBall.pos.x, by = _bbBall.pos.y, bz = _bbBall.pos.z || 0;
       for (let i = 0; i < NET_COUNT; i++) {
         const b = i * 3;
@@ -6120,6 +6123,12 @@ function _tickBBall(dt){
 
   const spd=Math.sqrt(b.vel.x**2+b.vel.y**2);
   if(spd>(b._bbMaxSpd||24)){const s=b._bbMaxSpd/spd;b.vel.x*=s;b.vel.y*=s;}
+
+  // ── Gravity scale: ramps 0→1 with ball speed, smooth lerp so it fades gracefully ──
+  const targetGravScale = spd < 1.0 ? 0.0 : Math.min(1.0, (spd - 1.0) / 6.0);
+  // Decay fast (ball stopping), ramp slower (ball thrown) — asymmetric lerp
+  const lerpRate = targetGravScale < _bbGravScale ? 4.5 : 2.0;
+  _bbGravScale += (targetGravScale - _bbGravScale) * Math.min(1.0, lerpRate * dt);
 
   const rimXZDist=Math.sqrt((b.pos.x-HOOP.x)**2+((b.pos.z||0)-HOOP.z)**2);
   const ballAboveRim=b.pos.y>HOOP.y+ballR+0.05;
