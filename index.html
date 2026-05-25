@@ -228,6 +228,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     border-bottom:1px solid rgba(255,255,255,0.05);
   }
   .mb-link-row:last-child{border-bottom:none;}
+  .mb-link-row.active{border-left:2px solid rgba(255,255,255,0.7);padding-left:10px;}
+  .mb-link-row.active .mb-link-name{color:rgba(255,255,255,1);}
+  .mb-link-row.active .mb-link-cta{opacity:1;}
   .mb-link-name{
     font-family:'Space Mono',monospace;
     font-size:9px;
@@ -838,23 +841,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 
 <!-- Mobile compact link list: replaces orb-rail widgets on mobile -->
 <div id="mb-link-list">
-  <div class="mb-link-row">
+  <div class="mb-link-row" id="mb-link-row-0">
     <span class="mb-link-name">zackgort.com</span>
     <a class="mb-link-cta" href="https://www.zackgort.com" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row">
+  <div class="mb-link-row" id="mb-link-row-1">
     <span class="mb-link-name">zackgort.com/career</span>
     <a class="mb-link-cta" href="https://www.zackgort.com/career" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row">
+  <div class="mb-link-row" id="mb-link-row-2">
     <span class="mb-link-name">neverever.land</span>
     <a class="mb-link-cta" href="https://www.neverever.land" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row">
+  <div class="mb-link-row" id="mb-link-row-3">
     <span class="mb-link-name">reasonably.cc</span>
     <a class="mb-link-cta" href="https://www.reasonably.cc" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row">
+  <div class="mb-link-row" id="mb-link-row-4">
     <span class="mb-link-name">emdash.click</span>
     <a class="mb-link-cta" href="https://www.emdash.click" target="_blank" rel="noopener">visit ↗</a>
   </div>
@@ -3459,6 +3462,14 @@ function _toggleOrbPreview(idx, url) {
 
 const STMT_WIDGET_MAP = [0, 1, 2, 3, 4]; // statement i → widget index
 
+// Highlight the mb-link-row that corresponds to the active statement
+function _syncMbLinkHighlight(stmtIdx) {
+  const widgetIdx = STMT_WIDGET_MAP[stmtIdx];
+  document.querySelectorAll('.mb-link-row').forEach((row, i) => {
+    row.classList.toggle('active', i === widgetIdx);
+  });
+}
+
 // Track which widget currently has its iframe expanded (desktop)
 let _activeWidgetIdx = -1; // -1 = none yet
 
@@ -3489,6 +3500,7 @@ function _focusWidget(widgetIdx, animate) {
   if (stmtIdx !== -1 && stmtIdx !== _stmtIdx) {
     _stmtIdx = stmtIdx;
     _buildStatement(_stmtIdx, animate !== false ? false : true);
+    _syncMbLinkHighlight(_stmtIdx);
   }
 }
 
@@ -6371,6 +6383,7 @@ function _registerScore(){
   // Cycle statement + advance to next widget on score (desktop only)
   _stmtIdx=(_stmtIdx+1)%STATEMENTS.length;
   _buildStatement(_stmtIdx,false);
+  _syncMbLinkHighlight(_stmtIdx);
   // Desktop: expand the widget paired to the new statement
   if (!isMobile) {
     const nextWidgetIdx = STMT_WIDGET_MAP[_stmtIdx];
@@ -6792,6 +6805,7 @@ window.addEventListener('keydown',e=>{
   // Cycle to next statement via floating text system
   _stmtIdx = (_stmtIdx + 1) % STATEMENTS.length;
   _buildStatement(_stmtIdx, true);
+  _syncMbLinkHighlight(_stmtIdx);
   // Soft dribble — maintain existing ball physics
   if (_bbBall) {
     _lastActionWasSpacebar = true;
@@ -6908,31 +6922,31 @@ const STATEMENTS = [
     h1: 'i craft experiences for digital intent.',
     p: 'e-commerce • fintech • saas',
     pull: '"think. make. write. design."',
-
+    cta: { label: 'See the work', href: '#' },
   },
   {
     h1: 'thinker & maker',
-    p: 'from bootstrap startups to A-list agencies working with blue-chip clients on a global stage — forging a career in information architecture and scalable interaction (& design) systems built for both entrepreneur & enterprise.',
+    p: 'From bootstrap startups to A-list agencies working with blue-chip clients on a global stage — forging a career in information architecture and scalable interaction (& design) systems built for both entrepreneur & enterprise.',
     pull: 'design systems, user experience, accessibility & compliance',
-
+    cta: { label: 'Explore projects', href: '#' },
   },
   {
-    h1: '"a.i. think, therefore a.i. am"',
-    p: 'one of the ways I am thinking about intent is in how we structure it for ourselves while communicating effectively and efficiently with our robot counterparts — this is my answer, so far.',
+    h1: 'AI-think, therefore AI-am — I think.',
+    p: 'One of the ways I am thinking about intent is in how we structure it for ourselves while communicating effectively and efficiently with our robot counterparts — this is my answer, so far.',
     pull: '"off to neverever.land"',
-
+    cta: { label: 'Get in touch', href: 'mailto:zack@reasonably.cc' },
   },
   {
-    h1: 'the tokenization of craft. ',
+    h1: 'The Tokenization of Craft. ',
     p: 'i am an artist. i went to art school. i studied 3d animation & motion graphics. i lacked the funds to complete my degree. i found work as a graphic designer, then web designer, then ux designer, then product designer.  <br><br>my point is: I built all of this for free, using this to assist. ',
     pull: '"i built my craft by being crafty — when prudence is preferred."',
-
+    cta: { label: "Let's talk", href: 'mailto:zack@reasonably.cc' },
   },
   {
-    h1: 'copy this em—effer!',
+    h1: 'Copy this em—effer!',
     p: 'bookmark this site. use it em—phatically.',
     pull: '"craft matters in communication."',
-
+    cta: { label: 'Try emdash', href: 'https://www.emdash.click' },
   },
 ];
 
@@ -6961,7 +6975,7 @@ function _updateStmtNav(activeIdx) {
   nav.querySelectorAll('.stmt-dot').forEach(dot => {
     dot.addEventListener('click', () => {
       const i = parseInt(dot.dataset.idx, 10);
-      if (i !== _stmtIdx) { _stmtIdx = i; _buildStatement(_stmtIdx, false); }
+      if (i !== _stmtIdx) { _stmtIdx = i; _buildStatement(_stmtIdx, false); _syncMbLinkHighlight(_stmtIdx); }
     });
   });
 }
@@ -6973,10 +6987,12 @@ setTimeout(() => {
   if (prev) prev.addEventListener('click', () => {
     _stmtIdx = (_stmtIdx - 1 + STATEMENTS.length) % STATEMENTS.length;
     _buildStatement(_stmtIdx, false);
+    _syncMbLinkHighlight(_stmtIdx);
   });
   if (next) next.addEventListener('click', () => {
     _stmtIdx = (_stmtIdx + 1) % STATEMENTS.length;
     _buildStatement(_stmtIdx, false);
+    _syncMbLinkHighlight(_stmtIdx);
   });
 }, 200);
 
@@ -7006,6 +7022,7 @@ setTimeout(() => {
   // Also spawn project orbs on the basketball level
   // (orbs normally spawn on zen-mode lvl=5; we're on lvl=6 so spawn them here)
   _spawnProjectOrbs();
+  _syncMbLinkHighlight(0); // highlight row 0 on load
   // Auto-expand iframes on desktop only (collapsed by default on mobile)
   if (!isMobile) setTimeout(() => {
     _toggleOrbPreview(0, PROJECT_DATA[0].url); // zackgort.com — expanded at load (paired with statement 0)
