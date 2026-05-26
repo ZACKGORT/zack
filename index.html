@@ -228,9 +228,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     border-bottom:1px solid rgba(255,255,255,0.05);
   }
   .mb-link-row:last-child{border-bottom:none;}
-  .mb-link-row.active{border-left:2px solid rgba(255,255,255,0.7);padding-left:10px;}
-  .mb-link-row.active .mb-link-name{color:rgba(255,255,255,1);}
-  .mb-link-row.active .mb-link-cta{opacity:1;}
   .mb-link-name{
     font-family:'Space Mono',monospace;
     font-size:9px;
@@ -841,23 +838,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 
 <!-- Mobile compact link list: replaces orb-rail widgets on mobile -->
 <div id="mb-link-list">
-  <div class="mb-link-row" id="mb-link-row-0">
+  <div class="mb-link-row">
     <span class="mb-link-name">zackgort.com</span>
     <a class="mb-link-cta" href="https://www.zackgort.com" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row" id="mb-link-row-1">
+  <div class="mb-link-row">
     <span class="mb-link-name">zackgort.com/career</span>
     <a class="mb-link-cta" href="https://www.zackgort.com/career" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row" id="mb-link-row-2">
+  <div class="mb-link-row">
     <span class="mb-link-name">neverever.land</span>
     <a class="mb-link-cta" href="https://www.neverever.land" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row" id="mb-link-row-3">
+  <div class="mb-link-row">
     <span class="mb-link-name">reasonably.cc</span>
     <a class="mb-link-cta" href="https://www.reasonably.cc" target="_blank" rel="noopener">visit ↗</a>
   </div>
-  <div class="mb-link-row" id="mb-link-row-4">
+  <div class="mb-link-row">
     <span class="mb-link-name">emdash.click</span>
     <a class="mb-link-cta" href="https://www.emdash.click" target="_blank" rel="noopener">visit ↗</a>
   </div>
@@ -1557,7 +1554,7 @@ let mX=W/2,mY=H/2,bX=W/2,bY=H/2,eX=W/2,eY=H/2,eVX=0,eVY=0;
 let mVX=0,mVY=0,cvx=0,cvy=0,cX=W/2,cY=H/2;
 
 // cx.html physics constants
-const BLOB_LERP=0.11,TETHER_K=0.014,DAMP=0.76,REPEL_R=isMobile?55:110,BLOOM_R=REPEL_R*1.45;
+const BLOB_LERP=0.11,TETHER_K=0.014,DAMP=0.76,REPEL_R=isMobile?32:110,BLOOM_R=REPEL_R*1.45;
 
 // text chars — each char is a physics particle
 let textChars=[];
@@ -1738,7 +1735,7 @@ var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
 var _hoopVelX=0,_hoopVelY=0,_prevHoopX=0,_prevHoopY=0,_hoopDragStartT=0;
 var HOOP={
-  x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.11,
+  x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
   boardW:3.6,boardH:2.6,boardDepth:0.12,
   scored:false,scoreFlash:0,totalScore:0,streak:0,
   _lastBallY:null,_inFrontOfRim:false,_passThroughArmed:false,
@@ -2489,7 +2486,7 @@ function drawBlackHoleOverlay() {
     const scale = Math.sqrt(bh.pullStrength / basePull);
     _ovV3.set(bh.pos.x + bh.radius * scale, bh.pos.y, 0).project(camera);
     const coreR = Math.abs((_ovV3.x + 1) / 2 * W - sx);
-    if(coreR < 1) return;
+    if(coreR < 1 || !isFinite(sx) || !isFinite(sy) || !isFinite(coreR)) return;
 
     ovCtx.save();
     // Perf: skip expensive glow gradients for project orbs when rail is active (they're off-canvas)
@@ -2554,6 +2551,7 @@ function drawBlackHoleOverlay() {
     if (bh._novaHitT && bh._novaHitT > 0) {
       const ft = bh._novaHitT;
       const flareR = coreR * (1.8 + (1 - ft) * 6.0);
+      if(!isFinite(flareR) || flareR < 0.1) { ovCtx.restore(); return; }
       const flareCol = bh.type === 'blackhole' ? '255,160,60' : '180,240,255';
       ovCtx.beginPath();
       ovCtx.arc(sx, sy, flareR, 0, Math.PI * 2);
@@ -3170,19 +3168,17 @@ let _orbRailActive = true; // default: railed
           if (el && el.parentNode !== document.body) document.body.appendChild(el);
           if (el) {
             el.style.position = 'fixed'; el._userAnchored = false;
-            // Floating card: full card visible, compact styling, no iframe
-            el.style.padding = '10px 12px 10px';
+            // Collapse to minimal link chip
+            el.style.padding = '0';
             el.style.border = '1px solid rgba(255,255,255,0.55)';
-            el.style.width = '200px';
+            el.style.width = 'auto';
             const full = el.querySelector('.orb-card-full');
             const chip = el.querySelector('.orb-card-chip');
-            if (full) full.style.display = 'block';
-            if (chip) chip.style.display = 'none';
-            // Hide iframe wrap and preview btn in float mode
+            if (full) full.style.display = 'none';
+            if (chip) chip.style.display = 'block';
+            // Hide iframe wrap if open
             const iw = el.querySelector('.orb-widget-iframe-wrap');
             if (iw) iw.style.display = 'none';
-            const pb = el.querySelector('.orb-widget-preview-btn');
-            if (pb) pb.style.display = 'none';
           }
           if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
         }
@@ -3462,14 +3458,6 @@ function _toggleOrbPreview(idx, url) {
 
 const STMT_WIDGET_MAP = [0, 1, 2, 3, 4]; // statement i → widget index
 
-// Highlight the mb-link-row that corresponds to the active statement
-function _syncMbLinkHighlight(stmtIdx) {
-  const widgetIdx = STMT_WIDGET_MAP[stmtIdx];
-  document.querySelectorAll('.mb-link-row').forEach((row, i) => {
-    row.classList.toggle('active', i === widgetIdx);
-  });
-}
-
 // Track which widget currently has its iframe expanded (desktop)
 let _activeWidgetIdx = -1; // -1 = none yet
 
@@ -3500,7 +3488,6 @@ function _focusWidget(widgetIdx, animate) {
   if (stmtIdx !== -1 && stmtIdx !== _stmtIdx) {
     _stmtIdx = stmtIdx;
     _buildStatement(_stmtIdx, animate !== false ? false : true);
-    _syncMbLinkHighlight(_stmtIdx);
   }
 }
 
@@ -3688,14 +3675,12 @@ function resolveCollisions(){
   }
 
   // ── Zen orb ↔ Project orb bumper collisions ──────────────────────────────
-  // Active on lvl 5 (zen) and lvl 6 (basketball).
-  // Project orbs act as pinball bumpers — zen hits them and they pop away energetically.
-  if((lvl===5||lvl===6)&&_projectOrbs.length){
-    const zenArr=attractors.filter(a=>a._bouncingBH&&!a._isBBall);
-    // On basketball level use the ball itself as the zen collider
-    const bbArr=(lvl===6&&_bbBall&&!_bbBall.dragging)?[_bbBall]:[];
-    const colliders=[...zenArr,...bbArr];
-    for(const zen of colliders){
+  // Always active on lvl 5 — works in both railed and minimized states.
+  // When railed the attractor mesh is hidden but position is still valid;
+  // when minimized the orbs float free as pinball bumpers.
+  if(lvl===5&&_projectOrbs.length){
+    const zenArr=attractors.filter(a=>a._bouncingBH);
+    for(const zen of zenArr){
       const zenScale=Math.sqrt(zen.pullStrength/57.0);
       const zenR=zen.radius*zenScale*1.1;
       for(const orb of _projectOrbs){
@@ -3703,43 +3688,44 @@ function resolveCollisions(){
         if(!orbAtt||orbAtt.dragging) continue;
         const dx=orbAtt.pos.x-zen.pos.x, dy=orbAtt.pos.y-zen.pos.y;
         const dist=Math.sqrt(dx*dx+dy*dy)||0.001;
-        const minD=zenR+orbAtt.radius*1.4;
+        const minD=zenR+orbAtt.radius*1.4; // slightly enlarged bumper surface
         if(dist>=minD) continue;
 
         const nx=dx/dist, ny=dy/dist;
         const pen=minD-dist;
 
-        // ── Zen/ball is the heavy collider: push it out, reflect normally ──
-        zen.pos.x-=nx*pen*0.5; zen.pos.y-=ny*pen*0.5;
-        const zenApproach=zen.vel.x*(-nx)+zen.vel.y*(-ny);
-        if(zenApproach>0){
-          zen.vel.x+=nx*zenApproach*0.8;
-          zen.vel.y+=ny*zenApproach*0.8;
+        // Bumper: orb is a heavy immovable pin — absorbs almost no momentum
+        // Zen bounces off with high restitution + speed bonus
+        const incomingSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2);
+        const approach=zen.vel.x*(-nx)+zen.vel.y*(-ny); // how fast zen is closing
+        const BUMPER_RESTITUTION=1.35; // superelastic — adds energy like a pinball bumper
+        const MIN_EXIT_SPD=Math.max(incomingSpd*BUMPER_RESTITUTION, 6.0);
+
+        // Push zen cleanly out of overlap first
+        zen.pos.x-=nx*pen; zen.pos.y-=ny*pen;
+
+        // Reflect + boost zen velocity
+        if(approach>0){
+          zen.vel.x+=nx*approach*BUMPER_RESTITUTION;
+          zen.vel.y+=ny*approach*BUMPER_RESTITUTION;
+        }
+        // Guarantee minimum exit speed so slow grazes still pop
+        const exitSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2)||0.001;
+        if(exitSpd<MIN_EXIT_SPD){
+          zen.vel.x=(zen.vel.x/exitSpd)*MIN_EXIT_SPD;
+          zen.vel.y=(zen.vel.y/exitSpd)*MIN_EXIT_SPD;
         }
 
-        // ── Orb is the pinball bumper: pop away with superelastic energy ──
-        // Push orb cleanly out of overlap
-        orbAtt.pos.x+=nx*pen*0.5; orbAtt.pos.y+=ny*pen*0.5;
-        const incomingSpd=Math.sqrt(zen.vel.x**2+zen.vel.y**2);
-        const BUMPER_RESTITUTION=1.55; // superelastic — adds energy on every hit
-        const MIN_POP_SPD=Math.max(incomingSpd*BUMPER_RESTITUTION, 10.0);
-        // Reflect orb velocity away from collision normal
-        const orbApproach=orbAtt.vel.x*nx+orbAtt.vel.y*ny;
-        if(orbApproach<0){
-          orbAtt.vel.x-=(1+BUMPER_RESTITUTION)*orbApproach*nx;
-          orbAtt.vel.y-=(1+BUMPER_RESTITUTION)*orbApproach*ny;
-        }
-        // Guarantee minimum pop speed regardless of incoming angle
-        const orbSpd=Math.sqrt(orbAtt.vel.x**2+orbAtt.vel.y**2)||0.001;
-        if(orbSpd<MIN_POP_SPD){
-          orbAtt.vel.x=(orbAtt.vel.x/orbSpd)*MIN_POP_SPD;
-          orbAtt.vel.y=(orbAtt.vel.y/orbSpd)*MIN_POP_SPD;
+        // Orb bumper: tiny reactive kick so it feels alive, not frozen
+        if(!_orbRailActive){
+          const orbKick=1.8+incomingSpd*0.12;
+          orbAtt.vel.x+=nx*orbKick; orbAtt.vel.y+=ny*orbKick;
         }
 
         // Flash the orb widget border on hit
         const el=document.getElementById(`orb-widget-${orb.index}`);
         if(el){ el.style.borderColor=orb.data.color||'#fff';
-          setTimeout(()=>{ el.style.borderColor=''; },220); }
+          setTimeout(()=>{ el.style.borderColor=''; },180); }
 
         _zenGravSpike=Math.max(_zenGravSpike,18.0);
       }
@@ -5547,9 +5533,8 @@ function tick(){
     const b=i*3;
     if(!pal[i]){spawn(i);continue;}
     pa[i]+=dt;if(pa[i]>pl[i]){
-      if(P.waterfall&&pl[i]>3.0){
+      if(P.waterfall){
         // Asymmetric wave: fast attack to max, long slow decay to near-zero, repeat
-        // Only applies to normal waterfall drops (pl > 3s); burst particles always respawn immediately
         // t = 0→1 over one cycle
         const pOffset = (i / N) * 0.18; // small phase spread for texture
         const t = ((_wfPhase + pOffset) % (Math.PI * 2)) / (Math.PI * 2); // 0→1
@@ -6181,107 +6166,53 @@ function _tickBBall(dt){
   const radDist=Math.sqrt(rdx*rdx+rdz*rdz);
   const ballR=b.radius*Math.sqrt(b.pullStrength/57.0)*0.7;
 
-  // ── Multi-sample toroidal rim collision ──────────────────────────────────────
-  // Sample N points around the rim ring. This catches grazes at left/right posts
-  // that a single XZ-nearest-point test misses when the ball is near rim-height.
-  const combinedTilt = HOOP._rimTilt + HOOP._dbTilt;
-  const minDist = HOOP.rimTube + ballR;
-  const RIM_SAMPLES = 24; // enough resolution to never miss a graze
-  let bestPen = -Infinity, bestNx = 0, bestNy = 1, bestNz = 0;
-  let bestContactDirX = 0, bestSampleAngle = 0;
-  let hitFound = false;
+  if(radDist>0.001){
+    const closestRingX=rimCX+(rdx/radDist)*HOOP.rimR;
+    const closestRingZ=rimCZ+(rdz/radDist)*HOOP.rimR;
+    // contactDirX: signed X component of the radial hit direction (-1=left, +1=right)
+    const contactDirX=rdx/radDist;
+    // rimOffsetX: signed X offset of contact point from rim center
+    const rimOffsetX=closestRingX-rimCX;
+    // Combined tilt: primary + diving-board, applied along X for visual
+    const combinedTilt=HOOP._rimTilt+HOOP._dbTilt;
+    // Tilt displaces Y based on signed X offset from rim center
+    const tiltedRingY=HOOP.y+Math.sin(combinedTilt)*rimOffsetX;
+    const toX=b.pos.x-closestRingX,toY=b.pos.y-tiltedRingY,toZ=(b.pos.z||0)-closestRingZ;
+    const toRimDist=Math.sqrt(toX*toX+toY*toY+toZ*toZ);
+    const minDist=HOOP.rimTube+ballR;
+    if(toRimDist<minDist&&toRimDist>0.001){
+      const nx=toX/toRimDist,ny=toY/toRimDist,nz=toZ/toRimDist;
+      const pen=minDist-toRimDist;
+      b.pos.x+=nx*pen*1.1; b.pos.y+=ny*pen*1.1;
+      if(b.pos.z!==undefined) b.pos.z+=nz*pen*1.1;
+      const vDotN=b.vel.x*nx+b.vel.y*ny+(b.vel.z||0)*nz;
+      if(vDotN<0){
+        // edgeFrac: 0 at rim center, ramps to 1 in outer 40% of the rim ring
+        const edgeFrac=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
+        const REST_RIM=0.55+edgeFrac*0.32;
+        b.vel.x-=(1+REST_RIM)*vDotN*nx; b.vel.y-=(1+REST_RIM)*vDotN*ny;
+        if(b.vel.z!==undefined) b.vel.z-=(1+REST_RIM)*vDotN*nz;
+        b.vel.x*=0.85+edgeFrac*0.08; b.vel.y*=0.85+edgeFrac*0.08;
+        const impactSpeed=Math.abs(vDotN);
+        const downImpact=Math.max(0,-ny)*impactSpeed;
 
-  for (let si = 0; si < RIM_SAMPLES; si++) {
-    const ang = (si / RIM_SAMPLES) * Math.PI * 2;
-    const sRx = rimCX + Math.cos(ang) * HOOP.rimR;
-    const sRz = rimCZ + Math.sin(ang) * HOOP.rimR;
-    // Tilt: Y displacement based on this sample's X offset from rim center
-    const sOffX = Math.cos(ang) * HOOP.rimR; // = sRx - rimCX
-    const sRy   = HOOP.y + Math.sin(combinedTilt) * sOffX;
-
-    const toX = b.pos.x - sRx;
-    const toY = b.pos.y - sRy;
-    const toZ = (b.pos.z || 0) - sRz;
-    const d = Math.sqrt(toX*toX + toY*toY + toZ*toZ);
-    if (d < minDist && d > 0.001) {
-      const pen = minDist - d;
-      if (pen > bestPen) {
-        bestPen = pen;
-        bestNx = toX/d; bestNy = toY/d; bestNz = toZ/d;
-        bestContactDirX = Math.cos(ang); // signed X component of this sample's radial direction
-        bestSampleAngle = ang;
-        hitFound = true;
-      }
-    }
-  }
-
-  if (hitFound) {
-    const pen = bestPen;
-    const nx = bestNx, ny = bestNy, nz = bestNz;
-    const contactDirX = bestContactDirX;
-
-    // Push ball out of rim tube
-    b.pos.x += nx * pen * 1.05;
-    b.pos.y += ny * pen * 1.05;
-    if (b.pos.z !== undefined) b.pos.z += nz * pen * 1.05;
-
-    const vDotN = b.vel.x*nx + b.vel.y*ny + (b.vel.z||0)*nz;
-    if (vDotN < 0) {
-      // edgeFrac: 0 at front/back of rim, ramps to 1 at left/right posts
-      // |contactDirX| = 1 at 3/9 o'clock (posts), 0 at 12/6 o'clock (front/back)
-      const edgeFrac = Math.max(0, (Math.abs(contactDirX) - 0.55) / 0.45);
-      // Restitution: softer at front/back (ball rattles in), sharper at posts (kick out)
-      const REST_RIM = 0.50 + edgeFrac * 0.38;
-      // Normal impulse
-      b.vel.x -= (1 + REST_RIM) * vDotN * nx;
-      b.vel.y -= (1 + REST_RIM) * vDotN * ny;
-      if (b.vel.z !== undefined) b.vel.z -= (1 + REST_RIM) * vDotN * nz;
-      // Tangential friction: rim surface slows the ball, more at posts
-      const friction = 0.82 + edgeFrac * 0.10;
-      b.vel.x *= friction; b.vel.y *= friction;
-
-      const impactSpeed = Math.abs(vDotN);
-      const downImpact  = Math.max(0, -ny) * impactSpeed;
-
-      // Rim tilt response: post hits drive the diving-board oscillator
-      if (edgeFrac > 0.02) {
-        HOOP._dbVel     += downImpact * edgeFrac * 3.2 * contactDirX;
-        HOOP._rimTiltVel+= downImpact * edgeFrac * HOOP._rimImpulseScale * 0.55 * contactDirX;
-      }
-      // Any rim hit excites the primary spring slightly (vibration feel)
-      HOOP._rimTiltVel += downImpact * 0.18 * contactDirX;
-
-      HOOP.scoreFlash = Math.max(HOOP.scoreFlash, 0.20 + edgeFrac * 0.22);
-    }
-  }
-
-  // ── Backboard collision ───────────────────────────────────────────────────
-  // Board is at z = HOOP.z - (rimR + small gap), spanning boardW × boardH
-  {
-    const boardZ  = HOOP.z - HOOP.rimR - 0.28;
-    const halfW   = HOOP.boardW * 0.5;
-    const boardTop= HOOP.y + HOOP.boardH * 0.62;
-    const boardBot= HOOP.y - HOOP.boardH * 0.38;
-    const bz = b.pos.z || 0;
-    // Only test when ball is in front of board and within board extents
-    if (b.pos.x > HOOP.x - halfW && b.pos.x < HOOP.x + halfW &&
-        b.pos.y > boardBot        && b.pos.y < boardTop) {
-      const dz = bz - boardZ;
-      if (dz > 0 && dz < ballR + 0.12) {
-        // Ball touching front face of board
-        b.pos.z = boardZ + ballR + 0.02;
-        if ((b.vel.z || 0) < 0) {
-          b.vel.z = -(b.vel.z || 0) * 0.58;
-          // Bank: preserve XY with slight damping
-          b.vel.x *= 0.94; b.vel.y *= 0.94;
+        // ── Symmetric diving-board response ──────────────────────────────────
+        // contactDirX: +1 = right-side hit, -1 = left-side hit.
+        // _dbTilt > 0 = right side low; _dbVel drives it in that direction.
+        // So multiplying by contactDirX makes either side dip correctly.
+        if(edgeFrac>0.02){
+          HOOP._dbVel+=downImpact*edgeFrac*2.8*contactDirX;
+          HOOP._rimTiltVel+=downImpact*edgeFrac*HOOP._rimImpulseScale*0.5*contactDirX;
         }
+
+        HOOP.scoreFlash=Math.max(HOOP.scoreFlash,0.22+edgeFrac*0.18);
       }
     }
   }
 
   const edgeL2=s2w(0,H/2).x-1.5, edgeR2=s2w(W,H/2).x+1.5;
   const BY_FLOOR=FLR+ballR+0.05; // ball rests on FLR ground
-  const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
+  const BY_CEIL=s2w(W/2, isMobile ? 48 : -60).y; // mobile: ceiling at bottom of mobile bar so ball reaches viewport top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
     if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
@@ -6383,7 +6314,6 @@ function _registerScore(){
   // Cycle statement + advance to next widget on score (desktop only)
   _stmtIdx=(_stmtIdx+1)%STATEMENTS.length;
   _buildStatement(_stmtIdx,false);
-  _syncMbLinkHighlight(_stmtIdx);
   // Desktop: expand the widget paired to the new statement
   if (!isMobile) {
     const nextWidgetIdx = STMT_WIDGET_MAP[_stmtIdx];
@@ -6515,17 +6445,8 @@ function _drawBulletTimeOverlay(){
   const dpr=Math.min(window.devicePixelRatio||1,isMobile?1.5:2.0);
   if(ac.width!==W*dpr){ac.width=W*dpr;ac.height=H*dpr;}
   const ctx=ac.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
-  // Smooth vignette: 8 stops on a cubic ease-in curve — eliminates banding
-  const vg=ctx.createRadialGradient(W/2,H/2,W*0.15,W/2,H/2,W*0.82);
-  const _va=(t)=>(t*t*t*0.30).toFixed(4); // cubic ease-in, max opacity 0.30
-  vg.addColorStop(0,   'rgba(0,0,0,0)');
-  vg.addColorStop(0.20,`rgba(0,0,0,${_va(0.20)})`);
-  vg.addColorStop(0.38,`rgba(0,0,0,${_va(0.38)})`);
-  vg.addColorStop(0.52,`rgba(0,0,0,${_va(0.52)})`);
-  vg.addColorStop(0.65,`rgba(0,0,0,${_va(0.65)})`);
-  vg.addColorStop(0.78,`rgba(0,0,0,${_va(0.78)})`);
-  vg.addColorStop(0.90,`rgba(0,0,0,${_va(0.90)})`);
-  vg.addColorStop(1.00,`rgba(0,0,0,${_va(1.00)})`);
+  const vg=ctx.createRadialGradient(W/2,H/2,W*0.2,W/2,H/2,W*0.78);
+  vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,`rgba(0,0,0,0.28)`);
   ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
   const arc=_btComputeArc(); if(!arc) return;
   const{arcPts,tFlight}=arc, n=arcPts.length;
@@ -6646,6 +6567,7 @@ function _drawBballHUD(ctx,dpr){
 }
 
 function _drawScoreFlash(){
+  // On mobile, bullet-time overlay and _drawAim don't run — we own the canvas here
   if(isMobile&&!_bulletTime){
     const ac=_getAimCanvas(); if(!ac) return;
     const dpr=Math.min(window.devicePixelRatio||1,1.5);
@@ -6665,6 +6587,7 @@ function _drawScoreFlash(){
     ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
     return;
   }
+  // Desktop: canvas was already cleared by _drawAim or _drawBulletTimeOverlay this frame
   if(HOOP.scoreFlash<=0) return;
   HOOP.scoreFlash=Math.max(0,HOOP.scoreFlash-0.028);
   const ac=_getAimCanvas(); if(!ac||_aimDrag) return;
@@ -6805,7 +6728,6 @@ window.addEventListener('keydown',e=>{
   // Cycle to next statement via floating text system
   _stmtIdx = (_stmtIdx + 1) % STATEMENTS.length;
   _buildStatement(_stmtIdx, true);
-  _syncMbLinkHighlight(_stmtIdx);
   // Soft dribble — maintain existing ball physics
   if (_bbBall) {
     _lastActionWasSpacebar = true;
@@ -6937,7 +6859,7 @@ const STATEMENTS = [
     cta: { label: 'Get in touch', href: 'mailto:zack@reasonably.cc' },
   },
   {
-    h1: 'The tokenization of craft. ',
+    h1: 'The Tokenization of Craft. ',
     p: 'i am an artist. i went to art school. i studied 3d animation & motion graphics. i lacked the funds to complete my degree. i found work as a graphic designer, then web designer, then ux designer, then product designer.  <br><br>my point is: I built all of this for free, using this to assist. ',
     pull: '"i built my craft by being crafty — when prudence is preferred."',
     cta: { label: "Let's talk", href: 'mailto:zack@reasonably.cc' },
@@ -6975,7 +6897,7 @@ function _updateStmtNav(activeIdx) {
   nav.querySelectorAll('.stmt-dot').forEach(dot => {
     dot.addEventListener('click', () => {
       const i = parseInt(dot.dataset.idx, 10);
-      if (i !== _stmtIdx) { _stmtIdx = i; _buildStatement(_stmtIdx, false); _syncMbLinkHighlight(_stmtIdx); }
+      if (i !== _stmtIdx) { _stmtIdx = i; _buildStatement(_stmtIdx, false); }
     });
   });
 }
@@ -6987,12 +6909,10 @@ setTimeout(() => {
   if (prev) prev.addEventListener('click', () => {
     _stmtIdx = (_stmtIdx - 1 + STATEMENTS.length) % STATEMENTS.length;
     _buildStatement(_stmtIdx, false);
-    _syncMbLinkHighlight(_stmtIdx);
   });
   if (next) next.addEventListener('click', () => {
     _stmtIdx = (_stmtIdx + 1) % STATEMENTS.length;
     _buildStatement(_stmtIdx, false);
-    _syncMbLinkHighlight(_stmtIdx);
   });
 }, 200);
 
@@ -7022,7 +6942,6 @@ setTimeout(() => {
   // Also spawn project orbs on the basketball level
   // (orbs normally spawn on zen-mode lvl=5; we're on lvl=6 so spawn them here)
   _spawnProjectOrbs();
-  _syncMbLinkHighlight(0); // highlight row 0 on load
   // Auto-expand iframes on desktop only (collapsed by default on mobile)
   if (!isMobile) setTimeout(() => {
     _toggleOrbPreview(0, PROJECT_DATA[0].url); // zackgort.com — expanded at load (paired with statement 0)
