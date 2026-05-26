@@ -1458,7 +1458,8 @@ const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0a0a0a, isChrome ? 0
 const camera=new THREE.PerspectiveCamera(50,W/H,0.1,200);
 camera.position.set(0,1.5,28);camera.lookAt(0,0,0);
 // Mobile: zoom out camera to give more viewport space for text
-if(isMobile){camera.position.z=44;}
+// Also lower camera Y so FLR=-9 sits just below vertical center on portrait screens
+if(isMobile){camera.position.z=44; camera.position.y=-5.5; camera.lookAt(0,-5.5,0);}
 scene.add(new THREE.AmbientLight(0xffffff,0.07));
 // Main light: high off-camera right — warm key light, not visible in scene
 const mainL=new THREE.PointLight(0xfff5ee,3.8,120);mainL.position.set(32,18,22);scene.add(mainL);
@@ -1554,7 +1555,7 @@ let mX=W/2,mY=H/2,bX=W/2,bY=H/2,eX=W/2,eY=H/2,eVX=0,eVY=0;
 let mVX=0,mVY=0,cvx=0,cvy=0,cX=W/2,cY=H/2;
 
 // cx.html physics constants
-const BLOB_LERP=0.11,TETHER_K=0.014,DAMP=0.76,REPEL_R=isMobile?32:110,BLOOM_R=REPEL_R*1.45;
+const BLOB_LERP=0.11,TETHER_K=0.014,DAMP=0.76,REPEL_R=isMobile?55:110,BLOOM_R=REPEL_R*1.45;
 
 // text chars — each char is a physics particle
 let textChars=[];
@@ -2486,7 +2487,7 @@ function drawBlackHoleOverlay() {
     const scale = Math.sqrt(bh.pullStrength / basePull);
     _ovV3.set(bh.pos.x + bh.radius * scale, bh.pos.y, 0).project(camera);
     const coreR = Math.abs((_ovV3.x + 1) / 2 * W - sx);
-    if(coreR < 1 || !isFinite(sx) || !isFinite(sy) || !isFinite(coreR)) return;
+    if(coreR < 1) return;
 
     ovCtx.save();
     // Perf: skip expensive glow gradients for project orbs when rail is active (they're off-canvas)
@@ -2551,7 +2552,6 @@ function drawBlackHoleOverlay() {
     if (bh._novaHitT && bh._novaHitT > 0) {
       const ft = bh._novaHitT;
       const flareR = coreR * (1.8 + (1 - ft) * 6.0);
-      if(!isFinite(flareR) || flareR < 0.1) { ovCtx.restore(); return; }
       const flareCol = bh.type === 'blackhole' ? '255,160,60' : '180,240,255';
       ovCtx.beginPath();
       ovCtx.arc(sx, sy, flareR, 0, Math.PI * 2);
@@ -5741,6 +5741,7 @@ window.addEventListener('resize',()=>{
   tctx.setTransform(_dpr,0,0,_dpr,0,0);
   // apply mobile zoom
   camera.position.z=isMobile?44:28;
+  if(isMobile) camera.position.y=-5.5;
   // rebuild text positions for new dimensions
   buildTextChars(lvl);
 });
@@ -6123,7 +6124,7 @@ function _tickRimRing(dt) {
   });
 }
 
-const BALL_SPAWN={x:-4.5,y:-2.0,z:0};
+const BALL_SPAWN={x:-4.5,y:isMobile?-7.0:-2.0,z:0};
 
 function _spawnBall(){
   if(_bbBall){_bbBall.dispose();const _bi=attractors.indexOf(_bbBall);if(_bi>=0)attractors.splice(_bi,1);}
@@ -6212,7 +6213,7 @@ function _tickBBall(dt){
 
   const edgeL2=s2w(0,H/2).x-1.5, edgeR2=s2w(W,H/2).x+1.5;
   const BY_FLOOR=FLR+ballR+0.05; // ball rests on FLR ground
-  const BY_CEIL=s2w(W/2, isMobile ? 48 : -60).y; // mobile: ceiling at bottom of mobile bar so ball reaches viewport top
+  const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
     if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
