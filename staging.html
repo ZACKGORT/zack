@@ -183,9 +183,9 @@
   .chapter-title  { font-size:clamp(22px,3.5vw,36px); line-height:1.1; }
   .chapter-meta   { font-size:9px; margin-left:auto; }
   .chapter-body   { display:flex; flex-direction:column; gap:0; }
-  .entry          { padding:18px 0; }
-  .entry p        { font-size:clamp(14px,2vw,17px); line-height:1.65; }
-  .pull-quote     { font-size:clamp(18px,2.8vw,26px); line-height:1.35; padding:24px 0 24px 28px; }
+  .entry          { padding:0; }
+  .entry p        { visibility:hidden; margin:0; padding:0; }
+  .pull-quote     { font-size:clamp(18px,2.8vw,26px); line-height:1.35; padding:0; }
   .entry-tags     { display:none; }
   #footer { padding:60px 0 20px; margin-top:80px; font-size:9px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px; }
 
@@ -819,6 +819,20 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('mouseleave', () => cursorEl.style.opacity='0');
 document.addEventListener('mouseenter', () => cursorEl.style.opacity='1');
 
+// ── Touch: passive tracking drives repel cursor without blocking native scroll ──
+function applyTouch(e) {
+  const t = e.touches[0];
+  if (!t) return;
+  mVX = t.clientX - mx; mVY = t.clientY - my;
+  mx = t.clientX; my = t.clientY;
+}
+document.addEventListener('touchstart', applyTouch, { passive: true });
+document.addEventListener('touchmove',  applyTouch, { passive: true });
+document.addEventListener('touchend',   () => {
+  // Drift repel point off-screen so particles settle after finger lifts
+  mx = -300; my = -300;
+}, { passive: true });
+
 // ── Radius ring ───────────────────────────────────────────────────────────
 const ring       = document.getElementById('radius-ring');
 const toast      = document.getElementById('radius-toast');
@@ -882,11 +896,13 @@ const FS={
 function fontStr(f){ return `${f.italic?'italic ':''}${f.weight} ${f.size}px ${f.family}`; }
 
 // ── Font size −/+ ─────────────────────────────────────────────────────────
-const FONT_STEPS = [0.78, 0.88, 1, 1.14, 1.3];
-let fontStepIdx = 2;
+const FONT_STEPS = [1.3, 1.48, 1.68];
+let fontStepIdx = 0;
+let currentFontScale = FONT_STEPS[0];
 const _FS_BASE = {};
 ['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => { _FS_BASE[k] = FS[k].size; });
 function applyFontStep(scale) {
+  currentFontScale = scale;
   ['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => {
     FS[k].size = Math.round(_FS_BASE[k] * scale);
   });
@@ -989,12 +1005,21 @@ function buildParticles(){
     Array.from(chEl.querySelector('.chapter-body').children).forEach(el=>{
       const elTop=el.getBoundingClientRect().top+scrollOff;
       if(el.classList.contains('pull-quote')){
+        const lines = wrapText(FS.pullQuote, el.textContent, maxW-28);
+        const renderedH = lines.length * FS.pullQuote.size * FS.pullQuote.lh;
+        el.style.minHeight = (24 * 2 + renderedH) + 'px';
         pushWrapped(el.textContent,FS.pullQuote,leftEdge+28,elTop+24+FS.pullQuote.size,maxW-28);
       } else if(el.classList.contains('entry')){
         const p=el.querySelector('p');
         if(p){
           const seed=Math.random();
-          pushWrapped(p.textContent.replace(/\s+/g,' ').trim(),FS.bodyText,leftEdge,elTop+18+FS.bodyText.size,maxW,0.60+seed*0.36);
+          const entryInset = Math.round(18 * currentFontScale);
+          const textContent = p.textContent.replace(/\s+/g,' ').trim();
+          // Compute rendered height and stamp it on the DOM element so the slot is always correct
+          const lines = wrapText(FS.bodyText, textContent, maxW);
+          const renderedH = lines.length * FS.bodyText.size * FS.bodyText.lh;
+          el.style.minHeight = (entryInset * 2 + renderedH) + 'px';
+          pushWrapped(textContent, FS.bodyText, leftEdge, elTop+entryInset+FS.bodyText.size, maxW, 0.60+seed*0.36);
         }
       }
     });
@@ -1318,6 +1343,8 @@ window.addEventListener('resize',()=>{
 
 // ── Init ──────────────────────────────────────────────────────────────────
 updateRing();
+// Apply default font scale (index 0 = 1.3×) immediately so DOM padding is correct from first render
+applyFontStep(FONT_STEPS[fontStepIdx]);
 document.fonts.ready.then(()=>{
   requestAnimationFrame(()=>{
     buildParticles();
