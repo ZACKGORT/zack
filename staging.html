@@ -847,16 +847,15 @@ function showToast(msg) {
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1800);
 }
 
-// ── Right-click: toggle chapter widget ───────────────────────────────────
+// ── Right-click / long-press: toggle chapter widget ──────────────────────
 const chapterWidget = document.getElementById('chapter-widget');
-document.addEventListener('contextmenu', e => {
-  e.preventDefault();
+
+function toggleChapterWidget() {
   const isVisible = chapterWidget.style.display !== 'none';
   if (isVisible) {
     chapterWidget.style.display = 'none';
   } else {
     chapterWidget.style.display = '';
-    // Ensure it's expanded when surfaced
     if (chapterWidget.classList.contains('collapsed')) {
       chapterWidget.classList.remove('collapsed');
       const toggle = chapterWidget.querySelector('.fw-toggle');
@@ -868,7 +867,25 @@ document.addEventListener('contextmenu', e => {
       });
     }
   }
+}
+
+document.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  toggleChapterWidget();
 });
+
+// Long-press on mobile (500ms, cancelled on move or early lift)
+let _longPressTimer = null;
+document.addEventListener('touchstart', e => {
+  // Only trigger if not touching a widget
+  if (e.target.closest('[data-widget]') || e.target.closest('#controls-bar')) return;
+  _longPressTimer = setTimeout(() => {
+    _longPressTimer = null;
+    toggleChapterWidget();
+  }, 500);
+}, { passive: true });
+document.addEventListener('touchend',   () => { clearTimeout(_longPressTimer); _longPressTimer = null; }, { passive: true });
+document.addEventListener('touchmove',  () => { clearTimeout(_longPressTimer); _longPressTimer = null; }, { passive: true });
 
 // ── Theme ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-theme').addEventListener('click', ()=>{
