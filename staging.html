@@ -448,7 +448,7 @@
   }
 </style>
 </head>
-<body class="dark">
+<body>
 
 <div id="content-vignette"></div>
 <canvas id="particle-canvas"></canvas>
@@ -465,10 +465,10 @@
 <canvas id="logo-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:298;width:100%;height:100%;"></canvas>
 
 <!-- About Widget — docks left of logo -->
-<div id="about-widget" class="fw collapsed" data-widget style="left:0;">
+<div id="about-widget" class="fw" data-widget style="left:0;">
   <div class="fw-topbar" data-drag-handle>
     <span class="fw-title">About</span>
-    <span class="fw-toggle">+</span>
+    <span class="fw-toggle">−</span>
   </div>
   <div class="fw-body">
     one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. cursor repels. right-click adjusts radius. the sentence is the irreducible unit.
@@ -580,7 +580,7 @@
 
 <!-- Controls bar — bottom-right HUD, all inline -->
 <div id="controls-bar">
-  <div class="ctrl" id="btn-theme">Light</div>
+  <div class="ctrl" id="btn-theme">Dark</div>
   <span class="ctrl-divider">Radius</span>
   <div class="ctrl" id="btn-size-s" data-size="S">S</div>
   <div class="ctrl active" id="btn-size-m" data-size="M">M</div>
@@ -1787,8 +1787,42 @@ document.querySelectorAll('.link-row-btn').forEach(btn => {
 // ── Init ─────────────────────────────────────────────────────────
 document.fonts.ready.then(() => {
   buildLogoParticles();
+
+  const isMobileInit = window.innerWidth < 700;
+
+  // Mobile: collapse all widgets (about starts expanded in HTML for desktop)
+  if (isMobileInit) {
+    const aboutW = document.getElementById('about-widget');
+    aboutW.classList.add('collapsed');
+    aboutW.querySelector('.fw-toggle').textContent = '+';
+  }
+
+  // Desktop: expand links widget and open first entry with iframe
+  if (!isMobileInit) {
+    const linksW = document.getElementById('links-widget');
+    const linksToggle = linksW.querySelector('.fw-toggle');
+    linksW.classList.remove('collapsed');
+    linksToggle.textContent = '−';
+
+    const firstEntry = document.querySelector('#links-widget .link-entry');
+    if (firstEntry) {
+      firstEntry.classList.add('open');
+      const iframe = firstEntry.querySelector('iframe');
+      if (iframe) iframe.setAttribute('src', iframe.dataset.src);
+    }
+  }
+
   dockWidgets();
-  invalidateWidgetRepel();
+  // Clamp about widget after expansion
+  if (!isMobileInit) {
+    requestAnimationFrame(() => {
+      const aboutW = document.getElementById('about-widget');
+      if (aboutW && !aboutW.dataset.dragged) clampExpandedWidget(aboutW);
+      invalidateWidgetRepel();
+    });
+  } else {
+    invalidateWidgetRepel();
+  }
 });
 
 window.addEventListener('resize', () => {
