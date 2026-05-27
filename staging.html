@@ -412,20 +412,20 @@
     #resume-widget:not(.collapsed) { width: 96vw; }
     #resume-canvas-wrap { height: calc(100vh - var(--bar-h) - 80px); }
     #resume-dl-link { cursor: pointer; }
-    /* On mobile: resume collapses to a bottom tab */
+    /* On mobile: resume collapsed tab sits in the top bar like About and Links */
     #resume-widget.collapsed {
-      top: auto !important;
-      bottom: 0 !important;
-      left: 0 !important;
+      top: 0 !important;
+      bottom: auto !important;
+      left: auto !important;
       right: 0 !important;
-      width: 100% !important;
-      border-top: 1px solid var(--border);
+      width: auto !important;
+      border-top: none;
       border-bottom: none;
     }
     #resume-widget.collapsed .fw-topbar {
       border-bottom: none;
       border-top: none;
-      width: 100%;
+      width: auto;
     }
     #resume-widget:not(.collapsed) {
       width: 100vw !important;
@@ -581,11 +581,11 @@
 <!-- Controls bar — bottom-right HUD, all inline -->
 <div id="controls-bar">
   <div class="ctrl" id="btn-theme">Light</div>
-
+  <span class="ctrl-divider">Radius</span>
   <div class="ctrl" id="btn-size-s" data-size="S">S</div>
   <div class="ctrl active" id="btn-size-m" data-size="M">M</div>
   <div class="ctrl" id="btn-size-l" data-size="L">L</div>
-
+  <span class="ctrl-divider">Font</span>
   <div class="ctrl" id="btn-font-dec">−</div>
   <div class="ctrl" id="btn-font-inc">+</div>
 </div>
@@ -954,9 +954,13 @@ function buildParticles(){
     ctx.font=fontStr(f); ctx.textBaseline='alphabetic';
     const op=overrideOp!==undefined?overrideOp:f.op;
     let cx=docX;
+    // Only scatter-spawn particles near the current viewport; distant ones start at rest
+    const viewY = docY - scrollOff;
+    const nearViewport = viewY > -200 && viewY < H + 200;
     for(const ch of text){
       const w=ctx.measureText(ch).width;
-      chars.push({ ch, restX:cx, restY:docY, x:cx, y:docY-scrollOff+(Math.random()-.5)*6, vx:0, vy:0, baseOpacity:op, font:fontStr(f) });
+      const scatter = nearViewport ? (Math.random()-.5)*6 : 0;
+      chars.push({ ch, restX:cx, restY:docY, x:cx, y:docY-scrollOff+scatter, vx:0, vy:0, baseOpacity:op, font:fontStr(f) });
       cx+=w;
     }
   }
@@ -1304,10 +1308,17 @@ function loop(){
   // ── Text particles ──
   for(const p of allChars){
     const viewY=p.restY-scrollY;
+    if(viewY<-200||viewY>H+200){
+      // Far off-screen: snap to rest so they're ready when scrolled into view
+      p.x = p.restX; p.y = viewY;
+      p.vx = 0; p.vy = 0;
+      continue;
+    }
     if(viewY<-80||viewY>H+80){
-      p.x+=(p.restX-p.x)*TETHER_K*0.4;
-      p.y+=(viewY-p.y)*TETHER_K*0.4;
-      p.vx*=0.88; p.vy*=0.88;
+      // Entrance zone: ease toward rest without physics drama
+      p.x += (p.restX - p.x) * 0.18;
+      p.y += (viewY    - p.y) * 0.18;
+      p.vx *= 0.7; p.vy *= 0.7;
       continue;
     }
     const dx=p.x-bX, dy=p.y-bY, d=Math.sqrt(dx*dx+dy*dy);
@@ -1499,15 +1510,16 @@ function dockWidgets() {
     aboutW.style.transform = 'none';
   }
 
-  // Résumé: top-center (collapsed tab centred; expanded panel centred)
+  // Résumé: top-center on desktop; on mobile collapsed = top bar tab (JS leaves it to CSS), expanded = fullscreen
   if (resumeW && !resumeW.dataset.dragged) {
     if (isMobileD) {
       if (resumeW.classList.contains('collapsed')) {
-        resumeW.style.top    = 'auto';
-        resumeW.style.bottom = '0px';
-        resumeW.style.left   = '0px';
+        // Let CSS handle it — just ensure top/auto are set consistently
+        resumeW.style.top    = '0px';
+        resumeW.style.bottom = 'auto';
+        resumeW.style.left   = 'auto';
         resumeW.style.right  = '0px';
-        resumeW.style.width  = '100%';
+        resumeW.style.width  = 'auto';
       } else {
         resumeW.style.top    = '0px';
         resumeW.style.bottom = 'auto';
