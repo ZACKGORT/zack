@@ -192,7 +192,7 @@
   ::-webkit-scrollbar { width:3px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--fg-faint); }
-  @media (max-width:700px) { #page { margin-left:0; margin-right:0; padding:0 24px 160px; } }
+  @media (max-width:700px) { #page { margin-left:0; margin-right:0; padding:0 0 160px 20px; max-width:calc(66.666vw - 20px); } }
 
   /* ── Content vignette — top & bottom fade ── */
   #content-vignette {
@@ -445,7 +445,6 @@
     #about-widget, #links-widget { cursor: auto; }
     .fw-topbar, .link-row-btn, .link-open-btn { cursor: pointer; }
     .link-preview { height: 255px; }
-    #page { margin-left: 0; margin-right: 0; padding: 0 20px 140px; }
   }
 </style>
 </head>
@@ -885,18 +884,18 @@ window.addEventListener('scroll',()=>{ scrollY=window.scrollY; },{ passive:true 
 // ── Typography specs ──────────────────────────────────────────────────────
 const FS={
   siteLabel:   { size:10,  weight:'500', family:'"DM Mono",monospace',         italic:false, lh:1.4,  op:0.42 },
-  siteTitle:   { size:36,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.95 },
+  siteTitle:   { size:28,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.95 },
   chapterNum:  { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.32 },
-  chapterTitle:{ size:26,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.90 },
+  chapterTitle:{ size:20,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.90 },
   chapterMeta: { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.30 },
-  pullQuote:   { size:20,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.38, op:0.70 },
-  bodyText:    { size:15,  weight:'400', family:'"Instrument Sans",sans-serif', italic:false, lh:1.68, op:0.75 },
+  pullQuote:   { size:16,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.38, op:0.70 },
+  bodyText:    { size:12,  weight:'400', family:'"Instrument Sans",sans-serif', italic:false, lh:1.68, op:0.75 },
   footerText:  { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.30 },
 };
 function fontStr(f){ return `${f.italic?'italic ':''}${f.weight} ${f.size}px ${f.family}`; }
 
 // ── Font size −/+ ─────────────────────────────────────────────────────────
-const FONT_STEPS = [1.3, 1.48, 1.68];
+const FONT_STEPS = [1, 1.2, 1.4];
 let fontStepIdx = 0;
 let currentFontScale = FONT_STEPS[0];
 const _FS_BASE = {};
@@ -938,12 +937,15 @@ function buildParticles(){
   const scrollOff=window.scrollY;
   const isMobile=W<700;
 
-  // On desktop: text lives in the right column, leaving the left for the image.
-  // On mobile: full-width single column.
+  // On desktop: text in right column, image on left (IMG_COL_RATIO of width).
+  // On mobile: text in left 2/3, image floats in right 1/3.
+  const MOBILE_TEXT_RATIO = 2/3;
   const imgColW = isMobile ? 0 : Math.round(W * IMG_COL_RATIO) + IMG_GAP;
-  const PAD     = isMobile ? 24 : 48;
+  const PAD     = isMobile ? 20 : 48;
   const leftEdge= imgColW + PAD;
-  const rawMaxW = W - leftEdge - PAD;
+  const rawMaxW = isMobile
+    ? Math.round(W * MOBILE_TEXT_RATIO) - PAD * 2
+    : W - leftEdge - PAD;
   const maxW    = isMobile ? rawMaxW : Math.min(rawMaxW, 520);
 
   const chars=[];
@@ -1082,9 +1084,12 @@ const CTRL_BAR_H    = 30;     // height of the fixed controls bar at top-right
 function eraRegion(){
   const isMobile = W < 700;
   if(isMobile){
-    const mH = Math.round(H * 0.26);
-    const mW = Math.min(W, Math.round(mH * 1.2));
-    return { ox: Math.round((W - mW) / 2), oy: 0, rW: mW, rH: mH };
+    // Right 1/3 column — same square proportion as desktop, vertically centered
+    const colW = Math.round(W / 3);
+    const side = Math.min(Math.round(colW * 0.62), 420);
+    const ox   = (W - colW) + Math.round((colW - side) / 2);
+    const oy   = Math.round(H / 2 - side / 2);
+    return { ox, oy, rW: side, rH: side };
   }
   const colW = Math.round(W * IMG_COL_RATIO);
   // Small square, ~62% of column width, vertically centered — original proportions
@@ -1270,18 +1275,26 @@ function loop(){
 
   ctx.clearRect(0,0,W,H);
 
-  // ── Background: fill only text column; leave image column transparent ──
+  // ── Background: fill text column; leave image column transparent ──
   const isMobileRender = W < 700;
-  const imgColWR = isMobileRender ? 0 : Math.round(W * IMG_COL_RATIO);
   ctx.fillStyle=isDark?'#0a0a0a':'#f2efe9';
-  ctx.fillRect(imgColWR,0,W-imgColWR,H);
+  if (isMobileRender) {
+    // Mobile: text on left 2/3 — fill that, leave right 1/3 transparent for image
+    ctx.fillRect(0, 0, Math.round(W * 2/3), H);
+  } else {
+    // Desktop: image on left, text on right — fill text column only
+    const imgColWR = Math.round(W * IMG_COL_RATIO);
+    ctx.fillRect(imgColWR, 0, W - imgColWR, H);
+  }
 
-  // ── Single subtle vignette on text column only ──
+  // ── Single subtle vignette on text column ──
+  const vgX = 0;
+  const vgW = isMobileRender ? Math.round(W * 2/3) : W;
   const vg=ctx.createRadialGradient(W/2,H*0.55,0,W/2,H*0.55,Math.max(W,H)*0.72);
   vg.addColorStop(0,  'rgba(0,0,0,0)');
   vg.addColorStop(0.7,'rgba(0,0,0,0)');
   vg.addColorStop(1,  isDark?'rgba(0,0,0,0.22)':'rgba(0,0,0,0.07)');
-  ctx.fillStyle=vg; ctx.fillRect(imgColWR,0,W-imgColWR,H);
+  ctx.fillStyle=vg; ctx.fillRect(vgX,0,vgW,H);
 
   // Era image particles (behind text)
   drawEraParticles();
