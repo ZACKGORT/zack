@@ -565,9 +565,8 @@
   <div class="ctrl active" id="btn-size-m" data-size="M">M</div>
   <div class="ctrl" id="btn-size-l" data-size="L">L</div>
   <span class="ctrl-divider">Font</span>
-  <div class="ctrl" id="btn-font-s" data-font="S">S</div>
-  <div class="ctrl active" id="btn-font-m" data-font="M">M</div>
-  <div class="ctrl" id="btn-font-l" data-font="L">L</div>
+  <div class="ctrl" id="btn-font-dec">−</div>
+  <div class="ctrl" id="btn-font-inc">+</div>
 </div>
 
 <div id="scroll-sizer">
@@ -743,6 +742,9 @@ document.querySelectorAll('[data-size]').forEach(btn => {
     updateRing();
   });
 });
+
+
+
 const chLinkBtns = document.querySelectorAll('.ch-link-btn');
 
 // ── Nav active state via IntersectionObserver ─────────────────────────────
@@ -853,6 +855,26 @@ const FS={
   footerText:  { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.30 },
 };
 function fontStr(f){ return `${f.italic?'italic ':''}${f.weight} ${f.size}px ${f.family}`; }
+
+// ── Font size −/+ ─────────────────────────────────────────────────────────
+const FONT_STEPS = [0.78, 0.88, 1, 1.14, 1.3];
+let fontStepIdx = 2;
+const _FS_BASE = {};
+['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => { _FS_BASE[k] = FS[k].size; });
+function applyFontStep(scale) {
+  ['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => {
+    FS[k].size = Math.round(_FS_BASE[k] * scale);
+  });
+  buildParticles();
+}
+document.getElementById('btn-font-dec').addEventListener('click', e => {
+  e.stopPropagation();
+  if (fontStepIdx > 0) { fontStepIdx--; applyFontStep(FONT_STEPS[fontStepIdx]); }
+});
+document.getElementById('btn-font-inc').addEventListener('click', e => {
+  e.stopPropagation();
+  if (fontStepIdx < FONT_STEPS.length - 1) { fontStepIdx++; applyFontStep(FONT_STEPS[fontStepIdx]); }
+});
 
 function wrapText(f, text, maxW) {
   ctx.font=fontStr(f);
@@ -1491,12 +1513,13 @@ function logoGapZone() {
 function invalidateWidgetRepel() {
   filterRepelZones = [];
 
-  // All open (non-collapsed) widgets
+  // Only expanded widgets, or collapsed widgets that have been dragged off the bar
   document.querySelectorAll('[data-widget]').forEach(w => {
+    const isDocked = w.classList.contains('collapsed') && !w.dataset.dragged;
+    if (isDocked) return; // docked tabs don't repel particles
     const r = w.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) return;
     const pad = 26;
-    // For collapsed widgets only add the topbar row
     const h = w.classList.contains('collapsed') ? getBarH() : r.height;
     filterRepelZones.push({
       left: r.left - pad, top: r.top - pad,
@@ -1504,18 +1527,6 @@ function invalidateWidgetRepel() {
       rx: r.left, ry: r.top, rw: r.width, rh: h, pad
     });
   });
-
-  // Controls bar
-  const cb = document.getElementById('controls-bar');
-  if (cb) {
-    const r = cb.getBoundingClientRect();
-    const pad = 18;
-    filterRepelZones.push({
-      left: r.left - pad, top: r.top - pad,
-      right: r.right + pad, bottom: r.bottom + pad,
-      rx: r.left, ry: r.top, rw: r.width, rh: r.height, pad
-    });
-  }
 
   // Logo zone (bottom-left)
   const logoZone = logoGapZone();
@@ -2034,4 +2045,4 @@ window.addEventListener('resize', () => { if (rActive) initResumeCanvas(); });
 
 </script>
 </body>
-</html>`
+</html>
