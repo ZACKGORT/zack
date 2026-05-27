@@ -281,8 +281,7 @@
   .fw.collapsed .fw-body { display: none; }
 
   /* ── About widget ── */
-  #about-widget { left: 0; width: 120px; }
-  #about-widget:not(.collapsed) { width: 240px; }
+  #about-widget { left: 0; min-width: 200px; max-width: 280px; }
   #about-widget .fw-body {
     font-family: var(--mono); font-size: 10px; line-height: 1.7;
     letter-spacing: 0.04em; color: var(--fg); opacity: 0.75;
@@ -290,8 +289,7 @@
   }
 
   /* ── Links widget ── */
-  #links-widget { width: 120px; }
-  #links-widget:not(.collapsed) { width: 280px; }
+  #links-widget { min-width: 220px; max-width: 420px; width: 340px; }
   #links-widget .fw-body { padding: 0; }
 
   .link-entry { border-top: 1px solid var(--border); overflow: hidden; }
@@ -331,37 +329,26 @@
 
   /* ── Resume widget ── */
   #resume-widget {
-    width: 120px;
+    min-width: 0;
+    width: auto;
+    /* override fw.collapsed top:0 !important for resume */
   }
   #resume-widget.collapsed {
     top: 0 !important;
     bottom: auto !important;
-    transform: none !important;
   }
-  /* Expanded: drops down from docked position (JS sets top/left) */
   #resume-widget:not(.collapsed) {
-    width: min(400px, 92vw);
-    position: fixed;
-    /* max height so it doesn't overflow viewport */
-    max-height: min(88vh, 780px);
-    display: flex;
-    flex-direction: column;
-  }
-  /* Topbar must never scroll away — stays pinned at top of widget */
-  #resume-widget:not(.collapsed) .fw-topbar {
-    flex-shrink: 0;
+    width: min(780px, 92vw);
   }
   #resume-widget .fw-body {
     padding: 0;
     position: relative;
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
   }
   #resume-canvas-wrap {
     position: relative;
     width: 100%;
-    height: calc(min(88vh, 780px) - var(--bar-h) - 44px);
+    height: calc(100vh - var(--bar-h) - 44px);
     overflow: hidden;
   }
   #resume-canvas {
@@ -400,15 +387,16 @@
   }
   #resume-dl-link:hover { opacity: 1; }
   @media (max-width: 700px) {
+    #resume-widget:not(.collapsed) { width: 96vw; }
+    #resume-canvas-wrap { height: calc(100vh - var(--bar-h) - 80px); }
     #resume-dl-link { cursor: pointer; }
-    /* Mobile collapsed: full-width bottom tab */
+    /* On mobile: resume collapses to a bottom tab */
     #resume-widget.collapsed {
       top: auto !important;
       bottom: 0 !important;
       left: 0 !important;
       right: 0 !important;
       width: 100% !important;
-      transform: none !important;
       border-top: 1px solid var(--border);
       border-bottom: none;
     }
@@ -417,17 +405,12 @@
       border-top: none;
       width: 100%;
     }
-    /* Mobile expanded: full-width, bottom half of screen */
     #resume-widget:not(.collapsed) {
       width: 100vw !important;
-      top: auto !important;
-      bottom: 0 !important;
+      top: 0 !important;
       left: 0 !important;
-      right: 0 !important;
-      transform: none !important;
-      max-height: 60vh;
+      bottom: auto !important;
     }
-    #resume-canvas-wrap { height: calc(60vh - var(--bar-h) - 44px); }
   }
 
   /* ── Viewport-edge clamp for expanded widgets ──
@@ -581,8 +564,9 @@
   <div class="ctrl active" id="btn-size-m" data-size="M">M</div>
   <div class="ctrl" id="btn-size-l" data-size="L">L</div>
   <span class="ctrl-divider">Font</span>
-  <div class="ctrl" id="btn-font-dec" title="Decrease font size">−</div>
-  <div class="ctrl" id="btn-font-inc" title="Increase font size">+</div>
+  <div class="ctrl" id="btn-font-s" data-font="S">S</div>
+  <div class="ctrl active" id="btn-font-m" data-font="M">M</div>
+  <div class="ctrl" id="btn-font-l" data-font="L">L</div>
 </div>
 
 <div id="scroll-sizer">
@@ -746,35 +730,6 @@ chapters.forEach((ch, i) => {
   });
   chWidgetBody.appendChild(btn);
 });
-// ── Font size − / + toggle ────────────────────────────────────────────────
-const FONT_SIZES = ['XS', 'S', 'M', 'L', 'XL'];
-const FONT_SCALES = { XS: 0.78, S: 0.88, M: 1.0, L: 1.15, XL: 1.32 };
-let fontSizeIdx = 2; // default M
-
-function applyFontScale(scale) {
-  Object.keys(FS).forEach(k => {
-    if (!FS[k]._base) FS[k]._base = FS[k].size;
-    FS[k].size = Math.round(FS[k]._base * scale * 10) / 10;
-  });
-  buildParticles();
-}
-
-document.getElementById('btn-font-dec').addEventListener('click', e => {
-  e.stopPropagation();
-  if (fontSizeIdx > 0) {
-    fontSizeIdx--;
-    applyFontScale(FONT_SCALES[FONT_SIZES[fontSizeIdx]]);
-  }
-});
-
-document.getElementById('btn-font-inc').addEventListener('click', e => {
-  e.stopPropagation();
-  if (fontSizeIdx < FONT_SIZES.length - 1) {
-    fontSizeIdx++;
-    applyFontScale(FONT_SCALES[FONT_SIZES[fontSizeIdx]]);
-  }
-});
-
 // ── S / M / L radius toggle in controls bar ──────────────────────────────
 const RADIUS_SIZES = { S: 60, M: 120, L: 220 };
 document.querySelectorAll('[data-size]').forEach(btn => {
@@ -788,26 +743,6 @@ document.querySelectorAll('[data-size]').forEach(btn => {
   });
 });
 const chLinkBtns = document.querySelectorAll('.ch-link-btn');
-
-// ── Esc key: collapse all widgets ────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  document.querySelectorAll('.fw:not(.collapsed)').forEach(widget => {
-    widget.classList.add('collapsed');
-    const toggle = widget.querySelector('.fw-toggle');
-    if (toggle) toggle.textContent = '+';
-    // Resume widget: stop render loop
-    if (widget.id === 'resume-widget') {
-      rActive = false;
-      if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-    }
-  });
-  // Hide chapter widget too
-  const chW = document.getElementById('chapter-widget');
-  if (chW) chW.style.display = 'none';
-  if (!activeDragWidget) dockWidgets();
-  invalidateWidgetRepel();
-});
 
 // ── Nav active state via IntersectionObserver ─────────────────────────────
 const chapterEls = document.querySelectorAll('.chapter');
@@ -1458,75 +1393,64 @@ function getBarH() {
   return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || 34;
 }
 
-// ── Position docked widgets flush to top bar ──────────────────────
-const DOCKED_TAB_W = 120; // must match CSS width for collapsed .fw tabs
-
+// ── Position docked widgets: About top-left | Résumé top-center | Links top-right ──
+// Uses offsetWidth (intrinsic width) so expanded-widget transforms never corrupt neighbours.
 function dockWidgets() {
   const aboutW   = document.getElementById('about-widget');
   const linksW   = document.getElementById('links-widget');
   const resumeW  = document.getElementById('resume-widget');
   const chapterW = document.getElementById('chapter-widget');
-  const vW = window.innerWidth;
+  const vW       = window.innerWidth;
+  const isMobileD = vW < 700;
 
-  // Helper: returns the width a widget occupies in the top bar when collapsed
-  function tabW(w) { return w.classList.contains('collapsed') ? DOCKED_TAB_W : w.getBoundingClientRect().width; }
-
-  // About — always at 0
+  // About: always top-left
   if (!aboutW.dataset.dragged) {
-    aboutW.style.top  = '0px'; aboutW.style.left = '0px';
+    aboutW.style.top = '0px'; aboutW.style.left = '0px';
     aboutW.style.bottom = 'auto'; aboutW.style.right = 'auto';
     aboutW.style.transform = 'none';
   }
 
-  // Links — right of About, clamped to viewport
-  if (!linksW.dataset.dragged) {
-    const aRight = aboutW.dataset.dragged
-      ? aboutW.getBoundingClientRect().right
-      : tabW(aboutW);
-    const lLeft = Math.min(aRight, vW - tabW(linksW));
-    linksW.style.top  = '0px'; linksW.style.left = lLeft + 'px';
-    linksW.style.bottom = 'auto'; linksW.style.right = 'auto';
-    linksW.style.transform = 'none';
-  }
-
+  // Résumé: top-center (collapsed tab centred; expanded panel centred)
   if (resumeW && !resumeW.dataset.dragged) {
-    const isMobileD = window.innerWidth < 700;
     if (isMobileD) {
-      // Mobile: collapsed tab lives at bottom full-width; expanded clamps to bottom
       if (resumeW.classList.contains('collapsed')) {
         resumeW.style.top    = 'auto';
         resumeW.style.bottom = '0px';
         resumeW.style.left   = '0px';
         resumeW.style.right  = '0px';
         resumeW.style.width  = '100%';
-        resumeW.style.transform = 'none';
       } else {
-        // Expanded on mobile: bottom-anchored full-width via CSS; don't override
-        resumeW.style.top    = 'auto';
-        resumeW.style.bottom = '0px';
+        resumeW.style.top    = '0px';
+        resumeW.style.bottom = 'auto';
         resumeW.style.left   = '0px';
         resumeW.style.right  = '0px';
         resumeW.style.width  = '100vw';
-        resumeW.style.transform = 'none';
       }
+      resumeW.style.transform = 'none';
     } else {
-      // Desktop: dock right of Links tab edge (not expanded edge)
-      const lTabRight = linksW.dataset.dragged
-        ? linksW.getBoundingClientRect().right
-        : (parseFloat(linksW.style.left) || 0) + DOCKED_TAB_W;
-      const rW = tabW(resumeW);
-      const rLeft = Math.min(lTabRight, vW - rW);
+      const rW = resumeW.offsetWidth;
       resumeW.style.top    = '0px';
-      resumeW.style.left   = rLeft + 'px';
+      resumeW.style.left   = Math.round((vW - rW) / 2) + 'px';
       resumeW.style.bottom = 'auto';
       resumeW.style.right  = 'auto';
       resumeW.style.transform = 'none';
     }
   }
 
+  // Links: top-right (flush to right edge)
+  if (!linksW.dataset.dragged) {
+    const lW = linksW.offsetWidth;
+    linksW.style.top    = '0px';
+    linksW.style.left   = (vW - lW) + 'px';
+    linksW.style.bottom = 'auto';
+    linksW.style.right  = 'auto';
+    linksW.style.transform = 'none';
+  }
+
   if (!chapterW.dataset.dragged) {
-    chapterW.style.left = '0px';
-    chapterW.style.bottom = 'auto'; chapterW.style.right = 'auto';
+    chapterW.style.left   = '0px';
+    chapterW.style.bottom = 'auto';
+    chapterW.style.right  = 'auto';
   }
 }
 
@@ -1539,18 +1463,8 @@ function clampExpandedWidget(w) {
 
   // Right edge
   if (nx + r.width > vW - 1) nx = vW - r.width - 1;
-  // Left edge — don't overlap widgets to the left
-  let minLeft = 0;
-  document.querySelectorAll('[data-widget]').forEach(other => {
-    if (other === w) return;
-    const or = other.getBoundingClientRect();
-    if (or.width === 0) return;
-    // Only consider widgets whose left edge is left of ours
-    if (or.left < nx + r.width * 0.5) minLeft = Math.max(minLeft, or.right);
-  });
-  if (nx < minLeft) nx = minLeft;
-  // Re-check right edge after left push
-  if (nx + r.width > vW - 1) nx = vW - r.width - 1;
+  // Left edge
+  if (nx < 0) nx = 0;
   // Bottom edge — push widget up so it doesn't overflow
   if (ny + r.height > vH - 4) ny = Math.max(0, vH - r.height - 4);
 
@@ -1730,6 +1644,25 @@ window.addEventListener('mouseup', () => {
   }
 });
 
+// ── ESC key: collapse all open widgets ───────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.fw').forEach(widget => {
+    if (widget.classList.contains('collapsed')) return;
+    widget.classList.add('collapsed');
+    const toggle = widget.querySelector('.fw-toggle');
+    if (toggle) toggle.textContent = '+';
+    // Stop resume render loop if it's running
+    if (widget.id === 'resume-widget') {
+      const rw = widget;
+      // Signal to resume IIFE — rActive is scoped, so fire a custom event
+      rw.dispatchEvent(new CustomEvent('resume-collapse'));
+    }
+    if (!widget.dataset.dragged) dockWidgets();
+  });
+  invalidateWidgetRepel();
+});
+
 // ── Links entries: expand/collapse with lazy iframe ───────────────
 document.querySelectorAll('.link-row-btn').forEach(btn => {
   btn.addEventListener('click', e => {
@@ -1763,9 +1696,13 @@ window.addEventListener('resize', () => {
   invalidateWidgetRepel();
 });
 
-// Periodic refresh (handles scroll/DOM changes)
+// Periodic refresh — skip dockWidgets while résumé is expanded on desktop
 setInterval(() => {
-  if (!activeDragWidget) dockWidgets();
+  if (!activeDragWidget) {
+    const rw = document.getElementById('resume-widget');
+    const resumeExpanded = rw && !rw.classList.contains('collapsed') && window.innerWidth >= 700;
+    if (!resumeExpanded) dockWidgets();
+  }
   invalidateWidgetRepel();
 }, 500);
 
@@ -1773,9 +1710,6 @@ setInterval(() => {
 // ══════════════════════════════════════════════════════════════════
 // RESUME WIDGET — particle canvas renderer
 // ══════════════════════════════════════════════════════════════════
-// rActive / rRAF are hoisted so the global Esc handler can stop the loop
-let rActive = false;
-let rRAF    = null;
 (function() {
 
 const RESUME_DATA = {
@@ -1833,6 +1767,8 @@ let rParticles = [];
 let rScrollY   = 0;
 let rTotalH    = 0;
 let rFloatT    = Math.random() * Math.PI * 2;
+let rRAF       = null;
+let rActive    = false;
 let rDPR       = 1;
 
 const R_TETHER   = 0.016;
@@ -2022,12 +1958,14 @@ function resumeLoop() {
     }
   }
 
-  // Fade edges
+  // Fade edges — rgba both stops so 'transparent' doesn't bleed to black in light theme
+  const bgRgbaFull = isDark ? 'rgba(10,10,10,1)' : 'rgba(242,239,233,1)';
+  const bgRgbaZero = isDark ? 'rgba(10,10,10,0)' : 'rgba(242,239,233,0)';
   const topFade = rCtx.createLinearGradient(0, 0, 0, 36);
-  topFade.addColorStop(0, bgCol); topFade.addColorStop(1, 'transparent');
+  topFade.addColorStop(0, bgRgbaFull); topFade.addColorStop(1, bgRgbaZero);
   rCtx.fillStyle = topFade; rCtx.fillRect(0, 0, cW, 36);
   const botFade = rCtx.createLinearGradient(0, cH - 44, 0, cH);
-  botFade.addColorStop(0, 'transparent'); botFade.addColorStop(1, bgCol);
+  botFade.addColorStop(0, bgRgbaZero); botFade.addColorStop(1, bgRgbaFull);
   rCtx.fillStyle = botFade; rCtx.fillRect(0, cH - 44, cW, 44);
 }
 
@@ -2057,21 +1995,17 @@ if (resumeToggle) {
     resumeWidget.classList.toggle('collapsed');
     resumeToggle.textContent = wasCollapsed ? '−' : '+';
     if (wasCollapsed) {
-      // Expanding
-      const isMobileE = window.innerWidth < 700;
-      if (!isMobileE) {
-        // Desktop: dock to right of Links, drop down
-        dockWidgets();
-      }
+      // Expanding — start render loop
       rActive = true;
       requestAnimationFrame(() => {
-        if (!resumeWidget.dataset.dragged) clampExpandedWidget(resumeWidget);
+        if (!resumeWidget.dataset.dragged) dockWidgets();
         initResumeCanvas();
+        clampExpandedWidget(resumeWidget);
         invalidateWidgetRepel();
         resumeLoop();
       });
     } else {
-      // Collapsing
+      // Collapsing — stop render loop
       rActive = false;
       if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
       if (!resumeWidget.dataset.dragged) dockWidgets();
@@ -2084,6 +2018,14 @@ if (resumeToggle) {
 document.getElementById('btn-theme').addEventListener('click', () => {
   if (rActive) setTimeout(() => buildResumeParticles(), 40);
 }, true);
+
+// ESC collapse: listen for custom event fired by the global ESC handler
+if (resumeWidget) {
+  resumeWidget.addEventListener('resume-collapse', () => {
+    rActive = false;
+    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
+  });
+}
 
 window.addEventListener('resize', () => { if (rActive) initResumeCanvas(); });
 
