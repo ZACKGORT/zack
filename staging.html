@@ -194,6 +194,25 @@
   ::-webkit-scrollbar-thumb { background:var(--fg-faint); }
   @media (max-width:700px) { #page { margin-left:0; margin-right:0; padding:0 24px 160px; } }
 
+  /* ── Content vignette — top & bottom fade ── */
+  #content-vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 4;
+  }
+  #content-vignette::before,
+  #content-vignette::after {
+    content: '';
+    position: absolute; left: 0; right: 0;
+    pointer-events: none;
+  }
+  #content-vignette::before {
+    top: 0; height: 80px;
+    background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%);
+  }
+  #content-vignette::after {
+    bottom: 0; height: 80px;
+    background: linear-gradient(to top, var(--bg) 0%, transparent 100%);
+  }
+
 
   /* ══════════════════════════════════════════════════
      HEADER BAR  — top edge, all items same height
@@ -251,7 +270,7 @@
     top: 0; left: 0;
   }
   /* Collapsed = just the topbar tab, flush to top edge */
-  .fw.collapsed { top: 0 !important; }
+  .fw.collapsed { top: 0 !important; width: auto; min-width: 0; }
 
   .fw-topbar {
     display: flex;
@@ -262,6 +281,8 @@
     border-bottom: 1px solid var(--border);
     cursor: none;
     white-space: nowrap;
+    /* entire topbar is the expand/collapse target */
+    user-select: none;
   }
   .fw.collapsed .fw-topbar { border-bottom: none; }
   .fw-topbar:hover { background: rgba(128,128,128,0.08); }
@@ -281,7 +302,8 @@
   .fw.collapsed .fw-body { display: none; }
 
   /* ── About widget ── */
-  #about-widget { left: 0; min-width: 200px; max-width: 280px; }
+  #about-widget { left: 0; }
+  #about-widget:not(.collapsed) { min-width: 200px; max-width: 280px; }
   #about-widget .fw-body {
     font-family: var(--mono); font-size: 10px; line-height: 1.7;
     letter-spacing: 0.04em; color: var(--fg); opacity: 0.75;
@@ -289,7 +311,7 @@
   }
 
   /* ── Links widget ── */
-  #links-widget { min-width: 220px; max-width: 420px; width: 340px; }
+  #links-widget:not(.collapsed) { min-width: 220px; max-width: 420px; width: 340px; }
   #links-widget .fw-body { padding: 0; }
 
   .link-entry { border-top: 1px solid var(--border); overflow: hidden; }
@@ -429,6 +451,7 @@
 </head>
 <body class="dark">
 
+<div id="content-vignette"></div>
 <canvas id="particle-canvas"></canvas>
 <canvas id="cursor-canvas"></canvas>
 <div id="cursor">
@@ -649,21 +672,24 @@ const PULL_QUOTES = {
 // Editorial placeholder images — Unsplash, square-ish, monochrome-friendly
 // Each keyed by album name, fitting the era's mood
 const ERA_IMAGES = {
-  'Roots · Philadelphia':      'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=70&fit=crop',  // printing press / craft
-  'Startup · Philadelphia':    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&q=70&fit=crop', // garage / workshop
-  'Conversion · Philadelphia': 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&q=70&fit=crop', // mobile screen
-  'Agency · Philadelphia':     'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=70&fit=crop', // open-plan office
-  'Product · Philadelphia':    'https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=600&q=70&fit=crop', // whiteboard / sticky notes
-  'SaaS · Philadelphia':       'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=600&q=70&fit=crop', // laptop/code
-  'NYC Debut':                 'https://images.unsplash.com/photo-1499092346302-2a82dd7751f9?w=600&q=70&fit=crop', // NYC skyline/bridge
-  'E-commerce · NYC':          'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&q=70&fit=crop', // warehouse / shelves
-  'Hospitality · NYC':         'https://images.unsplash.com/photo-1560347876-aeef00ee58a1?w=600&q=70&fit=crop', // hotel lobby
-  'Recovery · NYC':            'https://images.unsplash.com/photo-1589578527966-fdac0f44566c?w=600&q=70&fit=crop', // storefront rebuild
-  'Enterprise · NYC':          'https://images.unsplash.com/photo-1487017159836-4e23ece2e4cf?w=600&q=70&fit=crop', // high-rise office
-  'Fintech · NYC':             'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=70&fit=crop', // finance charts
-  'Independent':               'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=600&q=70&fit=crop', // solo workspace
-  'Wolfgang & Co.':            'https://images.unsplash.com/photo-1455885661740-29cbf08a42fa?w=600&q=70&fit=crop', // dog / poodle
-  'The Argument':              'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=600&q=70&fit=crop', // writing / typewriter
+  'Roots · Philadelphia':      'https://i.ibb.co/PZ3QBsGF/Meattempting-Da-Vincibyzackgort-FKF.webp',  // printing press / craft
+  'Startup · Philadelphia':    'https://i.ibb.co/fG0dXSr0/1-m7-Hfhu-QO4-Ugr1-Vte-Zf6it-A.webp', // garage / workshop
+  'Conversion · Philadelphia': 'https://i.ibb.co/RGXh3Zn6/1-HI1b-Kb-Zm-FYVgs3-My-H3wvg.webp', // mobile screen
+  'Agency · Philadelphia':     'https://i.ibb.co/0VmJ708g/work3.webp', // open-plan office
+  'Product · Philadelphia':    'https://i.ibb.co/Dg9fM8q8/1-Tut-Ce-PQB0b-SCo-Mf-MTWJb-Q.webp', // whiteboard / sticky notes
+  'SaaS · Philadelphia':       'https://i.ibb.co/mjt5Myw/1-l-EJetj-Ut85-CTbb24d-BTFk-A.webp', // laptop/code
+  'NYC Debut':                 'https://i.ibb.co/KxyvFKmq/1-P4-Gyqav-HMmzp-A-Ehqy9g-w.webp', // NYC skyline/bridge
+  'E-commerce · NYC':          'https://i.ibb.co/jv7dC3hH/1-m-Zdgz7y-Elh7n-WKuu-S8-XZ2g.webp', // warehouse / shelves
+  'Hospitality · NYC':         'https://i.ibb.co/xqfFFj48/browse-location-list-68c48666baf6e.webpp', // hotel lobby
+  'Recovery · NYC':            'https://i.ibb.co/7J9gLTRy/mask-group-68c4867fc5153.webp', // hotel lobby
+  'Enterprise · NYC':          'https://i.ibb.co/4wtq5p9V/1-g-C-cm-PMo-CAMgckq051lw-Zg.webp', // high-rise office
+  'Fintech · NYC':             'https://i.ibb.co/tTTgw7Md/1-q-zg-Zh-Kn-Cs6ab-K8-CIp-E00-Q.webp', // finance charts
+  'Independent':               'https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp', // solo workspace
+  'Wolfgang & Co.':            'https://i.ibb.co/LXR70BTD/wolfieboop.webp', // dog / poodle
+  'The Argument':              'https://i.ibb.co/p6zhtskg/1-k-SDc-GT46-VQM6-Kk25-SPr-Acg.webp', // writing / typewriter
+
+
+
 };
 
 // ── Group by album ────────────────────────────────────────────────────────
@@ -865,6 +891,7 @@ function applyFontStep(scale) {
     FS[k].size = Math.round(_FS_BASE[k] * scale);
   });
   buildParticles();
+  if (window._applyResumeScale) window._applyResumeScale(scale);
 }
 document.getElementById('btn-font-dec').addEventListener('click', e => {
   e.stopPropagation();
@@ -1543,10 +1570,18 @@ function invalidateWidgetRepel() {
 // ── Collapse/expand ───────────────────────────────────────────────
 document.querySelectorAll('.fw').forEach(widget => {
   if (widget.id === 'resume-widget') return; // has its own handler
-  const toggle = widget.querySelector('.fw-toggle');
-  if (!toggle) return;
+  const toggle  = widget.querySelector('.fw-toggle');
+  const topbar  = widget.querySelector('.fw-topbar');
+  if (!toggle || !topbar) return;
 
-  toggle.addEventListener('click', e => {
+  // Track whether a mousedown on the topbar turned into a drag
+  let _topbarDragMoved = false;
+  topbar.addEventListener('mousedown', () => { _topbarDragMoved = false; });
+  window.addEventListener('mousemove', () => { if (activeDragWidget === widget) _topbarDragMoved = true; }, { passive: true });
+
+  topbar.addEventListener('click', e => {
+    // Ignore if the click was really a drag release
+    if (_topbarDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = widget.classList.contains('collapsed');
     widget.classList.toggle('collapsed');
@@ -1684,7 +1719,10 @@ document.querySelectorAll('.link-row-btn').forEach(btn => {
     if (!wasOpen) {
       entry.classList.add('open');
       const iframe = entry.querySelector('iframe');
-      if (iframe && !iframe.src) iframe.src = iframe.dataset.src;
+
+      if (iframe && iframe.getAttribute('src') !== iframe.dataset.src) {
+  iframe.setAttribute('src', iframe.dataset.src);
+}
     }
     // Re-clamp links widget after content change
     requestAnimationFrame(() => {
@@ -1770,6 +1808,18 @@ const RF = {
 };
 
 function rfStr(f) { return (f.italic ? 'italic ' : '') + f.weight + ' ' + f.size + 'px ' + f.family; }
+
+// Base sizes for scale-with-font-toggle keys
+const _RF_BASE = {};
+['name','company','body','quote'].forEach(k => { _RF_BASE[k] = RF[k].size; });
+
+// Hook called by the main font-size toggle
+window._applyResumeScale = function(scale) {
+  ['name','company','body','quote'].forEach(k => {
+    RF[k].size = Math.round(_RF_BASE[k] * scale);
+  });
+  if (rActive) buildResumeParticles();
+};
 
 const rCvs = document.getElementById('resume-canvas');
 const rCtx = rCvs.getContext('2d');
@@ -1998,13 +2048,22 @@ if (rScrollZone) {
 }
 
 const resumeWidget = document.getElementById('resume-widget');
+const resumeTopbar = resumeWidget ? resumeWidget.querySelector('.fw-topbar') : null;
 const resumeToggle = resumeWidget ? resumeWidget.querySelector('.fw-toggle') : null;
-if (resumeToggle) {
-  resumeToggle.addEventListener('click', e => {
+
+let _resumeDragMoved = false;
+if (resumeTopbar) {
+  resumeTopbar.addEventListener('mousedown', () => { _resumeDragMoved = false; });
+}
+window.addEventListener('mousemove', () => { if (activeDragWidget === resumeWidget) _resumeDragMoved = true; }, { passive: true });
+
+if (resumeTopbar) {
+  resumeTopbar.addEventListener('click', e => {
+    if (_resumeDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = resumeWidget.classList.contains('collapsed');
     resumeWidget.classList.toggle('collapsed');
-    resumeToggle.textContent = wasCollapsed ? '−' : '+';
+    if (resumeToggle) resumeToggle.textContent = wasCollapsed ? '−' : '+';
     if (wasCollapsed) {
       // Expanding — start render loop
       rActive = true;
