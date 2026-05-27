@@ -209,22 +209,26 @@ body {
 .info-left  { display: none; }   /* hidden on Overview; shown on other tabs via their own layout */
 .info-right { display: block; width: 100%; }
 
-/* Full-bleed hero — no sticky, just a tall image block */
+/* Full-bleed hero — edge to edge, no gaps */
 .hero-sticky {
   width: 100%;
-  height: 70vh;
-  min-height: 480px;
-  max-height: 680px;
+  height: 75vh;
+  min-height: 500px;
+  max-height: 760px;
   overflow: hidden;
-  background: #d8d8d8;
+  background: #c8cac8;
   position: relative;
+  /* Bust out of any padding so hero is truly full-width */
+  margin-left: 0; margin-right: 0;
 }
 .hero-img {
   width: 100%; height: 100%;
-  object-fit: contain; object-position: center center; display: block;
-  transition: transform 1.4s var(--ease-out-expo);
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+  transition: transform 1.6s var(--ease-out-expo);
 }
-.hero-sticky:hover .hero-img { transform: scale(1.02); }
+.hero-sticky:hover .hero-img { transform: scale(1.025); }
 
 /* Overlay + badge */
 .hero-overlay {
@@ -867,30 +871,33 @@ body {
 /* ── LEFT-RAIL HUD (Overview only) ── */
 .hud-rail {
   position: fixed;
-  left: 0; top: var(--hh);
-  width: 52px;
-  height: calc(100vh - var(--hh));
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
   background: var(--white);
-  border-right: 1px solid var(--rule2);
+  border: 1px solid var(--rule2);
+  border-radius: 22px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.09), 0 0 0 1px rgba(0,0,0,0.03);
   display: flex; flex-direction: column;
   align-items: center;
-  padding: 20px 0;
-  gap: 4px;
+  padding: 10px 0;
+  gap: 2px;
   z-index: 50;
 }
 .hud-btn {
-  width: 36px; height: 36px;
-  border: none; background: none; cursor: default;
-  border-radius: var(--r-full);
+  width: 28px; height: 28px;
+  border: none; background: none; cursor: pointer;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--ink4);
   position: relative;
   transition: background 0.15s, color 0.15s;
 }
-.hud-btn:hover { background: var(--off); color: var(--ink2); }
+.hud-btn:hover { background: var(--off); color: var(--ink); }
 .hud-btn svg { flex-shrink: 0; }
 .hud-divider {
-  width: 24px; height: 1px; background: var(--rule2); margin: 8px 0;
+  width: 16px; height: 1px; background: var(--rule2); margin: 4px 0;
 }
 /* Tooltip */
 .hud-btn::after {
@@ -905,18 +912,277 @@ body {
 }
 .hud-btn:hover::after { opacity: 1; }
 
-/* Moonwalk date easter egg at bottom of HUD */
+/* Date tag */
 .hud-date {
-  margin-top: auto;
   writing-mode: vertical-lr;
   transform: rotate(180deg);
-  font-family: var(--f-body); font-size: 9px; font-weight: 500;
-  color: var(--ink4); letter-spacing: 0.08em;
-  padding-bottom: 12px; line-height: 1;
+  font-family: var(--f-body); font-size: 8px; font-weight: 500;
+  color: var(--ink4); letter-spacing: 0.06em;
+  margin-top: 4px; padding-bottom: 2px;
+  user-select: none;
 }
 
-/* Offset page content for HUD rail */
-#page-info .page-scroll { padding-left: 52px; }
+/* ══════════════════════════════════════
+   DESIGN SYSTEM OVERLAY
+══════════════════════════════════════ */
+#ds-overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+}
+#ds-overlay.open { display: flex; }
+
+.ds-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+}
+.ds-panel {
+  position: relative; z-index: 1;
+  width: 820px; max-width: 95vw;
+  height: 100vh;
+  margin-left: auto;
+  background: var(--white);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: dsSlideIn 0.32s var(--ease-out-expo);
+}
+@keyframes dsSlideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* Panel header */
+.ds-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 32px; height: 56px; flex-shrink: 0;
+  border-bottom: 1px solid var(--rule2);
+}
+.ds-hdr-left { display: flex; align-items: center; gap: 12px; }
+.ds-hdr-title {
+  font-family: var(--f-body); font-size: 14px; font-weight: 500; color: var(--ink);
+}
+.ds-hdr-sub {
+  font-family: var(--f-body); font-size: 12px; color: var(--ink3);
+}
+.ds-close {
+  width: 32px; height: 32px; border: none; background: var(--off);
+  border-radius: var(--r-full); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--ink2);
+  transition: background 0.15s;
+}
+.ds-close:hover { background: var(--rule2); }
+
+/* Tab strip */
+.ds-tabs {
+  display: flex; gap: 0; padding: 0 32px;
+  border-bottom: 1px solid var(--rule2); flex-shrink: 0;
+}
+.ds-tab {
+  padding: 12px 16px; border: none; background: none; cursor: pointer;
+  font-family: var(--f-body); font-size: 13px; font-weight: 500; color: var(--ink3);
+  position: relative; transition: color 0.15s;
+}
+.ds-tab.active { color: var(--ink); }
+.ds-tab.active::after {
+  content: ''; position: absolute; bottom: 0; left: 16px; right: 16px;
+  height: 2px; background: var(--ink);
+}
+
+/* Scroll body */
+.ds-body {
+  flex: 1; overflow-y: auto;
+  padding: 32px;
+  display: flex; flex-direction: column; gap: 40px;
+}
+
+/* Section */
+.ds-section {}
+.ds-section-title {
+  font-family: var(--f-body); font-size: 11px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3);
+  margin-bottom: 16px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule2);
+}
+
+/* Color swatches */
+.ds-swatches {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px;
+}
+.ds-swatch {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.ds-swatch-color {
+  width: 100%; height: 56px; border-radius: 4px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.ds-swatch-name {
+  font-family: var(--f-body); font-size: 11px; font-weight: 500; color: var(--ink);
+}
+.ds-swatch-token {
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; color: var(--ink3);
+  margin-top: -4px;
+}
+.ds-swatch-hex {
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 10px; color: var(--ink4);
+}
+
+/* Type scale */
+.ds-type-rows { display: flex; flex-direction: column; gap: 0; }
+.ds-type-row {
+  display: grid; grid-template-columns: 180px 1fr 200px;
+  align-items: center; gap: 24px;
+  padding: 14px 0; border-bottom: 1px solid var(--rule2);
+}
+.ds-type-row:last-child { border-bottom: none; }
+.ds-type-meta { display: flex; flex-direction: column; gap: 2px; }
+.ds-type-token {
+  font-family: 'SF Mono','Fira Code',monospace; font-size: 10px; color: var(--ink3);
+}
+.ds-type-spec {
+  font-family: var(--f-body); font-size: 11px; color: var(--ink4);
+}
+.ds-type-preview { overflow: hidden; }
+.ds-type-use {
+  font-family: var(--f-body); font-size: 11px; color: var(--ink4);
+  text-align: right;
+}
+
+/* Spacing */
+.ds-spacing-rows { display: flex; flex-direction: column; gap: 8px; }
+.ds-sp-row {
+  display: grid; grid-template-columns: 80px 48px 1fr 160px;
+  align-items: center; gap: 16px;
+}
+.ds-sp-token { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; color: var(--ink3); }
+.ds-sp-val { font-family: var(--f-body); font-size: 12px; color: var(--ink); text-align: right; }
+.ds-sp-bar-wrap { height: 8px; background: var(--off); border-radius: 2px; overflow: hidden; }
+.ds-sp-bar { height: 100%; background: var(--ink); border-radius: 2px; }
+.ds-sp-use { font-family: var(--f-body); font-size: 11px; color: var(--ink4); }
+
+/* Radius */
+.ds-radius-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px;
+}
+.ds-rad {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.ds-rad-box {
+  width: 64px; height: 40px; background: var(--ink);
+}
+.ds-rad-token { font-family: 'SF Mono','Fira Code',monospace; font-size: 10px; color: var(--ink3); text-align: center; }
+.ds-rad-val { font-family: var(--f-body); font-size: 11px; color: var(--ink4); text-align: center; }
+
+/* Components */
+.ds-comp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.ds-comp-card {
+  border: 1px solid var(--rule2); padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.ds-comp-label {
+  font-family: 'SF Mono','Fira Code',monospace; font-size: 10px; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.ds-comp-preview {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 44px;
+}
+.ds-comp-spec {
+  font-family: var(--f-body); font-size: 11px; color: var(--ink4); line-height: 1.5;
+}
+
+/* Elevation */
+.ds-elev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.ds-elev-card {
+  padding: 20px; display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--rule2);
+}
+.ds-elev-name { font-family: var(--f-body); font-size: 12px; font-weight: 500; }
+.ds-elev-spec { font-family: 'SF Mono','Fira Code',monospace; font-size: 10px; color: var(--ink3); }
+.ds-elev-use { font-family: var(--f-body); font-size: 11px; color: var(--ink4); }
+
+/* Token pill */
+.tok {
+  display: inline-block;
+  font-family: 'SF Mono','Fira Code',monospace; font-size: 10px;
+  background: var(--off); color: var(--ink2);
+  padding: 2px 7px; border-radius: 4px;
+}
+
+/* ══════════════════════════════════════
+   DOCS PAGE
+══════════════════════════════════════ */
+.doc-nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 20px; cursor: pointer;
+  font-family: var(--f-body); font-size: 13px; font-weight: 400;
+  color: var(--ink3); border-left: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.doc-nav-item:hover { color: var(--ink); background: var(--off); }
+.doc-nav-item.active { color: var(--ink); font-weight: 500; border-left-color: var(--ink); background: var(--off); }
+.doc-nav-section {
+  padding: 16px 20px 6px;
+  font-family: var(--f-body); font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink4);
+}
+.doc-h1 {
+  font-family: var(--f-display); font-size: 52px; font-weight: 400;
+  text-transform: uppercase; line-height: 0.92; letter-spacing: -0.01em;
+  color: var(--ink); margin-bottom: 20px;
+}
+.doc-h2 {
+  font-family: var(--f-body); font-size: 20px; font-weight: 500;
+  color: var(--ink); margin: 48px 0 12px; padding-top: 48px;
+  border-top: 1px solid var(--rule2);
+}
+.doc-h3 {
+  font-family: var(--f-body); font-size: 11px; font-weight: 500;
+  color: var(--ink3); margin: 24px 0 8px;
+  text-transform: uppercase; letter-spacing: 0.09em;
+}
+.doc-p { font-family: var(--f-body); font-size: 14px; line-height: 1.75; color: var(--ink2); margin-bottom: 16px; max-width: 640px; }
+.doc-lead { font-family: var(--f-body); font-size: 16px; line-height: 1.7; color: var(--ink2); margin-bottom: 28px; max-width: 640px; }
+.doc-meta { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--rule2); }
+.doc-meta-item { font-family: var(--f-body); font-size: 12px; color: var(--ink3); }
+.doc-meta-item strong { color: var(--ink); font-weight: 500; display: block; margin-bottom: 2px; }
+.doc-code {
+  font-family: 'SF Mono','Fira Code','Cascadia Code',monospace;
+  font-size: 12px; line-height: 1.65;
+  background: #0e0e0e; color: #d4d4d4;
+  padding: 20px 24px; margin: 12px 0 24px;
+  overflow-x: auto; white-space: pre;
+}
+.cm { color: #555; } .kw { color: #9ca3af; } .st { color: #a5b4c0; }
+.nm { color: #e5e7eb; font-weight: 600; } .vl { color: #c0c8d0; } .pu { color: #555; }
+.pr { color: #8b9cb0; }
+.ic { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; background: var(--off); color: var(--charcoal); padding: 2px 6px; border-radius: 3px; border: 1px solid var(--rule2); }
+.doc-callout { border-left: 3px solid var(--ink); background: var(--off); padding: 14px 18px; margin: 20px 0; max-width: 640px; }
+.doc-callout.warn { border-left-color: #cc7700; }
+.doc-callout.good { border-left-color: var(--green); }
+.doc-callout-label { font-family: var(--f-body); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); margin-bottom: 4px; }
+.doc-callout p { font-family: var(--f-body); font-size: 13px; line-height: 1.6; color: var(--ink2); margin: 0; }
+.doc-diagram { border: 1px solid var(--rule2); margin: 16px 0 28px; overflow: hidden; }
+.doc-diagram-label { padding: 8px 16px; background: var(--off); border-bottom: 1px solid var(--rule2); font-family: var(--f-body); font-size: 10px; font-weight: 500; color: var(--ink3); letter-spacing: 0.08em; text-transform: uppercase; }
+.doc-diagram-body { padding: 24px 28px; }
+.flow-row { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin-bottom: 10px; }
+.flow-node { padding: 7px 14px; border: 1px solid var(--rule); font-family: var(--f-body); font-size: 12px; font-weight: 500; color: var(--ink); background: var(--white); }
+.flow-node.dark { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.flow-node.muted { background: var(--off); color: var(--ink3); border-color: var(--rule2); }
+.flow-node.pill { border-radius: 30px; }
+.flow-arr { font-size: 12px; color: var(--ink4); padding: 0 6px; flex-shrink: 0; }
+.doc-table { width: 100%; border-collapse: collapse; margin: 8px 0 28px; font-family: var(--f-body); font-size: 13px; }
+.doc-table th { text-align: left; padding: 8px 14px; background: var(--off); color: var(--ink3); font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--rule2); }
+.doc-table td { padding: 10px 14px; border-bottom: 1px solid var(--rule2); color: var(--ink2); vertical-align: top; line-height: 1.5; }
+.doc-table tr:last-child td { border-bottom: none; }
+.doc-table td:first-child { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; color: var(--ink3); white-space: nowrap; }
+.do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 28px; max-width: 640px; }
+.do-box { border-top: 3px solid var(--green); padding: 16px; background: #f4faf7; }
+.dont-box { border-top: 3px solid var(--accent); padding: 16px; background: #fdf4f4; }
+.do-box-label { font-family: var(--f-body); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); margin-bottom: 8px; }
+.dont-box-label { font-family: var(--f-body); font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+.do-box p, .dont-box p { font-family: var(--f-body); font-size: 13px; line-height: 1.55; color: var(--ink2); margin: 0; }
+.doc-chip { display: inline-block; padding: 4px 12px; border: 1px solid var(--rule); border-radius: 30px; font-family: var(--f-body); font-size: 12px; color: var(--ink2); margin: 2px; }
+.doc-chip.filled { background: var(--ink); color: var(--white); border-color: var(--ink); }
 </style>
 </head>
 <body>
@@ -953,8 +1219,15 @@ body {
       <svg width="9" height="9" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       65 parts
     </div>
-    <button class="hdr-icon">
-      <svg width="11" height="11" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M3.5 6.5L7 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+    <button class="hdr-icon" onclick="document.getElementById('ds-overlay').classList.add('open')" title="Design System">
+      <!-- Palette icon -->
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 2C5.58 2 2 5.58 2 10c0 4.08 3.05 7.44 7 7.93V15.5c0-.28.22-.5.5-.5h.5c2.76 0 5-2.24 5-5 0-.28-.22-.5-.5-.5H13c-.83 0-1.5-.67-1.5-1.5S12.17 6.5 13 6.5h1.45C13.44 3.9 11.9 2 10 2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="6.5" cy="8.5" r="1" fill="currentColor"/>
+        <circle cx="6.5" cy="11.5" r="1" fill="currentColor"/>
+        <circle cx="9" cy="6.5" r="1" fill="currentColor"/>
+        <circle cx="12" cy="7.5" r="1" fill="currentColor"/>
+      </svg>
     </button>
     <div class="avatar-row">
       <div class="avatar"></div>
@@ -1007,8 +1280,8 @@ body {
               <div class="hero-name-big">Moonwalk<br>Air Jordans</div>
             </div>
             <div class="hero-price-bubble">
-              <div class="hp-label">Debuting From</div>
-              <div class="hp-val">$32,519.83</div>
+              <div class="hp-label">Starting From</div>
+              <div class="hp-val">$32,519</div>
             </div>
           </div>
         </div>
@@ -1063,7 +1336,7 @@ body {
               <!-- Price -->
               <div class="ec-price-block">
                 <div class="ec-price-row">
-                  <span class="ec-price-main">$32,519.83</span>
+                  <span class="ec-price-main">$32,519</span>
                   <span class="ec-price-unit">/ MJ² kit</span>
                 </div>
                 <div class="ec-price-note">✓ MJ² concept kit · Debuted 03/30/1983</div>
@@ -1082,8 +1355,8 @@ body {
               </div>
               <!-- CTAs -->
               <div class="ec-cta-block">
-                <button class="ec-btn-primary" onclick="this.textContent='Added ✓';this.style.background='var(--green)';setTimeout(()=>{this.textContent='Add to Cart · $32,519.83';this.style.background='var(--ink)'},2000)">
-                  Add to Cart · $32,519.83
+                <button class="ec-btn-primary" onclick="this.textContent='Added ✓';this.style.background='var(--green)';setTimeout(()=>{this.textContent='Add to Cart · $32,519';this.style.background='var(--ink)'},2000)">
+                  Add to Cart · $32,519
                 </button>
                 <button class="ec-btn-secondary">
                   <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 2v7M3.5 6.5L7 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="12" x2="12" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
@@ -1297,7 +1570,18 @@ body {
     <div class="ph-page">3D Model — Not Yet Generated</div>
   </div>
   <div class="page" id="page-docs">
-    <div class="ph-page">Documentation — Not Yet Generated</div>
+    <div style="display:flex;height:100%;overflow:hidden">
+
+      <!-- Docs sidebar nav -->
+      <div style="width:220px;flex-shrink:0;border-right:1px solid var(--rule2);overflow-y:auto;padding:24px 0">
+        <div style="padding:0 20px 12px;font-family:var(--f-body);font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink4)">Documentation</div>
+        <div id="docs-nav"></div>
+      </div>
+
+      <!-- Docs content -->
+      <div style="flex:1;overflow-y:auto;padding:48px 64px;max-width:860px" id="docs-content"></div>
+
+    </div>
   </div>
 
 </div><!-- /pages -->
@@ -1598,10 +1882,971 @@ function toggleStep(el) {
   sec.querySelector('.isec-cnt').textContent = `${done}/${total}`;
 }
 
+// ════ DOCS PAGE ════
+const DOCS = [
+  {
+    id: 'philosophy', section: 'Concept', label: 'Philosophy',
+    content: () => `
+      <div class="doc-h1">Moonwalk<br>Air Jordans</div>
+      <div class="doc-meta">
+        <div class="doc-meta-item"><strong>Project</strong>MJ² · Concept v1.0</div>
+        <div class="doc-meta-item"><strong>Debut</strong>03 / 30 / 1983</div>
+        <div class="doc-meta-item"><strong>Design System</strong>Nike / Adapted</div>
+        <div class="doc-meta-item"><strong>Status</strong>Published</div>
+        <div class="doc-meta-item"><strong>Kit Price</strong>$32,519.83</div>
+      </div>
+      <div class="doc-lead">The Moonwalk Air Jordan is a concept at the intersection of kinetic engineering and cultural mythology — a shoe that literally moves the way Michael Jackson moved: backward, effortlessly, against expectation.</div>
+      <div class="doc-p">On March 30, 1983, Michael Jackson performed the moonwalk for the first time on Motown 25: Yesterday, Today and Forever. It wasn't a trick. It was a philosophy made physical — the body appearing to defy its own forward momentum. This project literalizes that idea into a wearable electromechanical system.</div>
+      <div class="doc-p">The shoe integrates dual lead-screw actuators, IMU-based gait detection, and Bluetooth motor control into the sole of an Air Jordan 1 silhouette. When you walk forward, the platform slides backward beneath your foot — translating kinetic input into anti-directional output. Walking becomes performance.</div>
+
+      <div class="doc-h2">Design Philosophy</div>
+      <div class="doc-h3">The System Serves the Silhouette</div>
+      <div class="doc-p">Every engineering decision is subordinate to the visual language of the Air Jordan 1. Hardware is mounted lateral and low. The actuator stack hides beneath the sole plane. Wiring routes through the tongue channel. The shoe reads as a shoe first, a machine second.</div>
+      <div class="doc-h3">Chrome Does Not Speak</div>
+      <div class="doc-p">This product page applies Nike's design system with precision: the interface makes zero decorative statements. Black, white, and one grey. Every typographic choice is mechanical. The photography carries all expressiveness — the chrome step aside.</div>
+      <div class="doc-h3">Price as Signal</div>
+      <div class="doc-p">$32,519.83 is not arbitrary. It encodes the date — 3/25/1983 — of the patent filing for the original Air Jordan sole unit, offset by the 5-day gap to the moonwalk debut. The price is documentation. It anchors the object to its cultural moment.</div>
+
+      <div class="doc-callout good">
+        <div class="doc-callout-label">Core Principle</div>
+        <p>Form, function, and cultural reference collapse into a single object. The shoe does not reference the moonwalk — it performs it.</p>
+      </div>
+    `
+  },
+  {
+    id: 'layout', section: 'Architecture', label: 'Page Architecture',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Page<br>Architecture</div>
+      <div class="doc-lead">The product page is a single HTML document with a tab-switched page system. Each "page" is an absolutely-positioned panel that animates in on activation.</div>
+
+      <div class="doc-h2">Layout Model</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">DOM Structure</div>
+        <div class="doc-diagram-body">
+          <div class="doc-code"><span class="cm">/* Fixed chrome layer */</span>
+<span class="kw">&lt;header</span> <span class="pr">class</span>=<span class="st">"hdr"</span><span class="kw">&gt;</span>          <span class="cm">// 52px fixed top</span>
+  <span class="nm">hdr-left</span>   <span class="cm">// ← Nike + project name</span>
+  <span class="nm">hdr-tabs</span>   <span class="cm">// Overview | Components</span>
+  <span class="nm">hdr-right</span>  <span class="cm">// Add to Cart + avatar</span>
+<span class="kw">&lt;/header&gt;</span>
+
+<span class="cm">/* Floating HUD (Overview only) */</span>
+<span class="kw">&lt;nav</span> <span class="pr">class</span>=<span class="st">"hud-rail"</span><span class="kw">&gt;</span>         <span class="cm">// fixed left:16px, centered Y</span>
+  Build Guide · Wiring · 3D Model · Docs
+<span class="kw">&lt;/nav&gt;</span>
+
+<span class="cm">/* Page container */</span>
+<span class="kw">&lt;div</span> <span class="pr">class</span>=<span class="st">"pages"</span><span class="kw">&gt;</span>            <span class="cm">// fixed inset, top:52px</span>
+  <span class="kw">&lt;div</span> <span class="pr">id</span>=<span class="st">"page-info"</span>    <span class="pr">class</span>=<span class="st">"page active"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="pr">id</span>=<span class="st">"page-parts"</span>   <span class="pr">class</span>=<span class="st">"page"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="pr">id</span>=<span class="st">"page-instructions"</span> <span class="pr">class</span>=<span class="st">"page"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;div</span> <span class="pr">id</span>=<span class="st">"page-docs"</span>   <span class="pr">class</span>=<span class="st">"page"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;/div&gt;</span></div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Overview Page Layout</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Overview — Single Column Editorial Scroll</div>
+        <div class="doc-diagram-body">
+          <div style="display:flex;flex-direction:column;gap:4px;font-family:'SF Mono','Fira Code',monospace;font-size:11px">
+            <div style="background:var(--ink);color:var(--white);padding:8px 14px">HEADER — 52px fixed</div>
+            <div style="background:#2a2a2a;color:#aaa;padding:8px 14px">HUD RAIL — 36px pill, fixed left:16px</div>
+            <div style="background:#b0b8c0;padding:32px 14px;text-align:center;color:var(--ink);font-weight:600">HERO IMAGE — 75vh · object-fit: cover</div>
+            <div style="display:grid;grid-template-columns:1fr 340px;gap:2px;background:var(--rule2)">
+              <div style="background:var(--off);padding:20px 14px;color:var(--ink3)">
+                author · tags · description<br>cost table · ratings
+              </div>
+              <div style="background:#f0f0f0;padding:20px 14px;color:var(--ink3)">
+                STICKY PURCHASE CARD<br>price · tiers · CTAs<br>trust · meta
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Components Page Layout</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Components — Sidebar Rail + Content</div>
+        <div class="doc-diagram-body">
+          <div style="display:flex;gap:2px;font-family:'SF Mono','Fira Code',monospace;font-size:11px">
+            <div style="width:200px;flex-shrink:0;background:var(--off);padding:16px 12px;color:var(--ink3)">
+              RAIL — 360px<br><br>
+              product image<br>project name<br>tags · order CTA<br><br>
+              sticky to top
+            </div>
+            <div style="flex:1;background:var(--white);padding:16px 12px;color:var(--ink3)">
+              TOOLBAR<br>search · filters · view toggle<br><br>
+              PARTS GRID / LIST<br>auto-fill, 220px min columns<br><br>
+              FOOTER<br>total cost
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Tab Switching</div>
+      <div class="doc-code"><span class="kw">function</span> <span class="nm">gotoPage</span><span class="pu">(</span><span class="vl">p</span><span class="pu">) {</span>
+  <span class="cm">// Deactivate all pages</span>
+  document.<span class="nm">querySelectorAll</span><span class="pu">(</span><span class="st">'.page'</span><span class="pu">).</span><span class="nm">forEach</span><span class="pu">(</span>el <span class="kw">=&gt;</span> el.classList.<span class="nm">remove</span><span class="pu">(</span><span class="st">'active'</span><span class="pu">));</span>
+  <span class="cm">// Activate target — triggers pageIn animation</span>
+  document.<span class="nm">getElementById</span><span class="pu">(</span><span class="st">'page-'</span> <span class="pu">+</span> p<span class="pu">).</span>classList.<span class="nm">add</span><span class="pu">(</span><span class="st">'active'</span><span class="pu">);</span>
+  <span class="cm">// Sync header tab + mobile tab bar</span>
+  document.<span class="nm">querySelectorAll</span><span class="pu">(</span><span class="st">'[id^="ht-"]'</span><span class="pu">).</span><span class="nm">forEach</span><span class="pu">(</span>b <span class="kw">=&gt;</span> b.classList.<span class="nm">remove</span><span class="pu">(</span><span class="st">'active'</span><span class="pu">));</span>
+  document.<span class="nm">getElementById</span><span class="pu">(</span><span class="st">'ht-'</span> <span class="pu">+</span> p<span class="pu">)?.</span>classList.<span class="nm">add</span><span class="pu">(</span><span class="st">'active'</span><span class="pu">);</span>
+<span class="pu">}</span>
+
+<span class="cm">/* Animation — pageIn keyframe */</span>
+<span class="kw">@keyframes</span> <span class="nm">pageIn</span> <span class="pu">{</span>
+  <span class="kw">from</span> <span class="pu">{</span> <span class="pr">opacity</span><span class="pu">:</span> <span class="vl">0</span><span class="pu">;</span> <span class="pr">transform</span><span class="pu">:</span> <span class="nm">translateY</span><span class="pu">(</span><span class="vl">8px</span><span class="pu">); }</span>
+  <span class="kw">to</span>   <span class="pu">{</span> <span class="pr">opacity</span><span class="pu">:</span> <span class="vl">1</span><span class="pu">;</span> <span class="pr">transform</span><span class="pu">:</span> <span class="nm">translateY</span><span class="pu">(</span><span class="vl">0</span><span class="pu">); }</span>
+<span class="pu">}</span></div>
+    `
+  },
+  {
+    id: 'tokens', section: 'Architecture', label: 'Design Tokens',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Design<br>Tokens</div>
+      <div class="doc-lead">All visual decisions resolve to a fixed set of CSS custom properties. No magic numbers anywhere in the stylesheet — every value traces back to a token.</div>
+
+      <div class="doc-h2">CSS Custom Properties</div>
+      <div class="doc-code"><span class="kw">:root</span> <span class="pu">{</span>
+  <span class="cm">/* ── Color ─────────────────────────── */</span>
+  <span class="pr">--white</span><span class="pu">:</span>    <span class="vl">#ffffff</span><span class="pu">;</span>   <span class="cm">/* {colors.canvas} */</span>
+  <span class="pr">--off</span><span class="pu">:</span>      <span class="vl">#f5f5f5</span><span class="pu">;</span>   <span class="cm">/* {colors.soft-cloud} */</span>
+  <span class="pr">--ink</span><span class="pu">:</span>      <span class="vl">#111111</span><span class="pu">;</span>   <span class="cm">/* {colors.ink} — primary CTA, text, border */</span>
+  <span class="pr">--ink2</span><span class="pu">:</span>     <span class="vl">#39393b</span><span class="pu">;</span>   <span class="cm">/* {colors.charcoal} */</span>
+  <span class="pr">--ink3</span><span class="pu">:</span>     <span class="vl">#707072</span><span class="pu">;</span>   <span class="cm">/* {colors.mute} */</span>
+  <span class="pr">--ink4</span><span class="pu">:</span>     <span class="vl">#9e9ea0</span><span class="pu">;</span>   <span class="cm">/* {colors.stone} */</span>
+  <span class="pr">--rule</span><span class="pu">:</span>     <span class="vl">#cacacb</span><span class="pu">;</span>   <span class="cm">/* {colors.hairline} */</span>
+  <span class="pr">--rule2</span><span class="pu">:</span>    <span class="vl">#e5e5e5</span><span class="pu">;</span>   <span class="cm">/* {colors.hairline-soft} */</span>
+  <span class="pr">--accent</span><span class="pu">:</span>   <span class="vl">#d30005</span><span class="pu">;</span>   <span class="cm">/* {colors.sale} — semantic use only */</span>
+  <span class="pr">--green</span><span class="pu">:</span>    <span class="vl">#007d48</span><span class="pu">;</span>   <span class="cm">/* {colors.success} */</span>
+
+  <span class="cm">/* ── Typography ─────────────────────── */</span>
+  <span class="pr">--f-display</span><span class="pu">:</span> <span class="st">'Bebas Neue'</span><span class="pu">,</span> <span class="st">'Helvetica Neue'</span><span class="pu">,</span> Arial<span class="pu">,</span> sans-serif<span class="pu">;</span>
+  <span class="pr">--f-body</span><span class="pu">:</span>    <span class="st">'Inter'</span><span class="pu">,</span> <span class="st">'Helvetica Neue'</span><span class="pu">,</span> Helvetica<span class="pu">,</span> Arial<span class="pu">,</span> sans-serif<span class="pu">;</span>
+
+  <span class="cm">/* ── Layout ─────────────────────────── */</span>
+  <span class="pr">--hh</span><span class="pu">:</span>  <span class="vl">52px</span><span class="pu">;</span>   <span class="cm">/* header height */</span>
+  <span class="pr">--mth</span><span class="pu">:</span> <span class="vl">56px</span><span class="pu">;</span>   <span class="cm">/* mobile tab bar height */</span>
+  <span class="pr">--sw</span><span class="pu">:</span>  <span class="vl">360px</span><span class="pu">;</span>  <span class="cm">/* sidebar/rail width */</span>
+
+  <span class="cm">/* ── Motion ─────────────────────────── */</span>
+  <span class="pr">--ease-out-expo</span><span class="pu">:</span> <span class="nm">cubic-bezier</span><span class="pu">(</span><span class="vl">0.16, 1, 0.3, 1</span><span class="pu">);</span>
+  <span class="pr">--ease-in-out</span><span class="pu">:</span>   <span class="nm">cubic-bezier</span><span class="pu">(</span><span class="vl">0.65, 0, 0.35, 1</span><span class="pu">);</span>
+<span class="pu">}</span></div>
+
+      <div class="doc-h2">Radius Tokens</div>
+      <table class="doc-table">
+        <thead><tr><th>Token</th><th>Value</th><th>Used On</th></tr></thead>
+        <tbody>
+          <tr><td>--r-none</td><td>0px</td><td>All cards, image containers, panels, hero</td></tr>
+          <tr><td>--r-md</td><td>24px</td><td>Search pill, text inputs</td></tr>
+          <tr><td>--r-lg</td><td>30px</td><td>Every CTA button, filter chips, tag pills</td></tr>
+          <tr><td>--r-full</td><td>9999px</td><td>Avatar, icon buttons, swatch dots, HUD buttons</td></tr>
+        </tbody>
+      </table>
+
+      <div class="doc-callout warn">
+        <div class="doc-callout-label">Hard Rule</div>
+        <p>No border-radius value may appear in the CSS that isn't one of these four. There is no <span class="ic">border-radius: 8px</span> in this system.</p>
+      </div>
+
+      <div class="doc-h2">Spacing Scale</div>
+      <div class="doc-p">Base unit is 8px. All spacing values are multiples or sub-multiples of 8. The section rhythm token (<span class="ic">48px</span>) governs vertical distance between every major content block.</div>
+      <table class="doc-table">
+        <thead><tr><th>Token</th><th>px</th><th>rem</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td>{spacing.xxs}</td><td>2</td><td>0.125</td><td>Micro nudge, icon internal gap</td></tr>
+          <tr><td>{spacing.xs}</td><td>4</td><td>0.25</td><td>Tight label gap, swatch spacing</td></tr>
+          <tr><td>{spacing.sm}</td><td>8</td><td>0.5</td><td>Grid gutter, card metadata row gap</td></tr>
+          <tr><td>{spacing.md}</td><td>12</td><td>0.75</td><td>Chip padding, inline element gap</td></tr>
+          <tr><td>{spacing.lg}</td><td>18</td><td>1.125</td><td>Filter group vertical gap</td></tr>
+          <tr><td>{spacing.xl}</td><td>24</td><td>1.5</td><td>PDP row padding, card section gap</td></tr>
+          <tr><td>{spacing.xxl}</td><td>30</td><td>1.875</td><td>Button horizontal padding</td></tr>
+          <tr><td>{spacing.section}</td><td>48</td><td>3</td><td>Major block rhythm, button height</td></tr>
+        </tbody>
+      </table>
+    `
+  },
+  {
+    id: 'typography', section: 'Architecture', label: 'Typography Rules',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Typography<br>Rules</div>
+      <div class="doc-lead">Two fonts. One job each. Bebas Neue exists only for the campaign headline tier. Inter handles everything else — every size, every weight, every context.</div>
+
+      <div class="doc-h2">The Two-Tier System</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Typographic Contrast Model</div>
+        <div class="doc-diagram-body" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;line-height:0.9;color:var(--ink);text-transform:uppercase;margin-bottom:12px">Display<br>Tier</div>
+            <div style="font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--ink3);line-height:1.8">
+              Font: Bebas Neue<br>
+              Size: 96px (desktop)<br>
+              Weight: 400<br>
+              Line height: 0.9<br>
+              Case: UPPERCASE always<br>
+              Use: Hero headline only
+            </div>
+          </div>
+          <div>
+            <div style="font-family:'Inter',sans-serif;font-size:18px;font-weight:500;color:var(--ink);margin-bottom:12px">UI Tier</div>
+            <div style="font-family:'SF Mono','Fira Code',monospace;font-size:10px;color:var(--ink3);line-height:1.8">
+              Font: Inter<br>
+              Sizes: 9–32px<br>
+              Weights: 400 (body), 500 (UI)<br>
+              Line height: 1.2–1.75<br>
+              Case: Sentence case<br>
+              Use: Everything else
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Intentional Gap</div>
+      <div class="doc-p">The jump from 96px display to 32px heading is deliberate — there is no 48px or 64px intermediate tier. This "billboard above, catalog below" discontinuity is the system's signature. Resist the urge to add a mid-size display weight.</div>
+
+      <div class="do-dont">
+        <div class="do-box">
+          <div class="do-box-label">✓ Do</div>
+          <p>Use <span class="ic">Bebas Neue 96px</span> for the hero lockup only. Use <span class="ic">Inter 500 32px</span> for the next level down.</p>
+        </div>
+        <div class="dont-box">
+          <div class="dont-box-label">✗ Don't</div>
+          <p>Introduce a 64px Inter heading as a "compromise" tier. The gap is the design.</p>
+        </div>
+      </div>
+
+      <div class="doc-h2">Responsive Scaling</div>
+      <table class="doc-table">
+        <thead><tr><th>Breakpoint</th><th>Display Size</th><th>Rule</th></tr></thead>
+        <tbody>
+          <tr><td>desktop (1440+)</td><td>clamp(72px, 9vw, 120px)</td><td>Scales with viewport</td></tr>
+          <tr><td>tablet (960–1023)</td><td>~64px</td><td>Line-height stays 0.9</td></tr>
+          <tr><td>mobile (&lt;600px)</td><td>14vw (~52px)</td><td>Never below 48px</td></tr>
+        </tbody>
+      </table>
+
+      <div class="doc-h2">Letter Spacing</div>
+      <div class="doc-p">Letter spacing is <strong>0</strong> across all tiers. Bebas Neue and Inter are both optically tuned for tight fit at scale. Do not add tracking to either font — it will read as design-by-committee.</div>
+      <div class="doc-callout">
+        <div class="doc-callout-label">Exception</div>
+        <p>Section labels, table headers, and nav micro-labels use <span class="ic">letter-spacing: 0.08–0.1em</span> at 10–11px because sub-12px text at 0 tracking becomes optically compressed.</p>
+      </div>
+    `
+  },
+  {
+    id: 'components', section: 'Components', label: 'Button System',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Button<br>System</div>
+      <div class="doc-lead">Two shapes. Three variants. One rule: every interactive surface is either a pill (30px radius) or a full-radius circle. No square buttons exist in this system.</div>
+
+      <div class="doc-h2">Variant Hierarchy</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Decision Flow — Which Button?</div>
+        <div class="doc-diagram-body">
+          <div class="flow-row">
+            <div class="flow-node muted">One primary action<br>per viewport fold?</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node dark pill">button-primary<br>#111 · white text</div>
+          </div>
+          <div style="padding:8px 0 4px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--ink4)">↓ secondary action alongside it?</div>
+          <div class="flow-row">
+            <div class="flow-node muted">Light surface, lower<br>emphasis needed?</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node pill" style="background:var(--off);border-color:var(--rule)">button-secondary<br>#f5f5f5 · ink text</div>
+          </div>
+          <div style="padding:8px 0 4px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--ink4)">↓ on top of photography?</div>
+          <div class="flow-row">
+            <div class="flow-node muted">Overlaid on editorial<br>image tile?</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node pill" style="background:#fff;border:1px solid var(--rule)">button-outline-on-image<br>#fff · anchored bottom-left</div>
+          </div>
+          <div style="padding:8px 0 4px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--ink4)">↓ icon-only control?</div>
+          <div class="flow-row">
+            <div class="flow-node muted">Nav, carousel, wishlist,<br>HUD control?</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--off);border-color:var(--rule2)">⌘</div>
+            <div style="font-family:var(--f-body);font-size:12px;color:var(--ink3);margin-left:12px">button-icon-circular<br>40px · {rounded.full}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Spec Reference</div>
+      <div class="doc-code"><span class="cm">/* button-primary */</span>
+<span class="pu">{</span>
+  <span class="pr">background</span><span class="pu">:</span>    <span class="vl">#111111</span><span class="pu">;</span>          <span class="cm">/* var(--ink) */</span>
+  <span class="pr">color</span><span class="pu">:</span>         <span class="vl">#ffffff</span><span class="pu">;</span>          <span class="cm">/* var(--white) */</span>
+  <span class="pr">height</span><span class="pu">:</span>        <span class="vl">48px</span><span class="pu">;</span>             <span class="cm">/* {spacing.section} */</span>
+  <span class="pr">padding</span><span class="pu">:</span>       <span class="vl">0 32px</span><span class="pu">;</span>           <span class="cm">/* 0 {spacing.xxl} */</span>
+  <span class="pr">border-radius</span><span class="pu">:</span> <span class="vl">30px</span><span class="pu">;</span>             <span class="cm">/* {rounded.lg} */</span>
+  <span class="pr">font-family</span><span class="pu">:</span>   <span class="vl">Inter</span><span class="pu">;</span>
+  <span class="pr">font-size</span><span class="pu">:</span>     <span class="vl">16px</span><span class="pu">;</span>             <span class="cm">/* {typography.button-md} */</span>
+  <span class="pr">font-weight</span><span class="pu">:</span>   <span class="vl">500</span><span class="pu">;</span>
+  <span class="pr">border</span><span class="pu">:</span>        <span class="vl">none</span><span class="pu">;</span>
+<span class="pu">}</span>
+
+<span class="cm">/* Pressed state — "tap collapse" feedback */</span>
+<span class="nm">button-primary</span><span class="pu">:</span><span class="kw">active</span> <span class="pu">{</span>
+  <span class="pr">transform</span><span class="pu">:</span> <span class="nm">scale</span><span class="pu">(</span><span class="vl">0.97</span><span class="pu">);</span>
+  <span class="pr">opacity</span><span class="pu">:</span>   <span class="vl">0.85</span><span class="pu">;</span>
+<span class="pu">}</span></div>
+
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>One primary pill per visible fold. Pair with at most one secondary.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Place two black pills in the same viewport fold. One of them must become secondary or ghost.</p></div>
+      </div>
+    `
+  },
+  {
+    id: 'hero', section: 'Components', label: 'Hero Image',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Hero<br>Image</div>
+      <div class="doc-lead">The hero is the product. Every CSS decision subordinates itself to making the photography as large, clean, and legible as possible.</div>
+
+      <div class="doc-h2">Current Spec</div>
+      <div class="doc-code"><span class="pu">.hero-sticky {</span>
+  <span class="pr">width</span><span class="pu">:</span>      <span class="vl">100%</span><span class="pu">;</span>
+  <span class="pr">height</span><span class="pu">:</span>     <span class="vl">75vh</span><span class="pu">;</span>
+  <span class="pr">min-height</span><span class="pu">:</span> <span class="vl">500px</span><span class="pu">;</span>
+  <span class="pr">max-height</span><span class="pu">:</span> <span class="vl">760px</span><span class="pu">;</span>
+  <span class="pr">overflow</span><span class="pu">:</span>   <span class="vl">hidden</span><span class="pu">;</span>
+  <span class="pr">background</span><span class="pu">:</span> <span class="vl">#c8cac8</span><span class="pu">;</span>  <span class="cm">/* match ambient image grey */</span>
+  <span class="pr">position</span><span class="pu">:</span>   <span class="vl">relative</span><span class="pu">;</span>
+<span class="pu">}</span>
+
+<span class="pu">.hero-img {</span>
+  <span class="pr">width</span><span class="pu">:</span>            <span class="vl">100%</span><span class="pu">;</span>
+  <span class="pr">height</span><span class="pu">:</span>           <span class="vl">100%</span><span class="pu">;</span>
+  <span class="pr">object-fit</span><span class="pu">:</span>       <span class="vl">cover</span><span class="pu">;</span>
+  <span class="pr">object-position</span><span class="pu">:</span>  <span class="vl">center 20%</span><span class="pu">;</span>  <span class="cm">/* bias to shoe body, not sole */</span>
+  <span class="pr">transition</span><span class="pu">:</span>       <span class="vl">transform 1.6s</span> <span class="nm">ease-out-expo</span><span class="pu">;</span>
+<span class="pu">}</span>
+
+<span class="pu">.hero-sticky:hover .hero-img {</span>
+  <span class="pr">transform</span><span class="pu">:</span> <span class="nm">scale</span><span class="pu">(</span><span class="vl">1.025</span><span class="pu">);</span>  <span class="cm">/* subtle Ken Burns — not a zoom */</span>
+<span class="pu">}</span></div>
+
+      <div class="doc-h2">Overlay System</div>
+      <div class="doc-p">A gradient overlay covers the bottom 45% of the hero to ensure the Bebas Neue display headline is legible against any image. The overlay must never wash out the shoe itself — it only darkens the area where text lives.</div>
+      <div class="doc-code"><span class="pu">.hero-overlay {</span>
+  <span class="pr">position</span><span class="pu">:</span>   <span class="vl">absolute</span><span class="pu">;</span>
+  <span class="pr">inset</span><span class="pu">:</span>      <span class="vl">0</span><span class="pu">;</span>
+  <span class="pr">background</span><span class="pu">:</span> <span class="nm">linear-gradient</span><span class="pu">(</span>
+    <span class="vl">to bottom</span><span class="pu">,</span>
+    <span class="nm">transparent</span>          <span class="vl">55%</span><span class="pu">,</span>   <span class="cm">/* shoe reads clean above this */</span>
+    <span class="nm">rgba</span><span class="pu">(</span><span class="vl">0,0,0,0.65</span><span class="pu">)</span>     <span class="vl">100%</span>   <span class="cm">/* text zone darkened */</span>
+  <span class="pu">);</span>
+<span class="pu">}</span></div>
+
+      <div class="doc-h2">Badge Row Layout</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Hero Badge Positioning</div>
+        <div class="doc-diagram-body">
+          <div style="position:relative;background:#888;height:120px;overflow:hidden;border-radius:2px">
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.65) 100%)"></div>
+            <div style="position:absolute;bottom:16px;left:20px;right:20px;display:flex;align-items:flex-end;justify-content:space-between">
+              <div>
+                <div style="font-family:var(--f-body);font-size:9px;color:rgba(255,255,255,0.6);margin-bottom:2px">concept · v1.0 · mj²</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:#fff;line-height:0.9;text-transform:uppercase">Moonwalk<br>Air Jordans</div>
+              </div>
+              <div style="background:#fff;padding:8px 14px;border-radius:20px;text-align:right">
+                <div style="font-family:var(--f-body);font-size:9px;color:var(--ink3)">Starting From</div>
+                <div style="font-family:var(--f-body);font-size:16px;font-weight:500;color:var(--ink)">$32,519</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--ink3)">
+            <div>← hero-badge-left: display headline + sub-tag</div>
+            <div style="text-align:right">hero-price-bubble → white pill, bottom-right</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Image Sources</div>
+      <table class="doc-table">
+        <thead><tr><th>Slot</th><th>URL</th><th>Used In</th></tr></thead>
+        <tbody>
+          <tr><td>hero (angle3)</td><td style="font-size:11px;word-break:break-all">moonwalk-shoe-proto-v1-angle3.webp</td><td>Overview hero</td></tr>
+          <tr><td>rail (angle2)</td><td style="font-size:11px;word-break:break-all">moonwalk-shoe-proto-v1-angle2.webp</td><td>Build Guide sidebar</td></tr>
+          <tr><td>rail (v1)</td><td style="font-size:11px;word-break:break-all">moonwalk-shoe-proto-v1.webp</td><td>Components sidebar</td></tr>
+        </tbody>
+      </table>
+      <div class="doc-callout warn">
+        <div class="doc-callout-label">Never</div>
+        <p>Embed images as base64 in this file. All images must be external URLs. Base64 bloats the file from ~80kb to ~460kb and breaks diff/version tracking.</p>
+      </div>
+    `
+  },
+  {
+    id: 'hud', section: 'Components', label: 'HUD Rail',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">HUD<br>Rail</div>
+      <div class="doc-lead">A compact floating vertical pill that surfaces secondary navigation (Build Guide, Wiring, 3D Model, Docs) without cluttering the primary header. Visible on the Overview tab only.</div>
+
+      <div class="doc-h2">Anatomy</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">HUD Pill — Actual Scale</div>
+        <div class="doc-diagram-body" style="display:flex;gap:32px;align-items:flex-start">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--white);border:1px solid var(--rule2);border-radius:22px;padding:10px 4px;width:36px;box-shadow:0 2px 16px rgba(0,0,0,0.09)">
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--off);display:flex;align-items:center;justify-content:center;font-size:12px">≡</div>
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--off);display:flex;align-items:center;justify-content:center;font-size:12px">⌘</div>
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--off);display:flex;align-items:center;justify-content:center;font-size:12px">◇</div>
+            <div style="width:16px;height:1px;background:var(--rule2);margin:4px 0"></div>
+            <div style="width:28px;height:28px;border-radius:50%;background:var(--off);display:flex;align-items:center;justify-content:center;font-size:12px">📄</div>
+            <div style="writing-mode:vertical-lr;transform:rotate(180deg);font-size:8px;color:var(--ink4);letter-spacing:0.06em;margin-top:6px;font-family:var(--f-body)">03·30·1983</div>
+          </div>
+          <div style="font-family:'SF Mono','Fira Code',monospace;font-size:11px;color:var(--ink3);line-height:2">
+            width: 36px<br>
+            border-radius: 22px<br>
+            border: 1px solid {colors.hairline-soft}<br>
+            box-shadow: 0 2px 16px rgba(0,0,0,0.09)<br>
+            position: fixed, left:16px, top:50%, translateY(-50%)<br>
+            z-index: 50<br><br>
+            buttons: 28×28px, border-radius:50%<br>
+            tooltip: appears right, {rounded.lg} black pill<br>
+            date tag: vertical, 8px Inter, color: {colors.stone}
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Date Tag</div>
+      <div class="doc-p">The <span class="ic">03 · 30 · 1983</span> tag at the bottom of the pill is an easter egg — the date Michael Jackson debuted the moonwalk on Motown 25. It uses <span class="ic">writing-mode: vertical-lr; transform: rotate(180deg)</span> to read bottom-to-top. It is non-interactive, 8px Inter 500, <span class="ic">color: var(--ink4)</span>.</div>
+
+      <div class="doc-code"><span class="pu">.hud-rail {</span>
+  <span class="pr">position</span><span class="pu">:</span>   <span class="vl">fixed</span><span class="pu">;</span>
+  <span class="pr">left</span><span class="pu">:</span>       <span class="vl">16px</span><span class="pu">;</span>
+  <span class="pr">top</span><span class="pu">:</span>        <span class="vl">50%</span><span class="pu">;</span>
+  <span class="pr">transform</span><span class="pu">:</span>  <span class="nm">translateY</span><span class="pu">(</span><span class="vl">-50%</span><span class="pu">);</span>
+  <span class="pr">width</span><span class="pu">:</span>      <span class="vl">36px</span><span class="pu">;</span>
+  <span class="pr">border-radius</span><span class="pu">:</span> <span class="vl">22px</span><span class="pu">;</span>
+  <span class="pr">z-index</span><span class="pu">:</span>   <span class="vl">50</span><span class="pu">;</span>
+  <span class="cm">/* Floats above page scroll — no layout shift */</span>
+<span class="pu">}</span></div>
+    `
+  },
+  {
+    id: 'pricing', section: 'Content', label: 'Pricing Logic',
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Pricing<br>Logic</div>
+      <div class="doc-lead">The kit price is not arbitrary. Every number in the pricing system encodes cultural and historical data from the Air Jordan and Michael Jackson timeline.</div>
+
+      <div class="doc-h2">Base Price: $32,519.83</div>
+      <div class="doc-diagram">
+        <div class="doc-diagram-label">Price Derivation</div>
+        <div class="doc-diagram-body">
+          <div class="flow-row" style="margin-bottom:16px">
+            <div class="flow-node muted" style="min-width:140px">Air Jordan sole<br>patent filing</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node dark" style="min-width:100px;text-align:center">03/25/1983</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node muted">encoded as<br>price mantissa</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node dark">$32,5__.83</div>
+          </div>
+          <div class="flow-row">
+            <div class="flow-node muted" style="min-width:140px">Days to MJ<br>moonwalk debut</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node dark" style="min-width:100px;text-align:center">+5 days</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node muted">fills middle<br>digits</div>
+            <div class="flow-arr">→</div>
+            <div class="flow-node dark">$32,519.83</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-h2">Bulk Tier Calculation</div>
+      <table class="doc-table">
+        <thead><tr><th>Tier</th><th>Qty</th><th>Discount</th><th>Unit Price</th><th>Derivation</th></tr></thead>
+        <tbody>
+          <tr><td>Standard</td><td>1–4</td><td>—</td><td>$32,519.83</td><td>Base rate</td></tr>
+          <tr><td>Studio</td><td>5–19</td><td>10%</td><td>$29,267.85</td><td>Base × 0.90</td></tr>
+          <tr><td>Ensemble</td><td>20+</td><td>20%</td><td>$26,015.86</td><td>Base × 0.80</td></tr>
+        </tbody>
+      </table>
+
+      <div class="doc-h2">Display Rules</div>
+      <div class="doc-p">Price appears in three locations, each with different precision:</div>
+      <table class="doc-table">
+        <thead><tr><th>Location</th><th>Format</th><th>Font</th></tr></thead>
+        <tbody>
+          <tr><td>Hero bubble</td><td>$32,519 (no cents)</td><td>Inter 28px / 500</td></tr>
+          <tr><td>Purchase card</td><td>$32,519 / MJ² kit</td><td>Inter 24px / 500</td></tr>
+          <tr><td>Tier table</td><td>$32,519.83</td><td>Inter 14px / 500</td></tr>
+          <tr><td>ATC button</td><td>Add to Cart · $32,519</td><td>Inter 13px / 500</td></tr>
+        </tbody>
+      </table>
+      <div class="doc-callout good">
+        <div class="doc-callout-label">Rule</div>
+        <p>Cents are only shown in the tier table where precision matters for bulk calculations. All other displays truncate to the nearest dollar to keep headlines clean.</p>
+      </div>
+    `
+  },
+  {
+    id: 'dos-donts', section: 'Content', label: "Do's & Don'ts",
+    content: () => `
+      <div class="doc-h1" style="font-size:36px">Do's &<br>Don'ts</div>
+      <div class="doc-lead">Condensed rules for maintaining the integrity of the Nike design system as applied to this product page.</div>
+
+      <div class="doc-h2">Color</div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Use <span class="ic">#111111</span> for every primary CTA. True black only.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Substitute <span class="ic">#333</span> or <span class="ic">{colors.charcoal}</span> as a "softer" CTA background.</p></div>
+      </div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Use <span class="ic">{colors.sale}</span> only on price rows — discounted value and "% off" copy.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Use red for badge backgrounds, icon accents, or any non-price signal.</p></div>
+      </div>
+
+      <div class="doc-h2">Typography</div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Reserve Bebas Neue exclusively for the hero campaign headline. One use per page.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Use Bebas Neue for section headers, card titles, or any sub-hero text.</p></div>
+      </div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Keep letter-spacing at 0 for Inter at all display sizes.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Add positive tracking to Inter 500 headings to "make them feel premium."</p></div>
+      </div>
+
+      <div class="doc-h2">Shape</div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Use <span class="ic">border-radius: 30px</span> on every button and tag. Always.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Introduce <span class="ic">border-radius: 8px</span> "rounded rectangles." They don't exist here.</p></div>
+      </div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Keep product cards and image containers at <span class="ic">border-radius: 0</span>.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Round product image corners. The photograph bleeds to its own edge.</p></div>
+      </div>
+
+      <div class="doc-h2">Images</div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Use external URLs for all images. Keep file size under 120kb.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Embed images as base64. Ever. It bloats the file 5× and breaks version control.</p></div>
+      </div>
+
+      <div class="doc-h2">Elevation</div>
+      <div class="do-dont">
+        <div class="do-box"><div class="do-box-label">✓ Do</div><p>Use <span class="ic">box-shadow: inset 0 -1px 0 var(--rule2)</span> for sticky bar depth only.</p></div>
+        <div class="dont-box"><div class="dont-box-label">✗ Don't</div><p>Add drop shadows to cards, buttons, or any retail chrome element.</p></div>
+      </div>
+    `
+  }
+];
+
+function renderDocs() {
+  const nav = document.getElementById('docs-nav');
+  const content = document.getElementById('docs-content');
+  if (!nav || !content) return;
+
+  let lastSection = '';
+  nav.innerHTML = DOCS.map(d => {
+    let html = '';
+    if (d.section !== lastSection) {
+      html += `<div class="doc-nav-section">${d.section}</div>`;
+      lastSection = d.section;
+    }
+    html += `<div class="doc-nav-item" id="dnav-${d.id}" onclick="showDoc('${d.id}')">${d.label}</div>`;
+    return html;
+  }).join('');
+
+  showDoc('philosophy');
+}
+
+function showDoc(id) {
+  const doc = DOCS.find(d => d.id === id);
+  if (!doc) return;
+  document.getElementById('docs-content').innerHTML = doc.content();
+  document.querySelectorAll('.doc-nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('dnav-' + id)?.classList.add('active');
+}
+
 // ════ INIT ════
 renderParts();
 renderInstrs();
+renderDocs();
 gotoPage('info');
+
+// ════ DESIGN SYSTEM OVERLAY TABS ════
+function dsTab(name) {
+  document.querySelectorAll('.ds-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ds-pane').forEach(p => p.style.display = 'none');
+  document.querySelector(`.ds-tab[data-tab="${name}"]`).classList.add('active');
+  document.getElementById('ds-' + name).style.display = 'flex';
+}
 </script>
+
+<!-- ════ DESIGN SYSTEM OVERLAY ════ -->
+<div id="ds-overlay">
+  <div class="ds-backdrop" onclick="document.getElementById('ds-overlay').classList.remove('open')"></div>
+  <div class="ds-panel">
+
+    <!-- Header -->
+    <div class="ds-hdr">
+      <div class="ds-hdr-left">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2C5.58 2 2 5.58 2 10c0 4.08 3.05 7.44 7 7.93V15.5c0-.28.22-.5.5-.5h.5c2.76 0 5-2.24 5-5 0-.28-.22-.5-.5-.5H13c-.83 0-1.5-.67-1.5-1.5S12.17 6.5 13 6.5h1.45C13.44 3.9 11.9 2 10 2z" stroke="currentColor" stroke-width="1.4"/><circle cx="6.5" cy="8.5" r="1" fill="currentColor"/><circle cx="6.5" cy="11.5" r="1" fill="currentColor"/><circle cx="9" cy="6.5" r="1" fill="currentColor"/><circle cx="12" cy="7.5" r="1" fill="currentColor"/></svg>
+        <span class="ds-hdr-title">Design System</span>
+        <span class="ds-hdr-sub">Moonwalk Air Jordans · Nike System</span>
+      </div>
+      <button class="ds-close" onclick="document.getElementById('ds-overlay').classList.remove('open')">
+        <svg width="10" height="10" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="ds-tabs">
+      <button class="ds-tab active" data-tab="color" onclick="dsTab('color')">Color</button>
+      <button class="ds-tab" data-tab="type" onclick="dsTab('type')">Typography</button>
+      <button class="ds-tab" data-tab="space" onclick="dsTab('space')">Spacing</button>
+      <button class="ds-tab" data-tab="shape" onclick="dsTab('shape')">Shape</button>
+      <button class="ds-tab" data-tab="components" onclick="dsTab('components')">Components</button>
+      <button class="ds-tab" data-tab="elevation" onclick="dsTab('elevation')">Elevation</button>
+    </div>
+
+    <!-- ── COLOR ── -->
+    <div class="ds-body ds-pane" id="ds-color" style="display:flex">
+
+      <div class="ds-section">
+        <div class="ds-section-title">Brand & Surface</div>
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#111111;border-color:#111111"></div><div class="ds-swatch-name">Ink</div><div class="ds-swatch-token">{colors.ink}</div><div class="ds-swatch-hex">#111111</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ffffff"></div><div class="ds-swatch-name">Canvas</div><div class="ds-swatch-token">{colors.canvas}</div><div class="ds-swatch-hex">#ffffff</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#f5f5f5"></div><div class="ds-swatch-name">Soft Cloud</div><div class="ds-swatch-token">{colors.soft-cloud}</div><div class="ds-swatch-hex">#f5f5f5</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#cacacb"></div><div class="ds-swatch-name">Hairline</div><div class="ds-swatch-token">{colors.hairline}</div><div class="ds-swatch-hex">#cacacb</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#e5e5e5"></div><div class="ds-swatch-name">Hairline Soft</div><div class="ds-swatch-token">{colors.hairline-soft}</div><div class="ds-swatch-hex">#e5e5e5</div></div>
+        </div>
+      </div>
+
+      <div class="ds-section">
+        <div class="ds-section-title">Text</div>
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#111111;border-color:#111111"></div><div class="ds-swatch-name">Ink</div><div class="ds-swatch-token">{colors.ink}</div><div class="ds-swatch-hex">#111111</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#39393b"></div><div class="ds-swatch-name">Charcoal</div><div class="ds-swatch-token">{colors.charcoal}</div><div class="ds-swatch-hex">#39393b</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#4b4b4d"></div><div class="ds-swatch-name">Ash</div><div class="ds-swatch-token">{colors.ash}</div><div class="ds-swatch-hex">#4b4b4d</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#707072"></div><div class="ds-swatch-name">Mute</div><div class="ds-swatch-token">{colors.mute}</div><div class="ds-swatch-hex">#707072</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#9e9ea0"></div><div class="ds-swatch-name">Stone</div><div class="ds-swatch-token">{colors.stone}</div><div class="ds-swatch-hex">#9e9ea0</div></div>
+        </div>
+      </div>
+
+      <div class="ds-section">
+        <div class="ds-section-title">Semantic</div>
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#d30005"></div><div class="ds-swatch-name">Sale</div><div class="ds-swatch-token">{colors.sale}</div><div class="ds-swatch-hex">#d30005</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#780700"></div><div class="ds-swatch-name">Sale Deep</div><div class="ds-swatch-token">{colors.sale-deep}</div><div class="ds-swatch-hex">#780700</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#007d48"></div><div class="ds-swatch-name">Success</div><div class="ds-swatch-token">{colors.success}</div><div class="ds-swatch-hex">#007d48</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#1eaa52"></div><div class="ds-swatch-name">Success Bright</div><div class="ds-swatch-token">{colors.success-bright}</div><div class="ds-swatch-hex">#1eaa52</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#1151ff"></div><div class="ds-swatch-name">Info</div><div class="ds-swatch-token">{colors.info}</div><div class="ds-swatch-hex">#1151ff</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#0034e3"></div><div class="ds-swatch-name">Info Deep</div><div class="ds-swatch-token">{colors.info-deep}</div><div class="ds-swatch-hex">#0034e3</div></div>
+        </div>
+      </div>
+
+      <div class="ds-section">
+        <div class="ds-section-title">Category Accents — editorial / swatch use only</div>
+        <div class="ds-swatches">
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ed1aa0"></div><div class="ds-swatch-name">Accent Pink</div><div class="ds-swatch-token">{colors.accent-pink}</div><div class="ds-swatch-hex">#ed1aa0</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#ffb0dd"></div><div class="ds-swatch-name">Pink Soft</div><div class="ds-swatch-token">{colors.accent-pink-soft}</div><div class="ds-swatch-hex">#ffb0dd</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#beaffd"></div><div class="ds-swatch-name">Purple Soft</div><div class="ds-swatch-token">{colors.accent-purple-soft}</div><div class="ds-swatch-hex">#beaffd</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#d6d1ff"></div><div class="ds-swatch-name">Purple Pale</div><div class="ds-swatch-token">{colors.accent-purple-pale}</div><div class="ds-swatch-hex">#d6d1ff</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#0a7281"></div><div class="ds-swatch-name">Accent Teal</div><div class="ds-swatch-token">{colors.accent-teal}</div><div class="ds-swatch-hex">#0a7281</div></div>
+          <div class="ds-swatch"><div class="ds-swatch-color" style="background:#4c012d"></div><div class="ds-swatch-name">Pink Deep</div><div class="ds-swatch-token">{colors.accent-pink-deep}</div><div class="ds-swatch-hex">#4c012d</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── TYPOGRAPHY ── -->
+    <div class="ds-body ds-pane" id="ds-type" style="display:none">
+      <div class="ds-section">
+        <div class="ds-section-title">Font Families</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;line-height:1;color:var(--ink);margin-bottom:8px">BEBAS NEUE</div>
+            <div class="ds-swatch-token">Display / Campaign</div>
+            <div class="ds-swatch-hex" style="margin-top:4px">96px · weight 400 · lh 0.9 · uppercase</div>
+            <div class="ds-swatch-hex">Substitute for Nike Futura ND</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Inter',sans-serif;font-size:18px;font-weight:500;color:var(--ink);margin-bottom:8px">Inter Medium</div>
+            <div class="ds-swatch-token">UI / Body / Buttons</div>
+            <div class="ds-swatch-hex" style="margin-top:4px">12–32px · weight 400–500</div>
+            <div class="ds-swatch-hex">Substitute for Helvetica Now</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-section">
+        <div class="ds-section-title">Type Scale</div>
+        <div class="ds-type-rows">
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.display-campaign}</div><div class="ds-type-spec">96px / 400 / lh 0.9</div></div>
+            <div class="ds-type-preview" style="overflow:hidden;height:56px"><div style="font-family:'Bebas Neue',sans-serif;font-size:56px;font-weight:400;line-height:0.9;text-transform:uppercase;white-space:nowrap">Moonwalk</div></div>
+            <div class="ds-type-use">Hero campaign headline</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.heading-xl}</div><div class="ds-type-spec">32px / 500 / lh 1.2</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:32px;font-weight:500;line-height:1.2">Section Header</div></div>
+            <div class="ds-type-use">Section headers, PDP title</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.heading-lg}</div><div class="ds-type-spec">24px / 500 / lh 1.2</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:24px;font-weight:500;line-height:1.2">$32,519</div></div>
+            <div class="ds-type-use">Prices, subsection titles</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.heading-md}</div><div class="ds-type-spec">16px / 500 / lh 1.75</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:500">Card Title</div></div>
+            <div class="ds-type-use">Card titles, FAQ labels</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.body-md}</div><div class="ds-type-spec">16px / 400 / lh 1.5</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:400">Body copy and descriptions</div></div>
+            <div class="ds-type-use">Body copy, descriptions</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.button-md}</div><div class="ds-type-spec">16px / 500 / lh 1.5</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:16px;font-weight:500">Add to Cart</div></div>
+            <div class="ds-type-use">All pill CTAs</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.caption-md}</div><div class="ds-type-spec">14px / 500 / lh 1.5</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:14px;font-weight:500">Men's Trail Running Shoes</div></div>
+            <div class="ds-type-use">Product subtitles, footer links</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.caption-sm}</div><div class="ds-type-spec">12px / 500 / lh 1.5</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500">Filter chip · Badge text</div></div>
+            <div class="ds-type-use">Chips, badges, meta</div>
+          </div>
+          <div class="ds-type-row">
+            <div class="ds-type-meta"><div class="ds-type-token">{typography.utility-xs}</div><div class="ds-type-spec">9px / 500 / lh 1.75</div></div>
+            <div class="ds-type-preview"><div style="font-family:'Inter',sans-serif;font-size:9px;font-weight:500">© 2025 Nike, Inc. All rights reserved.</div></div>
+            <div class="ds-type-use">Legal / fine print only</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SPACING ── -->
+    <div class="ds-body ds-pane" id="ds-space" style="display:none">
+      <div class="ds-section">
+        <div class="ds-section-title">Spacing Scale — base unit 8px</div>
+        <div class="ds-spacing-rows">
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.xxs}</span><span class="ds-sp-val">2px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:2%"></div></div><span class="ds-sp-use">Icon gap, micro nudge</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.xs}</span><span class="ds-sp-val">4px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:4%"></div></div><span class="ds-sp-use">Tight label gap</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.sm}</span><span class="ds-sp-val">8px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:8%"></div></div><span class="ds-sp-use">Grid gutter, card row gap</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.md}</span><span class="ds-sp-val">12px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:12%"></div></div><span class="ds-sp-use">Chip padding, inline gap</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.lg}</span><span class="ds-sp-val">18px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:18%"></div></div><span class="ds-sp-use">Filter group gap</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.xl}</span><span class="ds-sp-val">24px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:24%"></div></div><span class="ds-sp-use">PDP disclosure row padding</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.xxl}</span><span class="ds-sp-val">30px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:30%"></div></div><span class="ds-sp-use">Card internal padding</span></div>
+          <div class="ds-sp-row"><span class="ds-sp-token">{spacing.section}</span><span class="ds-sp-val">48px</span><div class="ds-sp-bar-wrap"><div class="ds-sp-bar" style="width:48%"></div></div><span class="ds-sp-use">Between major content blocks</span></div>
+        </div>
+      </div>
+      <div class="ds-section">
+        <div class="ds-section-title">Grid & Container</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Inter',sans-serif;font-size:13px;font-weight:500;margin-bottom:6px">Max Width</div>
+            <div class="ds-swatch-token">~1440px content area</div>
+            <div class="ds-swatch-hex">Gutters grow to ~80px at 1920px</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Inter',sans-serif;font-size:13px;font-weight:500;margin-bottom:6px">Product Grid</div>
+            <div class="ds-swatch-token">3-up desktop → 2-up tablet → 1-up mobile</div>
+            <div class="ds-swatch-hex">8px gutters ({spacing.sm})</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Inter',sans-serif;font-size:13px;font-weight:500;margin-bottom:6px">Filter Sidebar</div>
+            <div class="ds-swatch-token">220px fixed left rail</div>
+            <div class="ds-swatch-hex">Collapses to toggle at &lt;1024px</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:16px">
+            <div style="font-family:'Inter',sans-serif;font-size:13px;font-weight:500;margin-bottom:6px">Touch Targets</div>
+            <div class="ds-swatch-token">44×44px min (WCAG AAA)</div>
+            <div class="ds-swatch-hex">Pills at 48px height</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SHAPE ── -->
+    <div class="ds-body ds-pane" id="ds-shape" style="display:none">
+      <div class="ds-section">
+        <div class="ds-section-title">Border Radius Scale</div>
+        <div class="ds-radius-grid">
+          <div class="ds-rad">
+            <div class="ds-rad-box" style="border-radius:0px"></div>
+            <div class="ds-rad-token">{rounded.none}</div>
+            <div class="ds-rad-val">0px</div>
+            <div class="ds-swatch-hex" style="text-align:center;margin-top:2px">Cards, images, containers</div>
+          </div>
+          <div class="ds-rad">
+            <div class="ds-rad-box" style="border-radius:18px"></div>
+            <div class="ds-rad-token">{rounded.sm}</div>
+            <div class="ds-rad-val">18px</div>
+            <div class="ds-swatch-hex" style="text-align:center;margin-top:2px">Avatar containers</div>
+          </div>
+          <div class="ds-rad">
+            <div class="ds-rad-box" style="border-radius:24px"></div>
+            <div class="ds-rad-token">{rounded.md}</div>
+            <div class="ds-rad-val">24px</div>
+            <div class="ds-swatch-hex" style="text-align:center;margin-top:2px">Search pill, inputs</div>
+          </div>
+          <div class="ds-rad">
+            <div class="ds-rad-box" style="border-radius:30px"></div>
+            <div class="ds-rad-token">{rounded.lg}</div>
+            <div class="ds-rad-val">30px</div>
+            <div class="ds-swatch-hex" style="text-align:center;margin-top:2px">Every CTA pill, chips</div>
+          </div>
+          <div class="ds-rad">
+            <div class="ds-rad-box" style="border-radius:9999px;width:40px;height:40px;align-self:center"></div>
+            <div class="ds-rad-token">{rounded.full}</div>
+            <div class="ds-rad-val">9999px</div>
+            <div class="ds-swatch-hex" style="text-align:center;margin-top:2px">Swatches, icon btns</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-section">
+        <div class="ds-section-title">Photography Geometry</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+          <div style="border:1px solid var(--rule2);padding:14px">
+            <div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;margin-bottom:4px">Product Card</div>
+            <div class="ds-swatch-hex">1:1 square, full-bleed on {colors.soft-cloud}</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:14px">
+            <div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;margin-bottom:4px">Campaign Hero</div>
+            <div class="ds-swatch-hex">16:9+ cinematic, full-bleed to max-width</div>
+          </div>
+          <div style="border:1px solid var(--rule2);padding:14px">
+            <div style="font-family:'Inter',sans-serif;font-size:12px;font-weight:500;margin-bottom:4px">Sport Rail</div>
+            <div class="ds-swatch-hex">4:5 portrait, CTA pill anchored bottom-left</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COMPONENTS ── -->
+    <div class="ds-body ds-pane" id="ds-components" style="display:none">
+      <div class="ds-section">
+        <div class="ds-section-title">Buttons</div>
+        <div class="ds-comp-grid">
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">button-primary</div>
+            <div class="ds-comp-preview"><button class="ec-btn-primary" style="width:auto">Add to Cart</button></div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.ink}</span> · text <span class="tok">{colors.canvas}</span> · h 48px · px 32px · <span class="tok">{rounded.lg}</span></div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">button-secondary</div>
+            <div class="ds-comp-preview"><button class="ec-btn-secondary" style="width:auto">Download BOM</button></div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.soft-cloud}</span> · text <span class="tok">{colors.ink}</span> · h 48px · <span class="tok">{rounded.lg}</span></div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">button-outline-on-image</div>
+            <div class="ds-comp-preview" style="background:#555;padding:12px;border-radius:4px"><button style="padding:12px 24px;border:none;background:#fff;color:#111;border-radius:30px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer">Shop Now</button></div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.canvas}</span> · anchored bottom-left of editorial tile</div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">button-icon-circular</div>
+            <div class="ds-comp-preview"><button class="hdr-icon">←</button><button class="hdr-icon">♡</button><button class="hdr-icon">↗</button></div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.soft-cloud}</span> · 40×40px · <span class="tok">{rounded.full}</span></div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">filter-chip / filter-chip-active</div>
+            <div class="ds-comp-preview">
+              <span class="tag">Bluetooth</span>
+              <span style="padding:8px 16px;border:1px solid #111;border-radius:30px;background:#111;color:#fff;font-family:'Inter',sans-serif;font-size:12px;font-weight:500">Active</span>
+            </div>
+            <div class="ds-comp-spec">Default: 1px <span class="tok">{colors.hairline}</span> border · Active: inverted ink fill</div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">search-pill</div>
+            <div class="ds-comp-preview"><input style="padding:10px 16px;border:1px solid #e5e5e5;border-radius:24px;background:#f5f5f5;font-family:'Inter',sans-serif;font-size:14px;width:180px;outline:none" placeholder="Search components…"></div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.soft-cloud}</span> · <span class="tok">{rounded.md}</span> · h 40px · focus: 2px ink border</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-section">
+        <div class="ds-section-title">Cards</div>
+        <div class="ds-comp-grid">
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">product-card</div>
+            <div class="ds-comp-spec">0 radius · 0 shadow · 0 padding · image full-bleed on <span class="tok">{colors.soft-cloud}</span> · metadata below at <span class="tok">{spacing.sm}</span> gap · price row with <span class="tok">{colors.sale}</span> for discounts</div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">badge-promo</div>
+            <div class="ds-comp-preview">
+              <span style="padding:4px 12px;border:1px solid #cacacb;border-radius:30px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500">Just In</span>
+              <span style="padding:4px 12px;border:1px solid #cacacb;border-radius:30px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500">Coming Soon</span>
+            </div>
+            <div class="ds-comp-spec">bg <span class="tok">{colors.canvas}</span> · 1px <span class="tok">{colors.hairline}</span> · <span class="tok">{rounded.lg}</span> · top-left of card image</div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">swatch-dot / swatch-dot-active</div>
+            <div class="ds-comp-preview" style="gap:6px">
+              <div style="width:12px;height:12px;border-radius:50%;background:#111111;border:1px solid #cacacb"></div>
+              <div style="width:12px;height:12px;border-radius:50%;background:#c8c8c8;border:1px solid #cacacb"></div>
+              <div style="width:12px;height:12px;border-radius:50%;background:#ffffff;border:1px solid #cacacb"></div>
+              <div style="width:12px;height:12px;border-radius:50%;background:#d30005;outline:2px solid #111;outline-offset:2px"></div>
+            </div>
+            <div class="ds-comp-spec">12px · <span class="tok">{rounded.full}</span> · active: 2px ink ring + 2px white gap</div>
+          </div>
+          <div class="ds-comp-card">
+            <div class="ds-comp-label">pdp-disclosure-row</div>
+            <div class="ds-comp-preview" style="flex-direction:column;width:100%">
+              <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e5e5e5;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;width:100%"><span>View Product Details</span><span>›</span></div>
+              <div style="display:flex;justify-content:space-between;padding:10px 0;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;width:100%"><span>Shipping & Returns</span><span>›</span></div>
+            </div>
+            <div class="ds-comp-spec"><span class="tok">{spacing.xl}</span> vertical padding · 1px <span class="tok">{colors.hairline}</span> divider below each</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ELEVATION ── -->
+    <div class="ds-body ds-pane" id="ds-elevation" style="display:none">
+      <div class="ds-section">
+        <div class="ds-section-title">Elevation System — no drop shadows in this system</div>
+        <div class="ds-elev-grid">
+          <div class="ds-elev-card">
+            <div class="ds-elev-name">Level 0 — Flat</div>
+            <div class="ds-elev-spec">no shadow · no border</div>
+            <div style="width:100%;height:40px;background:var(--off);margin:8px 0"></div>
+            <div class="ds-elev-use">Default for all cards, buttons, and sections. The dominant treatment — ~95% of surfaces.</div>
+          </div>
+          <div class="ds-elev-card">
+            <div class="ds-elev-name">Level 1 — Hairline</div>
+            <div class="ds-elev-spec">1px solid {colors.hairline} #cacacb</div>
+            <div style="width:100%;height:40px;background:var(--off);border:1px solid #cacacb;margin:8px 0"></div>
+            <div class="ds-elev-use">Filter row separators, footer column borders, PDP disclosure-row separators.</div>
+          </div>
+          <div class="ds-elev-card">
+            <div class="ds-elev-name">Level 2 — Inset Bottom</div>
+            <div class="ds-elev-spec">box-shadow: inset 0 -1px 0 {colors.hairline-soft}</div>
+            <div style="width:100%;height:40px;background:var(--off);box-shadow:inset 0 -1px 0 #e5e5e5;margin:8px 0"></div>
+            <div class="ds-elev-use">Sticky utility bar bottom edge, tab strip underline. The only "shadow" in the system.</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-section">
+        <div class="ds-section-title">Depth Principles</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="padding:14px 16px;border:1px solid var(--rule2);display:flex;gap:12px;align-items:flex-start">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--ink);flex-shrink:0;margin-top:6px"></div>
+            <div style="font-family:'Inter',sans-serif;font-size:13px;color:var(--ink2);line-height:1.5">Depth comes entirely from <strong>photography</strong>, not CSS effects. Editorial campaign tiles create depth via cinematic perspective; product cards are shot flat on {colors.soft-cloud} so the product is the only thing with form.</div>
+          </div>
+          <div style="padding:14px 16px;border:1px solid var(--rule2);display:flex;gap:12px;align-items:flex-start">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--ink);flex-shrink:0;margin-top:6px"></div>
+            <div style="font-family:'Inter',sans-serif;font-size:13px;color:var(--ink2);line-height:1.5">Cards <strong>do not lift</strong> on hover or focus. Never introduce drop shadows or card elevation. The only interactive depth cue is the 1px inset hairline on sticky bars.</div>
+          </div>
+          <div style="padding:14px 16px;border:1px solid var(--rule2);display:flex;gap:12px;align-items:flex-start">
+            <div style="width:4px;height:4px;border-radius:50%;background:var(--ink);flex-shrink:0;margin-top:6px"></div>
+            <div style="font-family:'Inter',sans-serif;font-size:13px;color:var(--ink2);line-height:1.5">The contrast between full-bleed photography and the {colors.soft-cloud} product backdrop is the system's primary depth signal — no additional effects required.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /ds-panel -->
+</div><!-- /ds-overlay -->
+
 </body>
 </html>
