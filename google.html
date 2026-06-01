@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Google</title>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -22,11 +22,12 @@
   --border-focus:#4285f4;
   --shadow-sm:   0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.14);
   --shadow-md:   0 4px 6px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.08);
-  --shadow-lg:   0 8px 24px rgba(0,0,0,.1);
+  --shadow-lg:   0 8px 24px rgba(0,0,0,.15);
   --sans:        'Google Sans', sans-serif;
   --body:        'Roboto', sans-serif;
   --mono:        'Roboto Mono', monospace;
-  --top-h:       60px;
+  --sheet-peek:  72px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 body.dark {
   --surface:     #202124;
@@ -40,8 +41,30 @@ body.dark {
   --blue-hover:  #aecbfa;
 }
 *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--surface); color:var(--fg); font-family:var(--body); cursor:none; transition:background 0.2s,color 0.2s; }
-#cursor-canvas { position:fixed; inset:0; pointer-events:none; z-index:9999; }
+html, body { height:100%; overflow:hidden; }
+body {
+  background:var(--surface);
+  color:var(--fg);
+  font-family:var(--body);
+  transition:background 0.2s,color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* ──────────────── CUSTOM CURSOR (desktop only) ──────────────── */
+@media (hover:hover) and (pointer:fine) {
+  body { cursor: none; }
+  button, a, input { cursor: none; }
+}
+#cursor-canvas {
+  position:fixed; inset:0; pointer-events:none; z-index:9999;
+  display:none;
+}
+@media (hover:hover) and (pointer:fine) {
+  #cursor-canvas { display:block; }
+}
+
+/* ──────────────── LOGO ──────────────── */
 .g-logo { font-family:var(--sans); font-size:1em; font-weight:400; letter-spacing:-0.5px; user-select:none; }
 .g-logo .g  { color:var(--blue); }
 .g-logo .o1 { color:var(--red); }
@@ -49,104 +72,307 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
 .g-logo .g2 { color:var(--blue); }
 .g-logo .l  { color:var(--green); }
 .g-logo .e  { color:var(--red); }
-#page-home { display:flex; flex-direction:column; min-height:100vh; background:var(--surface); }
-#page-results { display:none; flex-direction:column; min-height:100vh; }
-#home-nav { display:flex; justify-content:flex-end; align-items:center; padding:14px 24px; gap:16px; }
-.hnav-link { font-family:var(--body); font-size:13px; color:var(--fg); text-decoration:none; }
+
+/* ──────────────── PAGE SHELL ──────────────── */
+#page-home    { display:flex; flex-direction:column; height:100%; background:var(--surface); overflow:auto; }
+#page-results { display:none; flex-direction:column; height:100%; position:relative; }
+
+/* ══════════════════════════════════════════
+   HOME PAGE
+══════════════════════════════════════════ */
+#home-nav {
+  display:flex; justify-content:flex-end; align-items:center;
+  padding:14px 16px; gap:12px; flex-shrink:0;
+}
+.hnav-link { font-family:var(--body); font-size:13px; color:var(--fg); text-decoration:none; padding:6px 4px; }
 .hnav-link:hover { text-decoration:underline; }
-.hnav-signin { font-family:var(--sans); font-size:14px; font-weight:500; color:#fff; background:var(--blue); border:none; border-radius:4px; padding:9px 23px; cursor:none; transition:background 0.15s,box-shadow 0.15s; box-shadow:var(--shadow-sm); }
-.hnav-signin:hover { background:var(--blue-hover); box-shadow:var(--shadow-md); }
-#home-center { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding-bottom:120px; }
-#home-wordmark { font-family:var(--sans); font-size:92px; font-weight:400; letter-spacing:-2px; margin-bottom:28px; user-select:none; }
-#home-search-row { width:560px; max-width:92vw; position:relative; margin-bottom:22px; }
-#home-input { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:9999px; padding:13px 50px 13px 52px; font-family:var(--body); font-size:16px; color:var(--fg); outline:none; box-shadow:var(--shadow-sm); transition:box-shadow 0.15s,border-color 0.15s; }
+.hnav-signin {
+  font-family:var(--sans); font-size:14px; font-weight:500;
+  color:#fff; background:var(--blue); border:none;
+  border-radius:4px; padding:9px 20px;
+  transition:background 0.15s,box-shadow 0.15s;
+  box-shadow:var(--shadow-sm); min-height:44px;
+}
+.hnav-signin:hover { background:var(--blue-hover); }
+
+#home-center {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding:0 16px 80px;
+}
+#home-wordmark {
+  font-family:var(--sans); font-size:clamp(64px,20vw,92px);
+  font-weight:400; letter-spacing:-2px; margin-bottom:24px; user-select:none;
+}
+
+/* Home search bar */
+#home-search-row {
+  width:100%; max-width:560px; position:relative; margin-bottom:20px;
+}
+#home-input {
+  width:100%; background:var(--surface); border:1px solid var(--border);
+  border-radius:9999px; padding:14px 56px 14px 52px;
+  font-family:var(--body); font-size:16px; color:var(--fg); outline:none;
+  box-shadow:var(--shadow-sm); transition:box-shadow 0.15s,border-color 0.15s;
+  min-height:52px; -webkit-appearance:none;
+}
 #home-input:hover { box-shadow:var(--shadow-md); }
 #home-input:focus { border-color:transparent; box-shadow:0 4px 12px rgba(0,0,0,.15); }
 #home-input::placeholder { color:var(--muted); }
-.home-input-icon { position:absolute; left:18px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:20px; pointer-events:none; }
-.home-input-actions { position:absolute; right:14px; top:50%; transform:translateY(-50%); display:flex; gap:8px; align-items:center; }
-.home-mic-btn,.home-lens-btn { background:none; border:none; cursor:none; color:var(--muted); font-size:20px; padding:2px; transition:color 0.15s; }
-.home-mic-btn:hover,.home-lens-btn:hover { color:var(--fg); }
-#home-btns { display:flex; gap:12px; }
-.hbtn { font-family:var(--body); font-size:14px; color:var(--fg); background:var(--surface-alt); border:1px solid var(--surface-alt); border-radius:4px; padding:10px 20px; cursor:none; transition:border-color 0.15s,box-shadow 0.15s; }
+.home-input-icon {
+  position:absolute; left:18px; top:50%; transform:translateY(-50%);
+  color:var(--muted); font-size:20px; pointer-events:none;
+}
+.home-input-actions {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  display:flex; gap:4px; align-items:center;
+}
+.home-mic-btn,.home-lens-btn {
+  background:none; border:none; color:var(--muted); font-size:20px;
+  padding:6px; transition:color 0.15s; min-width:44px; min-height:44px;
+  display:flex; align-items:center; justify-content:center;
+}
+.home-mic-btn:active,.home-lens-btn:active { color:var(--fg); }
+
+#home-btns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.hbtn {
+  font-family:var(--body); font-size:14px; color:var(--fg);
+  background:var(--surface-alt); border:1px solid var(--surface-alt);
+  border-radius:4px; padding:10px 20px; min-height:44px;
+  transition:border-color 0.15s,box-shadow 0.15s;
+}
 .hbtn:hover { border-color:var(--border); box-shadow:var(--shadow-sm); }
-#home-language { margin-top:26px; font-size:13px; color:var(--muted); }
+
+#home-language { margin-top:24px; font-size:13px; color:var(--muted); text-align:center; }
 #home-language a { color:var(--blue); text-decoration:none; }
 #home-language a:hover { text-decoration:underline; }
-#home-footer { border-top:1px solid var(--border); background:var(--surface-alt); display:flex; justify-content:space-between; padding:14px 24px; }
-.hfooter-group { display:flex; gap:20px; }
-.hfooter-link { font-size:13px; color:var(--muted); text-decoration:none; transition:color 0.15s; }
+
+#home-footer {
+  border-top:1px solid var(--border); background:var(--surface-alt);
+  padding:14px 16px; flex-shrink:0;
+}
+.hfooter-inner {
+  display:flex; flex-wrap:wrap; gap:8px 16px; justify-content:center;
+}
+.hfooter-link {
+  font-size:13px; color:var(--muted); text-decoration:none; padding:4px 0;
+}
 .hfooter-link:hover { color:var(--fg); text-decoration:underline; }
-#results-topbar { position:sticky; top:0; z-index:200; background:var(--surface); border-bottom:1px solid var(--border); }
-#results-row1 { display:flex; align-items:center; gap:20px; padding:8px 24px; }
-#results-wordmark { font-family:var(--sans); font-size:28px; font-weight:400; letter-spacing:-1px; cursor:none; user-select:none; flex-shrink:0; }
-#results-search-wrap { flex:1; max-width:620px; position:relative; }
-#results-input { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:9999px; padding:9px 48px 9px 20px; font-family:var(--body); font-size:15px; color:var(--fg); outline:none; transition:border-color 0.15s,box-shadow 0.15s; }
-#results-input:hover { border-color:var(--muted); }
+
+/* ══════════════════════════════════════════
+   RESULTS PAGE — TOP BAR
+══════════════════════════════════════════ */
+#results-topbar {
+  position:sticky; top:0; z-index:200;
+  background:var(--surface); border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+#results-row1 {
+  display:flex; align-items:center; gap:10px; padding:8px 12px;
+}
+#results-wordmark {
+  font-family:var(--sans); font-size:26px; font-weight:400;
+  letter-spacing:-1px; user-select:none; flex-shrink:0;
+}
+#results-search-wrap { flex:1; position:relative; min-width:0; }
+#results-input {
+  width:100%; background:var(--surface); border:1px solid var(--border);
+  border-radius:9999px; padding:9px 44px 9px 16px;
+  font-family:var(--body); font-size:15px; color:var(--fg); outline:none;
+  transition:border-color 0.15s,box-shadow 0.15s;
+  min-height:44px; -webkit-appearance:none;
+}
 #results-input:focus { border-color:transparent; box-shadow:0 2px 10px rgba(0,0,0,.15); }
-.results-input-icon { position:absolute; right:14px; top:50%; transform:translateY(-50%); color:var(--blue); font-size:20px; cursor:none; background:none; border:none; transition:color 0.15s; }
-.rtopbar-actions { margin-left:auto; display:flex; gap:10px; align-items:center; flex-shrink:0; }
-.rtop-btn { font-family:var(--body); font-size:13px; color:var(--muted); background:none; border:1px solid var(--border); border-radius:4px; padding:5px 12px; cursor:none; transition:color 0.15s,border-color 0.15s; }
-.rtop-btn:hover { color:var(--fg); border-color:var(--muted); }
+.results-input-icon {
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  color:var(--blue); font-size:20px; background:none; border:none;
+  min-width:40px; min-height:40px; display:flex; align-items:center; justify-content:center;
+}
+.rtopbar-actions { display:flex; gap:6px; align-items:center; flex-shrink:0; }
+.rtop-btn {
+  font-family:var(--body); font-size:13px; color:var(--muted);
+  background:none; border:1px solid var(--border); border-radius:4px;
+  padding:5px 10px; min-height:36px; transition:color 0.15s,border-color 0.15s;
+}
+.rtop-btn:hover { color:var(--fg); }
 .rtop-btn.primary { color:#fff; background:var(--blue); border-color:var(--blue); }
-.rtop-btn.primary:hover { background:var(--blue-hover); border-color:var(--blue-hover); }
-#results-tabs-row { display:flex; padding:0 0 0 162px; overflow-x:auto; scrollbar-width:none; }
+
+/* Hide "Sign in" text on mobile, show icon */
+.rtop-btn.primary .btn-text-full { display:inline; }
+.rtop-btn.primary .btn-text-short { display:none; }
+@media(max-width:480px) {
+  .rtop-btn.primary .btn-text-full { display:none; }
+  .rtop-btn.primary .btn-text-short { display:inline; }
+  #results-wordmark { font-size:22px; }
+}
+
+/* Tabs row */
+#results-tabs-row {
+  display:flex; overflow-x:auto; scrollbar-width:none;
+  padding:0 0 0 12px; /* no huge left indent on mobile */
+  -webkit-overflow-scrolling:touch;
+}
 #results-tabs-row::-webkit-scrollbar { display:none; }
-.rtab { font-family:var(--body); font-size:13px; color:var(--muted); background:none; border:none; border-bottom:3px solid transparent; padding:10px 16px; cursor:none; white-space:nowrap; display:flex; align-items:center; gap:6px; transition:color 0.15s; font-weight:400; }
+.rtab {
+  font-family:var(--body); font-size:13px; color:var(--muted);
+  background:none; border:none; border-bottom:3px solid transparent;
+  padding:10px 14px; white-space:nowrap; display:flex;
+  align-items:center; gap:5px; transition:color 0.15s; min-height:44px;
+}
 .rtab:hover { color:var(--fg); }
 .rtab.on { color:var(--blue); border-bottom-color:var(--blue); font-weight:500; }
-.rtab-icon { font-size:15px; opacity:0.7; }
-#results-body { display:flex; max-width:1400px; }
-#results-main { flex:0 0 auto; width:660px; padding:20px 0 60px 162px; min-width:0; }
-#results-count { font-family:var(--body); font-size:13px; color:var(--muted); margin-bottom:18px; }
-.sri { margin-bottom:30px; max-width:470px; position:relative; }
-.sri-site-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-.sri-favicon { width:18px; height:18px; border-radius:50%; background:var(--surface-alt); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--sans); font-size:8px; font-weight:700; color:var(--muted); flex-shrink:0; overflow:hidden; }
-.sri-domain { font-family:var(--body); font-size:14px; color:var(--fg); }
-.sri-crumb { font-family:var(--body); font-size:14px; color:var(--muted); }
+.rtab-icon { font-size:14px; opacity:0.7; }
 
-/* THE FIX: title-wrap is the particle container; the anchor text
-   transitions to transparent on hover so only the canvas renders */
-.sri-title-wrap { position:relative; cursor:none; margin-bottom:3px; }
-.sri-title {
-  font-family:var(--sans); font-size:20px; font-weight:400; line-height:1.3;
-  color:var(--blue); text-decoration:none; display:inline;
-  transition:color 0.08s;
+/* ══════════════════════════════════════════
+   RESULTS BODY — SCROLLABLE MAIN AREA
+══════════════════════════════════════════ */
+#results-body {
+  flex:1; overflow:hidden; position:relative; display:flex; flex-direction:column;
 }
-.sri-title-wrap.particles-active .sri-title { color:transparent !important; text-decoration:none; }
-.sri-title:visited { color:var(--visited); }
 
+/* Main scroll area — leaves room for the bottom sheet peek */
+#results-main {
+  flex:1; overflow-y:auto; padding:16px 16px 0;
+  -webkit-overflow-scrolling:touch;
+  /* bottom padding = sheet peek + safe area so content is not hidden */
+  padding-bottom:calc(var(--sheet-peek) + 20px + var(--safe-bottom));
+}
+
+/* Desktop: side by side */
+@media(min-width:960px) {
+  #results-body { flex-direction:row; }
+  #results-main {
+    width:660px; flex-shrink:0; padding:20px 0 60px 162px;
+    padding-bottom:60px !important;
+  }
+}
+
+#results-count { font-family:var(--body); font-size:13px; color:var(--muted); margin-bottom:16px; }
+
+/* Search result items */
+.sri { margin-bottom:28px; position:relative; }
+.sri-site-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+.sri-favicon {
+  width:18px; height:18px; border-radius:50%;
+  background:var(--surface-alt); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); font-size:8px; font-weight:700;
+  color:var(--muted); flex-shrink:0; overflow:hidden;
+}
+.sri-domain { font-family:var(--body); font-size:14px; color:var(--fg); }
+.sri-crumb { font-family:var(--body); font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sri-title-wrap { position:relative; margin-bottom:3px; }
+.sri-title {
+  font-family:var(--sans); font-size:19px; font-weight:400;
+  line-height:1.3; color:var(--blue); text-decoration:none;
+  display:inline; transition:color 0.08s;
+}
+@media(max-width:600px) {
+  .sri-title { font-size:17px; }
+}
+.sri-title-wrap.particles-active .sri-title { color:transparent !important; }
+.sri-title:visited { color:var(--visited); }
 .sri-snippet { font-family:var(--body); font-size:14px; line-height:1.58; color:var(--muted); }
 .sri-snippet b { color:var(--fg); font-weight:500; }
 .sri-date { font-family:var(--body); font-size:13px; color:var(--muted); }
 .sri-sitelinks { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-.sitelink { font-family:var(--body); font-size:13px; color:var(--blue); border:1px solid var(--border); border-radius:4px; padding:4px 12px; text-decoration:none; cursor:none; transition:background 0.12s,border-color 0.12s; }
-.sitelink:hover { background:var(--surface-alt); border-color:var(--muted); text-decoration:underline; }
-.sri-actions { display:flex; gap:8px; margin-top:8px; }
-.sri-action-chip { font-family:var(--body); font-size:12px; color:var(--muted); border:1px solid var(--border); border-radius:9999px; padding:3px 10px; cursor:none; transition:background 0.12s; }
+.sitelink {
+  font-family:var(--body); font-size:13px; color:var(--blue);
+  border:1px solid var(--border); border-radius:4px;
+  padding:6px 12px; text-decoration:none; min-height:36px;
+  display:flex; align-items:center;
+  transition:background 0.12s,border-color 0.12s;
+}
+.sitelink:hover { background:var(--surface-alt); }
+.sri-actions { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.sri-action-chip {
+  font-family:var(--body); font-size:12px; color:var(--muted);
+  border:1px solid var(--border); border-radius:9999px; padding:5px 12px;
+  min-height:32px; display:flex; align-items:center;
+  transition:background 0.12s;
+}
 .sri-action-chip:hover { background:var(--surface-alt); color:var(--fg); }
-#results-pages { display:flex; align-items:center; gap:4px; padding:20px 0 0 0; }
-.pword { font-family:var(--sans); font-size:14px; color:var(--blue); cursor:none; padding:8px 16px; border-radius:4px; transition:background 0.12s; background:none; border:none; font-weight:500; }
+
+/* Pagination */
+#results-pages { display:flex; align-items:center; gap:4px; padding:20px 0 40px; }
+.pword {
+  font-family:var(--sans); font-size:14px; color:var(--blue);
+  padding:8px 14px; border-radius:4px; background:none; border:none;
+  font-weight:500; min-height:44px;
+}
 .pword:hover { background:var(--surface-alt); }
-.pnum { font-family:var(--sans); font-size:13px; min-width:34px; height:34px; display:flex; align-items:center; justify-content:center; border-radius:50%; cursor:none; color:var(--blue); background:none; border:none; transition:background 0.12s; }
+.pnum {
+  font-family:var(--sans); font-size:13px; min-width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:50%; color:var(--blue); background:none; border:none;
+}
 .pnum:hover { background:var(--surface-alt); }
 .pnum.on { background:var(--blue); color:#fff; }
-#ai-panel { flex:1; min-width:0; padding:20px 32px 60px 24px; }
+
+/* ══════════════════════════════════════════
+   DESKTOP AI PANEL (side panel ≥960px)
+══════════════════════════════════════════ */
+#ai-panel-desktop {
+  display:none;
+  flex:1; min-width:0; padding:20px 28px 60px 20px;
+  overflow-y:auto;
+}
+@media(min-width:960px) {
+  #ai-panel-desktop { display:block; }
+}
 #ai-panel-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
-#ai-panel-label { font-family:var(--sans); font-size:12px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:8px; }
-.ai-gemini-dot { width:16px; height:16px; background:linear-gradient(135deg,var(--blue),var(--green)); border-radius:50%; flex-shrink:0; }
-#ai-panel-hide { font-family:var(--body); font-size:12px; color:var(--muted); background:none; border:1px solid var(--border); border-radius:9999px; padding:3px 12px; cursor:none; transition:color 0.15s,border-color 0.15s; }
-#ai-panel-hide:hover { color:var(--fg); border-color:var(--muted); }
-#bento { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.bt { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; overflow:hidden; transition:box-shadow 0.15s; }
+#ai-panel-label {
+  font-family:var(--sans); font-size:12px; font-weight:500;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--muted);
+  display:flex; align-items:center; gap:8px;
+}
+.ai-gemini-dot {
+  width:16px; height:16px;
+  background:linear-gradient(135deg,var(--blue),var(--green));
+  border-radius:50%; flex-shrink:0;
+  animation:geminiPulse 3s ease-in-out infinite;
+}
+@keyframes geminiPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.7; transform:scale(0.9); }
+}
+#ai-panel-hide-btn {
+  font-family:var(--body); font-size:12px; color:var(--muted);
+  background:none; border:1px solid var(--border); border-radius:9999px;
+  padding:3px 12px;
+}
+#ai-panel-hide-btn:hover { color:var(--fg); border-color:var(--muted); }
+
+/* Bento grid */
+#bento-desktop { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+#bento-sheet   { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media(max-width:400px) {
+  #bento-sheet { grid-template-columns:1fr; }
+}
+
+/* Bento tiles */
+.bt {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:15px 16px; overflow:hidden;
+  transition:box-shadow 0.15s;
+}
 .bt:hover { box-shadow:var(--shadow-md); }
 .bt.wide { grid-column:span 2; }
+@media(max-width:400px) { .bt.wide { grid-column:span 1; } }
 .bt.tall { grid-row:span 2; }
-.bt-chip { display:inline-flex; align-items:center; gap:5px; font-family:var(--sans); font-size:10px; font-weight:500; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.bt-chip {
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:var(--sans); font-size:10px; font-weight:500;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--muted);
+  margin-bottom:10px;
+}
 .bt-chip-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-.bt-chip-dot.blue { background:var(--blue); } .bt-chip-dot.red { background:var(--red); } .bt-chip-dot.green { background:var(--green); } .bt-chip-dot.yellow { background:var(--yellow); }
+.bt-chip-dot.blue   { background:var(--blue); }
+.bt-chip-dot.red    { background:var(--red); }
+.bt-chip-dot.green  { background:var(--green); }
+.bt-chip-dot.yellow { background:var(--yellow); }
 .bt-title { font-family:var(--sans); font-size:14px; font-weight:500; color:var(--fg); line-height:1.3; margin-bottom:7px; }
-.bt-body { font-family:var(--body); font-size:13px; color:var(--muted); line-height:1.6; }
+.bt-body  { font-family:var(--body); font-size:13px; color:var(--muted); line-height:1.6; }
 .bt-body b { color:var(--fg); font-weight:500; }
 .bt-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .bt-stat { background:var(--surface-alt); border-radius:8px; padding:12px; }
@@ -156,20 +382,33 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
 .bt-bar-lbl { font-family:var(--body); font-size:11px; color:var(--muted); min-width:62px; flex-shrink:0; }
 .bt-bar-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
 .bt-bar-fill { height:100%; border-radius:3px; transition:width .6s cubic-bezier(.23,1,.32,1); }
-.bt-bar-fill.blue { background:var(--blue); } .bt-bar-fill.green { background:var(--green); } .bt-bar-fill.yellow { background:var(--yellow); } .bt-bar-fill.red { background:var(--red); }
+.bt-bar-fill.blue   { background:var(--blue); }
+.bt-bar-fill.green  { background:var(--green); }
+.bt-bar-fill.yellow { background:var(--yellow); }
+.bt-bar-fill.red    { background:var(--red); }
 .bt-bar-val { font-family:var(--mono); font-size:11px; color:var(--muted); min-width:30px; text-align:right; }
 .bt-tl { display:flex; gap:10px; margin-bottom:10px; align-items:flex-start; }
 .bt-tl:last-child { margin-bottom:0; }
 .bt-tl-side { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
 .bt-tl-year { font-family:var(--mono); font-size:10px; color:var(--muted); min-width:30px; text-align:center; margin-bottom:4px; }
-.bt-tl-line-dot { width:8px; height:8px; border-radius:50%; border:2px solid var(--blue); background:#fff; flex-shrink:0; }
+.bt-tl-line-dot { width:8px; height:8px; border-radius:50%; border:2px solid var(--blue); background:var(--surface); flex-shrink:0; }
 .bt-tl-connector { width:2px; flex:1; background:var(--border); min-height:16px; }
 .bt-tl-text { font-family:var(--body); font-size:12px; color:var(--muted); line-height:1.5; padding-top:1px; }
 .bt-tl-text b { color:var(--fg); font-weight:500; }
-.bt-pill { display:inline-block; font-family:var(--body); font-size:12px; color:var(--blue); border:1px solid var(--border); border-radius:9999px; padding:4px 12px; margin:3px 3px 0 0; cursor:none; transition:background .12s,border-color .12s; }
+.bt-pill {
+  display:inline-block; font-family:var(--body); font-size:12px;
+  color:var(--blue); border:1px solid var(--border); border-radius:9999px;
+  padding:5px 12px; margin:3px 3px 0 0; min-height:32px;
+  transition:background .12s,border-color .12s;
+}
 .bt-pill:hover { background:var(--surface-alt); border-color:var(--blue); }
 .bt-entity-head { display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
-.bt-entity-avatar { width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg,var(--blue),var(--green)); display:flex; align-items:center; justify-content:center; font-family:var(--sans); font-size:14px; font-weight:700; color:#fff; flex-shrink:0; }
+.bt-entity-avatar {
+  width:48px; height:48px; border-radius:8px;
+  background:linear-gradient(135deg,var(--blue),var(--green));
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); font-size:14px; font-weight:700; color:#fff; flex-shrink:0;
+}
 .bt-entity-name { font-family:var(--sans); font-size:15px; font-weight:500; color:var(--fg); }
 .bt-entity-sub { font-family:var(--body); font-size:12px; color:var(--muted); margin-top:2px; }
 .bt-kv { display:flex; justify-content:space-between; align-items:baseline; padding:5px 0; border-bottom:1px solid var(--border); }
@@ -177,29 +416,134 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
 .bt-kv-k { font-family:var(--body); font-size:12px; color:var(--muted); }
 .bt-kv-v { font-family:var(--body); font-size:12px; color:var(--fg); font-weight:500; }
 .bt-ask-wrap { position:relative; margin-top:10px; }
-.bt-ask-input { width:100%; background:var(--surface-alt); border:1px solid var(--border); border-radius:9999px; padding:9px 40px 9px 16px; font-family:var(--body); font-size:13px; color:var(--fg); outline:none; transition:border-color .15s,box-shadow .15s; }
+.bt-ask-input {
+  width:100%; background:var(--surface-alt); border:1px solid var(--border);
+  border-radius:9999px; padding:10px 40px 10px 16px;
+  font-family:var(--body); font-size:13px; color:var(--fg); outline:none;
+  min-height:44px; -webkit-appearance:none;
+  transition:border-color .15s,box-shadow .15s;
+}
 .bt-ask-input:focus { border-color:var(--blue); box-shadow:0 0 0 2px rgba(26,115,232,.12); }
 .bt-ask-input::placeholder { color:var(--muted); }
-.bt-ask-send { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:none; color:var(--blue); font-size:16px; transition:color .15s; }
-.bt-ask-send:hover { color:var(--blue-hover); }
-.bt-suggestion { display:flex; align-items:center; gap:10px; padding:8px 4px; border-bottom:1px solid var(--border); cursor:none; transition:background .1s; border-radius:0; }
+.bt-ask-send {
+  position:absolute; right:10px; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:var(--blue); font-size:16px;
+  min-width:36px; min-height:36px; display:flex; align-items:center; justify-content:center;
+}
+.bt-suggestion {
+  display:flex; align-items:center; gap:10px; padding:9px 4px;
+  border-bottom:1px solid var(--border); min-height:44px;
+  transition:background .1s; border-radius:0;
+}
 .bt-suggestion:last-child { border-bottom:none; }
 .bt-suggestion:hover { background:var(--surface-alt); border-radius:4px; }
 .bt-sug-icon { font-size:14px; color:var(--muted); flex-shrink:0; }
 .bt-sug-text { font-family:var(--body); font-size:13px; color:var(--fg); }
-.bt-src { display:flex; align-items:center; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--border); }
+.bt-src { display:flex; align-items:center; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border); }
 .bt-src:last-child { border-bottom:none; }
 .bt-src-name { font-family:var(--body); font-size:12px; color:var(--fg); }
-.bt-src-url { font-family:var(--mono); font-size:10px; color:var(--muted); }
+.bt-src-url  { font-family:var(--mono); font-size:10px; color:var(--muted); }
 .bt-src-stars { display:flex; gap:2px; }
 .bt-star { font-size:12px; color:var(--yellow); }
 .bt-star.empty { color:var(--border); }
-@media(max-width:960px){ #ai-panel{display:none;} }
-@media(max-width:680px){ #results-main{padding-left:16px;width:100%;} #results-tabs-row{padding-left:16px;} }
+
+/* ══════════════════════════════════════════
+   MOBILE BOTTOM SHEET (AI HYBRID SURFACE)
+   Hidden on desktop ≥960px
+══════════════════════════════════════════ */
+#ai-bottom-sheet {
+  display:none; /* shown on mobile */
+  position:absolute; bottom:0; left:0; right:0;
+  background:var(--surface);
+  border-top-left-radius:20px; border-top-right-radius:20px;
+  box-shadow:0 -4px 32px rgba(0,0,0,.14);
+  z-index:300;
+  transform:translateY(calc(100% - var(--sheet-peek)));
+  transition:transform 0.35s cubic-bezier(0.32,0.72,0,1);
+  will-change:transform;
+  /* max height so it doesn't cover the whole screen */
+  max-height:calc(100% - 56px);
+  display:flex; flex-direction:column;
+  /* Initially hidden properly */
+}
+@media(max-width:959px) {
+  #ai-bottom-sheet { display:flex; }
+}
+#ai-bottom-sheet.sheet-open {
+  transform:translateY(0);
+}
+
+/* Drag handle area */
+#sheet-handle-area {
+  padding:10px 0 0; flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; gap:0;
+  touch-action:none; /* we handle this ourselves */
+}
+#sheet-drag-handle {
+  width:36px; height:4px; border-radius:2px;
+  background:var(--border); margin-bottom:10px;
+}
+
+/* Sheet header — always visible in peek state */
+#sheet-peek-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 16px 12px; flex-shrink:0;
+}
+.sheet-ai-label {
+  display:flex; align-items:center; gap:8px;
+  font-family:var(--sans); font-size:13px; font-weight:500; color:var(--fg);
+}
+.sheet-ai-label .ai-gemini-dot { width:14px; height:14px; }
+.sheet-ai-sublabel {
+  font-family:var(--body); font-size:12px; color:var(--muted); margin-left:auto;
+}
+#sheet-toggle-btn {
+  font-family:var(--sans); font-size:12px; font-weight:500;
+  color:var(--blue); background:none; border:1px solid var(--border);
+  border-radius:9999px; padding:5px 14px; min-height:32px;
+  transition:background .15s;
+}
+#sheet-toggle-btn:active { background:var(--surface-alt); }
+
+/* Scrollable bento content */
+#sheet-content {
+  flex:1; overflow-y:auto; padding:0 14px 40px;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:calc(40px + var(--safe-bottom));
+}
+
+/* Scrim overlay when sheet is open */
+#sheet-scrim {
+  display:none;
+  position:absolute; inset:0; z-index:299;
+  background:rgba(0,0,0,0.3);
+  opacity:0; transition:opacity 0.3s;
+}
+#sheet-scrim.visible { opacity:1; }
+
+/* Floating AI pill button (only when sheet is not peeking) */
+/* (we'll always show the bottom sheet on mobile, so no separate FAB needed) */
+
+/* ══════════════════════════════════════════
+   SWIPE INDICATOR ARROW in peek bar
+══════════════════════════════════════════ */
+.sheet-chevron {
+  font-size:16px; color:var(--muted);
+  transition:transform 0.3s;
+  display:inline-block;
+}
+#ai-bottom-sheet.sheet-open .sheet-chevron { transform:rotate(180deg); }
+
+/* ══════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════ */
+.theme-btn-wrap { display:flex; gap:6px; }
 </style>
 </head>
 <body>
 <canvas id="cursor-canvas"></canvas>
+
+<!-- ════════════ HOME PAGE ════════════ -->
 <div id="page-home">
   <div id="home-nav">
     <a class="hnav-link" href="#">Gmail</a>
@@ -207,30 +551,38 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
     <button class="rtop-btn" id="btn-theme-home" onclick="toggleTheme()">Dark</button>
     <button class="hnav-signin">Sign in</button>
   </div>
+
   <div id="home-center">
-    <div id="home-wordmark"><span class="g-logo"><span class="g">G</span><span class="o1">o</span><span class="o2">o</span><span class="g2">g</span><span class="l">l</span><span class="e">e</span></span></div>
+    <div id="home-wordmark">
+      <span class="g-logo">
+        <span class="g">G</span><span class="o1">o</span><span class="o2">o</span><span class="g2">g</span><span class="l">l</span><span class="e">e</span>
+      </span>
+    </div>
     <div id="home-search-row">
       <span class="home-input-icon">🔍</span>
-      <input id="home-input" type="text" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+      <input id="home-input" type="text" placeholder="Search Google or type a URL"
+             autocomplete="off" spellcheck="false" enterkeyhint="search"
+             inputmode="search">
       <div class="home-input-actions">
-        <button class="home-mic-btn">🎤</button>
-        <button class="home-lens-btn">📷</button>
+        <button class="home-mic-btn" aria-label="Search by voice">🎤</button>
+        <button class="home-lens-btn" aria-label="Search by image">📷</button>
       </div>
     </div>
     <div id="home-btns">
       <button class="hbtn" onclick="doSearch()">Google Search</button>
       <button class="hbtn" onclick="doSearch()">I'm Feeling Lucky</button>
     </div>
-    <div id="home-language">Google offered in: <a href="#">Español</a> &nbsp;<a href="#">中文</a> &nbsp;<a href="#">हिन्दी</a></div>
+    <div id="home-language">Google offered in:
+      <a href="#">Español</a> &nbsp;<a href="#">中文</a> &nbsp;<a href="#">हिन्दी</a>
+    </div>
   </div>
+
   <div id="home-footer">
-    <div class="hfooter-group"><a class="hfooter-link" href="#">United States</a></div>
-    <div class="hfooter-group">
+    <div class="hfooter-inner">
+      <a class="hfooter-link" href="#">United States</a>
       <a class="hfooter-link" href="#">Advertising</a>
       <a class="hfooter-link" href="#">Business</a>
       <a class="hfooter-link" href="#">How Search works</a>
-    </div>
-    <div class="hfooter-group">
       <a class="hfooter-link" href="#">Privacy</a>
       <a class="hfooter-link" href="#">Terms</a>
       <a class="hfooter-link" href="#">Settings</a>
@@ -238,18 +590,28 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
   </div>
 </div>
 
+<!-- ════════════ RESULTS PAGE ════════════ -->
 <div id="page-results">
+  <!-- Top bar -->
   <div id="results-topbar">
     <div id="results-row1">
-      <div id="results-wordmark" onclick="goHome()"><span class="g-logo"><span class="g">G</span><span class="o1">o</span><span class="o2">o</span><span class="g2">g</span><span class="l">l</span><span class="e">e</span></span></div>
+      <div id="results-wordmark" onclick="goHome()" style="cursor:pointer">
+        <span class="g-logo">
+          <span class="g">G</span><span class="o1">o</span><span class="o2">o</span><span class="g2">g</span><span class="l">l</span><span class="e">e</span>
+        </span>
+      </div>
       <div id="results-search-wrap">
-        <input id="results-input" type="text" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')doSearch()">
-        <button class="results-input-icon" onclick="doSearch()">🔍</button>
+        <input id="results-input" type="text" autocomplete="off" spellcheck="false"
+               enterkeyhint="search" inputmode="search"
+               onkeydown="if(event.key==='Enter')doSearch()">
+        <button class="results-input-icon" onclick="doSearch()" aria-label="Search">🔍</button>
       </div>
       <div class="rtopbar-actions">
         <button class="rtop-btn" id="btn-theme-results" onclick="toggleTheme()">Dark</button>
-        <button class="rtop-btn" id="ai-toggle-btn" onclick="togglePanel()">Hide AI</button>
-        <button class="rtop-btn primary">Sign in</button>
+        <button class="rtop-btn primary">
+          <span class="btn-text-full">Sign in</span>
+          <span class="btn-text-short">👤</span>
+        </button>
       </div>
     </div>
     <div id="results-tabs-row">
@@ -263,55 +625,87 @@ body { background:var(--surface); color:var(--fg); font-family:var(--body); curs
       <button class="rtab" style="margin-left:auto;"><span class="rtab-icon">⚙️</span>Tools</button>
     </div>
   </div>
+
+  <!-- Body: main list + desktop AI side panel -->
   <div id="results-body">
     <div id="results-main">
       <div id="results-count"></div>
       <div id="results-list"></div>
       <div id="results-pages"></div>
     </div>
-    <div id="ai-panel">
+
+    <!-- Desktop AI panel (right side, ≥960px) -->
+    <div id="ai-panel-desktop">
       <div id="ai-panel-header">
-        <span id="ai-panel-label"><span class="ai-gemini-dot"></span>AI Overview</span>
-        <button id="ai-panel-hide" onclick="togglePanel()">Hide</button>
+        <span id="ai-panel-label">
+          <span class="ai-gemini-dot"></span>AI Overview
+        </span>
+        <button id="ai-panel-hide-btn">Hide</button>
       </div>
-      <div id="bento"></div>
+      <div id="bento-desktop"></div>
+    </div>
+
+    <!-- Scrim overlay for mobile sheet -->
+    <div id="sheet-scrim" onclick="closeSheet()"></div>
+
+    <!-- Mobile bottom-sheet AI surface (< 960px) -->
+    <div id="ai-bottom-sheet" role="dialog" aria-label="AI Overview">
+      <!-- Drag handle -->
+      <div id="sheet-handle-area">
+        <div id="sheet-drag-handle"></div>
+      </div>
+      <!-- Always-visible peek bar -->
+      <div id="sheet-peek-bar" onclick="toggleSheet()">
+        <div class="sheet-ai-label">
+          <span class="ai-gemini-dot"></span>
+          AI Overview
+          <span class="sheet-ai-sublabel">Tap to expand</span>
+        </div>
+        <span class="sheet-chevron">⌃</span>
+      </div>
+      <!-- Scrollable bento content -->
+      <div id="sheet-content">
+        <div id="bento-sheet"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-// CURSOR
+/* ──────────────── CURSOR (desktop only) ──────────────── */
 const cursorCanvas=document.getElementById('cursor-canvas');
 const cCtx=cursorCanvas.getContext('2d');
 let CW=cursorCanvas.width=window.innerWidth,CH=cursorCanvas.height=window.innerHeight;
 let mx=CW/2,my=CH/2,bX=CW/2,bY=CH/2,eX=CW/2,eY=CH/2,eVX=0,eVY=0;
-document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
-document.addEventListener('mouseleave',()=>{mx=-300;my=-300;});
-window.addEventListener('resize',()=>{CW=cursorCanvas.width=window.innerWidth;CH=cursorCanvas.height=window.innerHeight;});
-function cursorLoop(){
-  requestAnimationFrame(cursorLoop);
-  bX+=(mx-bX)*0.11;bY+=(my-bY)*0.11;
-  eVX=(mx-eX)*0.10;eVY=(my-eY)*0.10;
-  eX+=(eVX*=0.68);eY+=(eVY*=0.68);
-  const isDark=document.body.classList.contains('dark');
-  const rgb=isDark?'232,228,220':'10,10,10';
-  cCtx.clearRect(0,0,CW,CH);
-  const grad=cCtx.createRadialGradient(bX,bY,0,bX,bY,90);
-  grad.addColorStop(0,`rgba(${rgb},${isDark?0.04:0.01})`);
-  grad.addColorStop(1,`rgba(${rgb},0)`);
-  cCtx.fillStyle=grad;
-  cCtx.beginPath();cCtx.arc(bX,bY,90,0,Math.PI*2);cCtx.fill();
-  cCtx.fillStyle=`rgba(${rgb},0.35)`;
-  cCtx.beginPath();cCtx.arc(eX,eY,3.5,0,Math.PI*2);cCtx.fill();
-  cCtx.fillStyle=`rgb(${rgb})`;
-  cCtx.beginPath();cCtx.arc(mx,my,1.2,0,Math.PI*2);cCtx.fill();
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if(!isTouchDevice){
+  document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
+  document.addEventListener('mouseleave',()=>{mx=-300;my=-300;});
+  window.addEventListener('resize',()=>{CW=cursorCanvas.width=window.innerWidth;CH=cursorCanvas.height=window.innerHeight;});
+  function cursorLoop(){
+    requestAnimationFrame(cursorLoop);
+    bX+=(mx-bX)*0.11;bY+=(my-bY)*0.11;
+    eVX=(mx-eX)*0.10;eVY=(my-eY)*0.10;
+    eX+=(eVX*=0.68);eY+=(eVY*=0.68);
+    const isDark=document.body.classList.contains('dark');
+    const rgb=isDark?'232,228,220':'10,10,10';
+    cCtx.clearRect(0,0,CW,CH);
+    const grad=cCtx.createRadialGradient(bX,bY,0,bX,bY,90);
+    grad.addColorStop(0,`rgba(${rgb},${isDark?0.04:0.01})`);
+    grad.addColorStop(1,`rgba(${rgb},0)`);
+    cCtx.fillStyle=grad;
+    cCtx.beginPath();cCtx.arc(bX,bY,90,0,Math.PI*2);cCtx.fill();
+    cCtx.fillStyle=`rgba(${rgb},0.35)`;
+    cCtx.beginPath();cCtx.arc(eX,eY,3.5,0,Math.PI*2);cCtx.fill();
+    cCtx.fillStyle=`rgb(${rgb})`;
+    cCtx.beginPath();cCtx.arc(mx,my,1.2,0,Math.PI*2);cCtx.fill();
+  }
+  cursorLoop();
 }
-cursorLoop();
 
-// PARTICLE SYSTEM
+/* ──────────────── PARTICLE SYSTEM (desktop only) ──────────────── */
 const TETHER_K=0.018,DAMP=0.72,REPEL_R=60,REPEL_F=14;
 const FLOAT_SPD=0.011,FLOAT_AX=2.8,FLOAT_AY=1.6;
-
 class HeadlineParticleSystem{
   constructor(el,text,fontSize){
     this.el=el;this.text=text;this.fontSize=fontSize||20;
@@ -352,14 +746,12 @@ class HeadlineParticleSystem{
   }
   start(){
     this.active=true;this.build();this.canvas.style.opacity='1';
-    // Hide underlying anchor text so only canvas renders
     this.el.classList.add('particles-active');
     if(this.raf)cancelAnimationFrame(this.raf);
     this._loop();
   }
   stop(){
     this.active=false;this.canvas.style.opacity='0';
-    // Restore underlying anchor text
     this.el.classList.remove('particles-active');
     if(this.raf)cancelAnimationFrame(this.raf);
     this.raf=null;
@@ -389,31 +781,85 @@ class HeadlineParticleSystem{
 }
 let activePS=null;
 
-// DATA
+/* ──────────────── BOTTOM SHEET LOGIC ──────────────── */
+const sheet=document.getElementById('ai-bottom-sheet');
+const scrim=document.getElementById('sheet-scrim');
+let sheetOpen=false;
+
+function openSheet(){
+  sheetOpen=true;
+  sheet.classList.add('sheet-open');
+  scrim.style.display='block';
+  setTimeout(()=>scrim.classList.add('visible'),10);
+  document.getElementById('sheet-peek-bar').querySelector('.sheet-ai-sublabel').textContent='Tap to close';
+}
+function closeSheet(){
+  sheetOpen=false;
+  sheet.classList.remove('sheet-open');
+  scrim.classList.remove('visible');
+  setTimeout(()=>{ scrim.style.display='none'; },300);
+  document.getElementById('sheet-peek-bar').querySelector('.sheet-ai-sublabel').textContent='Tap to expand';
+}
+function toggleSheet(){ sheetOpen ? closeSheet() : openSheet(); }
+
+/* Touch drag on handle */
+let dragStartY=0,dragStartTransform=0;
+const handleArea=document.getElementById('sheet-handle-area');
+handleArea.addEventListener('touchstart',e=>{
+  dragStartY=e.touches[0].clientY;
+}, {passive:true});
+handleArea.addEventListener('touchmove',e=>{
+  const dy=e.touches[0].clientY-dragStartY;
+  const peekH=72; // --sheet-peek
+  if(sheetOpen && dy>0){
+    const pct=Math.min(dy,200);
+    sheet.style.transition='none';
+    sheet.style.transform=`translateY(${pct}px)`;
+    scrim.style.opacity=Math.max(0,0.3-pct/600);
+  }
+  if(!sheetOpen && dy<0){
+    const pct=Math.max(dy,-200);
+    sheet.style.transition='none';
+    sheet.style.transform=`translateY(calc(100% - ${peekH}px + ${pct}px))`;
+  }
+}, {passive:true});
+handleArea.addEventListener('touchend',e=>{
+  const dy=e.changedTouches[0].clientY-dragStartY;
+  sheet.style.transition='';
+  sheet.style.transform='';
+  if(sheetOpen && dy>60) closeSheet();
+  else if(!sheetOpen && dy<-60) openSheet();
+  else if(sheetOpen) { sheet.style.transform=''; scrim.style.opacity=''; }
+  else closeSheet(), openSheet(); // snap back
+  scrim.style.opacity='';
+}, {passive:true});
+
+/* ──────────────── DATA ──────────────── */
 const RESULTS=[
   {fav:'W',domain:'en.wikipedia.org',crumb:'› wiki › History_of_the_Internet',title:'History of the Internet — Wikipedia',snippet:'The history of the <b>Internet</b> began with the development of electronic computers in the 1950s. Initial concepts of wide-area networking originated in several computer science labs in the US, UK, and France.',chips:['Edit','Feedback'],date:null},
-  {fav:'IS',domain:'www.internetsociety.org',crumb:'› internet › history-internet',title:'Brief History of the Internet | Internet Society',snippet:'The <b>Internet</b> is a widespread information infrastructure — the initial prototype of the National Information Infrastructure. Its history is complex and involves technological, organizational, and community aspects.',chips:['Feedback'],date:null},
-  {fav:'CH',domain:'www.computerhistory.org',crumb:'› internethistory',title:'Internet History — Computer History Museum',snippet:'Explore a timeline of milestones that shaped the <b>Internet</b>, from ARPANET\'s first message in 1969 through the World Wide Web, broadband, and mobile. Primary documents, oral histories, and artifacts.',sitelinks:['Timeline','Primary Docs','Oral Histories'],date:null},
-  {fav:'B',domain:'www.britannica.com',crumb:'› technology › Internet',title:'Internet | History, Uses & Facts | Britannica',snippet:'<b>Internet</b> — a system architecture that revolutionized communications by allowing computer networks worldwide to interconnect. Sometimes called a "network of networks," it emerged from US government research.',chips:['Feedback'],date:null},
-  {fav:'LS',domain:'www.livescience.com',crumb:'› 20727-internet-history',title:'Who Invented the Internet? A Brief History | Live Science',snippet:'The <b>Internet</b> got its start in the US more than 50 years ago as a government Cold War project. For years, scientists and researchers used it to communicate and share data.',date:null,chips:[]},
+  {fav:'IS',domain:'www.internetsociety.org',crumb:'› internet › history-internet',title:'Brief History of the Internet | Internet Society',snippet:'The <b>Internet</b> is a widespread information infrastructure — the initial prototype of the National Information Infrastructure.',chips:['Feedback'],date:null},
+  {fav:'CH',domain:'www.computerhistory.org',crumb:'› internethistory',title:'Internet History — Computer History Museum',snippet:'Explore a timeline of milestones that shaped the <b>Internet</b>, from ARPANET\'s first message in 1969 through the World Wide Web, broadband, and mobile.',sitelinks:['Timeline','Primary Docs','Oral Histories'],date:null},
+  {fav:'B',domain:'www.britannica.com',crumb:'› technology › Internet',title:'Internet | History, Uses & Facts | Britannica',snippet:'<b>Internet</b> — a system architecture that revolutionized communications by allowing computer networks worldwide to interconnect.',chips:['Feedback'],date:null},
+  {fav:'LS',domain:'www.livescience.com',crumb:'› 20727-internet-history',title:'Who Invented the Internet? A Brief History | Live Science',snippet:'The <b>Internet</b> got its start in the US more than 50 years ago as a government Cold War project.',date:null,chips:[]},
   {fav:'TC',domain:'www.thoughtco.com',crumb:'› history-of-the-internet-1991533',title:'History of the Internet — ThoughtCo',snippet:'The predecessor to today\'s <b>Internet</b>, ARPANET, was founded in 1969 as a project of the Advanced Research Projects Agency of the US Department of Defense.',date:null,chips:[]},
-  {fav:'W3',domain:'www.w3.org',crumb:'› History.html',title:'A Short History of the Web | W3C',snippet:'Tim Berners-Lee invented the World Wide Web in 1989 while working at CERN, to meet the demand for automated information-sharing between scientists in different countries.',date:null,chips:[]},
-  {fav:'NY',domain:'archive.nytimes.com',crumb:'› 2009 › 10 › 29 › technology',title:'40 Years of the Internet: How the World Changed — NYT',snippet:'On Oct. 29, 1969, the first message was sent over ARPANET. The word was "login" but the system crashed after "lo." Even so, a new era had begun.',date:'Oct 29, 2009',chips:['Read full article']},
-  {fav:'PR',domain:'www.pewresearch.org',crumb:'› internet › world-wide-web-at-25',title:'World Wide Web at 25: How It Changed Our Lives | Pew',snippet:'Twenty-five years after its debut, a majority of Americans say the <b>Internet</b> has been good for them personally — though views on its impact on society are more divided.',date:null,chips:[]},
-  {fav:'AT',domain:'www.theatlantic.com',crumb:'› technology › archive › internet-history',title:'How the Internet Happened: A Definitive History — The Atlantic',snippet:'The complete story — from ARPANET to the dot-com boom and bust, through the era of Google, social networks, and the smartphone.',date:null,chips:[]},
+  {fav:'W3',domain:'www.w3.org',crumb:'› History.html',title:'A Short History of the Web | W3C',snippet:'Tim Berners-Lee invented the World Wide Web in 1989 while working at CERN.',date:null,chips:[]},
+  {fav:'NY',domain:'archive.nytimes.com',crumb:'› 2009 › 10 › 29',title:'40 Years of the Internet: How the World Changed — NYT',snippet:'On Oct. 29, 1969, the first message was sent over ARPANET. The word was "login" but the system crashed after "lo."',date:'Oct 29, 2009',chips:['Read full article']},
+  {fav:'PR',domain:'www.pewresearch.org',crumb:'› internet › world-wide-web-at-25',title:'World Wide Web at 25: How It Changed Our Lives | Pew',snippet:'Twenty-five years after its debut, a majority of Americans say the <b>Internet</b> has been good for them personally.',date:null,chips:[]},
+  {fav:'AT',domain:'www.theatlantic.com',crumb:'› technology › archive',title:'How the Internet Happened: A Definitive History — The Atlantic',snippet:'The complete story — from ARPANET to the dot-com boom and bust, through the era of Google, social networks, and the smartphone.',date:null,chips:[]},
 ];
 
 const BENTO=[
-  {cls:'bt wide',chip:'Quick answer',chipColor:'blue',html:`<div class="bt-title">The Internet</div><div class="bt-body">A global network of interconnected computers using standardized <b>TCP/IP protocols</b>, evolved from ARPANET (1969). The <b>World Wide Web</b> — a hypertext service running over the Internet — was introduced by Tim Berners-Lee at CERN in 1991 and brought it to the public. Today the Internet connects over 5.4 billion people worldwide.</div>`},
+  {cls:'bt wide',chip:'Quick answer',chipColor:'blue',html:`<div class="bt-title">The Internet</div><div class="bt-body">A global network of interconnected computers using standardized <b>TCP/IP protocols</b>, evolved from ARPANET (1969). The <b>World Wide Web</b> — introduced by Tim Berners-Lee at CERN in 1991 — brought it to the public. Today the Internet connects over 5.4 billion people worldwide.</div>`},
   {cls:'bt',chip:'Key numbers',chipColor:'green',html:`<div class="bt-stats"><div class="bt-stat"><div class="bt-stat-n">5.4B</div><div class="bt-stat-l">users worldwide</div></div><div class="bt-stat"><div class="bt-stat-n">1969</div><div class="bt-stat-l">ARPANET founded</div></div><div class="bt-stat"><div class="bt-stat-n">67%</div><div class="bt-stat-l">global penetration</div></div><div class="bt-stat"><div class="bt-stat-n">~2B</div><div class="bt-stat-l">est. websites</div></div></div>`},
   {cls:'bt',chip:'Key figure',chipColor:'red',html:`<div class="bt-entity-head"><div class="bt-entity-avatar">TBL</div><div><div class="bt-entity-name">Tim Berners-Lee</div><div class="bt-entity-sub">Inventor of the Web · b. 1955</div></div></div><div class="bt-kv"><span class="bt-kv-k">Nationality</span><span class="bt-kv-v">British</span></div><div class="bt-kv"><span class="bt-kv-k">Key invention</span><span class="bt-kv-v">World Wide Web, 1991</span></div><div class="bt-kv"><span class="bt-kv-k">Affiliation</span><span class="bt-kv-v">CERN → MIT CSAIL</span></div><div class="bt-kv"><span class="bt-kv-k">Award</span><span class="bt-kv-v">Turing Award 2016</span></div>`},
   {cls:'bt wide',chip:'Timeline',chipColor:'blue',html:`<div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1969</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text"><b>ARPANET</b> sends first packet — UCLA to Stanford. System crashes after "lo".</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1972</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text">Email invented by Ray Tomlinson using the @ symbol for addressing.</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1983</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text"><b>TCP/IP</b> adopted — the birthday of the modern Internet.</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1991</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text"><b>World Wide Web</b> goes public. Berners-Lee at CERN.</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1993</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text">Mosaic browser launches — the web becomes accessible to everyone.</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">1998</div><div class="bt-tl-line-dot"></div><div class="bt-tl-connector"></div></div><div class="bt-tl-text"><b>Google</b> founded. Dot-com boom reaches its peak.</div></div><div class="bt-tl"><div class="bt-tl-side"><div class="bt-tl-year">2007</div><div class="bt-tl-line-dot" style="border-color:var(--green)"></div></div><div class="bt-tl-text">iPhone launches — the mobile Internet era begins.</div></div>`},
-  {cls:'bt',chip:'Adoption by region',chipColor:'yellow',html:`<div class="bt-bar"><div class="bt-bar-lbl">N. America</div><div class="bt-bar-track"><div class="bt-bar-fill blue" style="width:93%"></div></div><div class="bt-bar-val">93%</div></div><div class="bt-bar"><div class="bt-bar-lbl">Europe</div><div class="bt-bar-track"><div class="bt-bar-fill green" style="width:89%"></div></div><div class="bt-bar-val">89%</div></div><div class="bt-bar"><div class="bt-bar-lbl">E. Asia</div><div class="bt-bar-track"><div class="bt-bar-fill blue" style="width:76%"></div></div><div class="bt-bar-val">76%</div></div><div class="bt-bar"><div class="bt-bar-lbl">L. America</div><div class="bt-bar-track"><div class="bt-bar-fill yellow" style="width:68%"></div></div><div class="bt-bar-val">68%</div></div><div class="bt-bar"><div class="bt-bar-lbl">S. Asia</div><div class="bt-bar-track"><div class="bt-bar-fill red" style="width:53%"></div></div><div class="bt-bar-val">53%</div></div><div class="bt-bar"><div class="bt-bar-lbl">Africa</div><div class="bt-bar-track"><div class="bt-bar-fill yellow" style="width:43%"></div></div><div class="bt-bar-val">43%</div></div>`},
-  {cls:'bt',chip:'Source credibility',chipColor:'green',html:`<div class="bt-src"><div><div class="bt-src-name">Wikipedia</div><div class="bt-src-url">en.wikipedia.org</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span></div></div><div class="bt-src"><div><div class="bt-src-name">Britannica</div><div class="bt-src-url">britannica.com</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star empty">★</span></div></div><div class="bt-src"><div><div class="bt-src-name">Computer History Museum</div><div class="bt-src-url">computerhistory.org</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star empty">★</span></div></div><div class="bt-src"><div><div class="bt-src-name">Internet Society</div><div class="bt-src-url">internetsociety.org</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star empty">★</span><span class="bt-star empty">★</span></div></div>`},
+  {cls:'bt',chip:'Adoption by region',chipColor:'yellow',html:`<div class="bt-bar"><div class="bt-bar-lbl">N. America</div><div class="bt-bar-track"><div class="bt-bar-fill blue" style="width:93%"></div></div><div class="bt-bar-val">93%</div></div><div class="bt-bar"><div class="bt-bar-lbl">Europe</div><div class="bt-bar-track"><div class="bt-bar-fill green" style="width:89%"></div></div><div class="bt-bar-val">89%</div></div><div class="bt-bar"><div class="bt-bar-lbl">E. Asia</div><div class="bt-bar-track"><div class="bt-bar-fill blue" style="width:76%"></div></div><div class="bt-bar-val">76%</div></div><div class="bt-bar"><div class="bt-bar-lbl">L. America</div><div class="bt-bar-track"><div class="bt-bar-fill yellow" style="width:68%"></div></div><div class="bt-bar-val">68%</div></div><div class="bt-bar"><div class="bt-bar-lbl">S. Asia</div><div class="bt-bar-track"><div class="bt-bar-fill red" style="width:53%"></div></div><div class="bt-bar-val">53%</div></div>`},
+  {cls:'bt',chip:'Source credibility',chipColor:'green',html:`<div class="bt-src"><div><div class="bt-src-name">Wikipedia</div><div class="bt-src-url">en.wikipedia.org</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span></div></div><div class="bt-src"><div><div class="bt-src-name">Britannica</div><div class="bt-src-url">britannica.com</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star empty">★</span></div></div><div class="bt-src"><div><div class="bt-src-name">Computer History Museum</div><div class="bt-src-url">computerhistory.org</div></div><div class="bt-src-stars"><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star">★</span><span class="bt-star empty">★</span></div></div>`},
   {cls:'bt wide',chip:'Related concepts',chipColor:'blue',html:`<div style="padding-top:2px"><span class="bt-pill">ARPANET</span><span class="bt-pill">TCP/IP</span><span class="bt-pill">World Wide Web</span><span class="bt-pill">Tim Berners-Lee</span><span class="bt-pill">HTTP</span><span class="bt-pill">DNS</span><span class="bt-pill">Mosaic browser</span><span class="bt-pill">Dot-com bubble</span><span class="bt-pill">Net neutrality</span><span class="bt-pill">IPv6</span><span class="bt-pill">Packet switching</span><span class="bt-pill">Broadband</span><span class="bt-pill">Web 2.0</span><span class="bt-pill">Cloud computing</span></div>`},
-  {cls:'bt wide',chip:'Ask the AI',chipColor:'blue',html:`<div class="bt-body" style="margin-bottom:10px;">Dig deeper with a follow-up question.</div><div class="bt-ask-wrap"><input class="bt-ask-input" type="text" placeholder="Ask anything about the Internet's history…" spellcheck="false"><button class="bt-ask-send">➤</button></div><div style="margin-top:12px"><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">What is the difference between the Internet and the World Wide Web?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">Why did the US government fund ARPANET?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">How does TCP/IP actually work?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">What caused the dot-com bubble to burst in 2000?</span></div></div>`},
+  {cls:'bt wide',chip:'Ask the AI',chipColor:'blue',html:`<div class="bt-body" style="margin-bottom:10px;">Dig deeper with a follow-up question.</div><div class="bt-ask-wrap"><input class="bt-ask-input" type="text" placeholder="Ask anything about the Internet's history…" inputmode="search" enterkeyhint="send"><button class="bt-ask-send">➤</button></div><div style="margin-top:12px"><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">What is the difference between the Internet and the World Wide Web?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">Why did the US government fund ARPANET?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">How does TCP/IP actually work?</span></div><div class="bt-suggestion"><span class="bt-sug-icon">↗</span><span class="bt-sug-text">What caused the dot-com bubble to burst in 2000?</span></div></div>`},
 ];
 
+/* ──────────────── BUILD RESULTS ──────────────── */
 function buildResults(){
   const list=document.getElementById('results-list');
   list.innerHTML='';
@@ -421,8 +867,8 @@ function buildResults(){
     const div=document.createElement('div');
     div.className='sri';
     let extra='';
-    if(r.sitelinks)extra+=`<div class="sri-sitelinks">${r.sitelinks.map(s=>`<a class="sitelink" href="#">${s}</a>`).join('')}</div>`;
-    if(r.chips&&r.chips.length)extra+=`<div class="sri-actions">${r.chips.map(c=>`<span class="sri-action-chip">${c}</span>`).join('')}</div>`;
+    if(r.sitelinks) extra+=`<div class="sri-sitelinks">${r.sitelinks.map(s=>`<a class="sitelink" href="#">${s}</a>`).join('')}</div>`;
+    if(r.chips&&r.chips.length) extra+=`<div class="sri-actions">${r.chips.map(c=>`<span class="sri-action-chip">${c}</span>`).join('')}</div>`;
     div.innerHTML=`
       <div class="sri-site-row">
         <div class="sri-favicon">${r.fav}</div>
@@ -436,17 +882,22 @@ function buildResults(){
       <div class="sri-snippet">${r.snippet}</div>
       ${extra}
     `;
-    const wrap=div.querySelector('.sri-title-wrap');
-    const sys=new HeadlineParticleSystem(wrap,r.title,20);
-    wrap.addEventListener('mouseenter',()=>{
-      if(activePS&&activePS!==sys)activePS.stop();
-      activePS=sys;sys.start();
-    });
-    wrap.addEventListener('mouseleave',()=>{
-      sys.stop();if(activePS===sys)activePS=null;
-    });
+    /* Particle system — desktop hover only */
+    if(!isTouchDevice){
+      const wrap=div.querySelector('.sri-title-wrap');
+      const sys=new HeadlineParticleSystem(wrap,r.title,20);
+      wrap.addEventListener('mouseenter',()=>{
+        if(activePS&&activePS!==sys)activePS.stop();
+        activePS=sys;sys.start();
+      });
+      wrap.addEventListener('mouseleave',()=>{
+        sys.stop();if(activePS===sys)activePS=null;
+      });
+    }
     list.appendChild(div);
   });
+
+  /* Pagination */
   const pages=document.getElementById('results-pages');
   pages.innerHTML='';
   const prev=document.createElement('button');prev.className='pword';prev.textContent='← Prev';pages.appendChild(prev);
@@ -459,38 +910,44 @@ function buildResults(){
   const next=document.createElement('button');next.className='pword';next.textContent='Next →';pages.appendChild(next);
 }
 
+/* ──────────────── BUILD BENTO ──────────────── */
 function buildBento(){
-  const b=document.getElementById('bento');b.innerHTML='';
-  BENTO.forEach(tile=>{
-    const d=document.createElement('div');d.className=tile.cls;
-    d.innerHTML=`<div class="bt-chip"><span class="bt-chip-dot ${tile.chipColor}"></span>${tile.chip}</div>${tile.html}`;
-    b.appendChild(d);
+  ['bento-desktop','bento-sheet'].forEach(id=>{
+    const b=document.getElementById(id);b.innerHTML='';
+    BENTO.forEach(tile=>{
+      const d=document.createElement('div');d.className=tile.cls;
+      d.innerHTML=`<div class="bt-chip"><span class="bt-chip-dot ${tile.chipColor}"></span>${tile.chip}</div>${tile.html}`;
+      b.appendChild(d);
+    });
   });
 }
 
-let panelVisible=true;
+/* ──────────────── NAV ──────────────── */
 function doSearch(){
-  const q=document.getElementById('home-input').value.trim()||document.getElementById('results-input').value.trim()||'history of the internet';
+  const q=document.getElementById('home-input').value.trim()||
+          document.getElementById('results-input').value.trim()||
+          'history of the internet';
   document.getElementById('home-input').value=q;
   document.getElementById('results-input').value=q;
   document.getElementById('results-count').textContent=`About 2,340,000,000 results (0.42 seconds)`;
   if(activePS){activePS.stop();activePS=null;}
   document.getElementById('page-home').style.display='none';
   document.getElementById('page-results').style.display='flex';
-  buildResults();buildBento();
+  buildResults();
+  buildBento();
   document.querySelectorAll('.rtab').forEach((t,i)=>t.classList.toggle('on',i===0));
+  /* On mobile, sheet starts in peek state (don't auto-open) */
+  closeSheet();
 }
+
 function goHome(){
   document.getElementById('page-home').style.display='flex';
   document.getElementById('page-results').style.display='none';
   document.getElementById('home-input').value='';
   if(activePS){activePS.stop();activePS=null;}
+  closeSheet();
 }
-function togglePanel(){
-  panelVisible=!panelVisible;
-  document.getElementById('ai-panel').style.display=panelVisible?'':'none';
-  document.getElementById('ai-toggle-btn').textContent=panelVisible?'Hide AI':'Show AI';
-}
+
 function toggleTheme(){
   document.body.classList.toggle('dark');
   const d=document.body.classList.contains('dark');
@@ -498,8 +955,23 @@ function toggleTheme(){
   document.getElementById('btn-theme-results').textContent=d?'Light':'Dark';
   if(activePS){activePS.stop();activePS=null;}
 }
+
+/* Keyboard enter on home input */
 document.getElementById('home-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
-document.querySelectorAll('.rtab').forEach(t=>t.addEventListener('click',function(){document.querySelectorAll('.rtab').forEach(x=>x.classList.remove('on'));this.classList.add('on');}));
+
+/* Tabs */
+document.querySelectorAll('.rtab').forEach(t=>t.addEventListener('click',function(){
+  document.querySelectorAll('.rtab').forEach(x=>x.classList.remove('on'));
+  this.classList.add('on');
+}));
+
+/* Desktop AI panel hide button */
+document.getElementById('ai-panel-hide-btn').addEventListener('click',function(){
+  const panel=document.getElementById('ai-panel-desktop');
+  const hidden=panel.style.display==='none';
+  panel.style.display=hidden?'block':'none';
+  this.textContent=hidden?'Hide':'Show AI';
+});
 </script>
 </body>
 </html>
