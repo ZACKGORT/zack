@@ -373,6 +373,70 @@ body {
 #sheet-scrim.visible { opacity:1; }
 .sheet-chevron { font-size:16px; color:var(--muted); transition:transform 0.3s; display:inline-block; }
 #ai-bottom-sheet.sheet-open .sheet-chevron { transform:rotate(180deg); }
+
+/* ══ CUSTOM SCROLL INDICATORS ══ */
+#results-main,
+#ai-panel-desktop,
+#sheet-content,
+#page-home { scrollbar-width: none; }
+#results-main::-webkit-scrollbar,
+#ai-panel-desktop::-webkit-scrollbar,
+#sheet-content::-webkit-scrollbar,
+#page-home::-webkit-scrollbar { display:none; }
+
+/* Reading progress — top of viewport */
+#read-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 0%;
+  z-index: 9998;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    var(--blue)   0%,
+    var(--red)   33%,
+    var(--yellow) 66%,
+    var(--green) 100%);
+  background-size: 200% 100%;
+  transition: width 0.08s linear, opacity 0.4s;
+  opacity: 0;
+  border-radius: 0 1px 1px 0;
+}
+#read-progress.active { opacity: 1; }
+
+/* Scroll thumb — injected per-container */
+.sc-wrap {
+  position: absolute;
+  right: 2px; top: 0; bottom: 0;
+  width: 3px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.sc-wrap.sc-visible { opacity: 1; transition: opacity 0.1s ease; }
+.sc-thumb {
+  position: absolute;
+  left: 0; right: 0;
+  min-height: 28px;
+  border-radius: 3px;
+  will-change: top, height;
+}
+/* four-color Google gradient that cycles with scroll */
+.sc-thumb::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: linear-gradient(180deg,
+    var(--blue)   0%,
+    var(--red)   40%,
+    var(--yellow) 70%,
+    var(--green) 100%);
+  opacity: 0.55;
+}
+body.dark .sc-thumb::before { opacity: 0.7; }
+
 </style>
 </head>
 <body>
@@ -762,6 +826,74 @@ function toggleTheme(){
 document.getElementById('home-input').addEventListener('keydown',e=>{if(e.key==='Enter')doSearchWithIntent();});
 document.querySelectorAll('.rtab').forEach(t=>t.addEventListener('click',function(){ document.querySelectorAll('.rtab').forEach(x=>x.classList.remove('on')); this.classList.add('on'); }));
 document.getElementById('ai-panel-hide-btn').addEventListener('click',function(){ const p=document.getElementById('ai-panel-desktop'); const h=p.style.display==='none'; p.style.display=h?'block':'none'; this.textContent=h?'Hide':'Show AI'; });
+
+/* ══ CUSTOM SCROLL INDICATORS ══ */
+(function(){
+  // Reading progress bar
+  const bar = document.createElement('div');
+  bar.id = 'read-progress';
+  document.body.appendChild(bar);
+  let barFade;
+  function updateBar() {
+    const m = document.getElementById('results-main');
+    if(!m || m.style.display==='none') return;
+    const pct = m.scrollHeight <= m.clientHeight ? 0 : m.scrollTop / (m.scrollHeight - m.clientHeight);
+    bar.style.width = (pct * 100).toFixed(2) + '%';
+    bar.classList.add('active');
+    clearTimeout(barFade);
+    barFade = setTimeout(() => bar.classList.remove('active'), 1400);
+  }
+
+  // Per-container custom thumb
+  function attachThumb(el) {
+    if(!el || el._scAttached) return;
+    el._scAttached = true;
+    const parent = el.parentElement;
+    if(getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+
+    const wrap  = document.createElement('div'); wrap.className = 'sc-wrap';
+    const thumb = document.createElement('div'); thumb.className = 'sc-thumb';
+    wrap.appendChild(thumb);
+    parent.appendChild(wrap);
+
+    let fadeTimer;
+    function update() {
+      const sh = el.scrollHeight, ch = el.clientHeight;
+      if(sh <= ch) { wrap.classList.remove('sc-visible'); return; }
+      const pct      = el.scrollTop / (sh - ch);
+      const thumbH   = Math.max(28, (ch / sh) * ch);
+      const thumbTop = pct * (ch - thumbH);
+      thumb.style.height = thumbH + 'px';
+      thumb.style.top    = thumbTop + 'px';
+      wrap.classList.add('sc-visible');
+      clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => wrap.classList.remove('sc-visible'), 1400);
+    }
+
+    el.addEventListener('scroll', () => { update(); updateBar(); }, { passive: true });
+    new ResizeObserver(update).observe(el);
+    el._scUpdate = update;
+  }
+
+  // Attach to panels that exist at load time
+  ['results-main','ai-panel-desktop','sheet-content','page-home'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) attachThumb(el);
+  });
+
+  // Re-attach after search (in case elements were recreated)
+  const _orig = window.doSearch;
+  window.doSearch = function() {
+    _orig && _orig.apply(this, arguments);
+    requestAnimationFrame(() => {
+      ['results-main','ai-panel-desktop','sheet-content'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) { el._scAttached = false; attachThumb(el); }
+      });
+    });
+  };
+})();
+
 </script>
 </body>
 </html>
