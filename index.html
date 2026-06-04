@@ -709,10 +709,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   background: var(--widget-bg);
   border: 1px solid var(--border);
   user-select: none;
-  /* JS owns top/left/width — no CSS transition here to avoid fighting inline styles */
+  top: 0; right: 0; left: auto;
+  overflow: hidden;
 }
-/* collapsed = just the topbar visible, no body, no forced position (JS handles it) */
-.fw.collapsed { width: auto; min-width: 0; }
+.fw.collapsed { width: auto; min-width: 80px; overflow: hidden; }
 .fw-topbar {
   display: flex;
   justify-content: space-between;
@@ -738,13 +738,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 }
 .fw-toggle:hover { opacity: 1; }
 .fw-body { display: block; overflow: hidden; }
-.fw.collapsed .fw-body { display: none; }
+.fw.collapsed .fw-body { display: none !important; visibility: hidden; }
 .fw-body { max-height: calc(100vh - var(--bar-h) - 8px); overflow-y: auto; }
 
 /* ── Resume widget ── */
-#resume-widget { min-width: 0; }
-#resume-widget.collapsed { bottom: auto; }
-/* width is set entirely by dockWidgets() JS — no CSS width rule here */
+#resume-widget { min-width: 0; width: auto; }
+#resume-widget.collapsed { bottom: auto !important; }
+#resume-widget:not(.collapsed) { width: min(780px, 92vw); }
 #resume-widget .fw-body { padding: 0; position: relative; overflow: hidden; max-height: none; }
 #resume-canvas-wrap {
   position: relative; width: 100%;
@@ -752,39 +752,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   overflow: hidden;
 }
 #resume-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
-#resume-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; }
+#resume-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+#resume-scroll-zone::-webkit-scrollbar { display: none; width: 0; }
 #resume-scroll-inner { width: 1px; }
-
-/* ── hide system scrollbar on scroll zones ── */
-#resume-scroll-zone::-webkit-scrollbar,
-#agent-scroll-zone::-webkit-scrollbar  { display: none; }
-#resume-scroll-zone,
-#agent-scroll-zone  { scrollbar-width: none; -ms-overflow-style: none; }
-
-/* ── custom scroll indicator ── */
-.fw-scroll-track {
-  position: absolute;
-  top: 8px; right: 5px; bottom: 8px;
-  width: 2px;
-  z-index: 10;
-  pointer-events: none;
-  border-radius: 1px;
-  background: rgba(255,255,255,0.04);
-  opacity: 0;
-  transition: opacity 0.4s ease;
-}
-.fw-scroll-track.visible { opacity: 1; }
-.fw-scroll-thumb {
-  position: absolute;
-  left: 0; right: 0;
-  min-height: 24px;
-  border-radius: 1px;
-  background: rgba(255,255,248,0.28);
-  transition: background 0.2s;
-}
-.fw-scroll-track.active .fw-scroll-thumb {
-  background: rgba(255,255,248,0.55);
-}
 #resume-dl-bar {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 16px; height: 36px;
@@ -805,9 +775,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 #resume-dl-link:hover { opacity: 1; }
 
 /* ── Agent widget ── */
-#agent-widget { min-width: 0; }
-#agent-widget.collapsed { bottom: auto; }
-/* width is set entirely by dockWidgets() JS */
+#agent-widget { min-width: 0; width: auto; }
+#agent-widget.collapsed { bottom: auto !important; }
+#agent-widget:not(.collapsed) { width: 100vw; }
 #agent-widget .fw-body { padding: 0; overflow: hidden; max-height: none; }
 #agent-canvas-wrap {
   position: relative; width: 100%;
@@ -815,7 +785,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   overflow: hidden;
 }
 #agent-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
-#agent-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; }
+#agent-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none; }
+#agent-scroll-zone::-webkit-scrollbar { display: none; width: 0; }
 #agent-scroll-inner { width: 1px; }
 #agent-dl-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -839,21 +810,53 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 #agent-copy-btn.copied { opacity: 1; background: var(--fg); color: var(--bg); }
 
 @media (max-width: 700px) {
-  #resume-widget:not(.collapsed) { top: 0 !important; left: 0 !important; bottom: auto; }
-  #resume-widget.collapsed { bottom: auto; border-top: none; }
+  #resume-widget:not(.collapsed) { width: 100vw !important; bottom: auto !important; }
+  #resume-widget.collapsed { bottom: auto !important; width: auto !important; border-top: none; }
   #resume-canvas-wrap { height: calc(100vh - var(--bar-h) - 80px); }
   #resume-dl-link { cursor: pointer; }
-  #agent-widget:not(.collapsed) { top: 0 !important; left: 0 !important; }
-  #agent-widget.collapsed { bottom: auto; }
+  #agent-widget:not(.collapsed) { width: 100vw; }
+  #agent-widget.collapsed { bottom: auto !important; width: auto !important; }
   #agent-canvas-wrap { height: calc(100vh - var(--bar-h) - 36px); }
   #agent-scroll-zone { cursor: auto; }
   #agent-copy-btn { cursor: pointer; }
   .fw-topbar { cursor: pointer; }
 }
 
+
+/* ── Scroll / particle progress bar ── */
+#particle-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  width: 0%;
+  background: rgba(255,255,255,0.72);
+  z-index: 9990;
+  pointer-events: none;
+  transform-origin: left center;
+  transition: opacity 0.6s ease;
+  box-shadow: 0 0 6px rgba(255,255,255,0.35);
+}
+#particle-bar.idle { opacity: 0; }
+#particle-bar-label {
+  position: fixed;
+  top: 6px; right: 18px;
+  font-family: var(--mono, monospace);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.38);
+  z-index: 9990;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  user-select: none;
+}
+#particle-bar-label.idle { opacity: 0; }
 </style>
 </head>
 <body>
+<div id="particle-bar"></div>
+<div id="particle-bar-label"></div>
 <div id="cursor"></div>
 <div id="snap-hint"></div>
 <div id="flash-complete"></div>
@@ -1148,9 +1151,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   </div>
   <div class="fw-body">
     <div id="resume-canvas-wrap">
-      <canvas id="resume-canvas"></canvas>
+      <canvas id="resume-canvas" width="0" height="0"></canvas>
       <div id="resume-scroll-zone"><div id="resume-scroll-inner"></div></div>
-      <div class="fw-scroll-track" id="resume-scroll-track"><div class="fw-scroll-thumb" id="resume-scroll-thumb"></div></div>
     </div>
     <div id="resume-dl-bar">
       <span id="resume-dl-label">Zack Gort · Designer · 2026</span>
@@ -1167,9 +1169,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   </div>
   <div class="fw-body">
     <div id="agent-canvas-wrap">
-      <canvas id="agent-canvas"></canvas>
+      <canvas id="agent-canvas" width="0" height="0"></canvas>
       <div id="agent-scroll-zone"><div id="agent-scroll-inner"></div></div>
-      <div class="fw-scroll-track" id="agent-scroll-track"><div class="fw-scroll-thumb" id="agent-scroll-thumb"></div></div>
     </div>
     <div id="agent-dl-bar">
       <span id="agent-dl-label">Zack Gort · Agentic Layer · 2026</span>
@@ -4698,6 +4699,12 @@ window.addEventListener('mouseup',e=>{
 });
 
 window.addEventListener('wheel',e=>{
+  // Let native scroll work inside fw widget scroll zones
+  const _scrollTarget = e.target && (
+    e.target.closest('#resume-scroll-zone') ||
+    e.target.closest('#agent-scroll-zone')
+  );
+  if (_scrollTarget) return;
   e.preventDefault();
   const dir=e.deltaY>0?-1:1;
   const isBball=lvl===6&&LEVELS[6]&&LEVELS[6].basketball;
@@ -7158,98 +7165,50 @@ var repelRadius = REPEL_R;
 var activeDragWidget = null;
 
 // ── dockWidgets: position résumé top-right, agent left of it ─────
-//
-// CRITICAL: always set style.width = 'auto' BEFORE reading offsetWidth for
-// collapsed tabs. If a leftover inline "100vw" or "780px" remains from the
-// expanded state, offsetWidth returns the full/large value and left = resumeLeft
-// minus that becomes a huge negative — pushing the tab off-screen.
 function dockWidgets() {
   const resumeW = document.getElementById('resume-widget');
   const agentW  = document.getElementById('agent-widget');
   const vW = window.innerWidth;
-  const isMobileD = vW < 700;
+  const mob = vW < 700;
 
-  // ── résumé ──────────────────────────────────────────────────────
+  const rCollapsed = resumeW ? resumeW.classList.contains('collapsed') : true;
+  const aCollapsed = agentW  ? agentW.classList.contains('collapsed')  : true;
+
+  // ── Résumé: always right-anchored (collapsed tab or expanded panel) ──
   if (resumeW && !resumeW.dataset.dragged) {
-    const isCollapsed = resumeW.classList.contains('collapsed');
-    resumeW.style.transition = 'none';
-    resumeW.style.transform  = 'none';
-    resumeW.style.bottom     = 'auto';
-    resumeW.style.right      = 'auto';
-
-    if (isMobileD) {
-      if (isCollapsed) {
-        resumeW.style.width = 'auto';
-        resumeW.style.top   = '0px';
-        resumeW.style.left  = (vW - resumeW.offsetWidth) + 'px';
-      } else {
-        resumeW.style.width = '100vw';
-        resumeW.style.top   = '0px';
-        resumeW.style.left  = '0px';
-      }
+    resumeW.style.transform = 'none';
+    resumeW.style.top    = '0px';
+    resumeW.style.bottom = 'auto';
+    resumeW.style.right  = '0px';
+    resumeW.style.left   = 'auto';
+    if (rCollapsed) {
+      resumeW.style.width = 'auto';
+    } else if (mob) {
+      resumeW.style.left  = '0px';
+      resumeW.style.width = '100vw';
     } else {
-      if (isCollapsed) {
-        resumeW.style.width = 'auto';          // clear before measuring
-        const tabW = resumeW.offsetWidth;
-        resumeW.style.top  = '0px';
-        resumeW.style.left = (vW - tabW) + 'px';
-      } else {
-        // Let CSS drive width (min(780px,92vw)); compute left from constant
-        resumeW.style.width = '';
-        const panelW = Math.min(780, Math.round(vW * 0.92));
-        resumeW.style.top  = '0px';
-        resumeW.style.left = (vW - panelW) + 'px';
-      }
+      // Expanded desktop: fix width, right stays 0
+      resumeW.style.width = 'min(780px, 92vw)';
     }
-    requestAnimationFrame(() => { resumeW.style.transition = ''; });
   }
 
-  // ── agent ───────────────────────────────────────────────────────
+  // ── Agent: sits left of résumé tab when collapsed, full-screen when expanded ──
   if (agentW && !agentW.dataset.dragged) {
-    const isCollapsed = agentW.classList.contains('collapsed');
-    agentW.style.transition = 'none';
-    agentW.style.transform  = 'none';
-    agentW.style.bottom     = 'auto';
-    agentW.style.right      = 'auto';
-
-    // Résumé left edge (already positioned above, or computed fresh)
-    let resumeTabLeft = vW;
-    if (resumeW) {
-      const rl = parseFloat(resumeW.style.left);
-      if (!isNaN(rl)) {
-        resumeTabLeft = rl;
-      } else {
-        // Fallback: measure tab width (résumé should always be collapsed if we're here)
-        resumeW.style.width = 'auto';
-        resumeTabLeft = vW - resumeW.offsetWidth;
-      }
-    }
-
-    if (isMobileD) {
-      if (isCollapsed) {
-        agentW.style.width = 'auto';           // clear before measuring
-        const rTabW = resumeW ? resumeW.offsetWidth : 0;
-        const aTabW = agentW.offsetWidth;
-        agentW.style.top  = '0px';
-        agentW.style.left = (vW - rTabW - aTabW) + 'px';
-      } else {
-        agentW.style.width = '100vw';
-        agentW.style.top   = '0px';
-        agentW.style.left  = '0px';
-      }
+    agentW.style.transform = 'none';
+    agentW.style.top    = '0px';
+    agentW.style.bottom = 'auto';
+    if (aCollapsed) {
+      // Measure résumé tab width to offset agent tab
+      const rTabW = (resumeW && rCollapsed) ? (resumeW.offsetWidth || 90) : 0;
+      agentW.style.right = rTabW + 'px';
+      agentW.style.left  = 'auto';
+      agentW.style.width = 'auto';
     } else {
-      if (isCollapsed) {
-        agentW.style.width = 'auto';           // clear before measuring
-        const aTabW = agentW.offsetWidth;
-        agentW.style.top  = '0px';
-        agentW.style.left = (resumeTabLeft - aTabW) + 'px';
-      } else {
-        agentW.style.width = '100vw';
-        agentW.style.top   = '0px';
-        agentW.style.left  = '0px';
-      }
+      // Expanded: full viewport
+      agentW.style.left  = '0px';
+      agentW.style.right = 'auto';
+      agentW.style.width = '100vw';
     }
-    requestAnimationFrame(() => { agentW.style.transition = ''; });
   }
 }
 
@@ -7269,7 +7228,7 @@ function invalidateWidgetRepel() {}
       activeDragWidget = widget;
       const r = widget.getBoundingClientRect();
       ox = e.clientX - r.left; oy = e.clientY - r.top;
-      widget.style.transition = 'none'; // no lag while dragging
+      widget.style.transition = 'none';
       e.stopPropagation();
       handle.setPointerCapture(e.pointerId);
     });
@@ -7393,7 +7352,7 @@ Object.keys(AF).forEach(k => { _AF_BASE[k] = AF[k].size; });
 
 window._applyAgentScale = function(scale) {
   Object.keys(AF).forEach(k => { AF[k].size = Math.round(_AF_BASE[k] * scale); });
-  if (aActive) buildAgentParticles();
+  if (window.aActive) buildAgentParticles();
 };
 
 const aCvs = document.getElementById('agent-canvas');
@@ -7405,8 +7364,9 @@ let aSmoothScrollY = 0;
 const A_SCROLL_LERP = 0.22;
 let aTotalH     = 0;
 let aFloatT     = Math.random() * Math.PI * 2;
-let aRAF        = null;
-let aActive     = false;
+window.aRAF = window.aRAF || null;
+window.aActive = false;
+var aActive = window.aActive;
 let aDPR        = 1;
 
 const A_TETHER    = 0.016;
@@ -7558,8 +7518,8 @@ function buildAgentParticles() {
 }
 
 function agentLoop() {
-  if (!aActive) return;
-  aRAF = requestAnimationFrame(agentLoop);
+  if (!window.aActive) return;
+  window.aRAF = requestAnimationFrame(agentLoop);
   const rgb = '232,228,220';
   const bgCol = '#0a0a0a';
   const cW = aCvs.width / aDPR, cH = aCvs.height / aDPR;
@@ -7611,61 +7571,26 @@ function agentLoop() {
   const botFade = aCtx.createLinearGradient(0, cH - 44, 0, cH);
   botFade.addColorStop(0, bgZero); botFade.addColorStop(1, bgFull);
   aCtx.fillStyle = botFade; aCtx.fillRect(0, cH - 44, cW, 44);
-  // keep scroll indicator in sync with smooth scroll
-  if (window._updateAgentScrollbar) window._updateAgentScrollbar();
 }
 
 function initAgentCanvas() {
   const wrap = document.getElementById('agent-canvas-wrap');
-  if (!wrap || !wrap.clientWidth) return;
+  if (!wrap) return;
+  if (!wrap.clientWidth) {
+    requestAnimationFrame(initAgentCanvas);
+    return;
+  }
   aDPR = Math.min(window.devicePixelRatio || 1, 2);
-  const cW = wrap.clientWidth, cH = wrap.clientHeight;
+  const cW = wrap.clientWidth, cH = wrap.clientHeight || window.innerHeight;
   aCvs.width  = cW * aDPR; aCvs.height = cH * aDPR;
   aCvs.style.width = cW + 'px'; aCvs.style.height = cH + 'px';
   buildAgentParticles();
-  requestAnimationFrame(() => { if (window._updateAgentScrollbar) window._updateAgentScrollbar(); });
 }
 
 const aScrollZone = document.getElementById('agent-scroll-zone');
 if (aScrollZone) {
   aScrollZone.addEventListener('scroll', () => { aScrollY = aScrollZone.scrollTop; }, { passive:true });
 }
-
-// ── Custom scroll indicator — agent ─────────────────────────────
-(function() {
-  const track = document.getElementById('agent-scroll-track');
-  const thumb = document.getElementById('agent-scroll-thumb');
-  if (!track || !thumb) return;
-  let hideTimer = null;
-
-  function updateAgentScrollbar() {
-    const wrap = document.getElementById('agent-canvas-wrap');
-    if (!wrap || aTotalH <= 0) return;
-    const viewH = wrap.clientHeight;
-    if (aTotalH <= viewH) { track.classList.remove('visible'); return; }
-
-    const trackH  = wrap.clientHeight - 16;
-    const ratio   = viewH / aTotalH;
-    const thumbH  = Math.max(24, Math.round(trackH * ratio));
-    const maxScrl = aTotalH - viewH;
-    const thumbY  = Math.round((aScrollY / maxScrl) * (trackH - thumbH));
-
-    thumb.style.height = thumbH + 'px';
-    thumb.style.top    = thumbY + 'px';
-
-    track.classList.add('visible', 'active');
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      track.classList.remove('active');
-      hideTimer = setTimeout(() => track.classList.remove('visible'), 1200);
-    }, 800);
-  }
-
-  window._updateAgentScrollbar = updateAgentScrollbar;
-  if (aScrollZone) {
-    aScrollZone.addEventListener('scroll', updateAgentScrollbar, { passive: true });
-  }
-})();
 
 const agentWidget = document.getElementById('agent-widget');
 const agentToggle = agentWidget ? agentWidget.querySelector('.fw-toggle') : null;
@@ -7680,54 +7605,23 @@ if (agentTopbar) {
     if (_agentDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = agentWidget.classList.contains('collapsed');
-
-    // Suppress transition BEFORE the class change so no intermediate CSS state flickers
-    agentWidget.style.transition = 'none';
-    agentWidget.classList.toggle('collapsed');
-    if (agentToggle) agentToggle.textContent = wasCollapsed ? '−' : '+';
-
-    if (wasCollapsed) {
-      // Expanding → dock immediately (transition already suppressed), then start canvas
-      if (!agentWidget.dataset.dragged) dockWidgets();
-      aActive = true;
-      requestAnimationFrame(() => {
-        initAgentCanvas();
-        agentLoop();
-        requestAnimationFrame(() => { agentWidget.style.transition = ''; });
-      });
-    } else {
-      // Collapsing → reset width inline before docking so offsetWidth is correct
-      agentWidget.style.width = 'auto';
-      aActive = false;
-      if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
-      if (!agentWidget.dataset.dragged) dockWidgets();
-      requestAnimationFrame(() => { agentWidget.style.transition = ''; });
-    }
+    window._setAgentOpen(wasCollapsed); // true = open, false = close
   });
 }
 
-document.addEventListener('mousedown', e => {
-  if (!agentWidget || agentWidget.classList.contains('collapsed')) return;
-  if (!agentWidget.contains(e.target)) {
-    agentWidget.style.transition = 'none';
-    agentWidget.style.width = 'auto';          // reset before docking
-    agentWidget.classList.add('collapsed');
-    if (agentToggle) agentToggle.textContent = '+';
-    aActive = false;
-    if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
-    if (!agentWidget.dataset.dragged) dockWidgets();
-    requestAnimationFrame(() => { agentWidget.style.transition = ''; });
-  }
-});
+// mousedown-outside handled by consolidated listener below
 
 if (agentWidget) {
   agentWidget.addEventListener('agent-collapse', () => {
-    aActive = false;
-    if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
+    window.aActive = false;
+    if (window.aRAF) { cancelAnimationFrame(window.aRAF); window.aRAF = null; }
   });
 }
 
-window.addEventListener('resize', () => { if (aActive) initAgentCanvas(); });
+window.addEventListener('resize', () => { if (window.aActive) initAgentCanvas(); });
+// Expose for consolidated controller
+window.initAgentCanvas = initAgentCanvas;
+window.agentLoop = function() { agentLoop(); };
 
 const copyBtn = document.getElementById('agent-copy-btn');
 if (copyBtn) {
@@ -7800,7 +7694,7 @@ const _RF_BASE = {};
 
 window._applyResumeScale = function(scale) {
   ['name','company','body','quote'].forEach(k => { RF[k].size = Math.round(_RF_BASE[k] * scale); });
-  if (rActive) buildResumeParticles();
+  if (window.rActive) buildResumeParticles();
 };
 
 const rCvs = document.getElementById('resume-canvas');
@@ -7812,8 +7706,9 @@ let rSmoothScrollY = 0;
 const R_SCROLL_LERP = 0.22;
 let rTotalH    = 0;
 let rFloatT    = Math.random() * Math.PI * 2;
-let rRAF       = null;
-let rActive    = false;
+window.rRAF = window.rRAF || null;
+window.rActive = false;
+var rActive = window.rActive;
 let rDPR       = 1;
 
 const R_TETHER    = 0.016;
@@ -7925,7 +7820,7 @@ function buildResumeParticles() {
   }
 
   cy += PAD_Y + 20;
-  rTotalH = cy;
+  rTotalH = cy; window.rTotalH = cy;
 
   rParticles = chars.map((def, i) => {
     const ex = rParticles[i];
@@ -7936,8 +7831,8 @@ function buildResumeParticles() {
 }
 
 function resumeLoop() {
-  if (!rActive) return;
-  rRAF = requestAnimationFrame(resumeLoop);
+  if (!window.rActive) return;
+  window.rRAF = requestAnimationFrame(resumeLoop);
   const rgb = '232,228,220';
   const bgCol = '#0a0a0a';
   const cW = rCvs.width / rDPR, cH = rCvs.height / rDPR;
@@ -7989,63 +7884,27 @@ function resumeLoop() {
   const botFade = rCtx.createLinearGradient(0, cH - 44, 0, cH);
   botFade.addColorStop(0, bgZero); botFade.addColorStop(1, bgFull);
   rCtx.fillStyle = botFade; rCtx.fillRect(0, cH - 44, cW, 44);
-  // keep scroll indicator in sync with smooth scroll
-  if (window._updateResumeScrollbar) window._updateResumeScrollbar();
 }
 
 function initResumeCanvas() {
   const wrap = document.getElementById('resume-canvas-wrap');
-  if (!wrap || !wrap.clientWidth) return;
+  if (!wrap) return;
+  if (!wrap.clientWidth) {
+    // Not painted yet — retry after another frame
+    requestAnimationFrame(initResumeCanvas);
+    return;
+  }
   rDPR = Math.min(window.devicePixelRatio || 1, 2);
-  const cW = wrap.clientWidth, cH = wrap.clientHeight;
+  const cW = wrap.clientWidth, cH = wrap.clientHeight || window.innerHeight;
   rCvs.width  = cW * rDPR; rCvs.height = cH * rDPR;
   rCvs.style.width = cW + 'px'; rCvs.style.height = cH + 'px';
   buildResumeParticles();
-  requestAnimationFrame(() => { if (window._updateResumeScrollbar) window._updateResumeScrollbar(); });
 }
 
 const rScrollZone = document.getElementById('resume-scroll-zone');
 if (rScrollZone) {
   rScrollZone.addEventListener('scroll', () => { rScrollY = rScrollZone.scrollTop; }, { passive:true });
 }
-
-// ── Custom scroll indicator — résumé ────────────────────────────
-(function() {
-  const track = document.getElementById('resume-scroll-track');
-  const thumb = document.getElementById('resume-scroll-thumb');
-  if (!track || !thumb) return;
-  let hideTimer = null;
-
-  function updateResumeScrollbar() {
-    const wrap = document.getElementById('resume-canvas-wrap');
-    if (!wrap || rTotalH <= 0) return;
-    const viewH = wrap.clientHeight;
-    if (rTotalH <= viewH) { track.classList.remove('visible'); return; }
-
-    const trackH  = wrap.clientHeight - 16;   // 8px padding top+bottom
-    const ratio   = viewH / rTotalH;
-    const thumbH  = Math.max(24, Math.round(trackH * ratio));
-    const maxScrl = rTotalH - viewH;
-    const thumbY  = Math.round((rScrollY / maxScrl) * (trackH - thumbH));
-
-    thumb.style.height = thumbH + 'px';
-    thumb.style.top    = thumbY + 'px';
-
-    track.classList.add('visible', 'active');
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => {
-      track.classList.remove('active');
-      // fade track out after 1.2s idle
-      hideTimer = setTimeout(() => track.classList.remove('visible'), 1200);
-    }, 800);
-  }
-
-  // Called from the scroll event and also each render frame while scrolling
-  window._updateResumeScrollbar = updateResumeScrollbar;
-  if (rScrollZone) {
-    rScrollZone.addEventListener('scroll', updateResumeScrollbar, { passive: true });
-  }
-})();
 
 const resumeWidget = document.getElementById('resume-widget');
 const resumeTopbar = resumeWidget ? resumeWidget.querySelector('.fw-topbar') : null;
@@ -8062,57 +7921,184 @@ if (resumeTopbar) {
     if (_resumeDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = resumeWidget.classList.contains('collapsed');
-
-    // Suppress transition BEFORE the class change
-    resumeWidget.style.transition = 'none';
-    resumeWidget.classList.toggle('collapsed');
-    if (resumeToggle) resumeToggle.textContent = wasCollapsed ? '−' : '+';
-
-    if (wasCollapsed) {
-      // Expanding → dock immediately, then start canvas
-      if (!resumeWidget.dataset.dragged) dockWidgets();
-      rActive = true;
-      requestAnimationFrame(() => {
-        initResumeCanvas();
-        resumeLoop();
-        requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
-      });
-    } else {
-      // Collapsing → reset width so offsetWidth reflects tab width only
-      resumeWidget.style.width = 'auto';
-      rActive = false;
-      if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-      if (!resumeWidget.dataset.dragged) dockWidgets();
-      requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
-    }
+    window._setResumeOpen(wasCollapsed); // true = open, false = close
   });
 }
 
-document.addEventListener('mousedown', e => {
-  if (!resumeWidget || resumeWidget.classList.contains('collapsed')) return;
-  if (!resumeWidget.contains(e.target)) {
-    resumeWidget.style.transition = 'none';
-    resumeWidget.style.width = 'auto';         // reset before docking
-    resumeWidget.classList.add('collapsed');
-    if (resumeToggle) resumeToggle.textContent = '+';
-    rActive = false;
-    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-    if (!resumeWidget.dataset.dragged) dockWidgets();
-    requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
-  }
-});
+// mousedown-outside handled by consolidated listener below
 
 if (resumeWidget) {
   resumeWidget.addEventListener('resume-collapse', () => {
-    rActive = false;
-    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
+    window.rActive = false;
+    if (window.rRAF) { cancelAnimationFrame(window.rRAF); window.rRAF = null; }
   });
 }
 
-window.addEventListener('resize', () => { if (rActive) initResumeCanvas(); });
+window.addEventListener('resize', () => { if (window.rActive) initResumeCanvas(); });
+// Expose for consolidated controller
+window.initResumeCanvas = initResumeCanvas;
+window.resumeLoop = function() { resumeLoop(); };
 
 })();
 
+
+
+// ── Scroll progress bar for resume/agent widgets ──────────────
+(function() {
+  const bar   = document.getElementById('particle-bar');
+  const label = document.getElementById('particle-bar-label');
+  if (!bar || !label) return;
+
+  bar.classList.add('idle');
+  label.classList.add('idle');
+
+  function updateBar() {
+    const rW = document.getElementById('resume-widget');
+    const aW = document.getElementById('agent-widget');
+    const rOpen = rW && !rW.classList.contains('collapsed');
+    const aOpen = aW && !aW.classList.contains('collapsed');
+
+    if (!rOpen && !aOpen) {
+      bar.classList.add('idle');
+      label.classList.add('idle');
+      return;
+    }
+
+    // Pick the active open widget's scroll zone
+    let zone = null, totalH = 0;
+    if (rOpen) {
+      zone = document.getElementById('resume-scroll-zone');
+      totalH = window.rTotalH || 0;
+    } else if (aOpen) {
+      zone = document.getElementById('agent-scroll-zone');
+      totalH = window.aTotalH || 0;
+    }
+    if (!zone) { bar.classList.add('idle'); label.classList.add('idle'); return; }
+
+    const scrollable = zone.scrollHeight - zone.clientHeight;
+    if (scrollable <= 0) { bar.classList.add('idle'); label.classList.add('idle'); return; }
+
+    const pct = (zone.scrollTop / scrollable) * 100;
+    bar.style.width = Math.max(1, pct) + '%';
+    const pg = Math.round(pct);
+    label.textContent = pg.toString().padStart(2, '0') + '%';
+    bar.classList.remove('idle');
+    label.classList.remove('idle');
+  }
+
+  // Hook into scroll zones
+  ['resume-scroll-zone','agent-scroll-zone'].forEach(id => {
+    const z = document.getElementById(id);
+    if (z) z.addEventListener('scroll', updateBar, { passive: true });
+  });
+
+  // Also poll for widget open/close state changes
+  let _lastROpen = false, _lastAOpen = false;
+  function poll() {
+    const rW = document.getElementById('resume-widget');
+    const aW = document.getElementById('agent-widget');
+    const rOpen = rW && !rW.classList.contains('collapsed');
+    const aOpen = aW && !aW.classList.contains('collapsed');
+    if (rOpen !== _lastROpen || aOpen !== _lastAOpen) {
+      _lastROpen = rOpen; _lastAOpen = aOpen;
+      updateBar();
+    }
+    requestAnimationFrame(poll);
+  }
+  requestAnimationFrame(poll);
+})();
+
+
+// ══════════════════════════════════════════════════════════════════
+// CONSOLIDATED WIDGET CONTROLLER
+// Single source of truth for open/close/dock of both fw widgets
+// ══════════════════════════════════════════════════════════════════
+(function() {
+
+  function _setAgentOpen(open) {
+    const w = document.getElementById('agent-widget');
+    if (!w) return;
+    const tog = w.querySelector('.fw-toggle');
+    if (open) {
+      w.classList.remove('collapsed');
+      if (tog) tog.textContent = '−';
+      window.aActive = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        dockWidgets();
+        if (typeof window.initAgentCanvas === 'function') window.initAgentCanvas();
+        if (typeof window.agentLoop       === 'function') window.agentLoop();
+      }));
+    } else {
+      w.classList.add('collapsed');
+      if (tog) tog.textContent = '+';
+      window.aActive = false;
+      if (window.aRAF) { cancelAnimationFrame(window.aRAF); window.aRAF = null; }
+      // Clear canvas so particles don't bleed into other views
+      const _aCvs = document.getElementById('agent-canvas');
+      if (_aCvs) {
+        const _c = _aCvs.getContext('2d');
+        if (_c) _c.clearRect(0,0,_aCvs.width,_aCvs.height);
+        _aCvs.width = 0; _aCvs.height = 0;
+      }
+      requestAnimationFrame(() => requestAnimationFrame(dockWidgets));
+    }
+  }
+
+  function _setResumeOpen(open) {
+    const w = document.getElementById('resume-widget');
+    if (!w) return;
+    const tog = w.querySelector('.fw-toggle');
+    if (open) {
+      w.classList.remove('collapsed');
+      if (tog) tog.textContent = '−';
+      window.rActive = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        dockWidgets();
+        if (typeof window.initResumeCanvas === 'function') window.initResumeCanvas();
+        if (typeof window.resumeLoop       === 'function') window.resumeLoop();
+      }));
+    } else {
+      w.classList.add('collapsed');
+      if (tog) tog.textContent = '+';
+      window.rActive = false;
+      if (window.rRAF) { cancelAnimationFrame(window.rRAF); window.rRAF = null; }
+      // Clear canvas so particles don't bleed into other views
+      const _rCvs = document.getElementById('resume-canvas');
+      if (_rCvs) {
+        const _c = _rCvs.getContext('2d');
+        if (_c) _c.clearRect(0,0,_rCvs.width,_rCvs.height);
+        _rCvs.width = 0; _rCvs.height = 0;
+      }
+      requestAnimationFrame(() => requestAnimationFrame(dockWidgets));
+    }
+  }
+
+  // Expose for topbar click handlers defined in IIFEs
+  window._setAgentOpen  = _setAgentOpen;
+  window._setResumeOpen = _setResumeOpen;
+
+  // ONE mousedown-outside listener for both widgets
+  document.addEventListener('mousedown', e => {
+    const aW = document.getElementById('agent-widget');
+    const rW = document.getElementById('resume-widget');
+    if (aW && !aW.classList.contains('collapsed') && !aW.contains(e.target)) {
+      _setAgentOpen(false);
+    }
+    if (rW && !rW.classList.contains('collapsed') && !rW.contains(e.target)) {
+      _setResumeOpen(false);
+    }
+  });
+
+  // ESC closes all
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    const aW = document.getElementById('agent-widget');
+    const rW = document.getElementById('resume-widget');
+    if (aW && !aW.classList.contains('collapsed')) _setAgentOpen(false);
+    if (rW && !rW.classList.contains('collapsed')) _setResumeOpen(false);
+  });
+
+})();
 </script>
 
 </body>
