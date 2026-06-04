@@ -7573,11 +7573,11 @@ function agentLoop() {
   aCtx.fillStyle = botFade; aCtx.fillRect(0, cH - 44, cW, 44);
 }
 
-function initAgentCanvas() {
+function initAgentCanvas(andStart) {
   const wrap = document.getElementById('agent-canvas-wrap');
   if (!wrap) return;
   if (!wrap.clientWidth) {
-    requestAnimationFrame(initAgentCanvas);
+    requestAnimationFrame(() => initAgentCanvas(andStart));
     return;
   }
   aDPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -7585,6 +7585,7 @@ function initAgentCanvas() {
   aCvs.width  = cW * aDPR; aCvs.height = cH * aDPR;
   aCvs.style.width = cW + 'px'; aCvs.style.height = cH + 'px';
   buildAgentParticles();
+  if (andStart && window.aActive) agentLoop();
 }
 
 const aScrollZone = document.getElementById('agent-scroll-zone');
@@ -7886,12 +7887,11 @@ function resumeLoop() {
   rCtx.fillStyle = botFade; rCtx.fillRect(0, cH - 44, cW, 44);
 }
 
-function initResumeCanvas() {
+function initResumeCanvas(andStart) {
   const wrap = document.getElementById('resume-canvas-wrap');
   if (!wrap) return;
   if (!wrap.clientWidth) {
-    // Not painted yet — retry after another frame
-    requestAnimationFrame(initResumeCanvas);
+    requestAnimationFrame(() => initResumeCanvas(andStart));
     return;
   }
   rDPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -7899,6 +7899,7 @@ function initResumeCanvas() {
   rCvs.width  = cW * rDPR; rCvs.height = cH * rDPR;
   rCvs.style.width = cW + 'px'; rCvs.style.height = cH + 'px';
   buildResumeParticles();
+  if (andStart && window.rActive) resumeLoop();
 }
 
 const rScrollZone = document.getElementById('resume-scroll-zone');
@@ -8025,8 +8026,7 @@ window.resumeLoop = function() { resumeLoop(); };
       window.aActive = true;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         dockWidgets();
-        if (typeof window.initAgentCanvas === 'function') window.initAgentCanvas();
-        if (typeof window.agentLoop       === 'function') window.agentLoop();
+        if (typeof window.initAgentCanvas === 'function') window.initAgentCanvas(true);
       }));
     } else {
       w.classList.add('collapsed');
@@ -8054,8 +8054,7 @@ window.resumeLoop = function() { resumeLoop(); };
       window.rActive = true;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         dockWidgets();
-        if (typeof window.initResumeCanvas === 'function') window.initResumeCanvas();
-        if (typeof window.resumeLoop       === 'function') window.resumeLoop();
+        if (typeof window.initResumeCanvas === 'function') window.initResumeCanvas(true);
       }));
     } else {
       w.classList.add('collapsed');
