@@ -709,11 +709,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   background: var(--widget-bg);
   border: 1px solid var(--border);
   user-select: none;
-  overflow: hidden;
-  /* JS owns top/left/width — no CSS transition here to avoid fighting inline styles */
+  /* overflow must NOT be hidden — it clips the scroll zones inside fw-body */
 }
-/* collapsed = just the topbar visible, no body, no forced position (JS handles it) */
-.fw.collapsed { width: auto; min-width: 0; overflow: visible; }
+/* collapsed = just the topbar visible */
+.fw.collapsed { width: auto; min-width: 0; }
 .fw-topbar {
   display: flex;
   justify-content: space-between;
@@ -755,7 +754,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   overflow: hidden;
 }
 #resume-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
-#resume-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; }
+#resume-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; pointer-events: auto; }
 #resume-scroll-inner { width: 1px; }
 
 /* ── hide system scrollbar on scroll zones ── */
@@ -818,7 +817,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   overflow: hidden;
 }
 #agent-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
-#agent-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; }
+#agent-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; pointer-events: auto; }
 #agent-scroll-inner { width: 1px; }
 #agent-dl-bar {
   display: flex; align-items: center; justify-content: space-between;
@@ -4704,6 +4703,8 @@ window.addEventListener('mouseup',e=>{
 });
 
 window.addEventListener('wheel',e=>{
+  // Let scroll zones handle their own wheel events — don't intercept
+  if (e.target.closest && (e.target.closest('#resume-scroll-zone') || e.target.closest('#agent-scroll-zone'))) return;
   e.preventDefault();
   const dir=e.deltaY>0?-1:1;
   const isBball=lvl===6&&LEVELS[6]&&LEVELS[6].basketball;
@@ -5126,6 +5127,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   renderer.domElement.addEventListener('touchmove',e=>{
     const t0=e.touches[0];
     if(t0 && document.elementFromPoint(t0.clientX,t0.clientY)?.closest('.orb-widget')) return;
+    if(t0 && document.elementFromPoint(t0.clientX,t0.clientY)?.closest('#resume-scroll-zone, #agent-scroll-zone')) return;
     e.preventDefault();
     const t=e.touches[0];
     mX=t.clientX;mY=t.clientY;
