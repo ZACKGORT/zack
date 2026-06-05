@@ -6357,7 +6357,7 @@ function _spawnBall(){
   HOOP._dbTilt=0; HOOP._dbVel=0;
   // Create luminance PointLight — warm basketbball-orange tone, moderate range
   // so it pools on the particle floor without blowing out nearby geometry
-  _bbBallLight = new THREE.PointLight(0xff8833, 5.0, 38, 1.6); // color, intensity, distance, decay
+  _bbBallLight = new THREE.PointLight(0xff8833, isMobile ? 5.0 : 9.0, isMobile ? 38 : 52, 1.6); // color, intensity, distance, decay
   _bbBallLight.position.copy(ball.pos);
   scene.add(_bbBallLight);
 }
@@ -6444,7 +6444,7 @@ function _tickBBall(dt){
       // Bounce flash — spike light intensity briefly on impact
       if (_bbBallLight) {
         const impactSpd = Math.abs(b.vel.y);
-        _bbBallLight.intensity = 5.0 + Math.min(10.0, impactSpd * 0.45);
+        _bbBallLight.intensity = (isMobile ? 5.0 : 9.0) + Math.min(isMobile ? 10.0 : 18.0, impactSpd * (isMobile ? 0.45 : 0.80));
       }
     }
   }
@@ -6522,7 +6522,9 @@ function _tickBBall(dt){
     // Intensity ramps up as ball nears floor — pools light on ground surface
     const heightAboveFloor = b.pos.y - (BY_FLOOR + ballR);
     const proxT = Math.max(0, 1.0 - heightAboveFloor / 14.0);
-    const baseI = 5.0 + proxT * proxT * 9.0; // quadratic: subtle aloft, bright near ground
+    const baseI = isMobile
+      ? 5.0 + proxT * proxT * 9.0   // mobile: original values (perfect as-is)
+      : 9.0 + proxT * proxT * 16.0; // desktop: stronger aloft, brighter near ground
     _bbBallLight.intensity += (baseI - _bbBallLight.intensity) * Math.min(1, dt * 6.0);
   }
 }
