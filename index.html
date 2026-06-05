@@ -6894,11 +6894,21 @@ function _drawScoreFlash(){
       const touchR=Math.max(52,visualR*1.5); // generous touch target
       return Math.sqrt((cx-sx)**2+(cy-sy)**2)<touchR;
     }
+    // ── Bullet-time release: listen on window so touches over the link list
+    // overlay (or any other DOM element) still trigger the shot ──────────────
+    window.addEventListener('touchstart',e=>{
+      if(!_bulletTime||!_isBBallActive()) return;
+      _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
+      _bulletTime=false;
+      const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
+      e.stopPropagation();
+    },{capture:true,passive:false});
+
     canvas.addEventListener('touchstart',e=>{
       if(!_isBBallActive()) return;
       if(_hoopDragging) return;
       if(_bulletTime){
-        // tap while in bullet-time = launch
+        // tap while in bullet-time = launch (canvas path; window handler above covers overlays)
         _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
         _bulletTime=false;
         const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
