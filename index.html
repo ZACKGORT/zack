@@ -2994,6 +2994,7 @@ function initLevel(n){
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
     if (_bbBall) { const _bi=attractors.indexOf(_bbBall); if(_bi>=0)attractors.splice(_bi,1); _bbBall.dispose(); _bbBall=null; }
+    if (_bbBallLight) { scene.remove(_bbBallLight); _bbBallLight = null; }
     if (_rimRingPoints) { scene.remove(_rimRingPoints); _rimRingGeo.dispose(); _rimRingPoints=null; _rimRingGeo=null; }
     if (_netPoints) { scene.remove(_netPoints); _netGeo.dispose(); _netPoints=null; _netGeo=null; }
     if (_rimRingVels && _rimRingVels._mesh) { scene.remove(_rimRingVels._mesh); _rimRingVels._geo.dispose(); _rimRingVels=null; }
@@ -3357,7 +3358,7 @@ let _orbRailActive = true; // default: railed
       _textSettledDrawn = false; // orb-rail slide can flush GPU layer — force text redraw
     } else {
       btn.classList.remove('active');
-      // Slide rail out, then move widgets back to body as minimal link chips
+      // Slide rail out — orb 3D meshes stay invisible permanently
       rail.classList.remove('visible');
       const duration = 400;
       setTimeout(() => {
@@ -3367,7 +3368,6 @@ let _orbRailActive = true; // default: railed
           if (el && el.parentNode !== document.body) document.body.appendChild(el);
           if (el) {
             el.style.position = 'fixed'; el._userAnchored = false;
-            // Collapse to minimal link chip
             el.style.padding = '0';
             el.style.border = '1px solid rgba(255,255,255,0.55)';
             el.style.width = 'auto';
@@ -3375,11 +3375,11 @@ let _orbRailActive = true; // default: railed
             const chip = el.querySelector('.orb-card-chip');
             if (full) full.style.display = 'none';
             if (chip) chip.style.display = 'block';
-            // Hide iframe wrap if open
             const iw = el.querySelector('.orb-widget-iframe-wrap');
             if (iw) iw.style.display = 'none';
           }
-          if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
+          // Never show 3D mesh — widgets are the only presence
+          if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
         }
       }, duration);
     }
@@ -3478,6 +3478,8 @@ function _spawnProjectOrbs() {
     const orb = new ProjectOrb(data,new THREE.Vector3(x,y,0),i);
     _projectOrbs.push(orb);
     attractors.push(orb._attractor);
+    // Always hide 3D orb mesh — iframe widgets are the sole presence
+    if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
     _createOrbWidget(orb);
   });
   // Apply current rail state to newly spawned orbs
@@ -5419,21 +5421,22 @@ document.getElementById('screenshot-btn').addEventListener('click',()=>{
       const rail = document.getElementById('orb-rail');
       if (rail) {
         if (_orbRailActive) {
+          // Show rail — move widgets in and slide open; orb meshes stay hidden always
           for (const orb of _projectOrbs) {
             const el = document.getElementById(`orb-widget-${orb.index}`);
             if (el && el.parentNode !== rail) rail.appendChild(el);
             if (el) { el.style.position='static'; el.style.left=el.style.top=el.style.right=el.style.bottom=''; }
+            // Orb 3D meshes always invisible — we only use the iframe widgets
             if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
           }
           rail.classList.remove('hidden');
           rail.getBoundingClientRect();
           rail.classList.add('visible');
         } else {
+          // Hide rail — slide out; never restore orb meshes
           rail.classList.remove('visible');
-          setTimeout(()=>rail.classList.add('hidden'),400);
-          for (const orb of _projectOrbs) {
-            if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
-          }
+          setTimeout(() => rail.classList.add('hidden'), 400);
+          // Orb 3D meshes stay hidden regardless
         }
       }
     });
@@ -6334,8 +6337,13 @@ function _tickRimRing(dt) {
 
 const BALL_SPAWN={x:-4.5,y:isMobile?-7.0:-2.0,z:0};
 
+// Ball luminance light — warm orange-white, tracks ball position every frame
+let _bbBallLight = null;
+
 function _spawnBall(){
   if(_bbBall){_bbBall.dispose();const _bi=attractors.indexOf(_bbBall);if(_bi>=0)attractors.splice(_bi,1);}
+  // Dispose previous ball light
+  if (_bbBallLight) { scene.remove(_bbBallLight); _bbBallLight = null; }
   const pos=new THREE.Vector3(BALL_SPAWN.x,BALL_SPAWN.y,0);
   const ball=new Attractor('blackhole',pos,true);
   ball._bouncingBH=true; ball._isBBall=true;
@@ -6345,6 +6353,11 @@ function _spawnBall(){
   attractors.push(ball); _bbBall=ball;
   HOOP._lastBallY=null; HOOP._passThroughArmed=false;
   HOOP._dbTilt=0; HOOP._dbVel=0;
+  // Create luminance PointLight — warm basketbball-orange tone, moderate range
+  // so it pools on the particle floor without blowing out nearby geometry
+  _bbBallLight = new THREE.PointLight(0xff8833, 5.0, 38, 1.6); // color, intensity, distance, decay
+  _bbBallLight.position.copy(ball.pos);
+  scene.add(_bbBallLight);
 }
 
 function _tickBBall(dt){
@@ -6424,7 +6437,14 @@ function _tickBBall(dt){
   const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
-    if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
+    if(b.vel.y<0){
+      b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985;
+      // Bounce flash — spike light intensity briefly on impact
+      if (_bbBallLight) {
+        const impactSpd = Math.abs(b.vel.y);
+        _bbBallLight.intensity = 5.0 + Math.min(10.0, impactSpd * 0.45);
+      }
+    }
   }
   if(b.pos.y+ballR>BY_CEIL){ b.pos.y=BY_CEIL-ballR; if(b.vel.y>0) b.vel.y=-b.vel.y*0.5; }
   if(b.pos.x-ballR<edgeL2){ b.pos.x=edgeL2+ballR; if(b.vel.x<0) b.vel.x=-b.vel.x*0.72; }
@@ -6493,6 +6513,16 @@ function _tickBBall(dt){
 
   b.mesh.position.set(b.pos.x,b.pos.y,b.pos.z||0);
   b.mesh.updateMatrixWorld(true);
+
+  // ── Ball luminance: track position, scale intensity with proximity to floor ──
+  if (_bbBallLight) {
+    _bbBallLight.position.set(b.pos.x, b.pos.y, (b.pos.z||0) + 1.0);
+    // Intensity ramps up as ball nears floor — pools light on ground surface
+    const heightAboveFloor = b.pos.y - (BY_FLOOR + ballR);
+    const proxT = Math.max(0, 1.0 - heightAboveFloor / 14.0);
+    const baseI = 5.0 + proxT * proxT * 9.0; // quadratic: subtle aloft, bright near ground
+    _bbBallLight.intensity += (baseI - _bbBallLight.intensity) * Math.min(1, dt * 6.0);
+  }
 }
 
 var _lastActionWasSpacebar = false;
