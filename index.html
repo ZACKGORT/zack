@@ -1144,8 +1144,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   </div>
 </div>
 <!-- Resume Widget — top-right corner -->
-<div id="resume-widget" class="fw collapsed" data-widget>
-  <div class="fw-topbar" data-drag-handle>
+<div id="resume-widget" class="fw collapsed">
+  <div class="fw-topbar">
     <span class="fw-title">Résumé</span>
     <span class="fw-toggle">+</span>
   </div>
@@ -1163,8 +1163,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 </div>
 
 <!-- Agent Widget — agentic layer / particle canvas -->
-<div id="agent-widget" class="fw collapsed" data-widget>
-  <div class="fw-topbar" data-drag-handle>
+<div id="agent-widget" class="fw collapsed">
+  <div class="fw-topbar">
     <span class="fw-title">Agent</span>
     <span class="fw-toggle">+</span>
   </div>
@@ -6720,7 +6720,7 @@ function _drawBulletTimeOverlay(){
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.55})`; ctx.fill();
   ctx.font='600 9px "Helvetica Neue",Arial,sans-serif';
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.3})`; ctx.textAlign='center';
-  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-24);
+  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-80);
   ctx.restore();
   _drawBballHUD(ctx,dpr);
 }
@@ -7219,7 +7219,7 @@ function dockWidgets() {
   const isMobileD = vW < 700;
 
   // ── résumé ──────────────────────────────────────────────────────
-  if (resumeW && !resumeW.dataset.dragged) {
+  if (resumeW) {
     const isCollapsed = resumeW.classList.contains('collapsed');
     resumeW.style.transition = 'none';
     resumeW.style.transform  = 'none';
@@ -7255,7 +7255,7 @@ function dockWidgets() {
   }
 
   // ── agent ───────────────────────────────────────────────────────
-  if (agentW && !agentW.dataset.dragged) {
+  if (agentW) {
     const isCollapsed = agentW.classList.contains('collapsed');
     agentW.style.transition = 'none';
     agentW.style.transform  = 'none';
@@ -7307,38 +7307,7 @@ function dockWidgets() {
 // Stub — basketball file has its own repel system; no filterRepelZones here
 function invalidateWidgetRepel() {}
 
-// ── Drag support for fw widgets ───────────────────────────────────
-(function() {
-  document.querySelectorAll('[data-drag-handle]').forEach(handle => {
-    const widget = handle.closest('[data-widget]');
-    if (!widget) return;
-    let ox = 0, oy = 0, dragging = false;
-
-    handle.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return;
-      dragging = true;
-      activeDragWidget = widget;
-      const r = widget.getBoundingClientRect();
-      ox = e.clientX - r.left; oy = e.clientY - r.top;
-      widget.style.transition = 'none'; // no lag while dragging
-      e.stopPropagation();
-      handle.setPointerCapture(e.pointerId);
-    });
-    handle.addEventListener('pointermove', e => {
-      if (!dragging) return;
-      const vW = window.innerWidth, vH = window.innerHeight;
-      let nx = Math.max(0, Math.min(vW - widget.offsetWidth,  e.clientX - ox));
-      let ny = Math.max(0, Math.min(vH - widget.offsetHeight, e.clientY - oy));
-      widget.style.left = nx + 'px'; widget.style.top = ny + 'px';
-      widget.style.right = 'auto'; widget.style.bottom = 'auto';
-      widget.dataset.dragged = '1';
-    });
-    handle.addEventListener('pointerup', () => {
-      dragging = false;
-      activeDragWidget = null;
-    });
-  });
-})();
+// ── No drag: widgets are fixed/clamped by dockWidgets() only ──────
 
 // Initial dock
 // Double-RAF ensures a full layout pass before measuring offsetWidth
@@ -7725,25 +7694,16 @@ const agentWidget = document.getElementById('agent-widget');
 const agentToggle = agentWidget ? agentWidget.querySelector('.fw-toggle') : null;
 const agentTopbar = agentWidget ? agentWidget.querySelector('.fw-topbar') : null;
 
-let _agentDragMoved = false;
-if (agentTopbar) agentTopbar.addEventListener('mousedown', () => { _agentDragMoved = false; });
-window.addEventListener('mousemove', () => { if (activeDragWidget === agentWidget) _agentDragMoved = true; }, { passive: true });
-
 if (agentTopbar) {
   agentTopbar.addEventListener('click', e => {
-    if (_agentDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = agentWidget.classList.contains('collapsed');
-
-    // Suppress transition BEFORE the class change so no intermediate CSS state flickers
     agentWidget.style.transition = 'none';
     agentWidget.classList.toggle('collapsed');
     if (agentToggle) agentToggle.textContent = wasCollapsed ? '−' : '+';
 
     if (wasCollapsed) {
-      // Expanding: dock sets explicit px width synchronously, then double-RAF
-      // ensures a full layout flush before canvas init measures clientWidth/clientHeight
-      if (!agentWidget.dataset.dragged) dockWidgets();
+      dockWidgets();
       aActive = true;
       requestAnimationFrame(() => requestAnimationFrame(() => {
         initAgentCanvas();
@@ -7751,11 +7711,10 @@ if (agentTopbar) {
         agentWidget.style.transition = '';
       }));
     } else {
-      // Collapsing → reset width before docking so offsetWidth is correct
       agentWidget.style.width = 'auto';
       aActive = false;
       if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
-      if (!agentWidget.dataset.dragged) dockWidgets();
+      dockWidgets();
       requestAnimationFrame(() => { agentWidget.style.transition = ''; });
     }
   });
@@ -7765,12 +7724,12 @@ document.addEventListener('mousedown', e => {
   if (!agentWidget || agentWidget.classList.contains('collapsed')) return;
   if (!agentWidget.contains(e.target)) {
     agentWidget.style.transition = 'none';
-    agentWidget.style.width = 'auto';          // reset before docking
+    agentWidget.style.width = 'auto';
     agentWidget.classList.add('collapsed');
     if (agentToggle) agentToggle.textContent = '+';
     aActive = false;
     if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
-    if (!agentWidget.dataset.dragged) dockWidgets();
+    dockWidgets();
     requestAnimationFrame(() => { agentWidget.style.transition = ''; });
   }
 });
@@ -8108,29 +8067,17 @@ const resumeWidget = document.getElementById('resume-widget');
 const resumeTopbar = resumeWidget ? resumeWidget.querySelector('.fw-topbar') : null;
 const resumeToggle = resumeWidget ? resumeWidget.querySelector('.fw-toggle') : null;
 
-let _resumeDragMoved = false;
-if (resumeTopbar) {
-  resumeTopbar.addEventListener('mousedown', () => { _resumeDragMoved = false; });
-}
-window.addEventListener('mousemove', () => { if (activeDragWidget === resumeWidget) _resumeDragMoved = true; }, { passive: true });
-
 if (resumeTopbar) {
   resumeTopbar.addEventListener('click', e => {
-    if (_resumeDragMoved) return;
     e.stopPropagation();
     const wasCollapsed = resumeWidget.classList.contains('collapsed');
-
-    // Suppress transition BEFORE the class change
     resumeWidget.style.transition = 'none';
     resumeWidget.classList.toggle('collapsed');
     if (resumeToggle) resumeToggle.textContent = wasCollapsed ? '−' : '+';
 
     if (wasCollapsed) {
-      // Expanding: dock sets explicit px width synchronously, then double-RAF
-      // ensures layout flush before canvas init measures clientWidth/clientHeight
-      if (!resumeWidget.dataset.dragged) dockWidgets();
+      dockWidgets();
       rActive = true;
-      // Hide orb-rail so it doesn't show through the semi-transparent widget bg
       const orbRail = document.getElementById('orb-rail');
       if (orbRail) orbRail.style.visibility = 'hidden';
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -8139,12 +8086,10 @@ if (resumeTopbar) {
         resumeWidget.style.transition = '';
       }));
     } else {
-      // Collapsing → reset width so offsetWidth reflects tab width only
       resumeWidget.style.width = 'auto';
       rActive = false;
       if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-      if (!resumeWidget.dataset.dragged) dockWidgets();
-      // Restore orb-rail
+      dockWidgets();
       const orbRail = document.getElementById('orb-rail');
       if (orbRail) orbRail.style.visibility = '';
       requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
@@ -8156,13 +8101,12 @@ document.addEventListener('mousedown', e => {
   if (!resumeWidget || resumeWidget.classList.contains('collapsed')) return;
   if (!resumeWidget.contains(e.target)) {
     resumeWidget.style.transition = 'none';
-    resumeWidget.style.width = 'auto';         // reset before docking
+    resumeWidget.style.width = 'auto';
     resumeWidget.classList.add('collapsed');
     if (resumeToggle) resumeToggle.textContent = '+';
     rActive = false;
     if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-    if (!resumeWidget.dataset.dragged) dockWidgets();
-    // Restore orb-rail
+    dockWidgets();
     const orbRail = document.getElementById('orb-rail');
     if (orbRail) orbRail.style.visibility = '';
     requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
