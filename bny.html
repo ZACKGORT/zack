@@ -804,5 +804,376 @@
   document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 </script>
 
-</body>
+
 </html>
+<!-- TRUTH OVERLAY SYSTEM -->
+<style>
+  /* Toggle Button */
+  #truth-toggle {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 9999;
+    background: #e8007d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    box-shadow: 0 4px 24px rgba(232,0,125,0.4);
+    transition: all 0.2s;
+  }
+  #truth-toggle:hover {
+    background: #ff1a92;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 32px rgba(232,0,125,0.6);
+  }
+  #truth-toggle.active {
+    background: #1a1a1a;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  /* Truth Panel */
+  #truth-panel {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9998;
+    background: rgba(10,10,10,0.97);
+    overflow-y: auto;
+    font-family: 'DM Mono', monospace;
+  }
+  #truth-panel.visible {
+    display: block;
+    animation: truth-in 0.3s ease-out;
+  }
+  @keyframes truth-in {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .truth-header {
+    padding: 4rem 4rem 2rem;
+    border-bottom: 1px solid rgba(232,0,125,0.3);
+    position: relative;
+  }
+  .truth-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    color: #e8007d;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  .truth-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    color: #f2f0eb;
+    line-height: 0.95;
+    margin-bottom: 1rem;
+  }
+  .truth-subtitle {
+    font-size: 0.8rem;
+    color: rgba(242,240,235,0.4);
+    max-width: 600px;
+    line-height: 1.7;
+  }
+
+  .truth-content {
+    padding: 3rem 4rem 6rem;
+    max-width: 900px;
+  }
+
+  .truth-entry {
+    margin-bottom: 3.5rem;
+    padding-bottom: 3.5rem;
+    border-bottom: 1px solid rgba(242,240,235,0.08);
+  }
+  .truth-entry:last-child {
+    border-bottom: none;
+  }
+
+  .truth-section-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: rgba(232,0,125,0.7);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+
+  .truth-heading {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.8rem;
+    color: #f2f0eb;
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.05em;
+  }
+
+  .truth-text {
+    font-size: 0.82rem;
+    line-height: 2;
+    color: rgba(242,240,235,0.75);
+  }
+  .truth-text strong {
+    color: #f2f0eb;
+    font-weight: 500;
+  }
+  .truth-text em {
+    color: #e8007d;
+    font-style: normal;
+  }
+
+  .truth-callout {
+    margin: 1.5rem 0;
+    padding: 1.25rem 1.5rem;
+    border-left: 3px solid #e8007d;
+    background: rgba(232,0,125,0.06);
+    font-size: 0.82rem;
+    line-height: 1.8;
+    color: rgba(242,240,235,0.85);
+  }
+
+  .truth-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.25rem 0.25rem;
+    padding: 0.3rem 0.75rem;
+    background: rgba(242,240,235,0.05);
+    border: 1px solid rgba(242,240,235,0.1);
+    border-radius: 2px;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: rgba(242,240,235,0.6);
+  }
+  .truth-stat.highlight {
+    border-color: rgba(232,0,125,0.4);
+    color: rgba(232,0,125,0.9);
+  }
+
+  .truth-close {
+    position: fixed;
+    top: 1.5rem;
+    right: 2rem;
+    z-index: 10000;
+    background: none;
+    border: 1px solid rgba(242,240,235,0.2);
+    color: rgba(242,240,235,0.6);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .truth-close:hover {
+    color: #f2f0eb;
+    border-color: rgba(242,240,235,0.5);
+  }
+
+  .truth-redacted {
+    background: rgba(232,0,125,0.15);
+    color: #e8007d;
+    padding: 0.1em 0.3em;
+    border-radius: 2px;
+    font-size: 0.75em;
+    letter-spacing: 0.05em;
+  }
+
+  .truth-divider {
+    height: 1px;
+    background: linear-gradient(90deg, #e8007d, transparent);
+    margin: 2rem 0;
+    opacity: 0.3;
+  }
+
+  /* Skate icon */
+  .truth-skate {
+    display: inline-block;
+    margin-right: 0.4em;
+    opacity: 0.7;
+  }
+
+  @media (max-width: 768px) {
+    .truth-header, .truth-content { padding-left: 1.5rem; padding-right: 1.5rem; }
+    .truth-title { font-size: 2.5rem; }
+  }
+</style>
+
+<!-- Truth Toggle Button -->
+<button id="truth-toggle" onclick="toggleTruth()">
+  ◈ TRUTH MODE
+</button>
+
+<!-- Truth Panel -->
+<div id="truth-panel">
+  <button class="truth-close" onclick="toggleTruth()">✕ CLOSE</button>
+
+  <div class="truth-header">
+    <div class="truth-eyebrow">BNY Mellon / Pershing X — Unfiltered</div>
+    <div class="truth-title">What the<br>Case Study<br>Doesn't Say</div>
+    <p class="truth-subtitle">
+      The polished version above documents the work. This version documents
+      what it actually cost to do it — and what happened after.
+    </p>
+  </div>
+
+  <div class="truth-content">
+
+    <div class="truth-entry">
+      <div class="truth-section-label">01 — Context</div>
+      <div class="truth-heading">THE ENVIRONMENT</div>
+      <p class="truth-text">
+        The case study calls it a "UX leadership engagement." <strong>Here's what that actually looked like:</strong>
+      </p>
+      <div class="truth-callout">
+        My manager was a former Director of UX at the Pentagon.
+        He ghosted meetings with his camera off while clandestinely seeking other opportunities.
+        <br><br>
+        My team consisted of junior and associate designers who spent more time socializing
+        than iterating on the work.
+        <br><br>
+        The group director who hired me wrote me up for "going rogue" during the discovery phase —
+        that's what the agency called independent research and critical thinking.
+      </div>
+      <p class="truth-text">
+        <em>Going rogue</em> = doing the job no one else was doing.
+      </p>
+    </div>
+
+    <div class="truth-entry">
+      <div class="truth-section-label">02 — Operations</div>
+      <div class="truth-heading">THE SKATEBOARD</div>
+      <p class="truth-text">
+        <span class="truth-skate">🛹</span>
+        I skateboarded to the office every day — remote employee, chose to show up anyway.
+        <strong>I was the only one who did.</strong>
+      </p>
+      <p class="truth-text">
+        I stayed late. I worked after hours. HR wrote me up for it —
+        because that time was spent inventorying BNY's <em>entire product ecosystem</em>
+        into a format that could be socialized with a team that wasn't showing up to
+        socialize anything.
+      </p>
+      <div class="truth-callout">
+        The deliverable HR flagged as a policy violation became a core artifact of the engagement.
+        The information architecture of an enterprise financial platform — built after hours,
+        alone, because no one else was doing it.
+      </div>
+    </div>
+
+    <div class="truth-divider"></div>
+
+    <div class="truth-entry">
+      <div class="truth-section-label">03 — Qualifications</div>
+      <div class="truth-heading">THE CREDENTIALS GAP</div>
+      <p class="truth-text">
+        <strong>I was the only person on my team without a Master's degree.</strong>
+        My juniors and associates had Masters. I have 20 years of autodidactic,
+        hands-on empirical experience.
+      </p>
+      <div class="truth-callout">
+        I was replaced at client hand-off by a PhD.
+        Then lumped into a round of layoffs.
+        <br><br>
+        That same week: my mom died.
+        <br>
+        Also that same week: I found a stray dog in NYC.
+        <a href="https://wolfie.love" style="color:#e8007d;" target="_blank">wolfie.love</a>
+      </div>
+      <p class="truth-text">
+        The work didn't end my employment. The politics did.
+        The credentials did. The timing was just what it was.
+      </p>
+    </div>
+
+    <div class="truth-entry">
+      <div class="truth-section-label">04 — The Real UX Lesson</div>
+      <div class="truth-heading">WHAT THIS ACTUALLY DEMONSTRATES</div>
+      <p class="truth-text">
+        The case study shows what I built. This shows what I built it <em>despite</em>.
+      </p>
+      <p class="truth-text">
+        <strong>A staff-level designer isn't just someone who makes good work
+        in good conditions.</strong> It's someone who shows up when the manager
+        doesn't. Who invents the framework when no framework exists.
+        Who does the inventory nobody asked for because it was the right thing to do.
+      </p>
+      <div class="truth-callout">
+        The most honest thing I can put in a portfolio isn't just the polished artifact.
+        It's this: I waded through actual shit and the work still held.
+        <br><br>
+        That's the proof of concept no case study template has a section for.
+      </div>
+    </div>
+
+    <div class="truth-entry">
+      <div class="truth-section-label">05 — The Footnote</div>
+      <div class="truth-heading">HARD TRUTHS I CAN'T FULLY SAY</div>
+      <p class="truth-text">
+        There are things I'm not allowed to speak of —
+        not because they're false, but because speaking them makes me
+        the problematic part of the story.
+      </p>
+      <p class="truth-text">
+        What I <em>can</em> say: the rawness of this version is the point.
+        Not everything is clean and glittery. Sometimes it's actual shit you're wading through.
+        <strong>The work above is what came out the other side.</strong>
+      </p>
+      <div class="truth-callout">
+        <span style="opacity:0.6; font-size:0.75rem;">REDACTED FOR PROFESSIONAL REASONS —</span>
+        <br>
+        <span class="truth-redacted">[ organizational dysfunction ]</span>
+        <span class="truth-redacted">[ institutional politics ]</span>
+        <span class="truth-redacted">[ the actual reason for the write-up ]</span>
+        <span class="truth-redacted">[ what leadership was actually doing during standups ]</span>
+      </div>
+    </div>
+
+    <div class="truth-entry" style="border-bottom:none; margin-bottom:0; padding-bottom:0;">
+      <div class="truth-section-label">Coda</div>
+      <div class="truth-heading">WORK TO EAT. EAT TO LIVE.<br>LIVE TO SKATE. SKATE TO WORK.</div>
+      <p class="truth-text" style="color:rgba(242,240,235,0.45); font-size:0.75rem; margin-top:1rem;">
+        <a href="https://zack.cx" style="color:rgba(232,0,125,0.7);">zack.cx</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function toggleTruth() {
+    const panel = document.getElementById('truth-panel');
+    const btn = document.getElementById('truth-toggle');
+    const isVisible = panel.classList.contains('visible');
+
+    if (isVisible) {
+      panel.classList.remove('visible');
+      btn.classList.remove('active');
+      btn.textContent = '◈ TRUTH MODE';
+    } else {
+      panel.classList.add('visible');
+      btn.classList.add('active');
+      btn.textContent = '✕ EXIT TRUTH';
+      panel.scrollTop = 0;
+    }
+  }
+
+  // ESC key to close
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const panel = document.getElementById('truth-panel');
+      if (panel.classList.contains('visible')) toggleTruth();
+    }
+  });
+</script>
+
+</body>
