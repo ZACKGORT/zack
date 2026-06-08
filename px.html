@@ -2878,47 +2878,146 @@
     <div style="font-size:10px;font-weight:600;color:#6B778C">Direction</div>
     <div style="font-size:10px;color:#6B778C;flex:1">Lift curve concept — manual entry vs preload cognitive effort; core argument for preloading</div>
   </div>
-  <div class="lift-diagram">
-    <div class="lift-label">Lift</div>
-    <div style="padding-left:40px">
-      <p class="text-xs mb16" style="color:var(--ink-2)">Manual Entry — User bears full cognitive load at task start</p>
-      <svg viewBox="0 0 700 140" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;overflow:visible">
-        <!-- baseline -->
-        <line x1="0" y1="110" x2="700" y2="110" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
-        <!-- lift curve (rises to manual entry block) -->
-        <polyline points="0,108 80,100 150,80 230,45 270,40" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- manual entry block -->
-        <rect x="270" y="10" width="200" height="100" rx="3" fill="var(--node-bg)" stroke="var(--border)"/>
-        <text x="370" y="66" text-anchor="middle" font-size="14" fill="var(--ink-2)" font-family="DM Mono, monospace">Manual entry</text>
-        <!-- continues flat-ish after -->
-        <polyline points="470,40 540,60 620,80 700,85" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+
+  <style>
+    .ld-wrap{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+    .ld-eyebrow{font-size:11px;color:#6B778C;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+    .ld-title{font-size:20px;font-weight:700;color:#172B4D;margin:0 0 4px}
+    .ld-sub{font-size:13px;color:#6B778C;margin:0 0 20px}
+    .ld-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    .ld-card{background:#fff;border:1px solid #DFE1E6;border-radius:8px;padding:16px}
+    .ld-card-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+    .ld-card-label.manual{color:#A32D2D}
+    .ld-card-label.preload{color:#0F6E56}
+    .ld-card-desc{font-size:12px;color:#6B778C;margin-bottom:12px}
+    .ld-chart-wrap{position:relative;width:100%;height:180px}
+    .ld-steps{display:flex;justify-content:space-between;margin-top:6px;padding:0 2px}
+    .ld-step{font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3}
+    .ld-step span{display:block;font-size:8px;color:#97A0AF;opacity:.7}
+    .ld-overlay-card{background:#fff;border:1px solid #DFE1E6;border-radius:8px;padding:16px;margin-bottom:16px}
+    .ld-overlay-label{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6B778C;margin-bottom:2px}
+    .ld-overlay-desc{font-size:12px;color:#6B778C;margin-bottom:12px}
+    .ld-overlay-wrap{position:relative;width:100%;height:220px}
+    .ld-legend{display:flex;gap:20px;margin-bottom:10px;flex-wrap:wrap}
+    .ld-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B778C}
+    .ld-legend-line{width:24px;height:2px;border-radius:1px}
+    .ld-legend-line.manual{background:#E24B4A}
+    .ld-legend-line.preload{background:#1D9E75}
+    .ld-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+    .ld-stat{background:#F4F5F7;border-radius:6px;padding:12px;text-align:center}
+    .ld-stat-val{font-size:22px;font-weight:700;color:#172B4D;display:block}
+    .ld-stat-val.good{color:#0F6E56}
+    .ld-stat-val.bad{color:#A32D2D}
+    .ld-stat-lbl{font-size:11px;color:#6B778C}
+    .ld-callouts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .ld-callout{border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.6}
+    .ld-callout.bad{background:#FCEBEB;border-left:3px solid #E24B4A;color:#501313}
+    .ld-callout.good{background:#EAF3DE;border-left:3px solid #1D9E75;color:#173404}
+    .ld-callout strong{font-weight:600;display:block;margin-bottom:2px}
+    @media(max-width:600px){.ld-charts{grid-template-columns:1fr}.ld-callouts{grid-template-columns:1fr}.ld-stats{grid-template-columns:1fr 1fr}}
+  </style>
+
+  <div class="ld-wrap">
+    <div class="ld-stats">
+      <div class="ld-stat"><span class="ld-stat-val bad">11</span><span class="ld-stat-lbl">Manual entry steps</span></div>
+      <div class="ld-stat"><span class="ld-stat-val good">4</span><span class="ld-stat-lbl">Preload confirm steps</span></div>
+      <div class="ld-stat"><span class="ld-stat-val good">~64%</span><span class="ld-stat-lbl">Effort reduction</span></div>
+    </div>
+
+    <div class="ld-charts">
+      <div class="ld-card">
+        <div class="ld-card-label manual">Manual entry</div>
+        <div class="ld-card-desc">User supplies all data from scratch at each step</div>
+        <div class="ld-chart-wrap"><canvas id="s12-manualChart"></canvas></div>
+        <div class="ld-steps">
+          <div class="ld-step">Entry<span>start</span></div>
+          <div class="ld-step">Client ID<span>lookup</span></div>
+          <div class="ld-step">KYC<span>verify</span></div>
+          <div class="ld-step">Agreement<span>gate</span></div>
+          <div class="ld-step">EDT<span>data</span></div>
+          <div class="ld-step">Doc Review<span>wait</span></div>
+          <div class="ld-step">MA Details<span>form</span></div>
+          <div class="ld-step">Proposal<span>branch</span></div>
+          <div class="ld-step">Attributes<span>9 fields</span></div>
+          <div class="ld-step">Name<span>input</span></div>
+          <div class="ld-step">Submit<span>end</span></div>
+        </div>
+      </div>
+      <div class="ld-card">
+        <div class="ld-card-label preload">Preload flow</div>
+        <div class="ld-card-desc">System pre-populates; user confirms or edits deliberately</div>
+        <div class="ld-chart-wrap"><canvas id="s12-preloadChart"></canvas></div>
+        <div class="ld-steps">
+          <div class="ld-step">Preload<span>system</span></div>
+          <div class="ld-step">Who for?<span>confirm</span></div>
+          <div class="ld-step">Gate<span>branch</span></div>
+          <div class="ld-step">Short Form<span>confirm</span></div>
+          <div class="ld-step">Gate<span>check</span></div>
+          <div class="ld-step">MA Attrs<span>confirm</span></div>
+          <div class="ld-step">Submit<span>end</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ld-overlay-card">
+      <div class="ld-overlay-label">Overlay comparison</div>
+      <div class="ld-overlay-desc">Normalized effort across the full workflow — the shaded gap represents total lift reduction</div>
+      <div class="ld-legend">
+        <div class="ld-legend-item"><div class="ld-legend-line manual"></div>Manual entry</div>
+        <div class="ld-legend-item"><div class="ld-legend-line preload"></div>Preload flow</div>
+      </div>
+      <div class="ld-overlay-wrap"><canvas id="s12-overlayChart"></canvas></div>
+    </div>
+
+    <div class="ld-callouts">
+      <div class="ld-callout bad"><strong>Manual entry — high sustained lift</strong>User bears full cognitive load at task start and throughout. Input burden is continuous — 11 active entry points, multiple decision gates, no data inheritance between steps. Aggregate lift remains elevated through completion.</div>
+      <div class="ld-callout good"><strong>Preload — low aggregate lift</strong>System performs the heavy lifting upfront. User effort appears only at deliberate confirm or edit moments — 4 light-touch interactions vs. 11 data entry tasks. Aggregate load drops ~64%.</div>
     </div>
   </div>
 
-  <div class="lift-diagram">
-    <div class="lift-label">Lift</div>
-    <div style="padding-left:40px">
-      <p class="text-xs mb16" style="color:var(--ink-2)">Preload — System pre-populates data; effort spikes only at deliberate edit points</p>
-      <svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;overflow:visible">
-        <!-- preload block (front-loaded by system) -->
-        <rect x="0" y="20" width="120" height="130" rx="3" fill="var(--node-bg)" stroke="var(--border)"/>
-        <text x="60" y="90" text-anchor="middle" font-size="14" fill="var(--ink-2)" font-family="DM Mono, monospace">Preload</text>
-        <!-- baseline stays low -->
-        <line x1="120" y1="28" x2="700" y2="28" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
-        <!-- user effort line: low, spikes at edit, back down -->
-        <polyline points="120,28 220,28 240,60 260,28 380,28 400,60 420,28 700,28" stroke="var(--ink)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- edit labels -->
-        <text x="250" y="80" text-anchor="middle" font-size="11" fill="var(--ink-3)" font-family="DM Mono, monospace">edit</text>
-        <text x="410" y="80" text-anchor="middle" font-size="11" fill="var(--ink-3)" font-family="DM Mono, monospace">edit</text>
-      </svg>
-    </div>
-  </div>
-
-  <div class="two-col">
-    <div class="callout blue"><strong>Manual Entry:</strong> Lift begins immediately. User must supply all information from scratch. High sustained effort before value is delivered.</div>
-    <div class="callout green" style="border-color:var(--green);background:#E6F9F0"><strong>Preload:</strong> System does the heavy lifting upfront. User only experiences friction at deliberate confirmation/edit moments. Much lower aggregate effort.</div>
-  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <script>
+    (function(){
+      const gridC = 'rgba(0,0,0,0.06)';
+      const tickC = 'rgba(0,0,0,0.35)';
+      const baseOpts = (yMax) => ({
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` Effort: ${c.parsed.y}`}}},
+        scales:{
+          x:{grid:{color:gridC},ticks:{display:false},border:{color:gridC}},
+          y:{min:0,max:yMax,grid:{color:gridC},ticks:{color:tickC,font:{size:10},callback:v=>v===0?'Low':v===yMax?'High':''},border:{color:gridC}}
+        },
+        elements:{point:{radius:4,hoverRadius:6}}
+      });
+      new Chart(document.getElementById('s12-manualChart'),{
+        type:'line',
+        data:{labels:['Entry','Client ID','KYC','Agreement','EDT','Doc Review','MA Details','Proposal','Attributes','Name','Submit'],
+          datasets:[{data:[15,45,62,78,55,40,82,70,90,35,20],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.10)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#E24B4A',pointBorderColor:'#fff',pointBorderWidth:1.5}]},
+        options:baseOpts(100)
+      });
+      new Chart(document.getElementById('s12-preloadChart'),{
+        type:'line',
+        data:{labels:['Preload','Who for?','Gate','Short Form','Gate','MA Attrs','Submit'],
+          datasets:[{data:[5,28,12,22,10,25,8],borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.10)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#1D9E75',pointBorderColor:'#fff',pointBorderWidth:1.5}]},
+        options:baseOpts(100)
+      });
+      new Chart(document.getElementById('s12-overlayChart'),{
+        type:'line',
+        data:{labels:['Start','Step 2','Step 3','Step 4','Step 5','Step 6','Step 7','Step 8','Step 9','Step 10','End'],
+          datasets:[
+            {label:'Manual entry',data:[15,45,62,78,72,55,82,70,90,35,20],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.08)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#E24B4A',pointBorderColor:'#fff',pointBorderWidth:1.5},
+            {label:'Preload flow',data:[5,10,12,28,10,22,10,25,8,8,8],borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#1D9E75',pointBorderColor:'#fff',pointBorderWidth:1.5,borderDash:[5,3]}
+          ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}`}}},
+          scales:{
+            x:{grid:{color:gridC},ticks:{color:tickC,font:{size:10}},border:{color:gridC}},
+            y:{min:0,max:100,grid:{color:gridC},ticks:{color:tickC,font:{size:10},callback:v=>v===0?'Low':v===100?'High':v===50?'—':''},border:{color:gridC}}
+          },
+          elements:{point:{radius:3,hoverRadius:5}}}
+      });
+    })();
+  </script>
 </div>
 
 <!-- S13: Current Flow Inventory -->
@@ -3004,12 +3103,12 @@
     <div style="font-size:10px;font-weight:600;color:#0052CC">Deliverables</div>
     <div style="font-size:10px;color:#6B778C;flex:1">Current vs proposed account opening flow — the core redesign proposal with lift curve evidence</div>
   </div>
-  <div class="two-col" style="margin-bottom:24px">
-    <div class="section-block" style="border-color:var(--accent); background:#FDECEA">
+  <div style="display:flex;flex-direction:column;gap:20px;margin-bottom:24px">
+    <div class="section-block" style="border-color:var(--accent);background:#FDECEA">
       <div class="section-block-title" style="color:var(--accent-2)">Current Account Opening Flow</div>
       <div class="text-xs mb8">Use case 1: Pershing Acct, Managed, Existing Client</div>
-      <div class="flow-diagram" style="padding:16px; overflow-x:auto; background:var(--surface)">
-        <div class="flow-row">
+      <div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div class="flow-row" style="min-width:max-content">
           <div class="flow-node primary" style="font-size:9px;padding:5px 7px;min-width:50px">Entry</div>
           <div class="flow-diamond" style="width:20px;height:20px"></div>
           <div class="flow-arrow"></div>
@@ -3021,7 +3120,7 @@
           <div class="flow-arrow"></div>
           <div class="flow-node accent" style="font-size:9px;padding:5px 7px;background:#e53e3e">Fail</div>
         </div>
-        <div class="flow-row" style="margin-top:12px">
+        <div class="flow-row" style="margin-top:12px;min-width:max-content">
           <div style="width:60px"></div>
           <div class="flow-node" style="font-size:9px;padding:5px 7px">KYC</div>
           <div class="flow-arrow"></div>
@@ -3041,11 +3140,11 @@
       <div class="annotation">Current: high cognitive load, multiple branches, no preload capability</div>
     </div>
 
-    <div class="section-block" style="border-color:var(--green); background:#E6F9F0">
+    <div class="section-block" style="border-color:var(--green);background:#E6F9F0">
       <div class="section-block-title" style="color:var(--green)">NEW Proposed Account Opening Flow</div>
       <div class="text-xs mb8">Use case: Opening Acct, Managed. Ability to open <em>multiple</em> Acct types at once.</div>
-      <div class="flow-diagram" style="padding:16px; overflow-x:auto; background:var(--surface)">
-        <div class="flow-row">
+      <div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <div class="flow-row" style="min-width:max-content">
           <div class="flow-node yellow" style="font-size:9px;padding:5px 7px;min-width:60px">Preload Client</div>
           <div class="flow-arrow long"></div>
           <div class="flow-node blue" style="font-size:9px;padding:5px 7px">Who is this for?</div>
@@ -3071,29 +3170,103 @@
 
   <div class="section-block">
     <div class="section-block-title">Lift Curve Comparison (Recap)</div>
-    <div class="two-col">
+
+    <style>
+      .s14-ld-legend{display:flex;gap:20px;margin-bottom:10px;flex-wrap:wrap}
+      .s14-ld-legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#6B778C;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+      .s14-ld-legend-line{width:24px;height:2px;border-radius:1px}
+      .s14-ld-legend-line.manual{background:#E24B4A}
+      .s14-ld-legend-line.preload{background:#1D9E75}
+    </style>
+
+    <div class="two-col" style="margin-bottom:16px">
       <div>
-        <p class="text-xs mb8" style="color:var(--accent)">MANUAL ENTRY — HIGH LIFT</p>
-        <svg viewBox="0 0 300 80" style="width:100%;height:auto">
-          <line x1="0" y1="65" x2="300" y2="65" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
-          <polyline points="0,63 40,55 80,38 120,20 130,18" stroke="var(--accent)" stroke-width="2" fill="none"/>
-          <rect x="130" y="5" width="90" height="55" rx="2" fill="var(--node-bg)" stroke="var(--border)"/>
-          <text x="175" y="35" text-anchor="middle" font-size="10" fill="var(--ink-3)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Manual entry</text>
-          <polyline points="220,18 260,35 300,42" stroke="var(--accent)" stroke-width="2" fill="none"/>
-        </svg>
+        <p style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#A32D2D;margin-bottom:4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Manual entry</p>
+        <p style="font-size:12px;color:#6B778C;margin-bottom:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">User supplies all data from scratch at each step</p>
+        <div style="position:relative;width:100%;height:180px"><canvas id="s14-manualChart"></canvas></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Entry<span style="display:block;font-size:8px;opacity:.7">start</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Client ID<span style="display:block;font-size:8px;opacity:.7">lookup</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">KYC<span style="display:block;font-size:8px;opacity:.7">verify</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Agreement<span style="display:block;font-size:8px;opacity:.7">gate</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">EDT<span style="display:block;font-size:8px;opacity:.7">data</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Doc Review<span style="display:block;font-size:8px;opacity:.7">wait</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">MA Details<span style="display:block;font-size:8px;opacity:.7">form</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Proposal<span style="display:block;font-size:8px;opacity:.7">branch</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Attributes<span style="display:block;font-size:8px;opacity:.7">9 fields</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Name<span style="display:block;font-size:8px;opacity:.7">input</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Submit<span style="display:block;font-size:8px;opacity:.7">end</span></div>
+        </div>
       </div>
       <div>
-        <p class="text-xs mb8" style="color:var(--green)">PRELOAD — LOW LIFT</p>
-        <svg viewBox="0 0 300 80" style="width:100%;height:auto">
-          <rect x="0" y="5" width="60" height="70" rx="2" fill="var(--node-bg)" stroke="var(--border)"/>
-          <text x="30" y="42" text-anchor="middle" font-size="10" fill="var(--ink-3)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Pre</text>
-          <line x1="60" y1="15" x2="300" y2="15" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/>
-          <polyline points="60,15 110,15 120,40 130,15 200,15 210,40 220,15 300,15" stroke="var(--green)" stroke-width="2" fill="none"/>
-          <text x="125" y="55" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">edit</text>
-          <text x="215" y="55" text-anchor="middle" font-size="9" fill="var(--ink-3)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">edit</text>
-        </svg>
+        <p style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#0F6E56;margin-bottom:4px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Preload flow</p>
+        <p style="font-size:12px;color:#6B778C;margin-bottom:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">System pre-populates; user confirms or edits deliberately</p>
+        <div style="position:relative;width:100%;height:180px"><canvas id="s14-preloadChart"></canvas></div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;padding:0 2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Preload<span style="display:block;font-size:8px;opacity:.7">system</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Who for?<span style="display:block;font-size:8px;opacity:.7">confirm</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Gate<span style="display:block;font-size:8px;opacity:.7">branch</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Short Form<span style="display:block;font-size:8px;opacity:.7">confirm</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Gate<span style="display:block;font-size:8px;opacity:.7">check</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">MA Attrs<span style="display:block;font-size:8px;opacity:.7">confirm</span></div>
+          <div style="font-size:9px;color:#97A0AF;text-align:center;flex:1;line-height:1.3">Submit<span style="display:block;font-size:8px;opacity:.7">end</span></div>
+        </div>
       </div>
     </div>
+
+    <div style="background:#fff;border:1px solid #DFE1E6;border-radius:8px;padding:16px;margin-bottom:16px">
+      <p style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#6B778C;margin-bottom:2px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Overlay comparison</p>
+      <p style="font-size:12px;color:#6B778C;margin-bottom:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Normalized effort across the full workflow — the shaded gap represents total lift reduction</p>
+      <div class="s14-ld-legend">
+        <div class="s14-ld-legend-item"><div class="s14-ld-legend-line manual"></div>Manual entry</div>
+        <div class="s14-ld-legend-item"><div class="s14-ld-legend-line preload"></div>Preload flow</div>
+      </div>
+      <div style="position:relative;width:100%;height:200px"><canvas id="s14-overlayChart"></canvas></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+      <div style="border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.6;background:#FCEBEB;border-left:3px solid #E24B4A;color:#501313"><strong style="font-weight:600;display:block;margin-bottom:2px">Manual entry — high sustained lift</strong>User bears full cognitive load at task start and throughout. Input burden is continuous — 11 active entry points, multiple decision gates, no data inheritance between steps.</div>
+      <div style="border-radius:6px;padding:12px 14px;font-size:12px;line-height:1.6;background:#EAF3DE;border-left:3px solid #1D9E75;color:#173404"><strong style="font-weight:600;display:block;margin-bottom:2px">Preload — low aggregate lift</strong>System performs the heavy lifting upfront. User effort appears only at deliberate confirm or edit moments — 4 light-touch interactions vs. 11 data entry tasks. Aggregate load drops ~64%.</div>
+    </div>
+
+    <script>
+      (function(){
+        function initS14Charts(){
+          if(typeof Chart==='undefined'){setTimeout(initS14Charts,100);return;}
+          const gridC='rgba(0,0,0,0.06)',tickC='rgba(0,0,0,0.35)';
+          const baseOpts=yMax=>({responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` Effort: ${c.parsed.y}`}}},
+            scales:{
+              x:{grid:{color:gridC},ticks:{display:false},border:{color:gridC}},
+              y:{min:0,max:yMax,grid:{color:gridC},ticks:{color:tickC,font:{size:10},callback:v=>v===0?'Low':v===yMax?'High':''},border:{color:gridC}}
+            },
+            elements:{point:{radius:4,hoverRadius:6}}
+          });
+          new Chart(document.getElementById('s14-manualChart'),{type:'line',
+            data:{labels:['Entry','Client ID','KYC','Agreement','EDT','Doc Review','MA Details','Proposal','Attributes','Name','Submit'],
+              datasets:[{data:[15,45,62,78,55,40,82,70,90,35,20],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.10)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#E24B4A',pointBorderColor:'#fff',pointBorderWidth:1.5}]},
+            options:baseOpts(100)});
+          new Chart(document.getElementById('s14-preloadChart'),{type:'line',
+            data:{labels:['Preload','Who for?','Gate','Short Form','Gate','MA Attrs','Submit'],
+              datasets:[{data:[5,28,12,22,10,25,8],borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.10)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#1D9E75',pointBorderColor:'#fff',pointBorderWidth:1.5}]},
+            options:baseOpts(100)});
+          new Chart(document.getElementById('s14-overlayChart'),{type:'line',
+            data:{labels:['Start','Step 2','Step 3','Step 4','Step 5','Step 6','Step 7','Step 8','Step 9','Step 10','End'],
+              datasets:[
+                {label:'Manual entry',data:[15,45,62,78,72,55,82,70,90,35,20],borderColor:'#E24B4A',backgroundColor:'rgba(226,75,74,0.08)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#E24B4A',pointBorderColor:'#fff',pointBorderWidth:1.5},
+                {label:'Preload flow',data:[5,10,12,28,10,22,10,25,8,8,8],borderColor:'#1D9E75',backgroundColor:'rgba(29,158,117,0.08)',fill:true,tension:0.4,borderWidth:2,pointBackgroundColor:'#1D9E75',pointBorderColor:'#fff',pointBorderWidth:1.5,borderDash:[5,3]}
+              ]},
+            options:{responsive:true,maintainAspectRatio:false,
+              plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}`}}},
+              scales:{
+                x:{grid:{color:gridC},ticks:{color:tickC,font:{size:10}},border:{color:gridC}},
+                y:{min:0,max:100,grid:{color:gridC},ticks:{color:tickC,font:{size:10},callback:v=>v===0?'Low':v===100?'High':v===50?'—':''},border:{color:gridC}}
+              },
+              elements:{point:{radius:3,hoverRadius:5}}}});
+        }
+        initS14Charts();
+      })();
+    </script>
   </div>
 </div>
 
