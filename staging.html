@@ -348,46 +348,12 @@ function buildCards(sites) {
     overlay.addEventListener('click', () => btn.click());
     el.appendChild(overlay);
 
-    // ── OG/screenshot fallback for X-Frame-Options blocked sites ──
-    const ogImg = document.createElement('img');
-    ogImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;display:none;';
-    ogImg.src = `https://api.microlink.io/?url=${encodeURIComponent(site.url)}&screenshot=true&meta=false&embed=screenshot.url`;
-    wrap.appendChild(ogImg);
 
     const iframe = document.createElement('iframe');
     iframe.src = site.url;
-    iframe.loading = 'lazy';
+    iframe.loading = 'eager';
     iframe.title = site.label;
     iframe.style.transform = `scale(${iframeScale})`;
-
-    // Detect blocked iframe: if iframe loads with about:blank (X-Frame-Options block)
-    // fall back to OG screenshot image
-    let iframeLoaded = false;
-    iframe.addEventListener('load', () => {
-      iframeLoaded = true;
-      setTimeout(() => {
-        try {
-          const doc = iframe.contentDocument;
-          if (!doc || doc.URL === 'about:blank' || doc.readyState === 'uninitialized') {
-            iframe.style.display = 'none';
-            ogImg.style.display = 'block';
-          }
-        } catch(e) {
-          // cross-origin and loaded — leave iframe visible
-        }
-      }, 800);
-    });
-    iframe.addEventListener('error', () => {
-      iframe.style.display = 'none';
-      ogImg.style.display = 'block';
-    });
-    // Hard timeout: if no load after 6s, assume blocked
-    setTimeout(() => {
-      if (!iframeLoaded) {
-        iframe.style.display = 'none';
-        ogImg.style.display = 'block';
-      }
-    }, 6000);
 
     wrap.appendChild(iframe);
 
@@ -409,16 +375,12 @@ function buildCards(sites) {
         c.el.classList.remove('unlocked');
         c.btn.textContent = 'Interact';
         const fr = c.el.querySelector('iframe');
-        if (fr) { fr.style.transform = `scale(${iframeScale})`; fr.style.pointerEvents = 'none'; fr.blur(); }
+        if (fr) fr.style.transform = `scale(${iframeScale})`;
       });
-      window.focus();
       if (locking) {
         el.classList.add('unlocked');
         btn.textContent = 'Lock';
         anyUnlocked = true;
-        // Clear inline pointer-events so CSS .card.unlocked iframe rule takes effect
-        const fr = el.querySelector('iframe');
-        if (fr) fr.style.pointerEvents = '';
         if (window._textSetSite) window._textSetSite(site);
       } else {
         anyUnlocked = false;
