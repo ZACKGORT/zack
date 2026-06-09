@@ -186,8 +186,8 @@
 
 <header id="hdr">
   <div id="hdr-left">
-    <div id="title">Zack Gort</div>
-    <div id="subtitle">Thinker &amp; Maker</div>
+    <div id="title">Wolfgang &amp; Co.</div>
+    <div id="subtitle">An infinite archive</div>
   </div>
 </header>
 
@@ -230,6 +230,20 @@ const CATEGORIES = [
       { url: 'https://wolfie.love/food', label: 'wolfie / food',   description: 'The culinary dimension of the Wolfgang universe. Snacks, meals, and the occasional treat — documented with care.' },
       { url: 'https://wolfie.love/music',label: 'wolfie / music',  description: 'The soundtrack to Wolfgang\'s world. A living playlist and music log for a dog with taste.' },
       { url: 'https://intoview.pro',        label: 'Intoview',        description: 'A focused interview prep tool built around the premise that better questions make better candidates. Clean, purposeful, and quietly sharp.' },
+    ]
+  },
+  {
+    id: 'shipped', label: 'Shipped',
+    sites: [
+      { fallback: true, url: 'https://www.bny.com/pershing/us/en/platforms/wove.html', label: 'Wove',           description: 'BNY Pershing\'s flagship advisor platform — a full-scale wealth management experience designed for the complexity of institutional clients. Dense, deliberate, and built to scale.' },
+      { fallback: true, url: 'https://business.tiktok.com/',    label: 'TikTok Business', description: 'The commercial face of TikTok\'s ad platform. High-velocity, conversion-oriented design built for global marketers who need clarity at speed.' },
+      { fallback: true, url: 'https://www.gnc.com/',            label: 'GNC',             description: 'A major retail e-commerce presence for one of the most recognized names in health and nutrition. Product density meets brand clarity.' },
+      { fallback: true, url: 'https://www.shophardinge.com',    label: 'Hardinge',        description: 'Industrial precision meets digital commerce. A specialized e-commerce experience for a century-old machine tool manufacturer.' },
+      { fallback: true, url: 'https://www.aquasana.com/',       label: 'Aquasana',        description: 'Clean water, clean UI. A DTC e-commerce site built around trust signals, product education, and conversion-focused design.' },
+      { fallback: true, url: 'https://www.yeti.com/',           label: 'YETI',            description: 'The gold standard of aspirational outdoor retail. Bold product photography, minimal chrome, and a brand voice that doesn\'t need to try hard.' },
+      { fallback: true, url: 'https://www.kent.edu/',           label: 'Kent State',      description: 'A major university digital presence balancing recruitment, research, and community — navigating the institutional complexity that makes higher-ed design its own discipline.' },
+      { fallback: true, url: 'https://www.wisc.edu/',           label: 'UW–Madison',      description: 'One of the country\'s flagship public universities, rendered in a digital presence that has to serve everyone from prospective students to Nobel laureates.' },
+      { fallback: true, url: 'https://www.strongtie.com/',      label: 'Strong Tie',      description: 'Simpson Strong-Tie — structural connectors and construction hardware translated into a large-scale industrial e-commerce and resource platform. Technical depth, contractor-grade utility.' },
     ]
   }
 ];
@@ -310,7 +324,16 @@ function buildCards(sites) {
     iframe.title = site.label;
     iframe.style.transform = `scale(${iframeScale})`;
 
-    wrap.appendChild(iframe);
+    // For sites that block framing, show OG screenshot instead
+    if (site.fallback) {
+      const ogImg = document.createElement('img');
+      ogImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;pointer-events:none;';
+      ogImg.src = `https://api.microlink.io/?url=${encodeURIComponent(site.url)}&screenshot=true&meta=false&embed=screenshot.url`;
+      wrap.appendChild(ogImg);
+      // Don't bother loading the iframe for blocked sites
+    } else {
+      wrap.appendChild(iframe);
+    }
 
     // Bar
     const bar = document.createElement('div');
@@ -351,7 +374,7 @@ function buildCards(sites) {
     setTimeout(() => el.style.opacity = '1', delay);
     // Stagger iframe src injection: first 3 load with cards, rest in two waves
     const srcDelay = i < 3 ? delay : i < 6 ? 1200 : 2200;
-    setTimeout(() => { if (!iframe.src || iframe.src === window.location.href) iframe.src = iframe.dataset.src; }, srcDelay);
+    if (!site.fallback) setTimeout(() => { if (!iframe.src || iframe.src === window.location.href) iframe.src = iframe.dataset.src; }, srcDelay);
     cards.push({ el, btn, iframe });
   });
 
@@ -382,6 +405,7 @@ function switchCategory(idx) {
     activeCatIdx = idx;
     buildCards(CATEGORIES[idx].sites);
     if (window._textSetSite) window._textSetSite(null);
+    if (window._textSetCategory) window._textSetCategory(CATEGORIES[idx].id);
     document.querySelectorAll('.pill').forEach((p, i) => p.classList.toggle('active', i === idx));
     clearTimeout(labelTimer);
     catLabel.textContent = CATEGORIES[idx].label;
@@ -479,6 +503,7 @@ worldWrap.addEventListener('touchend', e => { lt=Array.from(e.touches);cursorEl.
 
 // ─── Init ──────────────────────────────────────────────────────────────────
 buildCards(CATEGORIES[0].sites);
+if (window._textSetCategory) window._textSetCategory(CATEGORIES[0].id);
 
 })();
 </script>
@@ -512,6 +537,17 @@ buildCards(CATEGORIES[0].sites);
     display: { weight:'400', family:'"Instrument Serif", Georgia, serif', sizeBase: 36, charWMult: 0.58, lineHMult: 1.22, opBase: 0.72 },
     body:    { weight:'500', family:'"DM Mono", monospace',               sizeBase: 11, charWMult: 0.602,lineHMult: 1.64, opBase: 0.52 },
   };
+
+  // ── Permanent "Brands I've Built" block (Shipped category only) ──────────
+  const SHIPPED_LABEL = " ";
+  const SHIPPED_BODY  = [
+    { heading: 'Clients & Brands', text: 'Comcast, Charter, Rachel Roy, LimeCrime, Organic Girl, Goya, General Nutrition Centers, Worldwide Stereo, Simpson Strong-Tie, Shop Hardinge, YETI, Aquasana, Kent State University, University of Wisconsin-Madison, Texas A&M, Centro.edu.mx, Power Home Remodeling Group, TikTok For Business, BNY Pershing X, The Dana Foundation, Daz3D, Sentral Lifestyle Apartments' },
+    { heading: 'Agencies & Startups', text: 'Publicis Sapient, Code & Theory, Huge, Elva Design Group, LiveArea, WebLinc (Workarea, SaaS), O3 World, 160OVER90, Leadnomics, Turn5 Inc, Phenom' },
+  ];
+
+  let permChars   = [];
+  let permAlpha   = 0;
+  let permAlphaTgt = 0;
 
   // ── State ─────────────────────────────────────────────────────────────────
   let allChars   = [];
@@ -592,6 +628,64 @@ buildCards(CATEGORIES[0].sites);
     return chars;
   }
 
+  function layoutPermChars() {
+    const chars = [];
+    // Position below the main col — start at 72% of viewport height
+    let y = Math.round(H * 0.62);
+    const body  = TYPO.body;
+    const bCW   = body.sizeBase * body.charWMult;
+    const bLH   = body.sizeBase * body.lineHMult;
+    const maxW  = COL_W;
+
+    // ── Heading label ────────────────────────────────────────────────────
+    const disp  = TYPO.display;
+    const dCW   = disp.sizeBase * disp.charWMult;
+    const dLH   = disp.sizeBase * disp.lineHMult;
+    let x = PAD_X;
+    for (let ci = 0; ci < SHIPPED_LABEL.length; ci++) {
+      const seed = (ci * 137) % 100 / 100;
+      chars.push({ ch: SHIPPED_LABEL[ci], restX: x, restY: y, x, y, vx:0, vy:0, role:'display', baseOp: disp.opBase * 0.65 + seed * 0.1, perm: true });
+      x += dCW;
+    }
+    y += dLH * 1.1;
+
+    for (const section of SHIPPED_BODY) {
+      // Section heading in body bold
+      const hText = section.heading;
+      let hx = PAD_X;
+      for (let ci = 0; ci < hText.length; ci++) {
+        chars.push({ ch: hText[ci], restX: hx, restY: y, x: hx, y, vx:0, vy:0, role:'body', baseOp: body.opBase * 1.1, perm: true });
+        hx += bCW;
+      }
+      y += bLH * 1.3;
+
+      // Word-wrap body text
+      const words = section.text.split(' ');
+      const lines = [];
+      let line = '', lineW = 0;
+      for (const w of words) {
+        const seg = (line ? ' ' : '') + w;
+        const sw  = seg.length * bCW;
+        if (lineW + sw > maxW && line) { lines.push(line); line = w; lineW = w.length * bCW; }
+        else { line += seg; lineW += sw; }
+      }
+      if (line) lines.push(line);
+
+      for (const lineStr of lines) {
+        if (y > H - 20) break;
+        let lx = PAD_X;
+        for (let ci = 0; ci < lineStr.length; ci++) {
+          const seed = (ci * 97 + lineStr.charCodeAt(ci)) % 100 / 100;
+          chars.push({ ch: lineStr[ci], restX: lx, restY: y, x: lx, y, vx:0, vy:0, role:'body', baseOp: body.opBase * 0.75 + seed * 0.2, perm: true });
+          lx += bCW;
+        }
+        y += bLH;
+      }
+      y += bLH * 0.8; // gap between sections
+    }
+    return chars;
+  }
+
   // ── Switch content with a cross-fade ─────────────────────────────────────
   function setContent(content) {
     alphaTgt = 0;
@@ -602,6 +696,11 @@ buildCards(CATEGORIES[0].sites);
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
+  window._textSetCategory = function (catId) {
+    const isShipped = catId === 'shipped';
+    permAlphaTgt = isShipped ? 1 : 0;
+    if (isShipped && permChars.length === 0) permChars = layoutPermChars();
+  };
   window._textSetSite = function (site) {
     setContent(site ? { label: site.label, description: site.description } : DEFAULT_CONTENT);
   };
@@ -615,11 +714,12 @@ buildCards(CATEGORIES[0].sites);
     requestAnimationFrame(loop);
 
     alpha += (alphaTgt - alpha) * 0.07;
+    permAlpha += (permAlphaTgt - permAlpha) * 0.05;
     bX += (mX - bX) * BLOB_LERP;
     bY += (mY - bY) * BLOB_LERP;
 
     const blobMoving = Math.abs(mX - bX) > 0.5 || Math.abs(mY - bY) > 0.5;
-    if (cursorMoved || blobMoving || Math.abs(alphaTgt - alpha) > 0.01) {
+    if (cursorMoved || blobMoving || Math.abs(alphaTgt - alpha) > 0.01 || Math.abs(permAlphaTgt - permAlpha) > 0.01) {
       idleFrames = 0;
     } else {
       idleFrames++;
@@ -628,7 +728,7 @@ buildCards(CATEGORIES[0].sites);
 
     // Skip physics + redraw when fully settled
     const settled = idleFrames > IDLE_THRESHOLD;
-    if (settled && alpha >= 0.99) return;
+    if (settled && alpha >= 0.99 && permAlpha < 0.01) return;
 
     ctx.clearRect(0, 0, W, H);
     if (allChars.length === 0 || alpha < 0.01) return;
@@ -663,6 +763,29 @@ buildCards(CATEGORIES[0].sites);
       ctx.font = `${t.weight} ${t.sizeBase}px ${t.family}`;
       ctx.fillStyle = `rgba(0,0,0,${finalAlpha.toFixed(3)})`;
       ctx.fillText(p.ch, p.x, p.y);
+    }
+
+    // ── Permanent chars (shipped only) ───────────────────────────────────
+    if (permAlpha > 0.01 && permChars.length > 0) {
+      for (const p of permChars) {
+        const dx = p.x - bX, dy = p.y - bY;
+        const d  = Math.sqrt(dx*dx + dy*dy);
+        if (!settled) {
+          p.vx += (p.restX - p.x) * TETHER_K;
+          p.vy += (p.restY - p.y) * TETHER_K;
+          if (d < REPEL_R && d > 0.5) { const f = (1-d/REPEL_R); p.vx+=(dx/d)*f*f*14; p.vy+=(dy/d)*f*f*14; }
+          p.vx *= DAMP; p.vy *= DAMP;
+          p.x  += p.vx; p.y  += p.vy;
+        }
+        const fadeS = 12, fadeE = 42;
+        const proximity = Math.min(1, Math.max(0, (d - fadeS) / (fadeE - fadeS)));
+        const finalAlpha = p.baseOp * permAlpha * (0.35 + proximity * 0.65);
+        if (finalAlpha < 0.01) continue;
+        const t = TYPO[p.role];
+        ctx.font = `${t.weight} ${t.sizeBase}px ${t.family}`;
+        ctx.fillStyle = `rgba(0,0,0,${finalAlpha.toFixed(3)})`;
+        ctx.fillText(p.ch, p.x, p.y);
+      }
     }
   }
 
