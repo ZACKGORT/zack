@@ -225,6 +225,7 @@ const CATEGORIES = [
     id: 'projects', label: 'Projects',
     sites: [
       { url: 'https://reasonably.cc',   label: 'Reasonably',      description: 'A local-first email tool built around the premise that nothing should leave your machine. All data stays in your browser\'s local storage — no accounts, no servers, no sync. Radical simplicity, radical privacy.' },
+      { url: 'https://neverever.land',  label: 'Never Ever Land',  description: 'A place that probably shouldn\'t exist but does. Whatever lives here, it earned its own domain.' },
       { url: 'https://emdash.click',    label: 'Emdash',          description: 'A single-purpose tool for the em dash, the en dash, and the double em — each defined, differentiated, and ready to copy with a single click. The kind of focused utility that makes you wonder why it didn\'t exist already.' },
       { url: 'https://wolfie.love',      label: 'wolfie.love',     description: 'A personal universe for Wolfgang — gallery, life documents, and digital keepsakes. The dog gets his own domain, naturally.' },
       { url: 'https://wolfie.life',      label: 'wolfie.life',     description: 'Another dimension of the Wolfgang archive. More life, less internet.' },
@@ -467,11 +468,34 @@ worldWrap.addEventListener('wheel', handleWheel, { passive: false });
 document.addEventListener('wheel', handleWheel, { passive: false, capture: true });
 wheelCapture.addEventListener('wheel', handleWheel, { passive: false });
 
+// ─── Unlock helper ─────────────────────────────────────────────────────────
+function unlockAll() {
+  if (!anyUnlocked) return;
+  anyUnlocked = false;
+  const iframeScale = CARD_W / IFRAME_RENDER_W;
+  cards.forEach(c => {
+    c.el.classList.remove('unlocked');
+    c.btn.textContent = 'Interact';
+    const fr = c.el.querySelector('iframe');
+    if (fr) fr.style.transform = `scale(${iframeScale})`;
+  });
+  if (window._textSetSite) window._textSetSite(null);
+  window.focus();
+}
+
 // ─── Keyboard ──────────────────────────────────────────────────────────────
 var keys = {};
 var KB = 5;
-window.addEventListener('keydown', e => keys[e.key]=true);
-window.addEventListener('keyup',   e => keys[e.key]=false);
+window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { unlockAll(); return; }
+  keys[e.key] = true;
+});
+window.addEventListener('keyup', e => keys[e.key] = false);
+
+// ─── Click canvas to escape focus ──────────────────────────────────────────
+worldWrap.addEventListener('mousedown', e => {
+  if (anyUnlocked && !e.target.closest('.card.unlocked')) unlockAll();
+});
 
 // ─── Inertia + keyboard — single RAF loop ─────────────────────────────────
 (function mainLoop() {
