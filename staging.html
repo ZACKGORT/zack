@@ -1,2208 +1,460 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>zackgort — career as mass</title>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #f2efe9;
-    --fg: #0a0a0a;
-    --fg-muted: rgba(10,10,10,0.42);
-    --fg-faint: rgba(10,10,10,0.18);
-    --accent: #0a0a0a;
-    --border: rgba(10,10,10,0.12);
-    --widget-bg: rgba(242,239,233,0.94);
-    --mono: 'DM Mono', monospace;
-    --radius-indicator-bg: rgba(242,239,233,0.9);
-  }
-  body.dark {
-    --bg: #0a0a0a;
-    --fg: #e8e4dc;
-    --fg-muted: rgba(232,228,220,0.4);
-    --fg-faint: rgba(232,228,220,0.14);
-    --accent: #e8e4dc;
-    --border: rgba(232,228,220,0.1);
-    --widget-bg: rgba(10,10,10,0.94);
-    --radius-indicator-bg: rgba(10,10,10,0.9);
-  }
-  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--mono);
-    cursor: none;
-    transition: background 0.35s, color 0.35s;
-    overflow-y: scroll;
-    overflow-x: hidden;
-  }
-  #particle-canvas { position:fixed; inset:0; pointer-events:none; z-index:2; }
-  #cursor-canvas   { position:fixed; inset:0; pointer-events:none; z-index:3; }
-  #cursor {
-    position:fixed; pointer-events:none; z-index:9999;
-    transform:translate(-50%,-50%); transition:opacity 0.2s;
-  }
-  #radius-ring {
-    position:fixed; pointer-events:none; z-index:9998;
-    border-radius:50%; border:1px solid var(--fg-muted);
-    transform:translate(-50%,-50%);
-    transition:width 0.12s, height 0.12s;
-    display:none;
-  }
-  #radius-ring.visible  { display:block; }
-  #radius-ring.adjusting { border-color:var(--accent); border-style:dashed; }
-  #radius-toast {
-    position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
-    background:var(--radius-indicator-bg); border:1px solid var(--border);
-    color:var(--fg); font-family:var(--mono); font-size:9px;
-    letter-spacing:0.18em; text-transform:uppercase;
-    padding:6px 14px; pointer-events:none; z-index:9000;
-    opacity:0; transition:opacity 0.3s; white-space:nowrap;
-  }
-  #radius-toast.show { opacity:1; }
-  /* controls-bar + .ctrl defined in widget CSS block */
-
-  /* ── Chapter dot nav ── */
-  #chapter-nav {
-    position:fixed; left:0; top:50%; transform:translateY(-50%);
-    z-index:150; display:flex; flex-direction:column;
-    gap:6px; padding:20px 12px 20px 14px;
-  }
-  .nav-dot {
-    width:4px; height:4px; border-radius:50%;
-    background:var(--fg-faint); cursor:none;
-    transition:background 0.25s,transform 0.25s; position:relative;
-  }
-  .nav-dot.active { background:var(--fg); transform:scale(1.5); }
-  .nav-dot:hover  { background:var(--fg-muted); }
-  .nav-dot .nav-label {
-    position:absolute; left:14px; top:50%; transform:translateY(-50%);
-    font-family:var(--mono); font-size:8px; letter-spacing:0.15em;
-    text-transform:uppercase; color:var(--fg);
-    white-space:nowrap; opacity:0; transition:opacity 0.2s; pointer-events:none;
-  }
-  #chapter-nav:hover .nav-label { opacity:0.5; }
-  .nav-dot.active .nav-label    { opacity:0.9 !important; }
-  @media (max-width:700px) { #chapter-nav { display:none; } }
-
-  /* ── Chapter widget — left-rail clamp, expands horizontally ── */
-  #chapter-widget {
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    left: 0 !important;
-    min-width: 0;
-    max-width: none;
-    width: auto;
-  }
-  /* Collapsed: rotate the topbar 90° so it reads as a left-rail tab */
-  #chapter-widget.collapsed {
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-  }
-  #chapter-widget .fw-topbar {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    height: auto;
-    width: var(--bar-h);
-    padding: 14px 0;
-    justify-content: center;
-    gap: 8px;
-    border-bottom: none;
-    border-right: 1px solid var(--border);
-    flex-direction: column-reverse;
-  }
-  #chapter-widget:not(.collapsed) .fw-topbar {
-    writing-mode: horizontal-tb;
-    transform: none;
-    height: var(--bar-h);
-    width: auto;
-    padding: 0 14px;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    border-right: none;
-    flex-direction: row;
-  }
-  #chapter-widget .fw-toggle {
-    padding: 0;
-    font-size: 13px;
-  }
-  /* Body: vertical list of chapter links */
-  #chapter-widget .fw-body {
-    display: flex;
-    flex-direction: column;
-    padding: 0;
-    min-width: 200px;
-    max-width: 300px;
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-  }
-  #chapter-widget.collapsed .fw-body { display: none; }
-  .ch-link-btn {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 14px; height: 32px;
-    cursor: none; background: transparent; border: none;
-    border-top: 1px solid var(--border);
-    width: 100%; text-align: left;
-    transition: background 0.15s;
-    gap: 12px;
-  }
-  .ch-link-btn:first-child { border-top: none; }
-  .ch-link-btn:hover { background: rgba(128,128,128,0.08); }
-  .ch-link-btn.active { background: rgba(128,128,128,0.12); }
-  .ch-link-num {
-    font-family: var(--mono); font-size: 8px; font-weight: 300;
-    letter-spacing: 0.14em; color: var(--fg); opacity: 0.3;
-    pointer-events: none; white-space: nowrap; flex-shrink: 0;
-  }
-  .ch-link-label {
-    font-family: var(--mono); font-size: 9px; font-weight: 500;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.65; pointer-events: none;
-    white-space: nowrap; flex: 1;
-  }
-  .ch-link-btn.active .ch-link-label { opacity: 1; }
-  .ch-link-year {
-    font-family: var(--mono); font-size: 8px; font-weight: 300;
-    letter-spacing: 0.1em; color: var(--fg); opacity: 0.28;
-    pointer-events: none; white-space: nowrap; flex-shrink: 0;
-  }
-  @media (max-width: 700px) { #chapter-widget { display: none; } }
-
-  /* ── Scroll sizer — invisible, drives document height ── */
-  #scroll-sizer { visibility:hidden; pointer-events:none; position:relative; z-index:0; }
-  #page { margin-left:calc(42vw + 80px); margin-right:48px; padding:0 0 200px; max-width:520px; }
-  #site-header { padding:64px 0 48px; border-bottom:1px solid transparent; }
-  #site-title   { font-size:11px; line-height:1; }
-  #site-subtitle{ font-size:clamp(28px,5vw,48px); margin-top:10px; line-height:1.1; }
-  .chapter { margin-top:80px; scroll-margin-top:120px; }
-  .chapter:first-of-type { margin-top:48px; }
-  .chapter-header { display:flex; align-items:baseline; gap:20px; margin-bottom:32px; padding-bottom:12px; }
-  .chapter-num    { font-size:9px; }
-  .chapter-title  { font-size:clamp(22px,3.5vw,36px); line-height:1.1; }
-  .chapter-meta   { font-size:9px; margin-left:auto; }
-  .chapter-body   { display:flex; flex-direction:column; gap:0; }
-  .entry          { padding:0; }
-  .entry p        { visibility:hidden; margin:0; padding:0; }
-  .pull-quote     { font-size:clamp(18px,2.8vw,26px); line-height:1.35; padding:0; }
-  .entry-tags     { display:none; }
-  #footer { padding:60px 0 20px; margin-top:80px; font-size:9px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:24px; }
-
-  ::-webkit-scrollbar { width:3px; }
-  ::-webkit-scrollbar-track { background:transparent; }
-  ::-webkit-scrollbar-thumb { background:var(--fg-faint); }
-  @media (max-width:700px) { #page { margin-left:0; margin-right:0; padding:0 0 160px 20px; max-width:calc(66.666vw - 20px); } }
-
-  /* ── Content vignette — top & bottom fade ── */
-  #content-vignette {
-    position: fixed; inset: 0; pointer-events: none; z-index: 4;
-  }
-  #content-vignette::before,
-  #content-vignette::after {
-    content: '';
-    position: absolute; left: 0; right: 0;
-    pointer-events: none;
-  }
-  #content-vignette::before {
-    top: 0; height: 80px;
-    background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%);
-  }
-  #content-vignette::after {
-    bottom: 0; height: 80px;
-    background: linear-gradient(to top, var(--bg) 0%, transparent 100%);
-  }
-
-
-  /* ══════════════════════════════════════════════════
-     HEADER BAR  — top edge, all items same height
-  ══════════════════════════════════════════════════ */
-  :root { --bar-h: 34px; }
-
-  /* Controls bar — bottom-right HUD, all inline */
-  #controls-bar {
-    position: fixed; bottom: 0; right: 0; z-index: 300;
-    display: flex; flex-direction: row; align-items: stretch;
-    height: var(--bar-h);
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
-    border-right: none;
-    border-bottom: none;
-    background: var(--widget-bg);
-    backdrop-filter: blur(8px);
-  }
-  .ctrl {
-    font-family: var(--mono); font-size: 9px; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.5; background: transparent;
-    border: none; border-left: 1px solid var(--border);
-    padding: 0 14px; cursor: none; user-select: none;
-    display: flex; align-items: center;
-    height: var(--bar-h);
-    transition: opacity 0.2s, background 0.2s;
-  }
-  .ctrl:first-child { border-left: none; }
-  .ctrl:hover  { opacity: 1; }
-  .ctrl.active { opacity: 1; background: var(--fg); color: var(--bg); }
-
-  /* Divider label inside HUD */
-  .ctrl-divider {
-    display: flex; align-items: center; padding: 0 8px;
-    font-family: var(--mono); font-size: 8px; letter-spacing: 0.12em;
-    text-transform: uppercase; color: var(--fg); opacity: 0.2;
-    border-left: 1px solid var(--border);
-    height: var(--bar-h); user-select: none; white-space: nowrap;
-  }
-
-  /* Logo rendered in bottom-left via canvas — no DOM element needed */
-
-  /* ══════════════════════════════════════════════════
-     FLOATING WIDGETS
-  ══════════════════════════════════════════════════ */
-  .fw {
-    position: fixed;
-    z-index: 299;
-    background: var(--widget-bg);
-    border: 1px solid var(--border);
-    backdrop-filter: blur(8px);
-    user-select: none;
-    /* default: docked to top-left */
-    top: 0; left: 0;
-  }
-  /* Collapsed = just the topbar tab, flush to top edge */
-  .fw.collapsed { top: 0 !important; width: auto; min-width: 0; }
-
-  .fw-topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: var(--bar-h);
-    padding: 0 14px;
-    border-bottom: 1px solid var(--border);
-    cursor: none;
-    white-space: nowrap;
-    /* entire topbar is the expand/collapse target */
-    user-select: none;
-  }
-  .fw.collapsed .fw-topbar { border-bottom: none; }
-  .fw-topbar:hover { background: rgba(128,128,128,0.08); }
-
-  .fw-title {
-    font-family: var(--mono); font-size: 9px; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.65; pointer-events: none;
-  }
-  .fw-toggle {
-    font-family: var(--mono); font-size: 13px; line-height: 1;
-    color: var(--fg); opacity: 0.5; cursor: none;
-    padding: 0 0 0 10px;
-  }
-  .fw-toggle:hover { opacity: 1; }
-  .fw-body { display: block; overflow: hidden; }
-  .fw.collapsed .fw-body { display: none; }
-
-  /* ── About widget ── */
-  #about-widget { left: 0; }
-  #about-widget:not(.collapsed) { min-width: 200px; max-width: 280px; }
-  #about-widget .fw-body {
-    font-family: var(--mono); font-size: 10px; line-height: 1.7;
-    letter-spacing: 0.04em; color: var(--fg); opacity: 0.75;
-    padding: 14px 16px;
-  }
-
-  /* ── Links widget ── */
-  #links-widget:not(.collapsed) { min-width: 220px; max-width: 420px; width: 340px; }
-  #links-widget .fw-body { padding: 0; }
-
-  .link-entry { border-top: 1px solid var(--border); overflow: hidden; }
-  .link-entry:first-child { border-top: none; }
-
-  .link-row-btn {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 14px; height: 34px;
-    cursor: none; background: transparent; border: none; width: 100%;
-    transition: background 0.15s;
-  }
-  .link-row-btn:hover { background: rgba(128,128,128,0.08); }
-  .link-row-label {
-    font-family: var(--mono); font-size: 9px; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.7; pointer-events: none;
-  }
-  .link-row-chevron {
-    font-size: 10px; color: var(--fg); opacity: 0.3; pointer-events: none;
-    transition: opacity 0.15s, transform 0.2s;
-  }
-  .link-entry.open .link-row-chevron { transform: rotate(90deg); opacity: 0.7; }
-
-  .link-preview { display: none; border-top: 1px solid var(--border); height: 255px; position: relative; contain: strict; overflow: hidden; }
-  .link-entry.open .link-preview { display: block; }
-  .link-preview iframe { width: 936px; height: 702px; border: none; display: block; background: #fff; transform: scale(0.363); transform-origin: top left; }
-  .link-preview-footer {
-    padding: 6px 14px; border-top: 1px solid var(--border);
-    display: flex; justify-content: flex-end;
-  }
-  .link-open-btn {
-    font-family: var(--mono); font-size: 8px; letter-spacing: 0.16em;
-    text-transform: uppercase; color: var(--fg); opacity: 0.5;
-    text-decoration: none; cursor: none; transition: opacity 0.15s;
-  }
-  .link-open-btn:hover { opacity: 1; }
-
-  /* ── Resume widget ── */
-  #resume-widget {
-    min-width: 0;
-    width: auto;
-    /* override fw.collapsed top:0 !important for resume */
-  }
-  #resume-widget.collapsed {
-    top: 0 !important;
-    bottom: auto !important;
-  }
-  #resume-widget:not(.collapsed) {
-    width: min(780px, 92vw);
-  }
-  #resume-widget .fw-body {
-    padding: 0;
-    position: relative;
-    overflow: hidden;
-  }
-  #resume-canvas-wrap {
-    position: relative;
-    width: 100%;
-    height: calc(100vh - var(--bar-h) - 44px);
-    overflow: hidden;
-  }
-  #resume-canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-    image-rendering: crisp-edges;
-  }
-  /* Scroll overlay — invisible div that captures wheel events and maps to scrollY */
-  #resume-scroll-zone {
-    position: absolute; inset: 0; cursor: none;
-    overflow-y: scroll; overflow-x: hidden;
-  }
-  #resume-scroll-inner {
-    /* height set by JS to match total resume content height */
-    width: 1px;
-  }
-  /* Download bar */
-  #resume-dl-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px; height: 36px;
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  #resume-dl-label {
-    font-family: var(--mono); font-size: 8px; font-weight: 300;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.35; pointer-events: none;
-  }
-  #resume-dl-link {
-    font-family: var(--mono); font-size: 8px; font-weight: 500;
-    letter-spacing: 0.18em; text-transform: uppercase;
-    color: var(--fg); opacity: 0.55; text-decoration: none;
-    cursor: none; transition: opacity 0.15s;
-    border: 1px solid var(--border); padding: 4px 10px;
-  }
-  #resume-dl-link:hover { opacity: 1; }
-  @media (max-width: 700px) {
-    #resume-widget:not(.collapsed) { width: 96vw; }
-    #resume-canvas-wrap { height: calc(100vh - var(--bar-h) - 80px); }
-    #resume-dl-link { cursor: pointer; }
-    /* On mobile: resume collapses to a bottom tab */
-    #resume-widget.collapsed {
-      top: auto !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      width: 100% !important;
-      border-top: 1px solid var(--border);
-      border-bottom: none;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wolfgang & Co. — Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f2ee;
+      --dot: rgba(0,0,0,0.12);
+      --fg: #1a1a1a;
+      --accent: #8a7560;
+      --pill-bg: rgba(255,255,255,0.55);
+      --pill-active-bg: #1a1a1a;
+      --pill-active-fg: #f5f2ee;
+      --page-pad: 1.5rem;
     }
-    #resume-widget.collapsed .fw-topbar {
-      border-bottom: none;
-      border-top: none;
-      width: 100%;
+    html, body {
+      width: 100%; height: 100%;
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: center center;
+      overflow: hidden;
+      cursor: none;
+      overscroll-behavior: none;
+      touch-action: none;
+      font-family: "DM Sans", sans-serif;
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
     }
-    #resume-widget:not(.collapsed) {
-      width: 100vw !important;
-      top: 0 !important;
-      left: 0 !important;
-      bottom: auto !important;
+
+    /* ── Infinite pan world ── */
+    #world-wrap { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+    #world { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
+
+    /* ── iframe cards ── */
+    .card {
+      position: absolute;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07);
+      border: 1.5px solid rgba(138,117,96,0.13);
+      background: #fff;
+      transition: box-shadow 0.2s;
     }
-  }
+    .card-overlay {
+      position: absolute;
+      inset: 0; bottom: 34px;
+      z-index: 10;
+      cursor: none;
+    }
+    .card.unlocked .card-overlay { display: none; }
+    .card iframe {
+      display: block; width: 100%; height: calc(100% - 34px);
+      border: none; pointer-events: all;
+    }
+    .card-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 34px;
+      padding: 0 0.75rem;
+      background: rgba(245,242,238,0.92);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(138,117,96,0.12);
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 11;
+    }
+    .card-label {
+      font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--accent); opacity: 0.8;
+    }
+    .card-lock-btn {
+      font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
+      font-family: "DM Sans", sans-serif;
+      color: var(--fg); opacity: 0.45;
+      background: none; border: 1px solid rgba(26,26,26,0.2);
+      border-radius: 100px; padding: 0.18rem 0.55rem;
+      cursor: pointer;
+      transition: opacity 0.2s, background 0.2s, color 0.2s;
+    }
+    .card-lock-btn:hover { opacity: 0.8; }
+    .card.unlocked .card-lock-btn {
+      background: var(--pill-active-bg); color: var(--pill-active-fg);
+      opacity: 1; border-color: var(--pill-active-bg);
+    }
 
-  /* ── Viewport-edge clamp for expanded widgets ──
-     When a widget expands downward and would overflow the viewport bottom,
-     CSS alone can't help (we handle it in JS). But we set max-height as a guard. */
-  .fw-body { max-height: calc(100vh - var(--bar-h) - 8px); overflow-y: auto; }
-  #resume-widget .fw-body { max-height: none; overflow: hidden; }
+    /* ── Header ── */
+    #hdr {
+      position: fixed; top: 0; left: 0; width: 100%;
+      padding: var(--page-pad);
+      display: flex; align-items: flex-start; justify-content: space-between;
+      pointer-events: none; z-index: 100;
+    }
+    #hdr-left { display: flex; flex-direction: column; gap: 0.25rem; }
+    #title {
+      font-size: clamp(1rem, 3vw, 1.5rem);
+      font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fg); opacity: 0.75;
+    }
+    #subtitle {
+      font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--accent); opacity: 0.6;
+    }
 
-  @media (max-width: 700px) {
-    #about-widget, #links-widget { cursor: auto; }
-    .fw-topbar, .link-row-btn, .link-open-btn { cursor: pointer; }
-    .link-preview { height: 255px; }
-  }
-</style>
+    /* ── Nav pills ── */
+    #nav {
+      position: fixed; top: var(--page-pad); left: 50%; transform: translateX(-50%);
+      z-index: 200; display: flex; gap: 0.4rem; pointer-events: all;
+      background: rgba(245,242,238,0.6);
+      backdrop-filter: blur(12px) saturate(1.4); -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      border: 1px solid rgba(138,117,96,0.15); border-radius: 100px; padding: 0.3rem;
+    }
+    .pill {
+      display: flex; align-items: center; gap: 0.35rem;
+      padding: 0.38rem 0.9rem; border-radius: 100px; border: none;
+      background: transparent; font-family: "DM Sans", sans-serif;
+      font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--fg); opacity: 0.5; cursor: none;
+      transition: opacity 0.2s, background 0.2s, color 0.2s;
+      white-space: nowrap; user-select: none;
+    }
+    .pill:hover { opacity: 0.8; }
+    .pill.active { background: var(--pill-active-bg); color: var(--pill-active-fg); opacity: 1; }
+    .pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.6; flex-shrink: 0; }
+    .pill.active .pill-dot { opacity: 1; }
+
+    /* ── Transition veil ── */
+    #transition-veil {
+      position: fixed; inset: 0; z-index: 150;
+      background: var(--bg); opacity: 0; pointer-events: none;
+      transition: opacity 0.45s ease;
+    }
+    #transition-veil.in  { opacity: 1; pointer-events: all; }
+    #transition-veil.out { opacity: 0; pointer-events: none; }
+
+    /* ── Category label ── */
+    #cat-label {
+      position: fixed; bottom: calc(var(--page-pad) + 2rem); left: 50%;
+      transform: translateX(-50%); z-index: 100;
+      font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--accent); opacity: 0; pointer-events: none; transition: opacity 0.6s ease;
+    }
+    #cat-label.visible { opacity: 0.5; }
+
+    /* ── Controls hint ── */
+    #hint {
+      position: fixed; bottom: var(--page-pad); right: var(--page-pad);
+      z-index: 100; font-size: 0.65rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent); opacity: 0.4;
+      pointer-events: none; text-align: right; line-height: 1.8;
+    }
+
+    /* ── Custom cursor ── */
+    #cursor {
+      position: fixed; top: 0; left: 0; width: 10px; height: 10px;
+      background: var(--accent); border-radius: 50%; pointer-events: none;
+      z-index: 9998; transform: translate(-50%, -50%);
+      transition: transform 0.08s ease, opacity 0.2s;
+      opacity: 0.55; mix-blend-mode: multiply; will-change: transform;
+    }
+    #cursor.grabbing { transform: translate(-50%, -50%) scale(1.8); opacity: 0.3; }
+  </style>
 </head>
 <body>
 
-<div id="content-vignette"></div>
-<canvas id="particle-canvas"></canvas>
-<canvas id="cursor-canvas"></canvas>
-<div id="cursor">
-  <svg width="12" height="12" viewBox="0 0 12 12">
-    <circle cx="6" cy="6" r="2.5" fill="var(--fg)" opacity="0.9"/>
-  </svg>
-</div>
-<div id="radius-ring"></div>
-<div id="radius-toast"></div>
+<div id="cursor"></div>
 
-<!-- Logo canvas — sits behind bar, rendered by JS particle system -->
-<canvas id="logo-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:298;width:100%;height:100%;"></canvas>
+<header id="hdr">
+  <div id="hdr-left">
+    <div id="title">Wolfgang &amp; Co.</div>
+    <div id="subtitle">An infinite archive</div>
+  </div>
+</header>
 
-<!-- About Widget — docks left of logo -->
-<div id="about-widget" class="fw" data-widget style="left:0;">
-  <div class="fw-topbar" data-drag-handle>
-    <span class="fw-title">About</span>
-    <span class="fw-toggle">−</span>
-  </div>
-  <div class="fw-body">
-    one analytical sentence per role across twenty years of design work — philadelphia to new york to independent. a thought-experiment in holding a career all at once. cursor repels. right-click adjusts radius. the sentence is the irreducible unit.
-  </div>
-</div>
+<nav id="nav"></nav>
+<div id="transition-veil"></div>
+<div id="cat-label"></div>
+<div id="hint">Drag to pan · Scroll to zoom<br>Click Interact to browse a site</div>
 
-<!-- Links Widget — docks right of About -->
-<div id="links-widget" class="fw collapsed" data-widget>
-  <div class="fw-topbar" data-drag-handle>
-    <span class="fw-title">Links</span>
-    <span class="fw-toggle">+</span>
-  </div>
-  <div class="fw-body">
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://zackgort.com">
-        <span class="link-row-label">zackgort.com</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://zackgort.com" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://zackgort.com" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://ifimaybefrank.com">
-        <span class="link-row-label">ifimaybefrank.com</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://ifimaybefrank.com" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://ifimaybefrank.com" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://reasonably.cc">
-        <span class="link-row-label">reasonably.cc</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://reasonably.cc" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://reasonably.cc" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://dab.cx">
-        <span class="link-row-label">dab.cx</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://dab.cx" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://dab.cx" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://wolfie.love">
-        <span class="link-row-label">wolfie.love</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://wolfie.love" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://wolfie.love" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-    <div class="link-entry">
-      <button class="link-row-btn" data-href="https://linkedin.com/in/zackgort">
-        <span class="link-row-label">linkedin/in/zackgort</span>
-        <span class="link-row-chevron">›</span>
-      </button>
-      <div class="link-preview">
-        <iframe src="" data-src="https://linkedin.com/in/zackgort" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <div class="link-preview-footer"><a class="link-open-btn" href="https://linkedin.com/in/zackgort" target="_blank">Open ↗</a></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- Resume Widget — docks right of Links -->
-<div id="resume-widget" class="fw collapsed" data-widget>
-  <div class="fw-topbar" data-drag-handle>
-    <span class="fw-title">Résumé</span>
-    <span class="fw-toggle">+</span>
-  </div>
-  <div class="fw-body">
-    <div id="resume-canvas-wrap">
-      <canvas id="resume-canvas"></canvas>
-      <div id="resume-scroll-zone"><div id="resume-scroll-inner"></div></div>
-    </div>
-    <div id="resume-dl-bar">
-      <span id="resume-dl-label">Zack Gort · Staff Designer · 2026</span>
-      <a id="resume-dl-link" href="https://github.com/ZACKGORT/zack/blob/main/Zack%20Gort-%20Staff%20Designer%20-%202026.pdf" target="_blank" rel="noopener">Download PDF ↗</a>
-    </div>
-  </div>
-</div>
-
-<!-- Chapter dot nav — left rail -->
-<nav id="chapter-nav"></nav>
-
-<!-- Chapter Widget — surfaces on right-click, expands horizontally -->
-<div id="chapter-widget" class="fw collapsed" data-widget style="left:0;display:none;">
-  <div class="fw-topbar" data-drag-handle>
-    <span class="fw-title">Chapters</span>
-    <span class="fw-toggle">+</span>
-  </div>
-  <div class="fw-body" id="chapter-widget-body">
-    <!-- populated by JS -->
-  </div>
-</div>
-
-<!-- Controls bar — bottom-right HUD, all inline -->
-<div id="controls-bar">
-  <div class="ctrl" id="btn-theme">Dark</div>
-  <span class="ctrl-divider">Radius</span>
-  <div class="ctrl" id="btn-size-s" data-size="S">S</div>
-  <div class="ctrl active" id="btn-size-m" data-size="M">M</div>
-  <div class="ctrl" id="btn-size-l" data-size="L">L</div>
-  <span class="ctrl-divider">Font</span>
-  <div class="ctrl" id="btn-font-dec">−</div>
-  <div class="ctrl" id="btn-font-inc">+</div>
-</div>
-
-<div id="scroll-sizer">
-  <div id="page">
-    <header id="site-header">
-      <div id="site-title">zackgort — career as mass</div>
-      <h1 id="site-subtitle">twenty years, one sentence at a time</h1>
-    </header>
-    <main id="chapters"></main>
-    <footer id="footer">
-      <span>zack@reasonably.cc</span>
-      <span>linkedin.com/in/zackgort</span>
-      <span>Wolfgang &amp; Co. · 2025</span>
-    </footer>
-  </div>
+<div id="world-wrap">
+  <div id="world"></div>
 </div>
 
 <script>
-// ── Data ──────────────────────────────────────────────────────────────────
-const TRACKS = [
-  { id:1,  album:'Roots · Philadelphia',       year:'2003–2006', text:"Miller Designworks was the first studio — print, identity, production, a professional context for instincts I had been developing informally before Craigslist, before startups, before New York." },
-  { id:2,  album:'Roots · Philadelphia',       year:'2003–2006', text:"The beginning of the thread: a pirated copy of Photoshop, a Craigslist post into the void, and the sustained conviction that the right interface disappears and leaves only understanding." },
-  { id:3,  album:'Startup · Philadelphia',     year:'2007–2011', text:"Turn5 was a garage startup that became my real education — web properties, product packaging, printed catalogues, emails, ads, and a Canon Rebel DSLR with instructions to build a photo studio from nothing." },
-  { id:4,  album:'Startup · Philadelphia',     year:'2007–2011', text:"We grew from ten to forty million in revenue during my tenure — no title, no credential, just the work and what it proved." },
-  { id:5,  album:'Startup · Philadelphia',     year:'2007–2011', text:"Building a product photography studio from scratch taught me that constraint is not a limitation — it is the brief, and speed is the feature." },
-  { id:6,  album:'Conversion · Philadelphia',  year:'2011–2014', text:"Leadnomics was lead generation across multiple verticals — the cash cow was payday loans, and my job was to make it easy for users to make catastrophic financial decisions." },
-  { id:7,  album:'Conversion · Philadelphia',  year:'2011–2014', text:"A 95.8% conversion rate, achieved through responsive design and rigorous A/B testing — mobile-first before it was a mandate, because it was simply right." },
-  { id:8,  album:'Conversion · Philadelphia',  year:'2011–2014', text:"Business abides by imperative, not by idealism — I learned both sides of that equation here, and have held both sides ever since." },
-  { id:9,  album:'Agency · Philadelphia',      year:'2014–2016', text:"One Sixty Over Ninety — my heartrate when offered the job — demanded we dare, so I took a pay cut to join their new Interactive Department and build what design culture could actually be." },
-  { id:10, album:'Agency · Philadelphia',      year:'2014–2016', text:"Full-service interaction design for .EDU and enterprise: Comcast, Kent State, the Philadelphia Eagles — information architecture, prototyping, ADA compliance, client-facing creative lead." },
-  { id:11, album:'Agency · Philadelphia',      year:'2014–2016', text:"Long days, longer nights — the years that taught me accessibility is not a checklist, it is a design decision, and enterprise interaction design is where that distinction is tested most harshly." },
-  { id:12, album:'Product · Philadelphia',     year:'2016–2017', text:"O3 World was a digital product shop in the heart of Fishtown — Certified Scrum Master, daily standups, whiteboards, wireframes: real Lean UX, not the PowerPoint version." },
-  { id:13, album:'Product · Philadelphia',     year:'2016–2017', text:"Agile in practice and sprint-led, with clients including La Colombe, Vertex, and SEIC — the difference between process as theater and process as production became permanent knowledge here." },
-  { id:14, album:'SaaS · Philadelphia',        year:'2017–2018', text:"Workarea was a proprietary SaaS e-commerce platform shaped through direct client relationships — napkin sketches and real conversations with engineers, no mockup theater, high-velocity over high-fidelity." },
-  { id:15, album:'SaaS · Philadelphia',        year:'2017–2018', text:"I shaped the platform through direct client feedback loops, end-to-end UX ownership, until the company sold — the full arc from blank canvas to acquisition in a single engagement." },
-  { id:16, album:'NYC Debut',                  year:'2018–2019', text:"Hello, New York City — FlightPath was emerging from bankruptcy and I was not deterred, commuting from Philadelphia to Manhattan and back every business day for a full year." },
-  { id:17, album:'NYC Debut',                  year:'2018–2019', text:"Up and out by five, home by ten — maybe — two skylines three hours apart, with Merck, Charter, and Goya as my introduction to the New York design scene." },
-  { id:18, album:'E-commerce · NYC',           year:'2019–2021', text:"Livearea was the transition from IC to Manager — I owned the full UX strategy and design function for Salesforce Commerce Cloud builds across B2C and B2B clients: Aquasana, West Marine, Yeti." },
-  { id:19, album:'E-commerce · NYC',           year:'2019–2021', text:"I invented 'Cards Against Bad UX' — an empathy tool for client workshops — because discovery and delegation require clients to feel their own user's frustration before they will change anything." },
-  { id:20, album:'E-commerce · NYC',           year:'2019–2021', text:"Conversion, post-sale re-engagement, design systems at platform scale — the full management loop of discovery, delegation, and socialization across a major commerce platform." },
-  { id:21, album:'Hospitality · NYC',          year:'2021',      text:"HUGE was short but sharp — end-to-end UX and booking flow for Sentral Lifestyle Apartments, a hospitality-tech platform reimagining urban living, delivered under constrained conditions: fast, precise, shipped." },
-  { id:22, album:'Recovery · NYC',             year:'2021',      text:"GNC asked us to rebuild from the ground up after bankruptcy — a complete Shopify overhaul, mobile-first, component-based, discovery through delivery in twelve weeks, strategy and execution in the same hands." },
-  { id:23, album:'Recovery · NYC',             year:'2021',      text:"Before any wireframe, I restructured the entire product taxonomy — a prerequisite for navigation that could scale, because you cannot design navigation for a catalog you haven't understood." },
-  { id:24, album:'Recovery · NYC',             year:'2021',      text:"The rebuilt navigation was redesigned from scratch: thumb-zone logic, progressive disclosure, persistent cart state — because navigation is the product, and if you can't find it, it doesn't exist." },
-  { id:25, album:'Recovery · NYC',             year:'2021',      text:"One thread held from research to live storefront — the result helped GNC reclaim approximately five hundred million dollars in annual revenue following bankruptcy, on time, without dropping a single thread." },
-  { id:26, album:'Enterprise · NYC',           year:'2021–2022', text:"Code and Theory put me on TikTok For Business, sixty-two floors above Manhattan — UX and interaction design for one of the fastest-growing advertising platforms in the world." },
-  { id:27, album:'Enterprise · NYC',           year:'2021–2022', text:"Senior Designer to Associate Creative Director to Directly Responsible Individual across one engagement — a trajectory earned through information architecture workshops and headless CMS strategy, not assigned." },
-  { id:28, album:'Fintech · NYC',              year:'2022–2023', text:"Publicis Sapient embedded me in BNY Mellon's digital transformation — I joined as Senior UX Designer and became interim Product Owner and primary client liaison, a role I wasn't hired for and became anyway." },
-  { id:29, album:'Fintech · NYC',              year:'2022–2023', text:"Wove is an industry-first platform that gives financial advisors their client's complete picture in one place — I architected user data models and flows across three parallel Agile tracks simultaneously." },
-  { id:30, album:'Fintech · NYC',              year:'2022–2023', text:"How do you present a client's full financial picture without overwhelming the advisor who must act on it — a unified client profile model with progressive disclosure and workflow-aware navigation was the answer." },
-  { id:31, album:'Fintech · NYC',              year:'2022–2023', text:"I built and maintained the Wove design system in Figma — a canonical component library serving all three development tracks simultaneously, React and Tailwind constraints informing every decision from day one." },
-  { id:32, album:'Fintech · NYC',              year:'2022–2023', text:"Named operational silos nobody else had mapped, centralized a sprawling product ecosystem into a modular scalable design system, and shipped at BNY Mellon scale — two trillion dollars in assets under management." },
-  { id:33, album:'Fintech · NYC',              year:'2022–2023', text:"Human blood, sweat, and copious caffeine — zero AI, this was 2022, and every decision was human due diligence applied at the pace and precision the engagement demanded." },
-  { id:34, album:'Independent',                year:'2023–2025', text:"Two years of contract work spanning three distinct threads — HUGE plus UX and development for Merck across enterprise pharmaceutical digital properties." },
-  { id:35, album:'Independent',                year:'2023–2025', text:"Phenom was a proprietary AI platform — UX strategy end-to-end, content infrastructure, events, the full stack of decisions that define how a new kind of product presents itself to its users." },
-  { id:36, album:'Independent',                year:'2023–2025', text:"Brave People with Geico Asset Management — fintech UX in the contract-engagement mode, where the scope is fixed and the execution must be complete without the luxury of iteration." },
-  { id:37, album:'Independent',                year:'2023–2025', text:"A full year of low voltage contracting — running cable, installing security systems, terminating an RJ45 in thirty seconds — different parts of the same brain, and humility is a hell of a teacher." },
-  { id:38, album:'Wolfgang & Co.',             year:'2025–',     text:"Wolfgang and Co. is named for my late blind rescue poodle — a concept studio focused on craft, language, and human intent, built around the single conviction that the sentence is the irreducible unit of thought." },
-  { id:39, album:'Wolfgang & Co.',             year:'2025–',     text:"wolfie.love was built entirely from scratch — a memorial for Wolfgang and the origin point of everything: the sentence-progressive reading engine, Flow Mode with authored timing markup, four themes." },
-  { id:40, album:'Wolfgang & Co.',             year:'2025–',     text:"ifimaybefrank.com is a writing application and a manifesto simultaneously — the tool proves the argument by existing, sentence-as-primitive applied to writing itself, v2 shipped in a single session." },
-  { id:41, album:'Wolfgang & Co.',             year:'2025–',     text:"reasonably.cc is a thinking tool — bracket annotation, scatter canvas interaction system, the same engine doing the work of structured thought rather than structured reading." },
-  { id:42, album:'Wolfgang & Co.',             year:'2025–',     text:"dab.cx embodies the approach in three words: Design, Architect, Build — not design then hand off, not design then wait, one continuous motion from concept to production without translation loss." },
-  { id:43, album:'Wolfgang & Co.',             year:'2025–',     text:"intoview.pro is my professional presence — built on the same engine as everything else, a pedigree panel of fourteen organizations across twenty years, the narrative-as-nodes architecture applied to the job market." },
-  { id:44, album:'Wolfgang & Co.',             year:'2025–',     text:"The sentence is the irreducible unit of thought — not the page, not the flow, not the interface — and every platform in this system is an expression of that single conviction, compounding forward." },
-  { id:45, album:'The Argument',               year:'2026',      text:"Twenty years, no degree, no certification, no award — every credential earned in the work itself, starting from a pirated copy of Photoshop and a Craigslist post into the void." },
-  { id:46, album:'The Argument',               year:'2026',      text:"Systems thinking, code-native prototyping, the rare ability to hold the whole model in your head while making a pixel decision — and to know which one yields." },
-  { id:47, album:'The Argument',               year:'2026',      text:"This canvas is not a portfolio — it is the argument made visible, vanilla HTML, CSS, and JavaScript, one file, no framework, no build step, the constraint as proof." },
-  { id:48, album:'The Argument',               year:'2026',      text:"I am not looking for a title — I am looking for the problem worth solving with people who want to solve it well, at senior or principal level, remote, full-time, for real." },
-  { id:49, album:'The Argument',               year:'2026',      text:"I have lived on both sides of the design and development handoff, and I think deeply about human-to-human interaction at scale — zack@reasonably.cc, linkedin.com/in/zackgort." },
+(function () {
+'use strict';
+
+// ─── Categories — edit URLs and labels here ────────────────────────────────
+const CATEGORIES = [
+  {
+    id: 'all', label: 'All',
+    sites: [
+      { url: 'https://zack.cx',              label: 'zack.cx' },
+      { url: 'https://zack.cx/bny',          label: 'BNY' },
+      { url: 'https://ifimaybefrank.com',     label: 'If I May Be Frank' },
+      { url: 'https://zackgort.com',          label: 'Zack Gort' },
+      { url: 'https://zackgort.com/career',   label: 'Career' },
+      { url: 'https://zackgort.com/cube',     label: 'Cube' },
+      { url: 'https://neverever.land',        label: 'Never Ever Land' },
+      { url: 'https://reasonably.cc',         label: 'Reasonably' },
+      { url: 'https://emdash.click',          label: 'Emdash' },
+    ]
+  },
+  {
+    id: 'personal', label: 'Personal',
+    sites: [
+      { url: 'https://zack.cx',              label: 'zack.cx' },
+      { url: 'https://zackgort.com',          label: 'Zack Gort' },
+      { url: 'https://zackgort.com/career',   label: 'Career' },
+      { url: 'https://zackgort.com/cube',     label: 'Cube' },
+    ]
+  },
+  {
+    id: 'projects', label: 'Projects',
+    sites: [
+      { url: 'https://ifimaybefrank.com',     label: 'If I May Be Frank' },
+      { url: 'https://neverever.land',        label: 'Never Ever Land' },
+      { url: 'https://reasonably.cc',         label: 'Reasonably' },
+      { url: 'https://emdash.click',          label: 'Emdash' },
+      { url: 'https://zack.cx/bny',           label: 'BNY' },
+    ]
+  },
 ];
 
-const PULL_QUOTES = {
-  'Startup · Philadelphia':  "constraint is not a limitation — it is the brief",
-  'Agency · Philadelphia':   "accessibility is not a checklist. it is a design decision.",
-  'Recovery · NYC':          "you cannot design navigation for a catalog you haven't understood.",
-  'Fintech · NYC':           "named operational silos nobody else had mapped.",
-  'Wolfgang & Co.':          "the sentence is the irreducible unit of thought.",
-  'The Argument':            "every credential earned in the work itself.",
-};
+// ─── Layout ────────────────────────────────────────────────────────────────
+const CARD_W = 520;
+const CARD_H = 360;
+const COLS   = 3;
+const GAP_X  = 100;
+const GAP_Y  = 80;
 
-// Editorial placeholder images — Unsplash, square-ish, monochrome-friendly
-// Each keyed by album name, fitting the era's mood
-const ERA_IMAGES = {
-  'Roots · Philadelphia':      'https://i.ibb.co/PZ3QBsGF/Meattempting-Da-Vincibyzackgort-FKF.webp',  // printing press / craft
-  'Startup · Philadelphia':    'https://i.ibb.co/fG0dXSr0/1-m7-Hfhu-QO4-Ugr1-Vte-Zf6it-A.webp', // garage / workshop
-  'Conversion · Philadelphia': 'https://i.ibb.co/RGXh3Zn6/1-HI1b-Kb-Zm-FYVgs3-My-H3wvg.webp', // mobile screen
-  'Agency · Philadelphia':     'https://i.ibb.co/0VmJ708g/work3.webp', // open-plan office
-  'Product · Philadelphia':    'https://i.ibb.co/Dg9fM8q8/1-Tut-Ce-PQB0b-SCo-Mf-MTWJb-Q.webp', // whiteboard / sticky notes
-  'SaaS · Philadelphia':       'https://i.ibb.co/mjt5Myw/1-l-EJetj-Ut85-CTbb24d-BTFk-A.webp', // laptop/code
-  'NYC Debut':                 'https://i.ibb.co/KxyvFKmq/1-P4-Gyqav-HMmzp-A-Ehqy9g-w.webp', // NYC skyline/bridge
-  'E-commerce · NYC':          'https://i.ibb.co/jv7dC3hH/1-m-Zdgz7y-Elh7n-WKuu-S8-XZ2g.webp', // warehouse / shelves
-  'Hospitality · NYC':         'https://i.ibb.co/xqfFFj48/browse-location-list-68c48666baf6e.webpp', // hotel lobby
-  'Recovery · NYC':            'https://i.ibb.co/7J9gLTRy/mask-group-68c4867fc5153.webp', // hotel lobby
-  'Enterprise · NYC':          'https://i.ibb.co/4wtq5p9V/1-g-C-cm-PMo-CAMgckq051lw-Zg.webp', // high-rise office
-  'Fintech · NYC':             'https://i.ibb.co/tTTgw7Md/1-q-zg-Zh-Kn-Cs6ab-K8-CIp-E00-Q.webp', // finance charts
-  'Independent':               'https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp', // solo workspace
-  'Wolfgang & Co.':            'https://i.ibb.co/LXR70BTD/wolfieboop.webp', // dog / poodle
-  'The Argument':              'https://i.ibb.co/p6zhtskg/1-k-SDc-GT46-VQM6-Kk25-SPr-Acg.webp', // writing / typewriter
-
-
-
-};
-
-// ── Group by album ────────────────────────────────────────────────────────
-function groupByAlbum(tracks) {
-  const map = new Map();
-  for (const t of tracks) {
-    if (!map.has(t.album)) map.set(t.album, { album:t.album, year:t.year, entries:[] });
-    map.get(t.album).entries.push(t);
-  }
-  return [...map.values()];
+// ─── Seeded jitter ─────────────────────────────────────────────────────────
+function jitter(i, amt) {
+  const x = Math.sin(i * 127.1 + 311.7) * 10000;
+  return (x - Math.floor(x) - 0.5) * amt;
 }
-const chapters = groupByAlbum(TRACKS);
+function jitterRot(i) {
+  const x = Math.sin(i * 311.7 + 127.1) * 10000;
+  return (x - Math.floor(x) - 0.5) * 4;
+}
 
-// ── Build chapter DOM ──────────────────────────────────────────────────────
-const chaptersEl = document.getElementById('chapters');
-chapters.forEach((ch, i) => {
-  const chEl = document.createElement('section');
-  chEl.className = 'chapter'; chEl.id = `ch-${i}`;
-  chEl.innerHTML = `
-    <div class="chapter-header">
-      <span class="chapter-num">${String(i+1).padStart(2,'0')}</span>
-      <h2 class="chapter-title">${ch.album}</h2>
-      <span class="chapter-meta">${ch.year}</span>
-    </div>
-    <div class="chapter-body" id="body-${i}"></div>`;
-  const body = chEl.querySelector('.chapter-body');
-  if (PULL_QUOTES[ch.album]) {
-    const pq = document.createElement('blockquote');
-    pq.className = 'pull-quote'; pq.textContent = PULL_QUOTES[ch.album];
-    body.appendChild(pq);
-  }
-  ch.entries.forEach(entry => {
-    const div = document.createElement('div');
-    div.className = 'entry'; div.innerHTML = `<p>${entry.text}</p>`;
-    body.appendChild(div);
+// ─── State ─────────────────────────────────────────────────────────────────
+let activeCatIdx = 0;
+let cards = [];
+let panX = 0, panY = 0;
+let scale = 1, targetScale = 1;
+let velX = 0, velY = 0;
+let dragging = false, lastMX = 0, lastMY = 0;
+let transitioning = false;
+
+const world    = document.getElementById('world');
+const worldWrap = document.getElementById('world-wrap');
+const cursorEl  = document.getElementById('cursor');
+const navEl     = document.getElementById('nav');
+const veilEl    = document.getElementById('transition-veil');
+const catLabel  = document.getElementById('cat-label');
+let labelTimer  = null;
+
+// ─── Build cards ───────────────────────────────────────────────────────────
+function buildCards(sites) {
+  cards.forEach(c => c.el.remove());
+  cards = [];
+
+  const totalRows = Math.ceil(sites.length / COLS);
+  const layoutW = COLS * (CARD_W + GAP_X) - GAP_X;
+  const layoutH = totalRows * (CARD_H + 34 + GAP_Y) - GAP_Y;
+
+  sites.forEach((site, i) => {
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const baseX = col * (CARD_W + GAP_X) - layoutW / 2;
+    const baseY = row * (CARD_H + 34 + GAP_Y) - layoutH / 2;
+
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.width  = CARD_W + 'px';
+    el.style.height = (CARD_H + 34) + 'px';
+    el.style.left   = (baseX + jitter(i * 2,     36)) + 'px';
+    el.style.top    = (baseY + jitter(i * 2 + 1, 28)) + 'px';
+    el.style.transform = `rotate(${jitterRot(i)}deg)`;
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.5s';
+
+    // Overlay blocks iframe during pan
+    const overlay = document.createElement('div');
+    overlay.className = 'card-overlay';
+    el.appendChild(overlay);
+
+    // iframe
+    const iframe = document.createElement('iframe');
+    iframe.src = site.url;
+    iframe.loading = 'lazy';
+    iframe.title = site.label;
+    el.appendChild(iframe);
+
+    // Bar
+    const bar = document.createElement('div');
+    bar.className = 'card-bar';
+    const lbl = document.createElement('span');
+    lbl.className = 'card-label';
+    lbl.textContent = site.label;
+    const btn = document.createElement('button');
+    btn.className = 'card-lock-btn';
+    btn.textContent = 'Interact';
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const locking = !el.classList.contains('unlocked');
+      cards.forEach(c => { c.el.classList.remove('unlocked'); c.btn.textContent = 'Interact'; });
+      if (locking) { el.classList.add('unlocked'); btn.textContent = 'Lock'; }
+    });
+    bar.appendChild(lbl);
+    bar.appendChild(btn);
+    el.appendChild(bar);
+
+    world.appendChild(el);
+    setTimeout(() => el.style.opacity = '1', i * 55 + 80);
+
+    cards.push({ el, btn });
   });
-  chaptersEl.appendChild(chEl);
-});
 
-// ── Build dot nav ─────────────────────────────────────────────────────────
-const navEl = document.getElementById('chapter-nav');
-chapters.forEach((ch, i) => {
-  const dot = document.createElement('div');
-  dot.className = 'nav-dot'; dot.dataset.target = i;
-  dot.innerHTML = `<span class="nav-label">${ch.album.split(' · ')[0]}</span>`;
-  dot.addEventListener('click', () => document.getElementById(`ch-${i}`).scrollIntoView({ behavior:'smooth' }));
-  navEl.appendChild(dot);
-});
-const navDots = document.querySelectorAll('.nav-dot');
+  // Centre layout
+  panX = window.innerWidth / 2;
+  panY = window.innerHeight / 2;
+  scale = 1; targetScale = 1;
+  applyTransform();
+}
 
-// ── Build chapter widget links ────────────────────────────────────────────
-const chWidgetBody = document.getElementById('chapter-widget-body');
-chapters.forEach((ch, i) => {
+function applyTransform() {
+  world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
+}
+
+// ─── Nav pills ─────────────────────────────────────────────────────────────
+CATEGORIES.forEach((cat, i) => {
   const btn = document.createElement('button');
-  btn.className = 'ch-link-btn'; btn.dataset.target = i;
-  btn.innerHTML = `
-    <span class="ch-link-num">${String(i+1).padStart(2,'0')}</span>
-    <span class="ch-link-label">${ch.album.split(' · ')[0]}</span>
-    <span class="ch-link-year">${ch.year}</span>`;
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    document.getElementById(`ch-${i}`).scrollIntoView({ behavior:'smooth' });
-  });
-  chWidgetBody.appendChild(btn);
-});
-// ── S / M / L radius toggle in controls bar ──────────────────────────────
-const RADIUS_SIZES = { S: 60, M: 120, L: 220 };
-document.querySelectorAll('[data-size]').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    repelRadius = RADIUS_SIZES[btn.dataset.size];
-    bloomRadius = repelRadius * 1.45;
-    updateRing();
-  });
+  btn.className = 'pill' + (i === 0 ? ' active' : '');
+  btn.innerHTML = `<span class="pill-dot"></span>${cat.label}`;
+  btn.addEventListener('click', () => switchCategory(i));
+  navEl.appendChild(btn);
 });
 
-
-
-const chLinkBtns = document.querySelectorAll('.ch-link-btn');
-
-// ── Nav active state via IntersectionObserver ─────────────────────────────
-const chapterEls = document.querySelectorAll('.chapter');
-chapterEls.forEach(el =>
-  new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        const idx = parseInt(e.target.id.split('-')[1]);
-        navDots.forEach((d,i) => d.classList.toggle('active', i===idx));
-        chLinkBtns.forEach((b,i) => b.classList.toggle('active', i===idx));
-      }
-    });
-  }, { threshold:0.1 }).observe(el)
-);
-
-// ── Canvas ────────────────────────────────────────────────────────────────
-const canvas      = document.getElementById('particle-canvas');
-const ctx         = canvas.getContext('2d');
-const cursorCanvas = document.getElementById('cursor-canvas');
-const cursorCtx   = cursorCanvas.getContext('2d');
-let W = canvas.width = cursorCanvas.width  = window.innerWidth;
-let H = canvas.height = cursorCanvas.height = window.innerHeight;
-
-// ── Physics constants ─────────────────────────────────────────────────────
-const TETHER_K   = 0.014;
-const DAMP       = 0.76;
-const BLOB_LERP  = 0.11;
-// Era image physics
-const ERA_FRICTION   = 0.78;
-const ERA_SPRING_K   = 0.022;
-const ERA_REPEL_SCALE = 0.65;
-const ERA_REPEL_FORCE = 12;
-const ERA_FLOAT_SPEED = 0.007;
-const ERA_FLOAT_AMP_X = 18;
-const ERA_FLOAT_AMP_Y = 12;
-const ERA_STEP = 9; // pixel sampling grid
-
-// ── Cursor state ──────────────────────────────────────────────────────────
-let mx=W/2, my=H/2, bX=W/2, bY=H/2, eX=W/2, eY=H/2, eVX=0, eVY=0, mVX=0, mVY=0;
-const cursorEl = document.getElementById('cursor');
-document.addEventListener('mousemove', e => {
-  mVX=e.clientX-mx; mVY=e.clientY-my; mx=e.clientX; my=e.clientY;
-  cursorEl.style.left=mx+'px'; cursorEl.style.top=my+'px';
-  ring.style.left=mx+'px'; ring.style.top=my+'px';
-});
-document.addEventListener('mouseleave', () => cursorEl.style.opacity='0');
-document.addEventListener('mouseenter', () => cursorEl.style.opacity='1');
-
-// ── Touch: passive tracking drives repel cursor without blocking native scroll ──
-function applyTouch(e) {
-  const t = e.touches[0];
-  if (!t) return;
-  mVX = t.clientX - mx; mVY = t.clientY - my;
-  mx = t.clientX; my = t.clientY;
-}
-document.addEventListener('touchstart', applyTouch, { passive: true });
-document.addEventListener('touchmove',  applyTouch, { passive: true });
-document.addEventListener('touchend',   () => {
-  // Drift repel point off-screen so particles settle after finger lifts
-  mx = -300; my = -300;
-}, { passive: true });
-
-// ── Radius ring ───────────────────────────────────────────────────────────
-const ring       = document.getElementById('radius-ring');
-const toast      = document.getElementById('radius-toast');
-const RADIUS_DEFAULT=120;
-let repelRadius=RADIUS_DEFAULT, bloomRadius=repelRadius*1.45;
-let toastTimer=null;
-
-function updateRing() {
-  ring.style.width=repelRadius*2+'px'; ring.style.height=repelRadius*2+'px';
-}
-function showToast(msg) {
-  toast.textContent=msg; toast.classList.add('show');
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),1800);
+function switchCategory(idx) {
+  if (idx === activeCatIdx || transitioning) return;
+  transitioning = true;
+  veilEl.classList.add('in');
+  setTimeout(() => {
+    activeCatIdx = idx;
+    buildCards(CATEGORIES[idx].sites);
+    document.querySelectorAll('.pill').forEach((p, i) => p.classList.toggle('active', i === idx));
+    clearTimeout(labelTimer);
+    catLabel.textContent = CATEGORIES[idx].label;
+    catLabel.classList.add('visible');
+    labelTimer = setTimeout(() => catLabel.classList.remove('visible'), 2200);
+    setTimeout(() => {
+      veilEl.classList.remove('in');
+      setTimeout(() => { transitioning = false; }, 500);
+    }, 60);
+  }, 450);
 }
 
-// ── Right-click / long-press: toggle chapter widget ──────────────────────
-const chapterWidget = document.getElementById('chapter-widget');
-
-function toggleChapterWidget() {
-  const isVisible = chapterWidget.style.display !== 'none';
-  if (isVisible) {
-    chapterWidget.style.display = 'none';
-  } else {
-    chapterWidget.style.display = '';
-    if (chapterWidget.classList.contains('collapsed')) {
-      chapterWidget.classList.remove('collapsed');
-      const toggle = chapterWidget.querySelector('.fw-toggle');
-      if (toggle) toggle.textContent = '−';
-      if (!chapterWidget.dataset.dragged) dockWidgets();
-      requestAnimationFrame(() => {
-        clampExpandedWidget(chapterWidget);
-        invalidateWidgetRepel();
-      });
-    }
-  }
-}
-
-document.addEventListener('contextmenu', e => {
-  e.preventDefault();
-  toggleChapterWidget();
-});
-
-// Long-press on mobile (500ms, cancelled on move or early lift)
-let _longPressTimer = null;
-document.addEventListener('touchstart', e => {
-  // Only trigger if not touching a widget
-  if (e.target.closest('[data-widget]') || e.target.closest('#controls-bar')) return;
-  _longPressTimer = setTimeout(() => {
-    _longPressTimer = null;
-    toggleChapterWidget();
-  }, 500);
-}, { passive: true });
-document.addEventListener('touchend',   () => { clearTimeout(_longPressTimer); _longPressTimer = null; }, { passive: true });
-document.addEventListener('touchmove',  () => { clearTimeout(_longPressTimer); _longPressTimer = null; }, { passive: true });
-
-// ── Theme ─────────────────────────────────────────────────────────────────
-document.getElementById('btn-theme').addEventListener('click', ()=>{
-  document.body.classList.toggle('dark');
-  document.getElementById('btn-theme').textContent=document.body.classList.contains('dark')?'Light':'Dark';
-  buildParticles();
-});
-
-// ── Scroll ────────────────────────────────────────────────────────────────
-let scrollY=window.scrollY;
-window.addEventListener('scroll',()=>{ scrollY=window.scrollY; },{ passive:true });
-
-// ── Typography specs ──────────────────────────────────────────────────────
-const FS={
-  siteLabel:   { size:10,  weight:'500', family:'"DM Mono",monospace',         italic:false, lh:1.4,  op:0.42 },
-  siteTitle:   { size:28,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.95 },
-  chapterNum:  { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.32 },
-  chapterTitle:{ size:20,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.12, op:0.90 },
-  chapterMeta: { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.30 },
-  pullQuote:   { size:16,  weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.38, op:0.70 },
-  bodyText:    { size:12,  weight:'400', family:'"Instrument Sans",sans-serif', italic:false, lh:1.68, op:0.75 },
-  footerText:  { size:9,   weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.30 },
-};
-function fontStr(f){ return `${f.italic?'italic ':''}${f.weight} ${f.size}px ${f.family}`; }
-
-// ── Font size −/+ ─────────────────────────────────────────────────────────
-const FONT_STEPS = [1, 1.2, 1.4];
-let fontStepIdx = 0;
-let currentFontScale = FONT_STEPS[0];
-const _FS_BASE = {};
-['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => { _FS_BASE[k] = FS[k].size; });
-function applyFontStep(scale) {
-  currentFontScale = scale;
-  ['siteTitle','chapterTitle','pullQuote','bodyText'].forEach(k => {
-    FS[k].size = Math.round(_FS_BASE[k] * scale);
-  });
-  buildParticles();
-  if (window._applyResumeScale) window._applyResumeScale(scale);
-}
-document.getElementById('btn-font-dec').addEventListener('click', e => {
-  e.stopPropagation();
-  if (fontStepIdx > 0) { fontStepIdx--; applyFontStep(FONT_STEPS[fontStepIdx]); }
-});
-document.getElementById('btn-font-inc').addEventListener('click', e => {
-  e.stopPropagation();
-  if (fontStepIdx < FONT_STEPS.length - 1) { fontStepIdx++; applyFontStep(FONT_STEPS[fontStepIdx]); }
-});
-
-function wrapText(f, text, maxW) {
-  ctx.font=fontStr(f);
-  const words=text.split(' '), lines=[]; let line='';
-  for(const w of words){
-    const test=line?line+' '+w:w;
-    if(ctx.measureText(test).width>maxW&&line){ lines.push(line); line=w; }
-    else line=test;
-  }
-  if(line) lines.push(line);
-  return lines;
-}
-
-// ── Text particles ────────────────────────────────────────────────────────
-let allChars=[];
-
-function buildParticles(){
-  const isDark=document.body.classList.contains('dark');
-  const scrollOff=window.scrollY;
-  const isMobile=W<700;
-
-  // On desktop: text in right column, image on left (IMG_COL_RATIO of width).
-  // On mobile: text in left 2/3, image floats in right 1/3.
-  const MOBILE_TEXT_RATIO = 2/3;
-  const imgColW = isMobile ? 0 : Math.round(W * IMG_COL_RATIO) + IMG_GAP;
-  const PAD     = isMobile ? 20 : 48;
-  const leftEdge= imgColW + PAD;
-  const rawMaxW = isMobile
-    ? Math.round(W * MOBILE_TEXT_RATIO) - PAD * 2
-    : W - leftEdge - PAD;
-  const maxW    = isMobile ? rawMaxW : Math.min(rawMaxW, 520);
-
-  const chars=[];
-  function pushLine(text,f,docX,docY,overrideOp){
-    if(!text) return;
-    ctx.font=fontStr(f); ctx.textBaseline='alphabetic';
-    const op=overrideOp!==undefined?overrideOp:f.op;
-    let cx=docX;
-    // Only scatter-spawn particles near the current viewport; distant ones start at rest
-    const viewY = docY - scrollOff;
-    const nearViewport = viewY > -200 && viewY < H + 200;
-    for(const ch of text){
-      const w=ctx.measureText(ch).width;
-      const scatter = nearViewport ? (Math.random()-.5)*6 : 0;
-      chars.push({ ch, restX:cx, restY:docY, x:cx, y:docY-scrollOff+scatter, vx:0, vy:0, baseOpacity:op, font:fontStr(f) });
-      cx+=w;
-    }
-  }
-  function pushWrapped(text,f,docX,startY,maxWW,overrideOp){
-    const lines=wrapText(f,text,maxWW);
-    const lh=f.size*f.lh;
-    lines.forEach((l,i)=>pushLine(l,f,docX,startY+i*lh,overrideOp));
-    return startY+lines.length*lh;
-  }
-  function pushRule(docX,docY,w){
-    ctx.font=fontStr(FS.chapterNum);
-    const dw=ctx.measureText('─').width+1.5;
-    const count=Math.floor(w/dw);
-    let cx=docX;
-    for(let i=0;i<count;i++){
-      chars.push({ ch:'─', restX:cx, restY:docY, x:cx, y:docY-scrollOff, vx:0, vy:0, baseOpacity:isDark?0.09:0.13, font:fontStr(FS.chapterNum) });
-      cx+=dw;
-    }
-  }
-
-  // Header
-  const headerEl=document.getElementById('site-header');
-  const hTop=headerEl.getBoundingClientRect().top+scrollOff;
-  pushLine('zackgort — career as mass',FS.siteLabel,leftEdge,hTop+64+FS.siteLabel.size);
-  const subtitleY=hTop+64+FS.siteLabel.size*FS.siteLabel.lh+10;
-  pushWrapped('twenty years, one sentence at a time',FS.siteTitle,leftEdge,subtitleY+FS.siteTitle.size,maxW);
-
-  // Chapters
-  chapterEls.forEach((chEl,i)=>{
-    const ch=chapters[i];
-    const hdr=chEl.querySelector('.chapter-header');
-    const hdrTop=hdr.getBoundingClientRect().top+scrollOff;
-    const numStr=String(i+1).padStart(2,'0');
-    const numW=(() => { ctx.font=fontStr(FS.chapterNum); return ctx.measureText(numStr).width; })();
-
-    // Num
-    pushLine(numStr,FS.chapterNum,leftEdge,hdrTop+FS.chapterNum.size);
-    // Title
-    pushLine(ch.album,FS.chapterTitle,leftEdge+numW+20,hdrTop+FS.chapterTitle.size);
-    // Meta right-aligned
-    const metaW=(() => { ctx.font=fontStr(FS.chapterMeta); return ctx.measureText(ch.year).width; })();
-    pushLine(ch.year,FS.chapterMeta,leftEdge+maxW-metaW,hdrTop+FS.chapterMeta.size+4);
-    // Rule
-    const ruleY=hdrTop+FS.chapterTitle.size*FS.chapterTitle.lh+14;
-    pushRule(leftEdge,ruleY,maxW);
-
-    // Body children
-    Array.from(chEl.querySelector('.chapter-body').children).forEach(el=>{
-      const elTop=el.getBoundingClientRect().top+scrollOff;
-      if(el.classList.contains('pull-quote')){
-        const lines = wrapText(FS.pullQuote, el.textContent, maxW-28);
-        const renderedH = lines.length * FS.pullQuote.size * FS.pullQuote.lh;
-        el.style.minHeight = (24 * 2 + renderedH) + 'px';
-        pushWrapped(el.textContent,FS.pullQuote,leftEdge+28,elTop+24+FS.pullQuote.size,maxW-28);
-      } else if(el.classList.contains('entry')){
-        const p=el.querySelector('p');
-        if(p){
-          const seed=Math.random();
-          const entryInset = Math.round(18 * currentFontScale);
-          const textContent = p.textContent.replace(/\s+/g,' ').trim();
-          // Compute rendered height and stamp it on the DOM element so the slot is always correct
-          const lines = wrapText(FS.bodyText, textContent, maxW);
-          const renderedH = lines.length * FS.bodyText.size * FS.bodyText.lh;
-          el.style.minHeight = (entryInset * 2 + renderedH) + 'px';
-          pushWrapped(textContent, FS.bodyText, leftEdge, elTop+entryInset+FS.bodyText.size, maxW, 0.60+seed*0.36);
-        }
-      }
-    });
-  });
-
-  // Footer
-  const fEl=document.getElementById('footer');
-  const fTop=fEl.getBoundingClientRect().top+scrollOff+60;
-  pushLine('zack@reasonably.cc',FS.footerText,leftEdge,fTop+FS.footerText.size);
-  pushLine('linkedin.com/in/zackgort',FS.footerText,leftEdge+maxW/3,fTop+FS.footerText.size);
-  pushLine('Wolfgang & Co. · 2025',FS.footerText,leftEdge+maxW*2/3,fTop+FS.footerText.size);
-
-  // Carry over physics state
-  allChars=chars.map((def,i)=>{
-    const ex=allChars[i];
-    return ex?{ ...def, x:ex.x, y:ex.y, vx:ex.vx, vy:ex.vy }:def;
-  });
-}
-
-// ── Era image particle system ─────────────────────────────────────────────
-// One active era at a time — determined by which chapter is most in-view
-let eraParticles=[], eraImage=null, eraAlpha=0, eraAlphaTgt=0, eraLoadKey=null;
-let eraFloatT=Math.random()*Math.PI*2;
-const eraOfc=document.createElement('canvas'), eraOfCtx=eraOfc.getContext('2d');
-
-let eraOutParticles=[], eraOutAlpha=0;
-const eraOutOfc=document.createElement('canvas'), eraOutOfCtx=eraOutOfc.getContext('2d');
-
-// Frame border particles — dash characters that outline the image region
-let eraFrameParticles=[];
-function buildFrameParticles(){
-  eraFrameParticles=[];
-  const { ox,oy,rW,rH }=eraRegion();
-  ctx.font=fontStr(FS.chapterNum);
-  const dw=ctx.measureText('─').width+1.5;
-  const PAD=4; // inset from image edge
-  const x0=ox-PAD, y0=oy-PAD, x1=ox+rW+PAD, y1=oy+rH+PAD;
-
-  function addDash(bx,by){
-    eraFrameParticles.push({
-      ch:'─', restX:bx, restY:by,
-      x:bx+(Math.random()-.5)*30, y:by+(Math.random()-.5)*30,
-      vx:0, vy:0,
-    });
-  }
-
-  // Top & bottom edges
-  for(let x=x0;x<x1;x+=dw){ addDash(x,y0); addDash(x,y1); }
-  // Left & right edges (use '│' rotated — simulate with dots spaced vertically)
-  const dvh=ctx.measureText('─').width+1.5; // reuse same spacing vertically
-  for(let y=y0+dvh;y<y1;y+=dvh){ addDash(x0,y); addDash(x1,y); }
-}
-
-// Image sits on the LEFT, top-aligned to viewport top, text in right column.
-// On narrow viewports (mobile) it fills the full width and floats behind content.
-const IMG_COL_RATIO = 0.42;   // fraction of viewport width for the image column
-const IMG_GAP       = 32;     // px gap between image column and text column
-const CTRL_BAR_H    = 30;     // height of the fixed controls bar at top-right
-
-function eraRegion(){
-  const isMobile = W < 700;
-  if(isMobile){
-    // Right 1/3 column — same square proportion as desktop, vertically centered
-    const colW = Math.round(W / 3);
-    const side = Math.min(Math.round(colW * 0.62), 420);
-    const ox   = (W - colW) + Math.round((colW - side) / 2);
-    const oy   = Math.round(H / 2 - side / 2);
-    return { ox, oy, rW: side, rH: side };
-  }
-  const colW = Math.round(W * IMG_COL_RATIO);
-  // Small square, ~62% of column width, vertically centered — original proportions
-  const side = Math.min(Math.round(colW * 0.62), 420);
-  const ox   = Math.round((colW - side) / 2);
-  const oy   = Math.round(H / 2 - side / 2);
-  return { ox, oy, rW:side, rH:side };
-}
-
-function buildEraParticles(){
-  if(!eraImage||!eraImage.naturalWidth) return;
-  const { ox,oy,rW,rH }=eraRegion();
-
-  const natW=eraImage.naturalWidth, natH=eraImage.naturalHeight;
-  // Square-crop: crop to the shorter dimension, centered
-  const cropSide=Math.min(natW,natH);
-  const cropX=Math.round((natW-cropSide)/2), cropY=Math.round((natH-cropSide)/2);
-
-  eraOfc.width=rW; eraOfc.height=rH;
-  eraOfCtx.clearRect(0,0,rW,rH);
-  eraOfCtx.drawImage(eraImage,cropX,cropY,cropSide,cropSide,0,0,rW,rH);
-
-  eraParticles=[];
-  const scatter=eraAlpha<0.05;
-  for(let y=0;y<rH;y+=ERA_STEP){
-    for(let x=0;x<rW;x+=ERA_STEP){
-      const baseX=ox+x, baseY=oy+y;
-      eraParticles.push({
-        x: scatter?Math.random()*W:baseX,
-        y: scatter?Math.random()*H:baseY,
-        baseX, baseY, srcX:x, srcY:y, vx:0, vy:0,
-        density:Math.random()*4+2,
-      });
-    }
-  }
-  buildFrameParticles();
-}
-
-function loadEraImage(album){
-  const url=ERA_IMAGES[album];
-  if(!url){ eraAlphaTgt=0; eraImage=null; eraParticles=[]; return; }
-  const key=album; eraLoadKey=key;
-  if(eraParticles.length&&eraAlpha>0.01){
-    eraOutParticles=eraParticles;
-    eraOutOfc.width=eraOfc.width; eraOutOfc.height=eraOfc.height;
-    eraOutOfCtx.clearRect(0,0,eraOutOfc.width,eraOutOfc.height);
-    eraOutOfCtx.drawImage(eraOfc,0,0);
-    eraOutAlpha=eraAlpha;
-  }
-  eraParticles=[]; eraAlpha=0; eraAlphaTgt=0;
-  const img=new Image(); img.crossOrigin='anonymous';
-  img.onload=()=>{
-    if(eraLoadKey!==key) return;
-    eraImage=img; buildEraParticles(); eraAlphaTgt=0.55;
-  };
-  img.onerror=()=>{ if(eraLoadKey===key){ eraImage=null; eraParticles=[]; } };
-  img.src=url;
-}
-
-function clearEraImage(){
-  if(eraParticles.length&&eraAlpha>0.01){
-    eraOutParticles=eraParticles;
-    eraOutOfc.width=eraOfc.width; eraOutOfc.height=eraOfc.height;
-    eraOutOfCtx.clearRect(0,0,eraOutOfc.width,eraOutOfc.height);
-    eraOutOfCtx.drawImage(eraOfc,0,0);
-    eraOutAlpha=eraAlpha;
-  }
-  eraAlphaTgt=0; eraLoadKey=null; eraImage=null; eraParticles=[]; eraAlpha=0; eraFrameParticles=[];
-}
-
-// Track which chapter is active by scroll position
-let activeChapterIdx=-1;
-function updateActiveChapter(){
-  const mid=window.scrollY+H*0.45;
-  let best=-1, bestDist=Infinity;
-  chapterEls.forEach((el,i)=>{
-    const rect=el.getBoundingClientRect();
-    const docTop=rect.top+window.scrollY;
-    const docBot=docTop+rect.height;
-    if(mid>=docTop&&mid<=docBot){ best=i; bestDist=0; return; }
-    const dist=Math.min(Math.abs(mid-docTop),Math.abs(mid-docBot));
-    if(dist<bestDist){ bestDist=dist; best=i; }
-  });
-  if(best!==activeChapterIdx){
-    activeChapterIdx=best;
-    const album=best>=0?chapters[best].album:null;
-    if(album&&ERA_IMAGES[album]){ loadEraImage(album); }
-    else clearEraImage();
-    chLinkBtns.forEach((b,i)=>b.classList.toggle('active',i===best));
-    navDots.forEach((d,i)=>d.classList.toggle('active',i===best));
-  }
-}
-window.addEventListener('scroll',updateActiveChapter,{ passive:true });
-
-// ── Draw era image particles ──────────────────────────────────────────────
-function drawEraParticles(){
-  // Outgoing fade
-  if(eraOutParticles.length&&eraOutAlpha>0.005){
-    eraOutAlpha*=0.90;
-    ctx.save(); ctx.globalAlpha=eraOutAlpha;
-    for(const p of eraOutParticles){
-      p.vx*=0.92; p.vy*=0.92; p.x+=p.vx; p.y+=p.vy;
-      ctx.drawImage(eraOutOfc,p.srcX,p.srcY,ERA_STEP,ERA_STEP,p.x,p.y,ERA_STEP,ERA_STEP);
-    }
-    ctx.restore();
-  } else if(eraOutAlpha<=0.005){ eraOutParticles=[]; eraOutAlpha=0; }
-
-  if(!eraParticles.length&&eraAlpha<0.01) return;
-
-  eraAlpha+=(eraAlphaTgt-eraAlpha)*0.04;
-  if(eraAlpha<0.005&&eraAlphaTgt<0.01){ if(!eraParticles.length) eraImage=null; return; }
-
-  const r=repelRadius*ERA_REPEL_SCALE;
-  ctx.save(); ctx.globalAlpha=Math.min(1,eraAlpha);
-
-  eraFloatT+=ERA_FLOAT_SPEED;
-  const floatDX=Math.sin(eraFloatT)*ERA_FLOAT_AMP_X+Math.sin(eraFloatT*1.7+0.8)*ERA_FLOAT_AMP_X*0.3;
-  const floatDY=Math.sin(eraFloatT*0.7+1.2)*ERA_FLOAT_AMP_Y+Math.sin(eraFloatT*1.3+2.1)*ERA_FLOAT_AMP_Y*0.35;
-
-  for(const p of eraParticles){
-    const fbX=p.baseX+floatDX, fbY=p.baseY+floatDY;
-    const dx=p.x-bX, dy=p.y-bY, d=Math.sqrt(dx*dx+dy*dy);
-    p.vx+=(fbX-p.x)*ERA_SPRING_K; p.vy+=(fbY-p.y)*ERA_SPRING_K;
-    if(d<r&&d>0.5){
-      const f=(1-d/r);
-      p.vx+=(dx/d)*f*f*ERA_REPEL_FORCE*p.density*0.14;
-      p.vy+=(dy/d)*f*f*ERA_REPEL_FORCE*p.density*0.14;
-    }
-    // Widget repel zones for era particles
-    filterRepelZones.forEach(z => {
-      if(p.x>z.left&&p.x<z.right&&p.y>z.top&&p.y<z.bottom){
-        const cpx=Math.max(z.rx,Math.min(p.x,z.rx+z.rw));
-        const cpy=Math.max(z.ry,Math.min(p.y,z.ry+z.rh));
-        const ddx=p.x-cpx, ddy=p.y-cpy, dd=Math.sqrt(ddx*ddx+ddy*ddy);
-        if(dd<z.pad&&dd>0.5){const f=(1-dd/z.pad);p.vx+=(ddx/dd)*f*f*12;p.vy+=(ddy/dd)*f*f*12;}
-      }
-    });
-    p.vx*=ERA_FRICTION; p.vy*=ERA_FRICTION;
-    p.x+=p.vx; p.y+=p.vy;
-    ctx.drawImage(eraOfc,p.srcX,p.srcY,ERA_STEP,ERA_STEP,p.x,p.y,ERA_STEP,ERA_STEP);
-  }
-  ctx.restore();
-
-  // ── Frame border particles ──
-  if(eraFrameParticles.length&&eraAlpha>0.02){
-    const isDark=document.body.classList.contains('dark');
-    const rgb=isDark?'232,228,220':'10,10,10';
-    const frameOp=isDark?0.11:0.15;
-    ctx.save();
-    ctx.font=fontStr(FS.chapterNum);
-    ctx.textBaseline='alphabetic';
-
-    for(const p of eraFrameParticles){
-      const dx=p.x-bX, dy=p.y-bY, d=Math.sqrt(dx*dx+dy*dy);
-      p.vx+=(p.restX-p.x)*ERA_SPRING_K*1.2;
-      p.vy+=(p.restY-p.y)*ERA_SPRING_K*1.2;
-      if(d<repelRadius&&d>0.5){
-        const f=(1-d/repelRadius);
-        p.vx+=(dx/d)*f*f*ERA_REPEL_FORCE*0.7;
-        p.vy+=(dy/d)*f*f*ERA_REPEL_FORCE*0.7;
-      }
-      p.vx*=ERA_FRICTION; p.vy*=ERA_FRICTION;
-      p.x+=p.vx; p.y+=p.vy;
-      const alpha=frameOp*Math.min(1,eraAlpha*3)*Math.min(1,Math.max(0,(d-16)/50));
-      if(alpha>0.005){
-        ctx.fillStyle=`rgba(${rgb},${alpha.toFixed(3)})`;
-        ctx.fillText(p.ch,p.x,p.y);
-      }
-    }
-    ctx.restore();
-  }
-}
-
-// ── Render loop ───────────────────────────────────────────────────────────
-function loop(){
-  requestAnimationFrame(loop);
-  bX+=(mx-bX)*BLOB_LERP; bY+=(my-bY)*BLOB_LERP;
-  eVX=(mx-eX)*0.1; eVY=(my-eY)*0.1; eX+=(eVX*=0.68); eY+=(eVY*=0.68);
-  mVX*=0.6; mVY*=0.6;
-
-  const isDark=document.body.classList.contains('dark');
-  const rgb=isDark?'255,255,255':'0,0,0';
-
-  ctx.clearRect(0,0,W,H);
-
-  // ── Background: fill text column; leave image column transparent ──
-  const isMobileRender = W < 700;
-  ctx.fillStyle=isDark?'#0a0a0a':'#f2efe9';
-  if (isMobileRender) {
-    // Mobile: text on left 2/3 — fill that, leave right 1/3 transparent for image
-    ctx.fillRect(0, 0, Math.round(W * 2/3), H);
-  } else {
-    // Desktop: image on left, text on right — fill text column only
-    const imgColWR = Math.round(W * IMG_COL_RATIO);
-    ctx.fillRect(imgColWR, 0, W - imgColWR, H);
-  }
-
-  // ── Single subtle vignette on text column ──
-  const vgX = 0;
-  const vgW = isMobileRender ? Math.round(W * 2/3) : W;
-  const vg=ctx.createRadialGradient(W/2,H*0.55,0,W/2,H*0.55,Math.max(W,H)*0.72);
-  vg.addColorStop(0,  'rgba(0,0,0,0)');
-  vg.addColorStop(0.7,'rgba(0,0,0,0)');
-  vg.addColorStop(1,  isDark?'rgba(0,0,0,0.22)':'rgba(0,0,0,0.07)');
-  ctx.fillStyle=vg; ctx.fillRect(vgX,0,vgW,H);
-
-  // Era image particles (behind text)
-  drawEraParticles();
-
-  // ── Header backdrop handled by DOM widgets/controls-bar ──
-
-  // ── Text particles ──
-  for(const p of allChars){
-    const viewY=p.restY-scrollY;
-    if(viewY<-200||viewY>H+200){
-      // Far off-screen: snap to rest so they're ready when scrolled into view
-      p.x = p.restX; p.y = viewY;
-      p.vx = 0; p.vy = 0;
-      continue;
-    }
-    if(viewY<-80||viewY>H+80){
-      // Entrance zone: ease toward rest without physics drama
-      p.x += (p.restX - p.x) * 0.18;
-      p.y += (viewY    - p.y) * 0.18;
-      p.vx *= 0.7; p.vy *= 0.7;
-      continue;
-    }
-    const dx=p.x-bX, dy=p.y-bY, d=Math.sqrt(dx*dx+dy*dy);
-    p.vx+=(p.restX-p.x)*TETHER_K; p.vy+=(viewY-p.y)*TETHER_K;
-    if(d<repelRadius&&d>0.5){ const f=(1-d/repelRadius); p.vx+=(dx/d)*f*f*16; p.vy+=(dy/d)*f*f*16; }
-    // Widget repel zones
-    filterRepelZones.forEach(z => {
-      if(p.x>z.left&&p.x<z.right&&p.y>z.top&&p.y<z.bottom){
-        const cpx=Math.max(z.rx,Math.min(p.x,z.rx+z.rw));
-        const cpy=Math.max(z.ry,Math.min(p.y,z.ry+z.rh));
-        const ddx=p.x-cpx, ddy=p.y-cpy, dd=Math.sqrt(ddx*ddx+ddy*ddy);
-        if(dd<z.pad&&dd>0.5){const f=(1-dd/z.pad);p.vx+=(ddx/dd)*f*f*14;p.vy+=(ddy/dd)*f*f*14;}
-      }
-    });
-    p.vx*=DAMP; p.vy*=DAMP; p.x+=p.vx; p.y+=p.vy;
-    const alpha=p.baseOpacity*Math.min(1,Math.max(0,(d-20)/(60)));
-    if(alpha>0.01){
-      ctx.font=p.font; ctx.textBaseline='alphabetic';
-      ctx.fillStyle=`rgba(${rgb},${alpha.toFixed(3)})`;
-      ctx.fillText(p.ch,p.x,p.y);
-    }
-  }
-
-  // ── Cursor bloom ──
-  cursorCtx.clearRect(0,0,W,H);
-  const grad=cursorCtx.createRadialGradient(bX,bY,0,bX,bY,bloomRadius);
-  grad.addColorStop(0,  `rgba(${rgb},${isDark?0.05:0.012})`);
-  grad.addColorStop(0.4,`rgba(${rgb},${isDark?0.016:0.006})`);
-  grad.addColorStop(1,  `rgba(${rgb},0)`);
-  cursorCtx.fillStyle=grad;
-  cursorCtx.beginPath(); cursorCtx.arc(bX,bY,bloomRadius,0,Math.PI*2); cursorCtx.fill();
-  cursorCtx.fillStyle=`rgba(${rgb},0.4)`;
-  cursorCtx.beginPath(); cursorCtx.arc(eX,eY,4,0,Math.PI*2); cursorCtx.fill();
-  cursorCtx.fillStyle=`rgb(${rgb})`;
-  cursorCtx.beginPath(); cursorCtx.arc(mx,my,1.5,0,Math.PI*2); cursorCtx.fill();
-}
-
-// ── Resize ────────────────────────────────────────────────────────────────
-window.addEventListener('resize',()=>{
-  W=canvas.width=cursorCanvas.width=window.innerWidth;
-  H=canvas.height=cursorCanvas.height=window.innerHeight;
-  buildParticles();
-  if(eraImage) buildEraParticles();
-  else buildFrameParticles();
-});
-
-// ── Init ──────────────────────────────────────────────────────────────────
-updateRing();
-// Apply default font scale (index 0 = 1.3×) immediately so DOM padding is correct from first render
-applyFontStep(FONT_STEPS[fontStepIdx]);
-document.fonts.ready.then(()=>{
-  requestAnimationFrame(()=>{
-    buildParticles();
-    updateActiveChapter();
-    loop();
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════
-// LOGO — "zack" rendered as floating text particles on its own canvas
-// ══════════════════════════════════════════════════════════════════
-const logoCanvas = document.getElementById('logo-canvas');
-const logoCtx = logoCanvas.getContext('2d');
-const LOGO_TEXT = 'zack';
-const LOGO_FONT_SIZE = 18;
-const LOGO_FONT = `500 ${LOGO_FONT_SIZE}px "DM Mono", monospace`;
-const BAR_H = 34;
-
-let logoParticles = [];
-let logoFloatT = Math.random() * Math.PI * 2;
-const LOGO_FLOAT_SPEED = 0.009;
-const LOGO_FLOAT_AMP_X = 3.5;
-const LOGO_FLOAT_AMP_Y = 2.5;
-const LOGO_SPRING_K = 0.032;
-const LOGO_FRICTION = 0.74;
-let logoCenterX = 0; // computed after layout
-
-function buildLogoParticles() {
-  logoCanvas.width  = window.innerWidth;
-  logoCanvas.height = window.innerHeight;
-
-  logoCtx.font = LOGO_FONT;
-  const tw = logoCtx.measureText(LOGO_TEXT).width;
-
-  const isMobileL = window.innerWidth < 700;
-  // Bottom-right on mobile (clear of content), bottom-left on desktop
-  const LOGO_PAD_X = isMobileL ? window.innerWidth - tw - 28 : 32;
-  const LOGO_PAD_B = 28;
-  logoCenterX = LOGO_PAD_X;
-  const baseY = window.innerHeight - LOGO_PAD_B;
-
-  logoParticles = [];
-  let cx = logoCenterX;
-  for (const ch of LOGO_TEXT) {
-    const cw = logoCtx.measureText(ch).width;
-    logoParticles.push({
-      ch,
-      restX: cx, restY: baseY,
-      x: cx + (Math.random() - 0.5) * 20,
-      y: baseY + (Math.random() - 0.5) * 20,
-      vx: 0, vy: 0,
-      w: cw,
-    });
-    cx += cw;
-  }
-}
-
-function drawLogo(isDark) {
-  logoCtx.clearRect(0, 0, logoCanvas.width, logoCanvas.height);
-  const rgb = isDark ? '232,228,220' : '10,10,10';
-
-  logoFloatT += LOGO_FLOAT_SPEED;
-  const fdx = Math.sin(logoFloatT) * LOGO_FLOAT_AMP_X + Math.sin(logoFloatT * 1.6 + 0.9) * LOGO_FLOAT_AMP_X * 0.4;
-  const fdy = Math.sin(logoFloatT * 0.8 + 1.1) * LOGO_FLOAT_AMP_Y + Math.sin(logoFloatT * 1.3 + 2.0) * LOGO_FLOAT_AMP_Y * 0.35;
-
-  // Cursor repel on logo — use bX/bY from main loop (globals)
-  for (const p of logoParticles) {
-    const fbX = p.restX + fdx, fbY = p.restY + fdy;
-    p.vx += (fbX - p.x) * LOGO_SPRING_K;
-    p.vy += (fbY - p.y) * LOGO_SPRING_K;
-
-    // Repel from main cursor
-    const dx = p.x - bX, dy = p.y - bY;
-    const d = Math.sqrt(dx * dx + dy * dy);
-    if (d < repelRadius && d > 0.5) {
-      const f = (1 - d / repelRadius);
-      p.vx += (dx / d) * f * f * 14;
-      p.vy += (dy / d) * f * f * 14;
-    }
-
-    p.vx *= LOGO_FRICTION; p.vy *= LOGO_FRICTION;
-    p.x += p.vx; p.y += p.vy;
-
-    // Fade near cursor
-    const alpha = 0.85 * Math.min(1, Math.max(0, (d - 12) / 48));
-    if (alpha > 0.01) {
-      logoCtx.font = LOGO_FONT;
-      logoCtx.textBaseline = 'alphabetic';
-      logoCtx.fillStyle = `rgba(${rgb},${alpha.toFixed(3)})`;
-      logoCtx.fillText(p.ch, p.x, p.y);
-    }
-  }
-}
-
-// Patch the main render loop to also call drawLogo
-const _loopOrig = loop;
-loop = function loopPatched() {
-  _loopOrig();
-};
-// We can't easily wrap rAF-based loop, so inject logo draw into the rAF chain
-// by replacing loop before it starts. Since init calls loop() via rAF, we patch
-// the actual render function by augmenting the canvas draw section.
-// Simplest: add a second rAF chain just for logo (shares bX/bY globals):
-(function logoLoop() {
-  requestAnimationFrame(logoLoop);
-  const isDark = document.body.classList.contains('dark');
-  drawLogo(isDark);
-})();
-
-// Rebuild logo on resize
-window.addEventListener('resize', () => {
-  buildLogoParticles();
-});
-
-// ══════════════════════════════════════════════════════════════════
-// WIDGET SYSTEM — docked bar + drag-out + viewport-aware expand
-// ══════════════════════════════════════════════════════════════════
-
-let filterRepelZones = [];
-
-function getBarH() {
-  return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bar-h')) || 34;
-}
-
-// ── Position docked widgets: About top-left | Résumé top-center | Links top-right ──
-// Uses offsetWidth (intrinsic width) so expanded-widget transforms never corrupt neighbours.
-function dockWidgets() {
-  const aboutW   = document.getElementById('about-widget');
-  const linksW   = document.getElementById('links-widget');
-  const resumeW  = document.getElementById('resume-widget');
-  const chapterW = document.getElementById('chapter-widget');
-  const vW       = window.innerWidth;
-  const isMobileD = vW < 700;
-
-  // About: always top-left
-  if (!aboutW.dataset.dragged) {
-    aboutW.style.top = '0px'; aboutW.style.left = '0px';
-    aboutW.style.bottom = 'auto'; aboutW.style.right = 'auto';
-    aboutW.style.transform = 'none';
-  }
-
-  // Résumé: top-center on desktop; on mobile collapsed = bottom tab, expanded = fullscreen
-  if (resumeW && !resumeW.dataset.dragged) {
-    if (isMobileD) {
-      if (resumeW.classList.contains('collapsed')) {
-        resumeW.style.top    = 'auto';
-        resumeW.style.bottom = '0px';
-        resumeW.style.left   = '0px';
-        resumeW.style.right  = '0px';
-        resumeW.style.width  = '100%';
-      } else {
-        resumeW.style.top    = '0px';
-        resumeW.style.bottom = 'auto';
-        resumeW.style.left   = '0px';
-        resumeW.style.right  = '0px';
-        resumeW.style.width  = '100vw';
-      }
-      resumeW.style.transform = 'none';
-    } else {
-      const rW = resumeW.offsetWidth;
-      resumeW.style.top    = '0px';
-      resumeW.style.left   = Math.round((vW - rW) / 2) + 'px';
-      resumeW.style.bottom = 'auto';
-      resumeW.style.right  = 'auto';
-      resumeW.style.transform = 'none';
-    }
-  }
-
-  // Links: top-right (flush to right edge)
-  if (!linksW.dataset.dragged) {
-    const lW = linksW.offsetWidth;
-    linksW.style.top    = '0px';
-    linksW.style.left   = (vW - lW) + 'px';
-    linksW.style.bottom = 'auto';
-    linksW.style.right  = 'auto';
-    linksW.style.transform = 'none';
-  }
-
-  if (!chapterW.dataset.dragged) {
-    chapterW.style.left   = '0px';
-    chapterW.style.bottom = 'auto';
-    chapterW.style.right  = 'auto';
-  }
-}
-
-// ── Viewport-edge clamping for expanded widgets ───────────────────
-function clampExpandedWidget(w) {
-  const r = w.getBoundingClientRect();
-  const vW = window.innerWidth, vH = window.innerHeight;
-  let nx = parseFloat(w.style.left) || r.left;
-  let ny = parseFloat(w.style.top)  || r.top;
-
-  // Right edge
-  if (nx + r.width > vW - 1) nx = vW - r.width - 1;
-  // Left edge
-  if (nx < 0) nx = 0;
-  // Bottom edge — push widget up so it doesn't overflow
-  if (ny + r.height > vH - 4) ny = Math.max(0, vH - r.height - 4);
-
-  w.style.left = nx + 'px';
-  w.style.top  = ny + 'px';
-}
-
-// ── Widget logo gap: keep logo centered clear of widgets ──────────
-function logoGapZone() {
-  if (!logoParticles.length) return null;
-  logoCtx.font = LOGO_FONT;
-  const tw = logoCtx.measureText(LOGO_TEXT).width;
-  // Bottom-left zone
-  return {
-    left: logoCenterX - 16,
-    right: logoCenterX + tw + 16,
-    top: window.innerHeight - 60,
-    bottom: window.innerHeight,
-  };
-}
-
-// ── Repel invalidation ────────────────────────────────────────────
-function invalidateWidgetRepel() {
-  filterRepelZones = [];
-
-  // Only expanded widgets, or collapsed widgets that have been dragged off the bar
-  document.querySelectorAll('[data-widget]').forEach(w => {
-    const isDocked = w.classList.contains('collapsed') && !w.dataset.dragged;
-    if (isDocked) return; // docked tabs don't repel particles
-    const r = w.getBoundingClientRect();
-    if (r.width === 0 && r.height === 0) return;
-    const pad = 26;
-    const h = w.classList.contains('collapsed') ? getBarH() : r.height;
-    filterRepelZones.push({
-      left: r.left - pad, top: r.top - pad,
-      right: r.right + pad, bottom: r.top + h + pad,
-      rx: r.left, ry: r.top, rw: r.width, rh: h, pad
-    });
-  });
-
-  // Logo zone (bottom-left)
-  const logoZone = logoGapZone();
-  if (logoZone) {
-    const pad = 14;
-    const rh = logoZone.bottom - logoZone.top;
-    filterRepelZones.push({
-      left: logoZone.left - pad, top: logoZone.top - pad,
-      right: logoZone.right + pad, bottom: logoZone.bottom + pad,
-      rx: logoZone.left, ry: logoZone.top, rw: logoZone.right - logoZone.left, rh, pad
-    });
-  }
-}
-
-// ── Collapse/expand ───────────────────────────────────────────────
-document.querySelectorAll('.fw').forEach(widget => {
-  if (widget.id === 'resume-widget') return; // has its own handler
-  const toggle  = widget.querySelector('.fw-toggle');
-  const topbar  = widget.querySelector('.fw-topbar');
-  if (!toggle || !topbar) return;
-
-  // Track whether a mousedown on the topbar turned into a drag
-  let _topbarDragMoved = false;
-  topbar.addEventListener('mousedown', () => { _topbarDragMoved = false; });
-  window.addEventListener('mousemove', () => { if (activeDragWidget === widget) _topbarDragMoved = true; }, { passive: true });
-
-  topbar.addEventListener('click', e => {
-    // Ignore if the click was really a drag release
-    if (_topbarDragMoved) return;
-    e.stopPropagation();
-    const wasCollapsed = widget.classList.contains('collapsed');
-    widget.classList.toggle('collapsed');
-    toggle.textContent = wasCollapsed ? '−' : '+';
-
-    if (wasCollapsed) {
-      // Expanding: re-dock undragged widgets, then clamp to viewport
-      if (!widget.dataset.dragged) dockWidgets();
-      requestAnimationFrame(() => {
-        if (!widget.dataset.dragged) clampExpandedWidget(widget);
-        invalidateWidgetRepel();
-      });
-    } else {
-      // Collapsing: snap undragged back to top bar
-      if (!widget.dataset.dragged) {
-        dockWidgets();
-      }
-      invalidateWidgetRepel();
-    }
-  });
-});
-
-// ── Drag ─────────────────────────────────────────────────────────
-let activeDragWidget = null, dragDX = 0, dragDY = 0;
-
-document.querySelectorAll('[data-drag-handle]').forEach(handle => {
-  const widget = handle.closest('[data-widget]');
-  if (!widget) return;
-
-  handle.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    const rect = widget.getBoundingClientRect();
-    widget.style.transform = 'none';
-    widget.style.left   = rect.left + 'px';
-    widget.style.top    = rect.top  + 'px';
-    widget.style.bottom = 'auto';
-    widget.style.right  = 'auto';
-    activeDragWidget = widget;
-    dragDX = e.clientX - rect.left;
-    dragDY = e.clientY - rect.top;
-    e.preventDefault();
-  });
-});
-
+// ─── Cursor ────────────────────────────────────────────────────────────────
 window.addEventListener('mousemove', e => {
-  if (!activeDragWidget) return;
-  const vW = window.innerWidth, vH = window.innerHeight;
-  const r  = activeDragWidget.getBoundingClientRect();
-  let nx = e.clientX - dragDX;
-  let ny = e.clientY - dragDY;
-  // Clamp
-  nx = Math.max(0, Math.min(nx, vW - r.width));
-  ny = Math.max(0, Math.min(ny, vH - r.height));
-
-  const isChapter = activeDragWidget.id === 'chapter-widget';
-  // Snap-to-left for chapter widget; snap-to-top for others
-  if (isChapter) {
-    if (nx < 12 && !activeDragWidget.classList.contains('collapsed')) {
-      nx = 0;
-      activeDragWidget.style.left = nx + 'px';
-      activeDragWidget.style.top  = ny + 'px';
-      delete activeDragWidget.dataset.dragged;
-      dockWidgets();
-    } else {
-      activeDragWidget.dataset.dragged = '1';
-      activeDragWidget.style.left = nx + 'px';
-      activeDragWidget.style.top  = ny + 'px';
-    }
-  } else {
-    // Snap-to-top: if dragged within 12px of top edge, snap and un-drag-mark
-    if (ny < 12 && !activeDragWidget.classList.contains('collapsed')) {
-      ny = 0;
-      activeDragWidget.style.left = nx + 'px';
-      activeDragWidget.style.top  = ny + 'px';
-      delete activeDragWidget.dataset.dragged;
-      dockWidgets();
-    } else {
-      activeDragWidget.dataset.dragged = '1';
-      activeDragWidget.style.left = nx + 'px';
-      activeDragWidget.style.top  = ny + 'px';
-    }
-  }
-  invalidateWidgetRepel();
+  cursorEl.style.left = e.clientX + 'px';
+  cursorEl.style.top  = e.clientY + 'px';
 });
 
-window.addEventListener('mouseup', () => {
-  if (activeDragWidget) {
-    const isChapter = activeDragWidget.id === 'chapter-widget';
-    if (isChapter) {
-      // Snap to left rail if released near left edge
-      const nx = parseFloat(activeDragWidget.style.left) || 0;
-      if (nx < 12) {
-        delete activeDragWidget.dataset.dragged;
-        dockWidgets();
-      }
-    } else {
-      // If released near top edge, snap to dock
-      const ny = parseFloat(activeDragWidget.style.top) || 0;
-      if (ny < 12) {
-        delete activeDragWidget.dataset.dragged;
-        dockWidgets();
-      }
-    }
-    activeDragWidget = null;
-    invalidateWidgetRepel();
-  }
+// ─── Drag ──────────────────────────────────────────────────────────────────
+worldWrap.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('card-lock-btn')) return;
+  // Don't steal drag from unlocked card
+  if (e.target.closest('.card.unlocked')) return;
+  dragging = true; lastMX = e.clientX; lastMY = e.clientY;
+  velX = 0; velY = 0;
+  cursorEl.classList.add('grabbing');
+});
+window.addEventListener('mouseup', () => { dragging = false; cursorEl.classList.remove('grabbing'); });
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
+  panX += dx; panY += dy;
+  velX = dx * 0.55; velY = dy * 0.55;
+  lastMX = e.clientX; lastMY = e.clientY;
+  applyTransform();
 });
 
-// ── ESC key: collapse all open widgets ───────────────────────────
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  document.querySelectorAll('.fw').forEach(widget => {
-    if (widget.classList.contains('collapsed')) return;
-    widget.classList.add('collapsed');
-    const toggle = widget.querySelector('.fw-toggle');
-    if (toggle) toggle.textContent = '+';
-    // Stop resume render loop if it's running
-    if (widget.id === 'resume-widget') {
-      const rw = widget;
-      // Signal to resume IIFE — rActive is scoped, so fire a custom event
-      rw.dispatchEvent(new CustomEvent('resume-collapse'));
-    }
-    if (!widget.dataset.dragged) dockWidgets();
-  });
-  invalidateWidgetRepel();
-});
+// ─── Scroll to zoom ────────────────────────────────────────────────────────
+worldWrap.addEventListener('wheel', e => {
+  if (e.target.closest('.card.unlocked')) return;
+  e.preventDefault();
+  const delta = e.deltaY * 0.001;
+  const prev = scale;
+  targetScale = Math.max(0.25, Math.min(2.5, targetScale * (1 - delta)));
+  const ratio = targetScale / prev;
+  panX = e.clientX + (panX - e.clientX) * ratio;
+  panY = e.clientY + (panY - e.clientY) * ratio;
+  scale = targetScale;
+  applyTransform();
+}, { passive: false });
 
-// ── Links entries: expand/collapse with lazy iframe ───────────────
-document.querySelectorAll('.link-row-btn').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const entry = btn.closest('.link-entry');
-    const wasOpen = entry.classList.contains('open');
-    document.querySelectorAll('.link-entry.open').forEach(el => el.classList.remove('open'));
-    if (!wasOpen) {
-      entry.classList.add('open');
-      const iframe = entry.querySelector('iframe');
-
-      if (iframe && iframe.getAttribute('src') !== iframe.dataset.src) {
-  iframe.setAttribute('src', iframe.dataset.src);
-}
-    }
-    // Re-clamp links widget after content change
-    requestAnimationFrame(() => {
-      const lw = document.getElementById('links-widget');
-      if (lw && !lw.classList.contains('collapsed')) clampExpandedWidget(lw);
-      invalidateWidgetRepel();
-    });
-  });
-});
-
-// ── Init ─────────────────────────────────────────────────────────
-document.fonts.ready.then(() => {
-  buildLogoParticles();
-
-  const isMobileInit = window.innerWidth < 700;
-
-  // Mobile: collapse all widgets (about starts expanded in HTML for desktop)
-  if (isMobileInit) {
-    const aboutW = document.getElementById('about-widget');
-    aboutW.classList.add('collapsed');
-    aboutW.querySelector('.fw-toggle').textContent = '+';
+// ─── Inertia ───────────────────────────────────────────────────────────────
+(function inertia() {
+  requestAnimationFrame(inertia);
+  if (!dragging && (Math.abs(velX) > 0.01 || Math.abs(velY) > 0.01)) {
+    panX += velX; panY += velY;
+    velX *= 0.92; velY *= 0.92;
+    applyTransform();
   }
-
-  // Desktop: expand links widget and open first entry with iframe
-  if (!isMobileInit) {
-    const linksW = document.getElementById('links-widget');
-    const linksToggle = linksW.querySelector('.fw-toggle');
-    linksW.classList.remove('collapsed');
-    linksToggle.textContent = '−';
-
-    const firstEntry = document.querySelector('#links-widget .link-entry');
-    if (firstEntry) {
-      firstEntry.classList.add('open');
-      const iframe = firstEntry.querySelector('iframe');
-      if (iframe) iframe.setAttribute('src', iframe.dataset.src);
-    }
-  }
-
-  dockWidgets();
-  // Clamp about widget after expansion
-  if (!isMobileInit) {
-    requestAnimationFrame(() => {
-      const aboutW = document.getElementById('about-widget');
-      if (aboutW && !aboutW.dataset.dragged) clampExpandedWidget(aboutW);
-      invalidateWidgetRepel();
-    });
-  } else {
-    invalidateWidgetRepel();
-  }
-});
-
-window.addEventListener('resize', () => {
-  dockWidgets();
-  invalidateWidgetRepel();
-});
-
-// Periodic refresh — skip dockWidgets while résumé is expanded on desktop
-setInterval(() => {
-  if (!activeDragWidget) {
-    const rw = document.getElementById('resume-widget');
-    const resumeExpanded = rw && !rw.classList.contains('collapsed') && window.innerWidth >= 700;
-    if (!resumeExpanded) dockWidgets();
-  }
-  invalidateWidgetRepel();
-}, 500);
-
-
-// ══════════════════════════════════════════════════════════════════
-// RESUME WIDGET — particle canvas renderer
-// ══════════════════════════════════════════════════════════════════
-(function() {
-
-const RESUME_DATA = {
-  name: 'ZACHARY GORT',
-  tagline: 'Experience Architecture, Design & Strategy',
-  links: 'zackgort.com · zack.cx · /in/zackgort',
-  skills: [
-    { label: 'Systems & Architecture', items: 'Information Architecture · Design Systems · Component-Based Design · Modular UI · Headless CMS · Content Strategy · IA Workshop Facilitation · A.I. Workflow' },
-    { label: 'Product & Strategy', items: '0–1 Product Design · UX Strategy · Product Ownership · Agile/Scrum · Cross-functional Collaboration · Stakeholder Management · Roadmap Planning' },
-    { label: 'Craft & Tools', items: 'Interaction Design · Visual Design · Mobile-First · Responsive · Prototyping · Wireframing · ADA / Accessibility · Figma · Salesforce Commerce Cloud · Shopify · Contentful · Jira · Claude · Prompt-Engineering · LLM Prompt Design' },
-    { label: 'Leadership', items: 'Team Lead · Mentorship · Creative Direction · Client-Facing Lead' },
-  ],
-  experience: [
-    { company: 'Wolfgang & Co.', period: 'Current', title: 'Outlook Heuristics for Human & A.I. Cognition', body: 'A concept studio focused on craft, language, and human intent — as realized through a bespoke narrative-as-nodes engine. Self-taught designer, developer, and autodidactic learner. My answer to how we communicate is The Sentence.', sub: 'ifimaybefrank.com · neverever.land · reasonably.cc' },
-    { company: 'Phenom', period: '02/2025–05/2025', title: 'User Experience Strategist', body: 'Owned the corporate web presence end-to-end — content strategy, product roadmap, third-party integrations, and live event infrastructure. Operated across Marketing, Sales, and Product; named operational silos nobody else had mapped. Contentful, Jira, digital content systems.' },
-    { company: 'Publicis Sapient', period: '04/2022–03/2023', title: 'Senior User Experience Designer', body: "Embedded in BNY Mellon's digital transformation as interim Product Owner and primary client liaison — a role I wasn't hired for and became anyway. Architected user data models and flows across three Agile tracks. Centralized a sprawling product ecosystem into a modular, scalable design system." },
-    { company: 'Code & Theory', period: '08/2021–04/2022', title: 'Senior Interaction Designer', body: 'Led UX and interaction design for TikTok For Business from 62 floors above Manhattan. Ran IA and headless CMS workshops. Moved from Senior Designer to ACD to Directly Responsible Individual on one of the fastest-growing advertising platforms in the world.' },
-    { company: 'Elva Design Group', period: '04/2021–08/2021', title: 'Senior User Experience Designer', body: "Owned discovery through delivery for GNC's Shopify redesign — mobile-first, component-based, shipped in 12 weeks. Strategy and execution in the same hands." },
-    { company: 'HUGE Inc.', period: '03/2021–04/2021', title: 'Senior User Experience Designer', body: 'Defined end-to-end UX and booking flow for Sentral Lifestyle Apartments. Brand activation strategy, competitive analysis, critical flows delivered under constrained conditions.' },
-    { company: 'PFSWeb LiveArea', period: '01/2020–02/2021', title: 'Manager, UX', body: 'Managed full-spectrum Salesforce Commerce Cloud builds across B2C and B2B clients. Ran the UX strategy and design function throughout project lifecycles. Conversion, post-sale re-engagement, design systems at platform scale.' },
-    { company: 'FlightPath', period: '08/2018–01/2020', title: 'Senior User Experience Designer', body: 'Full-spectrum builds across B2C and B2B clients: Merck, Goya, Charter. Ran the UX strategy and design function throughout project lifecycles.' },
-    { company: 'Workarea', period: '07/2017–09/2018', title: 'Senior User Experience Designer', body: 'Shaped a proprietary SaaS e-commerce platform through direct client relationships and data-informed iteration. No mockup theater — napkin sketches and real conversations with engineers until the thing was right.' },
-    { company: 'O3 World', period: '07/2016–06/2017', title: 'User Experience Designer', body: 'Lean UX for FinTech and iOS products in Fishtown. Whiteboards, wireframes, sprint cycles, shipped. Certified Scrum Master.' },
-    { company: 'One Sixty Over Ninety', period: '09/2014–07/2016', title: 'Interaction Designer', body: 'Full-service interaction design for .EDU clients — Comcast, Kent State, Philadelphia Eagles. Information architecture, prototyping, ADA compliance, client-facing creative lead. This is where I learned what design culture could be.' },
-  ],
-  testimonials: [
-    { quote: '"Zack has a deep connection to emotions, imagination, and sensitivity — the quintessential idealist. His depth of empathy allows him to give voice to human connections in a profound manner."', attr: '— Christopher Bayle, ACD UX, Publicis Sapient' },
-    { quote: '"Zack is one of the most talented, hard-working, and knowledgeable professionals I have worked with. He fosters strong communication and consistently delivers exceptional results."', attr: '— Andrés Moros, MPS, Sr. UX Designer, Publicis Sapient' },
-  ],
-};
-
-const RF = {
-  name:     { size:22, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.15, op:0.95 },
-  tagline:  { size:10, weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.5,  op:0.55 },
-  links:    { size:9,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
-  section:  { size:8,  weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
-  skillLbl: { size:9,  weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.55, op:0.65 },
-  skillItm: { size:9,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.6,  op:0.48 },
-  company:  { size:13, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.2,  op:0.90 },
-  period:   { size:8,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.32 },
-  jobtitle: { size:8,  weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.5,  op:0.55 },
-  body:     { size:10, weight:'400', family:'"Instrument Sans",sans-serif', italic:false, lh:1.68, op:0.62 },
-  sub:      { size:8,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
-  quote:    { size:10, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.6,  op:0.60 },
-  attr:     { size:8,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.35 },
-  rule:     { size:9,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.10 },
-};
-
-function rfStr(f) { return (f.italic ? 'italic ' : '') + f.weight + ' ' + f.size + 'px ' + f.family; }
-
-// Base sizes for scale-with-font-toggle keys
-const _RF_BASE = {};
-['name','company','body','quote'].forEach(k => { _RF_BASE[k] = RF[k].size; });
-
-// Hook called by the main font-size toggle
-window._applyResumeScale = function(scale) {
-  ['name','company','body','quote'].forEach(k => {
-    RF[k].size = Math.round(_RF_BASE[k] * scale);
-  });
-  if (rActive) buildResumeParticles();
-};
-
-const rCvs = document.getElementById('resume-canvas');
-const rCtx = rCvs.getContext('2d');
-
-let rParticles = [];
-let rScrollY   = 0;
-let rTotalH    = 0;
-let rFloatT    = Math.random() * Math.PI * 2;
-let rRAF       = null;
-let rActive    = false;
-let rDPR       = 1;
-
-const R_TETHER   = 0.016;
-const R_DAMP     = 0.74;
-const R_FLOAT_SPD = 0.008;
-const R_FLOAT_AX  = 1.8;
-const R_FLOAT_AY  = 1.2;
-
-function buildResumeParticles() {
-  const cW = rCvs.width / rDPR;
-  const PAD_X = 32, PAD_Y = 28;
-  const colW  = cW - PAD_X * 2;
-  const chars = [];
-  let cy = PAD_Y;
-
-  function mW(text, f) { rCtx.font = rfStr(f); return rCtx.measureText(text).width; }
-
-  function wrapLines(text, f, maxW) {
-    rCtx.font = rfStr(f);
-    const words = text.split(' '), lines = []; let line = '';
-    for (const w of words) {
-      const test = line ? line + ' ' + w : w;
-      if (rCtx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
-      else line = test;
-    }
-    if (line) lines.push(line);
-    return lines;
-  }
-
-  function pushChar(ch, f, x, y, op) {
-    rCtx.font = rfStr(f);
-    const cw = rCtx.measureText(ch).width;
-    const baseOp = op !== undefined ? op : f.op;
-    chars.push({ ch, restX:x, restY:y, x:x+(Math.random()-.5)*22, y:y+(Math.random()-.5)*22, vx:0, vy:0, font:rfStr(f), baseOp, cw });
-    return cw;
-  }
-
-  function pushLine(text, f, x, y, op) {
-    let cx = x;
-    for (const ch of text) cx += pushChar(ch, f, cx, y, op);
-  }
-
-  function pushWrapped(text, f, x, y, maxW, op) {
-    const lines = wrapLines(text, f, maxW);
-    const lh = f.size * f.lh;
-    lines.forEach((l, i) => pushLine(l, f, x, y + i * lh, op));
-    return y + lines.length * lh;
-  }
-
-  function pushRule(x, y, w) {
-    rCtx.font = rfStr(RF.rule);
-    const dw = rCtx.measureText('─').width + 1.2;
-    const count = Math.floor(w / dw);
-    let cx = x;
-    for (let i = 0; i < count; i++) {
-      chars.push({ ch:'─', restX:cx, restY:y, x:cx+(Math.random()-.5)*10, y:y+(Math.random()-.5)*6, vx:0, vy:0, font:rfStr(RF.rule), baseOp:RF.rule.op, cw:dw });
-      cx += dw;
-    }
-  }
-
-  function secHead(label, x, y) {
-    pushLine(label.toUpperCase(), RF.section, x, y);
-    return y + RF.section.size * RF.section.lh + 2;
-  }
-
-  // Name block
-  cy += RF.name.size;
-  pushLine(RESUME_DATA.name, RF.name, PAD_X, cy);
-  cy += RF.name.size * RF.name.lh * 0.35 + RF.tagline.size;
-  pushLine(RESUME_DATA.tagline, RF.tagline, PAD_X, cy);
-  cy += RF.tagline.size * RF.tagline.lh * 0.5 + RF.links.size;
-  pushLine(RESUME_DATA.links, RF.links, PAD_X, cy);
-  cy += RF.links.size * RF.links.lh + 16;
-  pushRule(PAD_X, cy, colW); cy += 20;
-
-  // Skills
-  cy = secHead('Senior User Experience & Visual Design', PAD_X, cy) + 6;
-  for (const sk of RESUME_DATA.skills) {
-    const lblW   = mW(sk.label, RF.skillLbl);
-    const indent = PAD_X + lblW + 10;
-    const bodyW  = colW - lblW - 10;
-    cy += RF.skillLbl.size;
-    pushLine(sk.label, RF.skillLbl, PAD_X, cy);
-    const endY = pushWrapped(sk.items, RF.skillItm, indent, cy - RF.skillItm.size * 0.1, bodyW);
-    cy = Math.max(cy + RF.skillLbl.size * RF.skillLbl.lh, endY) + 7;
-  }
-  cy += 12;
-  pushRule(PAD_X, cy, colW); cy += 22;
-
-  // Experience
-  cy = secHead('Professional Experience', PAD_X, cy) + 6;
-  for (const job of RESUME_DATA.experience) {
-    cy += RF.company.size;
-    const pW = mW(job.period, RF.period);
-    pushLine(job.company, RF.company, PAD_X, cy);
-    pushLine(job.period,  RF.period,  PAD_X + colW - pW, cy + 2);
-    cy += RF.company.size * RF.company.lh * 0.3 + RF.jobtitle.size;
-    pushLine(job.title, RF.jobtitle, PAD_X, cy);
-    cy += RF.jobtitle.size * RF.jobtitle.lh * 0.45 + RF.body.size;
-    cy = pushWrapped(job.body, RF.body, PAD_X, cy, colW) + 4;
-    if (job.sub) {
-      cy += 2;
-      pushLine(job.sub, RF.sub, PAD_X, cy);
-      cy += RF.sub.size * RF.sub.lh;
-    }
-    cy += 14;
-    pushRule(PAD_X, cy, colW); cy += 18;
-  }
-
-  // Testimonials
-  cy += 6;
-  cy = secHead('Testimonials', PAD_X, cy) + 10;
-  for (const t of RESUME_DATA.testimonials) {
-    cy += RF.quote.size;
-    cy = pushWrapped(t.quote, RF.quote, PAD_X + 14, cy, colW - 28) + 5;
-    cy += RF.attr.size;
-    pushLine(t.attr, RF.attr, PAD_X + 14, cy);
-    cy += RF.attr.size * RF.attr.lh + 22;
-  }
-
-  cy += PAD_Y + 20;
-  rTotalH = cy;
-
-  rParticles = chars.map((def, i) => {
-    const ex = rParticles[i];
-    return ex ? { ...def, x:ex.x, y:ex.y, vx:ex.vx, vy:ex.vy } : def;
-  });
-
-  const scrollInner = document.getElementById('resume-scroll-inner');
-  if (scrollInner) scrollInner.style.height = rTotalH + 'px';
-}
-
-function resumeLoop() {
-  if (!rActive) return;
-  rRAF = requestAnimationFrame(resumeLoop);
-
-  const isDark = document.body.classList.contains('dark');
-  const rgb    = isDark ? '232,228,220' : '10,10,10';
-  const bgCol  = isDark ? '#0a0a0a' : '#f2efe9';
-  const cW = rCvs.width / rDPR, cH = rCvs.height / rDPR;
-
-  rCtx.setTransform(rDPR, 0, 0, rDPR, 0, 0);
-  rCtx.clearRect(0, 0, cW, cH);
-  rCtx.fillStyle = bgCol;
-  rCtx.fillRect(0, 0, cW, cH);
-
-  rFloatT += R_FLOAT_SPD;
-  const fdx = Math.sin(rFloatT) * R_FLOAT_AX + Math.sin(rFloatT * 1.7) * R_FLOAT_AX * 0.3;
-  const fdy = Math.sin(rFloatT * 0.8 + 1) * R_FLOAT_AY + Math.sin(rFloatT * 1.3 + 2) * R_FLOAT_AY * 0.35;
-
-  const rect = rCvs.getBoundingClientRect();
-  const lcX  = bX - rect.left;
-  const lcY  = bY - rect.top;
-
-  rCtx.textBaseline = 'alphabetic';
-
-  for (const p of rParticles) {
-    const viewY = p.restY - rScrollY;
-    if (viewY < -80 || viewY > cH + 80) {
-      p.x  += (p.restX - p.x) * R_TETHER * 0.3;
-      p.y  += ((p.restY - rScrollY) - p.y) * R_TETHER * 0.3;
-      p.vx *= 0.85; p.vy *= 0.85;
-      continue;
-    }
-    const tgtX = p.restX + fdx;
-    const tgtY = viewY   + fdy;
-    p.vx += (tgtX - p.x) * R_TETHER;
-    p.vy += (tgtY - p.y) * R_TETHER;
-
-    const dx = p.x - lcX, dy = p.y - lcY;
-    const d  = Math.sqrt(dx * dx + dy * dy);
-    if (d < repelRadius && d > 0.5) {
-      const f = 1 - d / repelRadius;
-      p.vx += (dx / d) * f * f * 14;
-      p.vy += (dy / d) * f * f * 14;
-    }
-
-    p.vx *= R_DAMP; p.vy *= R_DAMP;
-    p.x  += p.vx; p.y  += p.vy;
-
-    const proximity = d < 30 ? 0 : Math.min(1, (d - 16) / 52);
-    const alpha = p.baseOp * proximity;
-    if (alpha > 0.008) {
-      rCtx.font      = p.font;
-      rCtx.fillStyle = 'rgba(' + rgb + ',' + alpha.toFixed(3) + ')';
-      rCtx.fillText(p.ch, p.x, p.y);
-    }
-  }
-
-  // Fade edges — rgba both stops so 'transparent' doesn't bleed to black in light theme
-  const bgRgbaFull = isDark ? 'rgba(10,10,10,1)' : 'rgba(242,239,233,1)';
-  const bgRgbaZero = isDark ? 'rgba(10,10,10,0)' : 'rgba(242,239,233,0)';
-  const topFade = rCtx.createLinearGradient(0, 0, 0, 36);
-  topFade.addColorStop(0, bgRgbaFull); topFade.addColorStop(1, bgRgbaZero);
-  rCtx.fillStyle = topFade; rCtx.fillRect(0, 0, cW, 36);
-  const botFade = rCtx.createLinearGradient(0, cH - 44, 0, cH);
-  botFade.addColorStop(0, bgRgbaZero); botFade.addColorStop(1, bgRgbaFull);
-  rCtx.fillStyle = botFade; rCtx.fillRect(0, cH - 44, cW, 44);
-}
-
-function initResumeCanvas() {
-  const wrap = document.getElementById('resume-canvas-wrap');
-  if (!wrap || !wrap.clientWidth) return;
-  rDPR = Math.min(window.devicePixelRatio || 1, 2);
-  const cW = wrap.clientWidth, cH = wrap.clientHeight;
-  rCvs.width  = cW * rDPR;
-  rCvs.height = cH * rDPR;
-  rCvs.style.width  = cW + 'px';
-  rCvs.style.height = cH + 'px';
-  buildResumeParticles();
-}
-
-const rScrollZone = document.getElementById('resume-scroll-zone');
-if (rScrollZone) {
-  rScrollZone.addEventListener('scroll', () => { rScrollY = rScrollZone.scrollTop; }, { passive:true });
-}
-
-const resumeWidget = document.getElementById('resume-widget');
-const resumeTopbar = resumeWidget ? resumeWidget.querySelector('.fw-topbar') : null;
-const resumeToggle = resumeWidget ? resumeWidget.querySelector('.fw-toggle') : null;
-
-let _resumeDragMoved = false;
-if (resumeTopbar) {
-  resumeTopbar.addEventListener('mousedown', () => { _resumeDragMoved = false; });
-}
-window.addEventListener('mousemove', () => { if (activeDragWidget === resumeWidget) _resumeDragMoved = true; }, { passive: true });
-
-if (resumeTopbar) {
-  resumeTopbar.addEventListener('click', e => {
-    if (_resumeDragMoved) return;
-    e.stopPropagation();
-    const wasCollapsed = resumeWidget.classList.contains('collapsed');
-    resumeWidget.classList.toggle('collapsed');
-    if (resumeToggle) resumeToggle.textContent = wasCollapsed ? '−' : '+';
-    if (wasCollapsed) {
-      // Expanding — start render loop
-      rActive = true;
-      requestAnimationFrame(() => {
-        if (!resumeWidget.dataset.dragged) dockWidgets();
-        initResumeCanvas();
-        clampExpandedWidget(resumeWidget);
-        invalidateWidgetRepel();
-        resumeLoop();
-      });
-    } else {
-      // Collapsing — stop render loop
-      rActive = false;
-      if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-      if (!resumeWidget.dataset.dragged) dockWidgets();
-      invalidateWidgetRepel();
-    }
-  });
-}
-
-// Theme change: rebuild particles for correct opacity recalc
-document.getElementById('btn-theme').addEventListener('click', () => {
-  if (rActive) setTimeout(() => buildResumeParticles(), 40);
-}, true);
-
-// ESC collapse: listen for custom event fired by the global ESC handler
-if (resumeWidget) {
-  resumeWidget.addEventListener('resume-collapse', () => {
-    rActive = false;
-    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
-  });
-}
-
-window.addEventListener('resize', () => { if (rActive) initResumeCanvas(); });
-
 })();
 
+// ─── Touch ─────────────────────────────────────────────────────────────────
+let lt = [], ltd = 0;
+function touchDist(t) { const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
+worldWrap.addEventListener('touchstart', e => {
+  if (e.target.closest('.card.unlocked')) return;
+  e.preventDefault(); lt = Array.from(e.touches); ltd = lt.length >= 2 ? touchDist(lt) : 0;
+  velX = 0; velY = 0; cursorEl.classList.add('grabbing');
+}, { passive: false });
+worldWrap.addEventListener('touchmove', e => {
+  if (e.target.closest('.card.unlocked')) return;
+  e.preventDefault();
+  const t = Array.from(e.touches);
+  if (t.length === 1 && lt.length >= 1) {
+    const dx = t[0].clientX - lt[0].clientX, dy = t[0].clientY - lt[0].clientY;
+    panX += dx; panY += dy; velX = dx * 0.55; velY = dy * 0.55; applyTransform();
+  } else if (t.length >= 2 && ltd > 0) {
+    const d = touchDist(t), ratio = d / ltd;
+    const cx = (t[0].clientX+t[1].clientX)/2, cy = (t[0].clientY+t[1].clientY)/2;
+    panX = cx + (panX - cx) * ratio; panY = cy + (panY - cy) * ratio;
+    scale = Math.max(0.25, Math.min(2.5, scale * ratio)); targetScale = scale; ltd = d; applyTransform();
+  }
+  lt = t;
+}, { passive: false });
+worldWrap.addEventListener('touchend', e => { lt = Array.from(e.touches); cursorEl.classList.remove('grabbing'); }, { passive: false });
+
+// ─── Keyboard pan ──────────────────────────────────────────────────────────
+const keys = {};
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup',   e => keys[e.key] = false);
+const KB = 5;
+(function kbLoop() {
+  requestAnimationFrame(kbLoop);
+  let dx = 0, dy = 0;
+  if (keys['a'] || keys['A'] || keys['ArrowLeft'])  dx += KB;
+  if (keys['d'] || keys['D'] || keys['ArrowRight']) dx -= KB;
+  if (keys['w'] || keys['W'] || keys['ArrowUp'])    dy += KB;
+  if (keys['s'] || keys['S'] || keys['ArrowDown'])  dy -= KB;
+  if (dx || dy) { panX += dx; panY += dy; applyTransform(); }
+})();
+
+// ─── Init ──────────────────────────────────────────────────────────────────
+buildCards(CATEGORIES[0].sites);
+
+})();
 </script>
 </body>
 </html>
+
+
