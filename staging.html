@@ -230,9 +230,9 @@ const CATEGORIES = [
       { url: 'https://wolfie.love',      label: 'wolfie.love',     description: 'A personal universe for Wolfgang — gallery, life documents, and digital keepsakes. The dog gets his own domain, naturally.' },
       { url: 'https://wolfie.life',      label: 'wolfie.life',     description: 'Another dimension of the Wolfgang archive. More life, less internet.' },
       { url: 'https://wolfie.love/cine', label: 'wolfie / cine',   description: 'Wolfgang, in motion. A curated film log filtered through the lens of someone who takes both dogs and cinema seriously.' },
-      { url: 'https://wolfie.love/food', label: 'wolfie / food',   description: 'The culinary dimension of the Wolfgang universe. Snacks, meals, and the occasional treat — documented with care.' },
       { url: 'https://wolfie.love/music',label: 'wolfie / music',  description: 'The soundtrack to Wolfgang\'s world. A living playlist and music log for a dog with taste.' },
       { url: 'https://intoview.pro',        label: 'Intoview',        description: 'A focused interview prep tool built around the premise that better questions make better candidates. Clean, purposeful, and quietly sharp.' },
+      { url: 'https://intoview.pro/kanban',  label: 'Intoview / Kanban', description: 'The kanban layer of Intoview — a visual workflow for moving candidates through stages. Drag-and-drop clarity applied to the chaos of hiring.' },
     ]
   },
   {
@@ -240,13 +240,15 @@ const CATEGORIES = [
     sites: [
       { fallback: true, url: 'https://www.bny.com/pershing/us/en/platforms/wove.html', label: 'Wove',           description: 'BNY Pershing\'s flagship advisor platform — a full-scale wealth management experience designed for the complexity of institutional clients. Dense, deliberate, and built to scale.' },
       { fallback: true, url: 'https://business.tiktok.com/',    label: 'TikTok Business', description: 'The commercial face of TikTok\'s ad platform. High-velocity, conversion-oriented design built for global marketers who need clarity at speed.' },
-      { fallback: true, url: 'https://www.gnc.com/',            label: 'GNC',             description: 'A major retail e-commerce presence for one of the most recognized names in health and nutrition. Product density meets brand clarity.' },
-      { fallback: true, url: 'https://www.shophardinge.com',    label: 'Hardinge',        description: 'Industrial precision meets digital commerce. A specialized e-commerce experience for a century-old machine tool manufacturer.' },
+      { fallback: true, url: 'https://www.gnc.com/protein/',            label: 'GNC',             description: 'A major retail e-commerce presence for one of the most recognized names in health and nutrition. Product density meets brand clarity.' },
+
       { fallback: true, url: 'https://www.aquasana.com/',       label: 'Aquasana',        description: 'Clean water, clean UI. A DTC e-commerce site built around trust signals, product education, and conversion-focused design.' },
-      { fallback: true, url: 'https://www.yeti.com/',           label: 'YETI',            description: 'The gold standard of aspirational outdoor retail. Bold product photography, minimal chrome, and a brand voice that doesn\'t need to try hard.' },
+
       { fallback: true, url: 'https://www.kent.edu/',           label: 'Kent State',      description: 'A major university digital presence balancing recruitment, research, and community — navigating the institutional complexity that makes higher-ed design its own discipline.' },
       { fallback: true, url: 'https://www.wisc.edu/',           label: 'UW–Madison',      description: 'One of the country\'s flagship public universities, rendered in a digital presence that has to serve everyone from prospective students to Nobel laureates.' },
       { fallback: true, url: 'https://www.strongtie.com/',      label: 'Strong Tie',      description: 'Simpson Strong-Tie — structural connectors and construction hardware translated into a large-scale industrial e-commerce and resource platform. Technical depth, contractor-grade utility.' },
+      { fallback: true, url: 'https://iloveorganicgirl.com/',   label: 'Organic Girl',    description: 'Fresh produce meets digital brand expression. A clean, verdant e-commerce presence for one of the most recognizable names in packaged salads — bright, health-forward, and entirely on-brand.' },
+      { fallback: true, url: 'https://www.goya.com/en/',        label: 'Goya',            description: 'A heritage food brand with deep cultural roots and a massive product catalog. A digital presence that had to honor that legacy while serving a broad, multigenerational audience.' },
     ]
   }
 ];
@@ -329,11 +331,38 @@ function buildCards(sites) {
     iframe.title = site.label;
     iframe.style.transform = `scale(${iframeScale})`;
 
-    // For sites that block framing, show OG screenshot instead
+    // For sites that block framing, show screenshot with fallback chain
     if (site.fallback) {
+      const domain = new URL(site.url).hostname.replace(/^www\./, '');
+      const sources = [
+        `https://api.microlink.io/?url=${encodeURIComponent(site.url)}&screenshot=true&meta=false&embed=screenshot.url`,
+        `https://image.thum.io/get/width/960/crop/700/noanimate/${encodeURIComponent(site.url)}`,
+        `https://s0.wp.com/mshots/v1/${encodeURIComponent(site.url)}?w=960&h=700`,
+      ];
       const ogImg = document.createElement('img');
       ogImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top;pointer-events:none;';
-      ogImg.src = `https://api.microlink.io/?url=${encodeURIComponent(site.url)}&screenshot=true&meta=false&embed=screenshot.url`;
+      let srcIdx = 0;
+      const tryNext = () => {
+        if (srcIdx < sources.length) {
+          ogImg.src = sources[srcIdx++];
+        } else {
+          // All sources failed — show styled placeholder
+          ogImg.remove();
+          const ph = document.createElement('div');
+          ph.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;background:#f5f2ee;';
+          const favicon = document.createElement('img');
+          favicon.src = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+          favicon.style.cssText = 'width:24px;height:24px;opacity:0.5;';
+          const txt = document.createElement('div');
+          txt.textContent = domain;
+          txt.style.cssText = 'font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:#8a7560;opacity:0.6;font-family:"DM Sans",sans-serif;';
+          ph.appendChild(favicon);
+          ph.appendChild(txt);
+          wrap.appendChild(ph);
+        }
+      };
+      ogImg.addEventListener('error', tryNext);
+      tryNext();
       wrap.appendChild(ogImg);
       // Don't bother loading the iframe for blocked sites
     } else {
