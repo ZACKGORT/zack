@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Zack Gort — Sandbox</title>
+  <title>Zack Gort | Sandbox</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
@@ -169,6 +169,7 @@
     }
 
     /* ── Cursor ── */
+    #wheel-capture { position:fixed; inset:0; z-index:5; pointer-events:none; }
     #cursor {
       position: fixed; top: 0; left: 0; width: 10px; height: 10px;
       background: #ffffff; border-radius: 50%; pointer-events: none;
@@ -187,7 +188,7 @@
 <header id="hdr">
   <div id="hdr-left">
     <div id="title">Zack Gort</div>
-    <div id="subtitle">Thinker &amp; Maker</div>
+    <div id="subtitle">Thinker &amp; Makerr</div>
   </div>
 </header>
 
@@ -196,6 +197,7 @@
 <div id="cat-label"></div>
 <div id="hint">Drag to pan · Scroll to zoom<br>Click Interact to browse a site</div>
 
+<div id="wheel-capture"></div>
 <div id="world-wrap">
   <div id="world"></div>
 </div>
@@ -271,6 +273,7 @@ let transitioning = false;
 
 const world     = document.getElementById('world');
 const worldWrap = document.getElementById('world-wrap');
+const wheelCapture = document.getElementById('wheel-capture');
 const cursorEl  = document.getElementById('cursor');
 const navEl     = document.getElementById('nav');
 const veilEl    = document.getElementById('transition-veil');
@@ -314,6 +317,7 @@ function buildCards(sites) {
 
     const overlay = document.createElement('div');
     overlay.className = 'card-overlay';
+    overlay.addEventListener('wheel', handleWheel, { passive: false });
     overlay.addEventListener('click', () => btn.click());
     el.appendChild(overlay);
 
@@ -428,6 +432,7 @@ window.addEventListener('mousemove', e => {
 worldWrap.addEventListener('mousedown', e => {
   if (e.target.classList.contains('card-lock-btn')) return;
   if (e.target.closest('.card.unlocked')) return;
+  window.focus();
   dragging = true; lastMX = e.clientX; lastMY = e.clientY;
   velX = 0; velY = 0;
   cursorEl.classList.add('grabbing');
@@ -459,7 +464,8 @@ function handleWheel(e) {
 }
 
 worldWrap.addEventListener('wheel', handleWheel, { passive: false });
-window.addEventListener('wheel', handleWheel, { passive: false });
+document.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+wheelCapture.addEventListener('wheel', handleWheel, { passive: false });
 
 // ─── Keyboard ──────────────────────────────────────────────────────────────
 var keys = {};
@@ -539,7 +545,7 @@ if (window._textSetCategory) window._textSetCategory(CATEGORIES[0].id);
   };
 
   // ── Permanent "Brands I've Built" block (Shipped category only) ──────────
-  const SHIPPED_LABEL = " ";
+  const SHIPPED_LABEL = "Brands I've Built";
   const SHIPPED_BODY  = [
     { heading: 'Clients & Brands', text: 'Comcast, Charter, Rachel Roy, LimeCrime, Organic Girl, Goya, General Nutrition Centers, Worldwide Stereo, Simpson Strong-Tie, Shop Hardinge, YETI, Aquasana, Kent State University, University of Wisconsin-Madison, Texas A&M, Centro.edu.mx, Power Home Remodeling Group, TikTok For Business, BNY Pershing X, The Dana Foundation, Daz3D, Sentral Lifestyle Apartments' },
     { heading: 'Agencies & Startups', text: 'Publicis Sapient, Code & Theory, Huge, Elva Design Group, LiveArea, WebLinc (Workarea, SaaS), O3 World, 160OVER90, Leadnomics, Turn5 Inc, Phenom' },
