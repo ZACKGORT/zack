@@ -6,7 +6,7 @@
   <title>Wolfgang & Co. — Portfolio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -14,7 +14,6 @@
       --dot: rgba(0,0,0,0.12);
       --fg: #1a1a1a;
       --accent: #8a7560;
-      --pill-bg: rgba(255,255,255,0.55);
       --pill-active-bg: #1a1a1a;
       --pill-active-fg: #f5f2ee;
       --page-pad: 1.5rem;
@@ -25,40 +24,68 @@
       background-image: radial-gradient(circle, var(--dot) 1px, transparent 1px);
       background-size: 20px 20px;
       background-position: center center;
-      overflow: hidden;
-      cursor: none;
-      overscroll-behavior: none;
-      touch-action: none;
-      font-family: "DM Sans", sans-serif;
-      color: var(--fg);
+      overflow: hidden; cursor: none;
+      overscroll-behavior: none; touch-action: none;
+      font-family: "DM Sans", sans-serif; color: var(--fg);
       -webkit-font-smoothing: antialiased;
     }
 
+    /* ── Floating text canvas — behind everything ── */
+    #text-canvas {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    @media (max-width: 768px) { #text-canvas { display: none; } }
+
     /* ── Infinite pan world ── */
-    #world-wrap { position: fixed; inset: 0; overflow: hidden; touch-action: none; }
+    #world-wrap { position: fixed; inset: 0; overflow: hidden; touch-action: none; z-index: 1; }
     #world { position: absolute; top: 0; left: 0; width: 0; height: 0; will-change: transform; }
 
     /* ── iframe cards ── */
     .card {
       position: absolute;
-      border-radius: 12px;
-      overflow: hidden;
+      border-radius: 12px; overflow: hidden;
       box-shadow: 0 4px 32px rgba(0,0,0,0.13), 0 1px 4px rgba(0,0,0,0.07);
       border: 1.5px solid rgba(138,117,96,0.13);
       background: #fff;
       transition: box-shadow 0.2s;
     }
-    .card-overlay {
-      position: absolute;
-      inset: 0; bottom: 34px;
+    .card.unlocked {
+      box-shadow: 0 8px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.1);
       z-index: 10;
-      cursor: none;
+    }
+    .card-overlay {
+      position: absolute; inset: 0; bottom: 34px;
+      z-index: 10; cursor: none;
     }
     .card.unlocked .card-overlay { display: none; }
-    .card iframe {
-      display: block; width: 100%; height: calc(100% - 34px);
-      border: none; pointer-events: all;
+
+    /* iframe scaled to show a desktop viewport inside the card */
+    .card-iframe-wrap {
+      position: relative;
+      width: 100%;
+      height: calc(100% - 34px);
+      overflow: hidden;
     }
+    .card iframe {
+      display: block;
+      /* Render at 1280px wide (desktop), then scale down to fit card width */
+      width: 1280px;
+      height: 900px;
+      border: none;
+      transform-origin: top left;
+      /* scale set via JS based on card width */
+      pointer-events: none;
+    }
+    .card.unlocked iframe {
+      pointer-events: all;
+      /* when unlocked, fill card naturally */
+      width: 100%;
+      height: 100%;
+      transform: none !important;
+    }
+
     .card-bar {
       position: absolute; bottom: 0; left: 0; right: 0; height: 34px;
       padding: 0 0.75rem;
@@ -89,21 +116,13 @@
 
     /* ── Header ── */
     #hdr {
-      position: fixed; top: 0; left: 0; width: 100%;
-      padding: var(--page-pad);
+      position: fixed; top: 0; left: 0; width: 100%; padding: var(--page-pad);
       display: flex; align-items: flex-start; justify-content: space-between;
       pointer-events: none; z-index: 100;
     }
     #hdr-left { display: flex; flex-direction: column; gap: 0.25rem; }
-    #title {
-      font-size: clamp(1rem, 3vw, 1.5rem);
-      font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--fg); opacity: 0.75;
-    }
-    #subtitle {
-      font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase;
-      color: var(--accent); opacity: 0.6;
-    }
+    #title { font-size: clamp(1rem,3vw,1.5rem); font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg); opacity: 0.75; }
+    #subtitle { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); opacity: 0.6; }
 
     /* ── Nav pills ── */
     #nav {
@@ -129,12 +148,10 @@
 
     /* ── Transition veil ── */
     #transition-veil {
-      position: fixed; inset: 0; z-index: 150;
-      background: var(--bg); opacity: 0; pointer-events: none;
-      transition: opacity 0.45s ease;
+      position: fixed; inset: 0; z-index: 150; background: var(--bg);
+      opacity: 0; pointer-events: none; transition: opacity 0.45s ease;
     }
-    #transition-veil.in  { opacity: 1; pointer-events: all; }
-    #transition-veil.out { opacity: 0; pointer-events: none; }
+    #transition-veil.in { opacity: 1; pointer-events: all; }
 
     /* ── Category label ── */
     #cat-label {
@@ -145,7 +162,7 @@
     }
     #cat-label.visible { opacity: 0.5; }
 
-    /* ── Controls hint ── */
+    /* ── Hint ── */
     #hint {
       position: fixed; bottom: var(--page-pad); right: var(--page-pad);
       z-index: 100; font-size: 0.65rem; letter-spacing: 0.12em;
@@ -153,19 +170,20 @@
       pointer-events: none; text-align: right; line-height: 1.8;
     }
 
-    /* ── Custom cursor ── */
+    /* ── Cursor ── */
     #cursor {
       position: fixed; top: 0; left: 0; width: 10px; height: 10px;
       background: var(--accent); border-radius: 50%; pointer-events: none;
-      z-index: 9998; transform: translate(-50%, -50%);
+      z-index: 9998; transform: translate(-50%,-50%);
       transition: transform 0.08s ease, opacity 0.2s;
       opacity: 0.55; mix-blend-mode: multiply; will-change: transform;
     }
-    #cursor.grabbing { transform: translate(-50%, -50%) scale(1.8); opacity: 0.3; }
+    #cursor.grabbing { transform: translate(-50%,-50%) scale(1.8); opacity: 0.3; }
   </style>
 </head>
 <body>
 
+<canvas id="text-canvas"></canvas>
 <div id="cursor"></div>
 
 <header id="hdr">
@@ -188,39 +206,75 @@
 (function () {
 'use strict';
 
-// ─── Categories — edit URLs and labels here ────────────────────────────────
+// ─── Sites — add a `description` for the floating text ────────────────────
 const CATEGORIES = [
   {
     id: 'all', label: 'All',
     sites: [
-      { url: 'https://zack.cx',              label: 'zack.cx' },
-      { url: 'https://zack.cx/bny',          label: 'BNY' },
-      { url: 'https://ifimaybefrank.com',     label: 'If I May Be Frank' },
-      { url: 'https://zackgort.com',          label: 'Zack Gort' },
-      { url: 'https://zackgort.com/career',   label: 'Career' },
-      { url: 'https://zackgort.com/cube',     label: 'Cube' },
-      { url: 'https://neverever.land',        label: 'Never Ever Land' },
-      { url: 'https://reasonably.cc',         label: 'Reasonably' },
-      { url: 'https://emdash.click',          label: 'Emdash' },
+      {
+        url: 'https://zack.cx',
+        label: 'zack.cx',
+        description: 'The main portal — a dark, particle-heavy canvas that doubles as a live agent interface. Zack\'s design philosophy in browser form: typographic precision, physics-driven interaction, and an unsettling sense that the page knows you\'re there.'
+      },
+      {
+        url: 'https://zack.cx/bny',
+        label: 'BNY',
+        description: 'A case study for BNY Mellon Pershing X Advisory — a fintech experience design engagement. Bold editorial typography meets dense information architecture, aimed at advisors who need data to feel inevitable rather than overwhelming.'
+      },
+      {
+        url: 'https://ifimaybefrank.com',
+        label: 'If I May Be Frank',
+        description: 'A manifesto disguised as a portfolio page. Monochrome, typographically confrontational, and deliberately uncomfortable — a statement that design is a position, best served with discretion and the willingness to say what others won\'t.'
+      },
+      {
+        url: 'https://zackgort.com',
+        label: 'Zack Gort',
+        description: 'The pink one. A loud, confident personal brand page that opens with "UX IS DEAD." and means it. ZCKGRT in all-caps, a scrolling manifesto, and the kind of energy that either immediately resonates or immediately doesn\'t.'
+      },
+      {
+        url: 'https://zackgort.com/career',
+        label: 'Career',
+        description: 'Case studies — selected works in UI and UX. A controlled, editorial grid of client engagements, rendered with the same typographic restraint applied to the work itself. Context without noise.'
+      },
+      {
+        url: 'https://zackgort.com/cube',
+        label: 'Cube',
+        description: 'An experiment in 3D interaction — a rotating cube that functions as a navigation metaphor. Each face is a destination. Playful, geometric, and a little bit absurd in the best way.'
+      },
+      {
+        url: 'https://neverever.land',
+        label: 'Never Ever Land',
+        description: 'A dark, atmospheric AI node tracker. Track your accounts across providers, operate within rate limits, and never lose the thread. The interface feels like mission control for someone who takes their AI stack seriously.'
+      },
+      {
+        url: 'https://reasonably.cc',
+        label: 'Reasonably',
+        description: 'A local-first email tool built around the premise that nothing should leave your machine. All data stays in your browser\'s local storage — no accounts, no servers, no sync. Radical simplicity, radical privacy.'
+      },
+      {
+        url: 'https://emdash.click',
+        label: 'Emdash',
+        description: 'A single-purpose tool for the em dash, the en dash, and the double em — each defined, differentiated, and ready to copy with a single click. The kind of focused utility that makes you wonder why it didn\'t exist already.'
+      },
     ]
   },
   {
     id: 'personal', label: 'Personal',
     sites: [
-      { url: 'https://zack.cx',              label: 'zack.cx' },
-      { url: 'https://zackgort.com',          label: 'Zack Gort' },
-      { url: 'https://zackgort.com/career',   label: 'Career' },
-      { url: 'https://zackgort.com/cube',     label: 'Cube' },
+      { url: 'https://zack.cx',            label: 'zack.cx',    description: 'The main portal — a dark, particle-heavy canvas that doubles as a live agent interface. Zack\'s design philosophy in browser form: typographic precision, physics-driven interaction, and an unsettling sense that the page knows you\'re there.' },
+      { url: 'https://zackgort.com',        label: 'Zack Gort',  description: 'The pink one. A loud, confident personal brand page that opens with "UX IS DEAD." and means it. ZCKGRT in all-caps, a scrolling manifesto, and the kind of energy that either immediately resonates or immediately doesn\'t.' },
+      { url: 'https://zackgort.com/career', label: 'Career',     description: 'Case studies — selected works in UI and UX. A controlled, editorial grid of client engagements, rendered with the same typographic restraint applied to the work itself. Context without noise.' },
+      { url: 'https://zackgort.com/cube',   label: 'Cube',       description: 'An experiment in 3D interaction — a rotating cube that functions as a navigation metaphor. Each face is a destination. Playful, geometric, and a little bit absurd in the best way.' },
     ]
   },
   {
     id: 'projects', label: 'Projects',
     sites: [
-      { url: 'https://ifimaybefrank.com',     label: 'If I May Be Frank' },
-      { url: 'https://neverever.land',        label: 'Never Ever Land' },
-      { url: 'https://reasonably.cc',         label: 'Reasonably' },
-      { url: 'https://emdash.click',          label: 'Emdash' },
-      { url: 'https://zack.cx/bny',           label: 'BNY' },
+      { url: 'https://ifimaybefrank.com',   label: 'If I May Be Frank', description: 'A manifesto disguised as a portfolio page. Monochrome, typographically confrontational, and deliberately uncomfortable — a statement that design is a position, best served with discretion and the willingness to say what others won\'t.' },
+      { url: 'https://neverever.land',      label: 'Never Ever Land',   description: 'A dark, atmospheric AI node tracker. Track your accounts across providers, operate within rate limits, and never lose the thread. The interface feels like mission control for someone who takes their AI stack seriously.' },
+      { url: 'https://reasonably.cc',       label: 'Reasonably',        description: 'A local-first email tool built around the premise that nothing should leave your machine. All data stays in your browser\'s local storage — no accounts, no servers, no sync. Radical simplicity, radical privacy.' },
+      { url: 'https://emdash.click',        label: 'Emdash',            description: 'A single-purpose tool for the em dash, the en dash, and the double em — each defined, differentiated, and ready to copy with a single click. The kind of focused utility that makes you wonder why it didn\'t exist already.' },
+      { url: 'https://zack.cx/bny',         label: 'BNY',               description: 'A case study for BNY Mellon Pershing X Advisory — a fintech experience design engagement. Bold editorial typography meets dense information architecture, aimed at advisors who need data to feel inevitable rather than overwhelming.' },
     ]
   },
 ];
@@ -231,18 +285,13 @@ const CARD_H = 360;
 const COLS   = 3;
 const GAP_X  = 100;
 const GAP_Y  = 80;
+// Desktop viewport width iframes are rendered at, then scaled down
+const IFRAME_RENDER_W = 1280;
+const IFRAME_RENDER_H = 900;
 
-// ─── Seeded jitter ─────────────────────────────────────────────────────────
-function jitter(i, amt) {
-  const x = Math.sin(i * 127.1 + 311.7) * 10000;
-  return (x - Math.floor(x) - 0.5) * amt;
-}
-function jitterRot(i) {
-  const x = Math.sin(i * 311.7 + 127.1) * 10000;
-  return (x - Math.floor(x) - 0.5) * 4;
-}
+function jitter(i, amt) { const x = Math.sin(i*127.1+311.7)*10000; return (x-Math.floor(x)-0.5)*amt; }
+function jitterRot(i)   { const x = Math.sin(i*311.7+127.1)*10000; return (x-Math.floor(x)-0.5)*4; }
 
-// ─── State ─────────────────────────────────────────────────────────────────
 let activeCatIdx = 0;
 let cards = [];
 let panX = 0, panY = 0;
@@ -251,7 +300,7 @@ let velX = 0, velY = 0;
 let dragging = false, lastMX = 0, lastMY = 0;
 let transitioning = false;
 
-const world    = document.getElementById('world');
+const world     = document.getElementById('world');
 const worldWrap = document.getElementById('world-wrap');
 const cursorEl  = document.getElementById('cursor');
 const navEl     = document.getElementById('nav');
@@ -259,18 +308,23 @@ const veilEl    = document.getElementById('transition-veil');
 const catLabel  = document.getElementById('cat-label');
 let labelTimer  = null;
 
+// ─── Floating text API (set from text layer below) ─────────────────────────
+// Will be populated by the text engine once it initialises
+window._textSetSite = null; // function(site) — call to switch text content
+
 // ─── Build cards ───────────────────────────────────────────────────────────
 function buildCards(sites) {
   cards.forEach(c => c.el.remove());
   cards = [];
 
   const totalRows = Math.ceil(sites.length / COLS);
-  const layoutW = COLS * (CARD_W + GAP_X) - GAP_X;
-  const layoutH = totalRows * (CARD_H + 34 + GAP_Y) - GAP_Y;
+  const layoutW   = COLS * (CARD_W + GAP_X) - GAP_X;
+  const layoutH   = totalRows * (CARD_H + 34 + GAP_Y) - GAP_Y;
+  const iframeScale = CARD_W / IFRAME_RENDER_W;
 
   sites.forEach((site, i) => {
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
+    const col  = i % COLS;
+    const row  = Math.floor(i / COLS);
     const baseX = col * (CARD_W + GAP_X) - layoutW / 2;
     const baseY = row * (CARD_H + 34 + GAP_Y) - layoutH / 2;
 
@@ -278,23 +332,28 @@ function buildCards(sites) {
     el.className = 'card';
     el.style.width  = CARD_W + 'px';
     el.style.height = (CARD_H + 34) + 'px';
-    el.style.left   = (baseX + jitter(i * 2,     36)) + 'px';
-    el.style.top    = (baseY + jitter(i * 2 + 1, 28)) + 'px';
+    el.style.left   = (baseX + jitter(i*2,   36)) + 'px';
+    el.style.top    = (baseY + jitter(i*2+1, 28)) + 'px';
     el.style.transform = `rotate(${jitterRot(i)}deg)`;
     el.style.opacity = '0';
     el.style.transition = 'opacity 0.5s';
 
-    // Overlay blocks iframe during pan
+    // iframe wrapper for scaled preview
+    const wrap = document.createElement('div');
+    wrap.className = 'card-iframe-wrap';
+    el.appendChild(wrap);
+
     const overlay = document.createElement('div');
     overlay.className = 'card-overlay';
+    overlay.addEventListener('click', () => btn.click());
     el.appendChild(overlay);
 
-    // iframe
     const iframe = document.createElement('iframe');
     iframe.src = site.url;
     iframe.loading = 'lazy';
     iframe.title = site.label;
-    el.appendChild(iframe);
+    iframe.style.transform = `scale(${iframeScale})`;
+    wrap.appendChild(iframe);
 
     // Bar
     const bar = document.createElement('div');
@@ -308,8 +367,24 @@ function buildCards(sites) {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const locking = !el.classList.contains('unlocked');
-      cards.forEach(c => { c.el.classList.remove('unlocked'); c.btn.textContent = 'Interact'; });
-      if (locking) { el.classList.add('unlocked'); btn.textContent = 'Lock'; }
+      // Lock all cards
+      cards.forEach(c => {
+        c.el.classList.remove('unlocked');
+        c.btn.textContent = 'Interact';
+        // Restore scaled preview on all cards
+        const fr = c.el.querySelector('iframe');
+        if (fr) fr.style.transform = `scale(${iframeScale})`;
+      });
+      if (locking) {
+        el.classList.add('unlocked');
+        btn.textContent = 'Lock';
+        iframe.style.transform = 'none';
+        // Switch floating text to this site
+        if (window._textSetSite) window._textSetSite(site);
+      } else {
+        // Back to default text
+        if (window._textSetSite) window._textSetSite(null);
+      }
     });
     bar.appendChild(lbl);
     bar.appendChild(btn);
@@ -317,11 +392,9 @@ function buildCards(sites) {
 
     world.appendChild(el);
     setTimeout(() => el.style.opacity = '1', i * 55 + 80);
-
     cards.push({ el, btn });
   });
 
-  // Centre layout
   panX = window.innerWidth / 2;
   panY = window.innerHeight / 2;
   scale = 1; targetScale = 1;
@@ -332,7 +405,7 @@ function applyTransform() {
   world.style.transform = `translate(${panX}px,${panY}px) scale(${scale})`;
 }
 
-// ─── Nav pills ─────────────────────────────────────────────────────────────
+// ─── Nav ───────────────────────────────────────────────────────────────────
 CATEGORIES.forEach((cat, i) => {
   const btn = document.createElement('button');
   btn.className = 'pill' + (i === 0 ? ' active' : '');
@@ -348,6 +421,7 @@ function switchCategory(idx) {
   setTimeout(() => {
     activeCatIdx = idx;
     buildCards(CATEGORIES[idx].sites);
+    if (window._textSetSite) window._textSetSite(null);
     document.querySelectorAll('.pill').forEach((p, i) => p.classList.toggle('active', i === idx));
     clearTimeout(labelTimer);
     catLabel.textContent = CATEGORIES[idx].label;
@@ -369,7 +443,6 @@ window.addEventListener('mousemove', e => {
 // ─── Drag ──────────────────────────────────────────────────────────────────
 worldWrap.addEventListener('mousedown', e => {
   if (e.target.classList.contains('card-lock-btn')) return;
-  // Don't steal drag from unlocked card
   if (e.target.closest('.card.unlocked')) return;
   dragging = true; lastMX = e.clientX; lastMY = e.clientY;
   velX = 0; velY = 0;
@@ -385,7 +458,7 @@ window.addEventListener('mousemove', e => {
   applyTransform();
 });
 
-// ─── Scroll to zoom ────────────────────────────────────────────────────────
+// ─── Scroll zoom ───────────────────────────────────────────────────────────
 worldWrap.addEventListener('wheel', e => {
   if (e.target.closest('.card.unlocked')) return;
   e.preventDefault();
@@ -414,39 +487,32 @@ let lt = [], ltd = 0;
 function touchDist(t) { const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY; return Math.sqrt(dx*dx+dy*dy); }
 worldWrap.addEventListener('touchstart', e => {
   if (e.target.closest('.card.unlocked')) return;
-  e.preventDefault(); lt = Array.from(e.touches); ltd = lt.length >= 2 ? touchDist(lt) : 0;
+  e.preventDefault(); lt = Array.from(e.touches); ltd = lt.length>=2?touchDist(lt):0;
   velX = 0; velY = 0; cursorEl.classList.add('grabbing');
 }, { passive: false });
 worldWrap.addEventListener('touchmove', e => {
   if (e.target.closest('.card.unlocked')) return;
   e.preventDefault();
   const t = Array.from(e.touches);
-  if (t.length === 1 && lt.length >= 1) {
-    const dx = t[0].clientX - lt[0].clientX, dy = t[0].clientY - lt[0].clientY;
-    panX += dx; panY += dy; velX = dx * 0.55; velY = dy * 0.55; applyTransform();
-  } else if (t.length >= 2 && ltd > 0) {
-    const d = touchDist(t), ratio = d / ltd;
-    const cx = (t[0].clientX+t[1].clientX)/2, cy = (t[0].clientY+t[1].clientY)/2;
-    panX = cx + (panX - cx) * ratio; panY = cy + (panY - cy) * ratio;
-    scale = Math.max(0.25, Math.min(2.5, scale * ratio)); targetScale = scale; ltd = d; applyTransform();
-  }
+  if (t.length===1&&lt.length>=1) { const dx=t[0].clientX-lt[0].clientX,dy=t[0].clientY-lt[0].clientY; panX+=dx;panY+=dy;velX=dx*0.55;velY=dy*0.55;applyTransform(); }
+  else if (t.length>=2&&ltd>0) { const d=touchDist(t),ratio=d/ltd,cx=(t[0].clientX+t[1].clientX)/2,cy=(t[0].clientY+t[1].clientY)/2; panX=cx+(panX-cx)*ratio;panY=cy+(panY-cy)*ratio;scale=Math.max(0.25,Math.min(2.5,scale*ratio));targetScale=scale;ltd=d;applyTransform(); }
   lt = t;
 }, { passive: false });
-worldWrap.addEventListener('touchend', e => { lt = Array.from(e.touches); cursorEl.classList.remove('grabbing'); }, { passive: false });
+worldWrap.addEventListener('touchend', e => { lt=Array.from(e.touches);cursorEl.classList.remove('grabbing'); }, { passive: false });
 
-// ─── Keyboard pan ──────────────────────────────────────────────────────────
+// ─── Keyboard ──────────────────────────────────────────────────────────────
 const keys = {};
-window.addEventListener('keydown', e => keys[e.key] = true);
-window.addEventListener('keyup',   e => keys[e.key] = false);
+window.addEventListener('keydown', e => keys[e.key]=true);
+window.addEventListener('keyup',   e => keys[e.key]=false);
 const KB = 5;
 (function kbLoop() {
   requestAnimationFrame(kbLoop);
-  let dx = 0, dy = 0;
-  if (keys['a'] || keys['A'] || keys['ArrowLeft'])  dx += KB;
-  if (keys['d'] || keys['D'] || keys['ArrowRight']) dx -= KB;
-  if (keys['w'] || keys['W'] || keys['ArrowUp'])    dy += KB;
-  if (keys['s'] || keys['S'] || keys['ArrowDown'])  dy -= KB;
-  if (dx || dy) { panX += dx; panY += dy; applyTransform(); }
+  let dx=0,dy=0;
+  if(keys['a']||keys['A']||keys['ArrowLeft'])  dx+=KB;
+  if(keys['d']||keys['D']||keys['ArrowRight']) dx-=KB;
+  if(keys['w']||keys['W']||keys['ArrowUp'])    dy+=KB;
+  if(keys['s']||keys['S']||keys['ArrowDown'])  dy-=KB;
+  if(dx||dy){panX+=dx;panY+=dy;applyTransform();}
 })();
 
 // ─── Init ──────────────────────────────────────────────────────────────────
@@ -454,7 +520,186 @@ buildCards(CATEGORIES[0].sites);
 
 })();
 </script>
+
+<!-- ── Floating text engine (desktop only) ──────────────────────────────── -->
+<script>
+(function () {
+  if (window.innerWidth <= 768) return;
+
+  const canvas = document.getElementById('text-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W = canvas.width  = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+
+  // ── Default text shown when no card is selected ──────────────────────────
+  const DEFAULT_CONTENT = {
+    label: 'Wolfgang & Co.',
+    description: 'A collection of digital work — interfaces, experiments, and living documents. Drag to explore. Select any card to read about that project. Each one is a slightly different answer to the same question about what the web can be asked to do.'
+  };
+
+  // ── Physics constants (from zack_cx.html) ────────────────────────────────
+  const TETHER_K  = 0.014;
+  const DAMP      = 0.76;
+  const BLOB_LERP = 0.11;
+  const REPEL_R   = 110;
+
+  // ── Typographic roles ─────────────────────────────────────────────────────
+  // display = site label (Instrument Serif, large)
+  // body    = description copy (DM Mono, small)
+  const TYPO = {
+    display: { weight:'400', family:'"Instrument Serif", Georgia, serif', sizeBase: 36, charWMult: 0.58, lineHMult: 1.22, opBase: 0.72 },
+    body:    { weight:'500', family:'"DM Mono", monospace',               sizeBase: 11, charWMult: 0.602,lineHMult: 1.64, opBase: 0.52 },
+  };
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let allChars   = [];
+  let targetChars = [];
+  let alpha      = 1; // global fade for transitions
+  let alphaTgt   = 1;
+  let mX = W/2, mY = H/2;
+  let bX = W/2, bY = H/2;
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  const PAD_X    = 64;
+  const PAD_TOP  = 180;
+  const COL_W    = 260; // fixed column width — tall, narrow, left-anchored
+
+  function measureChar(role) {
+    const t = TYPO[role];
+    return { charW: t.sizeBase * t.charWMult, lineH: t.sizeBase * t.lineHMult };
+  }
+
+  function layoutText(content) {
+    const chars = [];
+    let y = PAD_TOP;
+
+    // ── Display line (label) ──────────────────────────────────────────────
+    const disp = TYPO.display;
+    const dCW  = disp.sizeBase * disp.charWMult;
+    const dLH  = disp.sizeBase * disp.lineHMult;
+    let x = PAD_X;
+    for (let ci = 0; ci < content.label.length; ci++) {
+      const seed = (ci * 137) % 100 / 100;
+      chars.push({
+        ch: content.label[ci],
+        restX: x, restY: y,
+        x, y, vx: 0, vy: 0,
+        role: 'display',
+        baseOp: disp.opBase + seed * 0.2,
+      });
+      x += dCW;
+    }
+    y += dLH * 1.1;
+
+    // ── Body copy (description, word-wrapped) ─────────────────────────────
+    const body   = TYPO.body;
+    const bCW    = body.sizeBase * body.charWMult;
+    const bLH    = body.sizeBase * body.lineHMult;
+    const maxW   = COL_W;
+
+    // word-wrap
+    const words  = content.description.split(' ');
+    const lines  = [];
+    let line = '', lineW = 0;
+    for (const w of words) {
+      const seg = (line ? ' ' : '') + w;
+      const sw  = seg.length * bCW;
+      if (lineW + sw > maxW && line) { lines.push(line); line = w; lineW = w.length * bCW; }
+      else { line += seg; lineW += sw; }
+    }
+    if (line) lines.push(line);
+
+    for (const lineStr of lines) {
+      if (y > H - 60) break;
+      let lx = PAD_X;
+      for (let ci = 0; ci < lineStr.length; ci++) {
+        const isSep = lineStr[ci] === '—';
+        const seed  = (ci * 97 + lineStr.charCodeAt(ci)) % 100 / 100;
+        chars.push({
+          ch: lineStr[ci],
+          restX: lx, restY: y,
+          x: lx, y, vx: 0, vy: 0,
+          role: 'body',
+          baseOp: isSep ? body.opBase * 0.55 : body.opBase + seed * 0.3,
+        });
+        lx += bCW;
+      }
+      y += bLH;
+    }
+
+    return chars;
+  }
+
+  // ── Switch content with a cross-fade ─────────────────────────────────────
+  function setContent(content) {
+    alphaTgt = 0;
+    setTimeout(() => {
+      allChars = layoutText(content);
+      alphaTgt = 1;
+    }, 340);
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+  window._textSetSite = function (site) {
+    setContent(site ? { label: site.label, description: site.description } : DEFAULT_CONTENT);
+  };
+
+  // ── Render loop ───────────────────────────────────────────────────────────
+  function loop() {
+    requestAnimationFrame(loop);
+
+    alpha += (alphaTgt - alpha) * 0.07;
+    bX += (mX - bX) * BLOB_LERP;
+    bY += (mY - bY) * BLOB_LERP;
+
+    ctx.clearRect(0, 0, W, H);
+    if (allChars.length === 0 || alpha < 0.01) return;
+
+    ctx.textBaseline = 'top';
+
+    for (const p of allChars) {
+      const dx = p.x - bX, dy = p.y - bY;
+      const d  = Math.sqrt(dx*dx + dy*dy);
+
+      // Spring to rest
+      p.vx += (p.restX - p.x) * TETHER_K;
+      p.vy += (p.restY - p.y) * TETHER_K;
+      // Repel from cursor
+      if (d < REPEL_R && d > 0.5) {
+        const f = (1 - d/REPEL_R);
+        p.vx += (dx/d) * f*f * 14;
+        p.vy += (dy/d) * f*f * 14;
+      }
+      p.vx *= DAMP; p.vy *= DAMP;
+      p.x  += p.vx; p.y  += p.vy;
+
+      // Fade near cursor
+      const fadeS = 12, fadeE = 42;
+      const proximity = Math.min(1, Math.max(0, (d - fadeS) / (fadeE - fadeS)));
+      const finalAlpha = p.baseOp * alpha * (0.35 + proximity * 0.65);
+      if (finalAlpha < 0.01) continue;
+
+      const t = TYPO[p.role];
+      ctx.font = `${t.weight} ${t.sizeBase}px ${t.family}`;
+      ctx.fillStyle = `rgba(0,0,0,${finalAlpha.toFixed(3)})`;
+      ctx.fillText(p.ch, p.x, p.y);
+    }
+  }
+
+  // ── Mouse ─────────────────────────────────────────────────────────────────
+  window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
+  window.addEventListener('resize', () => {
+    if (window.innerWidth <= 768) return;
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    setContent(DEFAULT_CONTENT);
+  });
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  allChars = layoutText(DEFAULT_CONTENT);
+  loop();
+})();
+</script>
+
 </body>
 </html>
-
-
