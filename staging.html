@@ -71,8 +71,8 @@
     .card iframe {
       display: block;
       /* Render at 1280px wide (desktop), then scale down to fit card width */
-      width: 1280px;
-      height: 900px;
+      width: 960px;
+      height: 700px;
       border: none;
       transform-origin: top left;
       /* scale set via JS based on card width */
@@ -241,8 +241,8 @@ const COLS   = 3;
 const GAP_X  = 100;
 const GAP_Y  = 80;
 // Desktop viewport width iframes are rendered at, then scaled down
-const IFRAME_RENDER_W = 1280;
-const IFRAME_RENDER_H = 900;
+const IFRAME_RENDER_W = 960;
+const IFRAME_RENDER_H = 700;
 
 function jitter(i, amt) { const x = Math.sin(i*127.1+311.7)*10000; return (x-Math.floor(x)-0.5)*amt; }
 function jitterRot(i)   { const x = Math.sin(i*311.7+127.1)*10000; return (x-Math.floor(x)-0.5)*4; }
@@ -269,7 +269,7 @@ window._textSetSite = null; // function(site) — call to switch text content
 
 // ─── Build cards ───────────────────────────────────────────────────────────
 function buildCards(sites) {
-  cards.forEach(c => c.el.remove());
+  cards.forEach(c => { if (c.iframe) c.iframe.src = 'about:blank'; c.el.remove(); });
   cards = [];
 
   const totalRows = Math.ceil(sites.length / COLS);
@@ -305,7 +305,7 @@ function buildCards(sites) {
 
 
     const iframe = document.createElement('iframe');
-    iframe.src = site.url;
+    iframe.dataset.src = site.url;
     iframe.loading = 'eager';
     iframe.title = site.label;
     iframe.style.transform = `scale(${iframeScale})`;
@@ -347,8 +347,12 @@ function buildCards(sites) {
     el.appendChild(bar);
 
     world.appendChild(el);
-    setTimeout(() => el.style.opacity = '1', i * 55 + 80);
-    cards.push({ el, btn });
+    const delay = i * 55 + 80;
+    setTimeout(() => el.style.opacity = '1', delay);
+    // Stagger iframe src injection: first 3 load with cards, rest in two waves
+    const srcDelay = i < 3 ? delay : i < 6 ? 1200 : 2200;
+    setTimeout(() => { if (!iframe.src || iframe.src === window.location.href) iframe.src = iframe.dataset.src; }, srcDelay);
+    cards.push({ el, btn, iframe });
   });
 
   panX = window.innerWidth * 0.69;
@@ -432,9 +436,21 @@ function handleWheel(e) {
 
 worldWrap.addEventListener('wheel', handleWheel, { passive: false });
 
-// ─── Inertia ───────────────────────────────────────────────────────────────
-(function inertia() {
-  requestAnimationFrame(inertia);
+// ─── Keyboard ──────────────────────────────────────────────────────────────
+var keys = {};
+var KB = 5;
+window.addEventListener('keydown', e => keys[e.key]=true);
+window.addEventListener('keyup',   e => keys[e.key]=false);
+
+// ─── Inertia + keyboard — single RAF loop ─────────────────────────────────
+(function mainLoop() {
+  requestAnimationFrame(mainLoop);
+  let dx = 0, dy = 0;
+  if (keys['a']||keys['A']||keys['ArrowLeft'])  dx += KB;
+  if (keys['d']||keys['D']||keys['ArrowRight']) dx -= KB;
+  if (keys['w']||keys['W']||keys['ArrowUp'])    dy += KB;
+  if (keys['s']||keys['S']||keys['ArrowDown'])  dy -= KB;
+  if (dx || dy) { panX += dx; panY += dy; applyTransform(); }
   if (!dragging && (Math.abs(velX) > 0.01 || Math.abs(velY) > 0.01)) {
     panX += velX; panY += velY;
     velX *= 0.92; velY *= 0.92;
@@ -459,21 +475,6 @@ worldWrap.addEventListener('touchmove', e => {
   lt = t;
 }, { passive: false });
 worldWrap.addEventListener('touchend', e => { lt=Array.from(e.touches);cursorEl.classList.remove('grabbing'); }, { passive: false });
-
-// ─── Keyboard ──────────────────────────────────────────────────────────────
-const keys = {};
-window.addEventListener('keydown', e => keys[e.key]=true);
-window.addEventListener('keyup',   e => keys[e.key]=false);
-const KB = 5;
-(function kbLoop() {
-  requestAnimationFrame(kbLoop);
-  let dx=0,dy=0;
-  if(keys['a']||keys['A']||keys['ArrowLeft'])  dx+=KB;
-  if(keys['d']||keys['D']||keys['ArrowRight']) dx-=KB;
-  if(keys['w']||keys['W']||keys['ArrowUp'])    dy+=KB;
-  if(keys['s']||keys['S']||keys['ArrowDown'])  dy-=KB;
-  if(dx||dy){panX+=dx;panY+=dy;applyTransform();}
-})();
 
 // ─── Init ──────────────────────────────────────────────────────────────────
 buildCards(CATEGORIES[0].sites);
@@ -605,12 +606,28 @@ buildCards(CATEGORIES[0].sites);
   };
 
   // ── Render loop ───────────────────────────────────────────────────────────
+  let cursorMoved = false;
+  let idleFrames  = 0;
+  const IDLE_THRESHOLD = 90; // frames before physics pauses (~1.5s)
+
   function loop() {
     requestAnimationFrame(loop);
 
     alpha += (alphaTgt - alpha) * 0.07;
     bX += (mX - bX) * BLOB_LERP;
     bY += (mY - bY) * BLOB_LERP;
+
+    const blobMoving = Math.abs(mX - bX) > 0.5 || Math.abs(mY - bY) > 0.5;
+    if (cursorMoved || blobMoving || Math.abs(alphaTgt - alpha) > 0.01) {
+      idleFrames = 0;
+    } else {
+      idleFrames++;
+    }
+    cursorMoved = false;
+
+    // Skip physics + redraw when fully settled
+    const settled = idleFrames > IDLE_THRESHOLD;
+    if (settled && alpha >= 0.99) return;
 
     ctx.clearRect(0, 0, W, H);
     if (allChars.length === 0 || alpha < 0.01) return;
@@ -621,17 +638,19 @@ buildCards(CATEGORIES[0].sites);
       const dx = p.x - bX, dy = p.y - bY;
       const d  = Math.sqrt(dx*dx + dy*dy);
 
-      // Spring to rest
-      p.vx += (p.restX - p.x) * TETHER_K;
-      p.vy += (p.restY - p.y) * TETHER_K;
-      // Repel from cursor
-      if (d < REPEL_R && d > 0.5) {
-        const f = (1 - d/REPEL_R);
-        p.vx += (dx/d) * f*f * 14;
-        p.vy += (dy/d) * f*f * 14;
+      if (!settled) {
+        // Spring to rest
+        p.vx += (p.restX - p.x) * TETHER_K;
+        p.vy += (p.restY - p.y) * TETHER_K;
+        // Repel from cursor
+        if (d < REPEL_R && d > 0.5) {
+          const f = (1 - d/REPEL_R);
+          p.vx += (dx/d) * f*f * 14;
+          p.vy += (dy/d) * f*f * 14;
+        }
+        p.vx *= DAMP; p.vy *= DAMP;
+        p.x  += p.vx; p.y  += p.vy;
       }
-      p.vx *= DAMP; p.vy *= DAMP;
-      p.x  += p.vx; p.y  += p.vy;
 
       // Fade near cursor
       const fadeS = 12, fadeE = 42;
@@ -647,7 +666,7 @@ buildCards(CATEGORIES[0].sites);
   }
 
   // ── Mouse ─────────────────────────────────────────────────────────────────
-  window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; });
+  window.addEventListener('mousemove', e => { mX = e.clientX; mY = e.clientY; cursorMoved = true; });
   window.addEventListener('resize', () => {
     if (window.innerWidth <= 768) return;
     W = canvas.width  = window.innerWidth;
