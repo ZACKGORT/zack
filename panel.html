@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zack Gort — UX & Product Design</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --accent: #FF3C1F;
+    --black: #0D0D0D;
+    --white: #FFFFFF;
+    --off: #F2F0ED;
+    --mid: #888;
+    --rule: #D8D6D3;
+    --rule-dark: #2A2A2A;
+    --font: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font); background: var(--off); color: var(--black); overflow-x: hidden; cursor: none; }
+
+  /* CURSOR — fixed: no blend-mode, accent red, starts offscreen */
+  #cursor {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%,-50%);
+    transition: width .2s, height .2s, opacity .2s;
+    left: -20px;
+    top: -20px;
+    opacity: 0;
+  }
+  #cursor.lg { width: 44px; height: 44px; opacity: 0.35; }
+
+  /* PAGE COVER */
+  #cover { position: fixed; inset: 0; background: var(--black); z-index: 8000; transform: translateY(100%); pointer-events: none; }
+  #cover.in  { transform: translateY(0);    transition: transform .5s cubic-bezier(.76,0,.24,1); }
+  #cover.out { transform: translateY(-100%); transition: transform .5s cubic-bezier(.76,0,.24,1) .1s; }
+
+  /* VIEWS */
+  .view { display: none; min-height: 100vh; }
+  .view.active { display: block; }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 18px 28px; display: flex; align-items: flex-start; justify-content: space-between; pointer-events: none; }
+  nav.dk { color: var(--white); }
+  nav.lt { color: var(--black); }
+  .nl, .nc, .nr { pointer-events: all; }
+  .nl { font-size: 9px; font-weight: 500; line-height: 1.6; }
+  .nc { font-size: 9px; font-weight: 500; }
+  .nr { display: flex; align-items: center; gap: 20px; }
+  .nav-links { display: flex; gap: 20px; }
+  .nl a, .nav-links a { text-decoration: none; color: inherit; font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; opacity: .45; transition: opacity .2s; cursor: none; }
+  .nl a:hover, .nav-links a:hover, .nav-links a.on { opacity: 1; }
+  .studio { font-weight: 800; opacity: 1 !important; cursor: none; }
+  .dot { width: 13px; height: 13px; border: 1.5px solid currentColor; border-radius: 50%; opacity: .4; position: relative; cursor: none; }
+  .dot::after { content: ''; position: absolute; inset: 3px; background: currentColor; border-radius: 50%; }
+  .dot:hover { opacity: 1; }
+
+  /* ── HERO ─────────────────────────── */
+  .hero { min-height: 100vh; background: var(--black); display: flex; flex-direction: column; justify-content: flex-end; padding: 28px; position: relative; overflow: hidden; }
+  .hero-bg-text { position: absolute; top: 50%; right: 20px; transform: translateY(-50%); font-size: clamp(100px,18vw,200px); font-weight: 900; color: rgba(255,255,255,.04); line-height: 1; user-select: none; letter-spacing: -.04em; }
+  .hero-eyebrow { font-size: 8px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 20px; }
+  .hero-title { font-size: clamp(56px,10vw,130px); font-weight: 900; color: var(--white); line-height: .92; letter-spacing: -.04em; margin-bottom: 12px; position: relative; z-index: 1; }
+  .hero-title em { font-style: normal; color: var(--accent); }
+  .hero-sub { font-size: clamp(20px,3.5vw,40px); font-weight: 300; color: rgba(255,255,255,.4); letter-spacing: -.02em; line-height: 1.1; margin-bottom: 60px; position: relative; z-index: 1; }
+  .hero-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; border-top: 1px solid rgba(255,255,255,.1); padding-top: 20px; position: relative; z-index: 1; }
+  .h-label { font-size: 7px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.3); margin-bottom: 8px; }
+  .h-text { font-size: 11px; color: rgba(255,255,255,.65); line-height: 1.7; max-width: 400px; }
+  .h-nav-list { display: flex; flex-direction: column; gap: 0; }
+  .h-nav-item { display: flex; align-items: center; gap: 16px; font-size: 11px; color: rgba(255,255,255,.5); padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); cursor: none; transition: color .2s; }
+  .h-nav-item:hover { color: white; }
+  .h-nav-num { color: rgba(255,255,255,.25); font-weight: 600; min-width: 24px; font-size: 9px; }
+
+  /* ── TICKER ───────────────────────── */
+  .ticker { background: var(--accent); overflow: hidden; padding: 11px 0; }
+  .ticker-inner { display: flex; gap: 48px; animation: tick 22s linear infinite; white-space: nowrap; }
+  @keyframes tick { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .t-item { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--black); flex-shrink: 0; }
+  .t-item::before { content: '— '; }
+
+  /* ── ABOUT STRIP ──────────────────── */
+  .about-strip { background: var(--off); padding: 80px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+  .about-name { font-size: clamp(48px,8vw,96px); font-weight: 900; letter-spacing: -.04em; line-height: .92; margin-bottom: 24px; }
+  .about-title-line { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--mid); margin-bottom: 40px; }
+  .about-desc { font-size: 13px; line-height: 1.8; color: #444; margin-bottom: 32px; max-width: 480px; }
+  .about-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; border-top: 1px solid var(--rule); padding-top: 20px; }
+  .stat-n { font-size: clamp(32px,5vw,52px); font-weight: 900; letter-spacing: -.03em; line-height: 1; }
+  .stat-l { font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--mid); margin-top: 4px; }
+  .about-right { padding-top: 8px; }
+  .expertise-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .ex-col-label { font-size: 7px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--mid); margin-bottom: 12px; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+  .ex-item { font-size: 11px; color: #555; line-height: 2; }
+  .co-list { display: flex; flex-direction: column; gap: 0; margin-top: 32px; border-top: 1px solid var(--rule); }
+  .co-item { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--rule); font-size: 11px; }
+  .co-name { font-weight: 600; }
+  .co-role { color: var(--mid); font-size: 10px; }
+  .co-year { color: var(--mid); font-size: 10px; }
+
+  /* ── SECTION LABEL ────────────────── */
+  .sec-hero { padding: 100px 28px 28px; }
+  .sec-hero.dk { background: var(--black); color: var(--white); }
+  .sec-hero.lt { background: var(--white); color: var(--black); }
+  .sec-hero.of { background: var(--off); color: var(--black); }
+  .sec-title { font-size: clamp(52px,9vw,110px); font-weight: 900; letter-spacing: -.04em; line-height: .92; margin-bottom: 20px; }
+  .sec-sub { font-size: 13px; color: var(--mid); max-width: 500px; line-height: 1.7; }
+
+  /* ── WORK GRID ────────────────────── */
+  .work-grid { background: var(--black); padding: 0 28px 60px; }
+  .wg { display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; }
+  .wc { position: relative; aspect-ratio: 1; overflow: hidden; cursor: none; background: #111; }
+  .wc:hover .wc-img { transform: scale(1.05); }
+  .wc-img { width: 100%; height: 100%; transition: transform .6s cubic-bezier(.25,.46,.45,.94); display: flex; align-items: center; justify-content: center; }
+  .wc-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.25); opacity: 0; transition: opacity .3s; }
+  .wc:hover .wc-overlay { opacity: 1; }
+  .wc-meta { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 14px; background: linear-gradient(transparent,rgba(0,0,0,.85)); color: white; display: flex; justify-content: space-between; align-items: flex-end; }
+  .wc-name { font-size: 11px; font-weight: 700; }
+  .wc-type { font-size: 9px; color: rgba(255,255,255,.45); }
+  .wc-tag { font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+
+  /* ── CASE STUDY LIST ──────────────── */
+  .cs-list { background: var(--white); padding: 0 28px; }
+  .cs-row { display: grid; grid-template-columns: 60px 1fr 1fr 80px; gap: 20px; align-items: center; padding: 24px 0; border-bottom: 1px solid var(--rule); cursor: none; transition: background .15s; position: relative; }
+  .cs-row:hover { background: rgba(0,0,0,.02); }
+  .cs-idx { font-size: 9px; color: var(--mid); font-weight: 600; }
+  .cs-client { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+  .cs-type { font-size: 11px; color: var(--mid); line-height: 1.5; }
+  .cs-yr { font-size: 10px; color: var(--mid); text-align: right; }
+  .cs-arr { position: absolute; right: 0; opacity: 0; transition: opacity .2s, transform .2s; transform: translateX(-8px); font-size: 14px; }
+  .cs-row:hover .cs-arr { opacity: 1; transform: translateX(0); }
+
+  /* ── CASE STUDY PAGE ──────────────── */
+  .cs-page-header { padding: 100px 28px 28px; background: var(--white); border-bottom: 1px solid var(--rule); }
+  .cs-page-header.dk { background: var(--black); color: var(--white); border-bottom-color: var(--rule-dark); }
+  .cs-eyebrow { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-bottom: 20px; }
+  .cs-label { font-size: 7px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--mid); margin-bottom: 4px; }
+  .cs-page-header.dk .cs-label { color: rgba(255,255,255,.3); }
+  .cs-val { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+  .cs-body { display: grid; grid-template-columns: 1fr 1fr; min-height: 520px; }
+  .cs-body.dk { background: var(--black); color: var(--white); }
+  .cs-img-col { background: #ddd; overflow: hidden; position: relative; min-height: 520px; display: flex; align-items: center; justify-content: center; }
+  .cs-img-col.dk { background: #111; }
+  .cs-num-stamp { position: absolute; bottom: 24px; left: 24px; font-size: 72px; font-weight: 900; color: white; line-height: 1; mix-blend-mode: difference; }
+  .cs-info { padding: 40px 36px; display: flex; flex-direction: column; gap: 20px; border-left: 1px solid var(--rule); }
+  .cs-body.dk .cs-info { border-left-color: var(--rule-dark); }
+  .cs-block { padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+  .cs-body.dk .cs-block { border-bottom-color: var(--rule-dark); }
+  .cs-block:last-child { border-bottom: none; }
+  .cs-body-text { font-size: 12px; line-height: 1.8; color: #444; max-width: 420px; }
+  .cs-body.dk .cs-body-text { color: rgba(255,255,255,.6); }
+  .cs-service { font-size: 16px; font-weight: 700; padding: 5px 0; letter-spacing: -.01em; }
+  .cs-quote { font-size: 13px; line-height: 1.8; font-style: italic; color: #555; border-left: 3px solid var(--accent); padding-left: 16px; margin-top: 8px; }
+  .cs-body.dk .cs-quote { color: rgba(255,255,255,.5); }
+  .accent-block { width: 100%; aspect-ratio: 4/3; background: var(--accent); display: flex; align-items: flex-end; padding: 20px; margin-top: 8px; }
+  .accent-block-label { font-size: 18px; font-weight: 900; letter-spacing: -.02em; color: var(--black); }
+  .dark-block { width: 100%; aspect-ratio: 4/3; background: var(--black); display: flex; align-items: flex-end; padding: 20px; }
+  .dark-block-label { font-size: 18px; font-weight: 900; color: white; }
+
+  /* ── NARRATIVE STRIP ──────────────── */
+  .narrative-strip { background: var(--black); color: var(--white); padding: 60px 28px; }
+  .ns-header { display: flex; align-items: baseline; gap: 20px; margin-bottom: 32px; border-bottom: 1px solid var(--rule-dark); padding-bottom: 20px; }
+  .ns-idx { font-size: 9px; color: rgba(255,255,255,.25); font-weight: 600; min-width: 32px; }
+  .ns-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .ns-body { font-size: 12px; line-height: 1.9; color: rgba(255,255,255,.6); max-width: 680px; }
+  .ns-body strong { color: white; font-weight: 600; }
+
+  /* ── ETHOS ────────────────────────── */
+  .ethos-section { background: var(--off); padding: 80px 28px; }
+  .ethos-title { font-size: clamp(52px,9vw,110px); font-weight: 900; letter-spacing: -.04em; line-height: .92; margin-bottom: 48px; }
+  .ethos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .ethos-desc { font-size: 13px; line-height: 1.8; color: #444; margin-bottom: 32px; }
+  .principle { display: grid; grid-template-columns: 28px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--rule); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #333; align-items: start; }
+  .p-num { color: var(--mid); font-weight: 400; padding-top: 1px; }
+
+  /* ── SELECTED ─────────────────────── */
+  .selected { background: var(--black); color: var(--white); padding: 80px 28px 60px; }
+  .sel-eyebrow { font-size: 8px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.25); margin-bottom: 12px; }
+  .sel-title { font-size: clamp(48px,9vw,110px); font-weight: 900; letter-spacing: -.04em; line-height: .92; }
+  .sel-year { font-size: clamp(48px,9vw,110px); font-weight: 900; letter-spacing: -.04em; line-height: .92; color: rgba(255,255,255,.18); margin-bottom: 40px; }
+  .sel-cats { display: flex; gap: 40px; border-top: 1px solid var(--rule-dark); padding-top: 20px; font-size: 10px; color: rgba(255,255,255,.4); }
+  .sel-cat { display: flex; gap: 12px; }
+  .sel-cat-n { color: rgba(255,255,255,.2); }
+
+  /* ── TESTIMONIALS ─────────────────── */
+  .testi-section { background: var(--off); padding: 80px 28px; }
+  .testi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 40px; }
+  .testi-card { background: var(--white); padding: 28px 32px; }
+  .testi-quote { font-size: 14px; line-height: 1.8; color: #333; margin-bottom: 20px; font-style: italic; }
+  .testi-attr { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mid); }
+
+  /* ── CONTACT ──────────────────────── */
+  .contact-section { background: var(--accent); padding: 80px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: end; }
+  .contact-title { font-size: clamp(48px,8vw,100px); font-weight: 900; letter-spacing: -.04em; line-height: .92; color: var(--black); }
+  .contact-right { display: flex; flex-direction: column; gap: 16px; }
+  .contact-desc { font-size: 13px; line-height: 1.7; color: rgba(0,0,0,.65); max-width: 400px; }
+  .contact-link { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--black); text-decoration: none; border-bottom: 1px solid rgba(0,0,0,.3); padding-bottom: 2px; display: inline-block; cursor: none; }
+  .contact-link:hover { border-bottom-color: var(--black); }
+
+  /* ── FOOTER ───────────────────────── */
+  footer { background: var(--black); color: var(--white); padding: 48px 28px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; align-items: end; }
+  .foot-logo { font-size: 18px; font-weight: 900; letter-spacing: -.02em; }
+  .foot-note { font-size: 9px; color: rgba(255,255,255,.25); margin-top: 6px; line-height: 1.6; }
+  .foot-nav { display: flex; flex-direction: column; gap: 8px; }
+  .foot-nav a { font-size: 10px; color: rgba(255,255,255,.4); text-decoration: none; cursor: none; transition: color .2s; }
+  .foot-nav a:hover { color: white; }
+  .foot-copy { font-size: 8px; color: rgba(255,255,255,.2); text-align: right; line-height: 1.8; }
+
+  /* ── SCROLL REVEAL ────────────────── */
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity .65s ease, transform .65s ease; }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+
+  /* ── ANIMS ────────────────────────── */
+  @keyframes fadeUp { from{opacity:0;transform:translateY(28px)} to{opacity:1;transform:translateY(0)} }
+  .anim { opacity: 0; animation: fadeUp .7s cubic-bezier(.25,.46,.45,.94) forwards; }
+  .d1{animation-delay:.1s} .d2{animation-delay:.2s} .d3{animation-delay:.3s} .d4{animation-delay:.4s} .d5{animation-delay:.5s}
+
+  /* ── MISC ─────────────────────────── */
+  .sep { height: 1px; background: var(--rule); margin: 0 28px; }
+  .sep-dk { height: 1px; background: var(--rule-dark); }
+  .tag { display: inline-block; font-size: 7px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; background: var(--black); color: white; padding: 3px 8px; margin-right: 6px; margin-bottom: 4px; }
+  .tag.ac { background: var(--accent); color: var(--black); }
+
+  .ph { display: flex; align-items: center; justify-content: center; }
+  .ph-dark { background: linear-gradient(135deg,#111 0%,#1e1e1e 100%); }
+  .ph-mid { background: linear-gradient(135deg,#ccc 0%,#bbb 100%); }
+  .ph-off { background: linear-gradient(135deg,#e0dcd6 0%,#ccc8c0 100%); }
+
+  .big-n { font-size: clamp(80px,15vw,160px); font-weight: 900; letter-spacing: -.04em; line-height: 1; color: rgba(0,0,0,.06); position: absolute; right: 28px; top: 50%; transform: translateY(-50%); user-select: none; }
+  .big-n.w { color: rgba(255,255,255,.05); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+  .chip { font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--rule); padding: 4px 10px; color: var(--mid); }
+  .chip:hover { border-color: var(--black); color: var(--black); }
+  .dk-chip { border-color: var(--rule-dark); color: rgba(255,255,255,.35); }
+  .dk-chip:hover { border-color: white; color: white; }
+
+  /* ── BNY CASE STUDY IMAGES ────────── */
+  .bny-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: #0a0a0a; }
+  .bny-img-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .bny-img { width: 100%; display: block; object-fit: cover; }
+  .bny-img-full { width: 100%; display: block; object-fit: cover; }
+  .bny-img-caption { font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.25); padding: 8px 12px; background: #0a0a0a; }
+
+  /* ── GNC IMAGE GALLERY ────────────── */
+  .gnc-dive-frame { width: 100%; border: none; display: block; background: #f5f5f5; }
+  .gnc-img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--off); }
+  .gnc-img { width: 100%; display: block; object-fit: cover; }
+
+  a[data-nav], [data-nav] { cursor: none; }
+
+  /* ── FORM-STANDARD CASE STUDY LAYOUT ─────────────────────────── */
+  .fs-view { background: #fff; color: #0a0a0a; }
+
+  /* Top identity bar */
+  .fs-topbar {
+    display: grid;
+    grid-template-columns: 160px 1fr auto;
+    align-items: start;
+    padding: 18px 28px 16px;
+    border-bottom: 1px solid #d0ceca;
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: .04em;
+    color: #999;
+  }
+  .fs-topbar-left { line-height: 1.7; }
+  .fs-topbar-mid { font-size: 8px; color: #bbb; }
+  .fs-topbar-dot { width: 10px; height: 10px; border: 1px solid #ccc; border-radius: 50%; margin-top: 1px; }
+
+  /* Case hero: number + client name */
+  .fs-hero {
+    padding: 40px 28px 0;
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-hero-inner {
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    margin-bottom: 36px;
+  }
+  .fs-num {
+    font-size: 22px;
+    font-weight: 300;
+    color: #bbb;
+    letter-spacing: -.01em;
+    min-width: 40px;
+  }
+  .fs-client-name {
+    font-size: clamp(32px, 6vw, 64px);
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: #0a0a0a;
+  }
+
+  /* 4-col metadata row */
+  .fs-meta {
+    display: grid;
+    grid-template-columns: 220px 1fr 160px 100px;
+    gap: 0;
+    border-top: 1px solid #d0ceca;
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-meta-col {
+    padding: 10px 16px 10px 0;
+    border-right: 1px solid #d0ceca;
+  }
+  .fs-meta-col:first-child { padding-left: 0; }
+  .fs-meta-col:last-child { border-right: none; padding-left: 16px; }
+  .fs-meta-label {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 5px;
+  }
+  .fs-meta-val {
+    font-size: 10px;
+    font-weight: 500;
+    color: #0a0a0a;
+    line-height: 1.5;
+  }
+
+  /* Body: text col + deliverables col + image */
+  .fs-body {
+    display: grid;
+    grid-template-columns: 220px 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid #d0ceca;
+    padding: 28px 0 0;
+  }
+  .fs-desc-col {
+    padding: 0 24px 28px 0;
+    border-right: 1px solid #d0ceca;
+  }
+  .fs-desc-text {
+    font-size: 10.5px;
+    line-height: 1.85;
+    color: #333;
+  }
+  .fs-deliv-col {
+    padding: 0 24px 28px 24px;
+    border-right: 1px solid #d0ceca;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .fs-deliv-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #e8e5e0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0a0a0a;
+  }
+  .fs-deliv-item:first-child { padding-top: 0; }
+  .fs-deliv-item:last-child { border-bottom: none; }
+  .fs-deliv-item-label {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 3px;
+  }
+  .fs-img-col {
+    padding: 0 0 0 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .fs-img-col img {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  /* Photo grid (Vanta-style) */
+  .fs-photo-grid {
+    padding: 0 28px 28px;
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-photo-grid-label {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding: 16px 0 12px;
+    border-top: 1px solid #d0ceca;
+    margin-bottom: 12px;
+  }
+  .fs-photo-row {
+    display: grid;
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+  .fs-photo-row.cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .fs-photo-row.cols-7 { grid-template-columns: repeat(7, 1fr); }
+  .fs-photo-cell {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: #e8e5e0;
+  }
+  .fs-photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fs-photo-cell-num {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    font-size: 6px;
+    font-weight: 700;
+    color: rgba(255,255,255,.5);
+    letter-spacing: .05em;
+  }
+
+  /* Full-bleed image strip (Fieldrun-style) */
+  .fs-fullbleed {
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-fullbleed img { width: 100%; display: block; }
+  .fs-fullbleed-caption {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding: 8px 28px;
+    border-top: 1px solid #d0ceca;
+  }
+
+  /* Figma live embed strip */
+  .fs-figma {
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-figma-label {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding: 16px 28px 12px;
+    border-top: 1px solid #d0ceca;
+    border-bottom: 1px solid #d0ceca;
+  }
+  .fs-figma iframe {
+    display: block;
+    width: 100%;
+    height: 640px;
+    border: none;
+  }
+
+  /* Narrative strip — light version for fs pages */
+  .fs-narrative {
+    padding: 36px 28px;
+    border-bottom: 1px solid #d0ceca;
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  .fs-narrative-label {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #aaa;
+    padding-top: 3px;
+  }
+  .fs-narrative-body {
+    font-size: 11px;
+    line-height: 1.9;
+    color: #333;
+  }
+  .fs-narrative-body strong { color: #0a0a0a; font-weight: 700; }
+
+  /* Padding on fs-hero for interior body usage */
+  .fs-hero .fs-body { padding-top: 28px; }
+
+  /* Mobile safety */
+  @media (max-width: 700px) {
+    .fs-meta { grid-template-columns: 1fr 1fr; }
+    .fs-body { grid-template-columns: 1fr; }
+    .fs-desc-col, .fs-deliv-col { border-right: none; border-bottom: 1px solid #d0ceca; }
+    .fs-img-col { padding: 24px 0 0; }
+    .fs-photo-row.cols-6, .fs-photo-row.cols-7 { grid-template-columns: repeat(4, 1fr); }
+  }
+
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cover"></div>
+
+<!-- NAV -->
+<nav id="nav" class="dk">
+  <div class="nl">
+    <span class="studio" data-nav="home" style="display:block;margin-bottom:2px;">Zack Gort</span>
+    <a data-nav="work">Work</a> &nbsp;·&nbsp;
+    <a data-nav="about">About</a>
+  </div>
+  <div class="nc">
+    <div class="nav-links">
+      <a data-nav="home">Index</a>
+      <a data-nav="work">Stories</a>
+      <a data-nav="about">CV</a>
+      <a href="mailto:hello@zack.cx">Contact</a>
+    </div>
+    <div style="font-size:8px;color:rgba(128,128,128,.6);margin-top:4px;">UX & Product Design · Philadelphia</div>
+  </div>
+  <div class="nr"><div class="dot"></div></div>
+</nav>
+
+
+<!-- ══════════════════════════════════ HOME ══ -->
+<div id="view-home" class="view active">
+
+  <section class="hero">
+    <div class="big-n w">20</div>
+    <div class="hero-eyebrow anim">User Experience by Design</div>
+    <div class="hero-title anim d1">Zack<br><em>Gort.</em></div>
+    <div class="hero-sub anim d2">Senior UX &amp; Product Designer</div>
+    <div class="hero-meta anim d3">
+      <div>
+        <div class="h-label">What I do</div>
+        <div class="h-text">I translate data points into pixels. Having worked with client teams of all types for 20+ years, I've developed a knack for translating hard requirements into conversation pieces that make the creative process actually creative. Navigation systems are my forté. Caring about the work is non-negotiable.</div>
+        <div class="chips" style="margin-top:16px;">
+          <span class="chip dk-chip">IA &amp; Navigation</span>
+          <span class="chip dk-chip">E-Commerce</span>
+          <span class="chip dk-chip">Design Systems</span>
+          <span class="chip dk-chip">B2B Platforms</span>
+          <span class="chip dk-chip">Mobile / iOS</span>
+          <span class="chip dk-chip">SAP Hybris</span>
+          <span class="chip dk-chip">Shopify</span>
+        </div>
+      </div>
+      <div>
+        <div class="h-label">↓ Selected Work</div>
+        <div class="h-nav-list">
+          <div class="h-nav-item" data-nav="cs-bny"><span class="h-nav-num">01</span>BNY Mellon / Pershing X</div>
+          <div class="h-nav-item" data-nav="cs-gnc"><span class="h-nav-num">02</span>GNC — Shopify Redesign</div>
+          <div class="h-nav-item" data-nav="cs-hardinge"><span class="h-nav-num">03</span>Hardinge — B2B SAP Hybris</div>
+          <div class="h-nav-item" data-nav="cs-kent"><span class="h-nav-num">04</span>Kent State .EDU</div>
+          <div class="h-nav-item" data-nav="cs-dana"><span class="h-nav-num">05</span>Dana Foundation</div>
+          <div class="h-nav-item" data-nav="work"><span class="h-nav-num">→</span>View all work</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ticker">
+    <div class="ticker-inner">
+      <span class="t-item">Navigation Systems</span>
+      <span class="t-item">Information Architecture</span>
+      <span class="t-item">E-Commerce UX</span>
+      <span class="t-item">B2B Platforms</span>
+      <span class="t-item">Design Systems</span>
+      <span class="t-item">Client Workshops</span>
+      <span class="t-item">Figma Prototyping</span>
+      <span class="t-item">SAP Hybris</span>
+      <span class="t-item">Shopify</span>
+      <span class="t-item">Mobile-First</span>
+      <span class="t-item">Agile / Scrum</span>
+      <span class="t-item">Navigation Systems</span>
+      <span class="t-item">Information Architecture</span>
+      <span class="t-item">E-Commerce UX</span>
+      <span class="t-item">B2B Platforms</span>
+      <span class="t-item">Design Systems</span>
+      <span class="t-item">Client Workshops</span>
+      <span class="t-item">Figma Prototyping</span>
+      <span class="t-item">SAP Hybris</span>
+      <span class="t-item">Shopify</span>
+      <span class="t-item">Mobile-First</span>
+      <span class="t-item">Agile / Scrum</span>
+    </div>
+  </div>
+
+  <section class="about-strip reveal">
+    <div>
+      <div class="about-name">Zack<br>Gort</div>
+      <div class="about-title-line">UX &amp; Product Design · Philadelphia · ~20 years</div>
+      <div class="about-stats">
+        <div><div class="stat-n">20<span style="color:var(--accent)">+</span></div><div class="stat-l">Years</div></div>
+        <div><div class="stat-n">40<span style="color:var(--accent)">+</span></div><div class="stat-l">Clients</div></div>
+        <div><div class="stat-n">∞</div><div class="stat-l">Navs designed</div></div>
+      </div>
+    </div>
+    <div class="about-right">
+      <div class="about-desc">I was an artist before I was a graphic designer — or a UX designer. I studied at Pratt Institute (briefly), built my own computer, taught myself Photoshop and Illustrator via piracy, and eventually landed at a startup in the suburbs of southeastern Pennsylvania shipping millions of dollars of automotive parts to a fanatical fanbase. That was my formal education.<br><br>Since then: agency life at 160over90, O3 World, WebLinc, FlightPath, LiveArea, Code &amp; Theory, and Publicis Sapient. Enterprise. Startup. B2B. B2C. .EDU. iOS. The common thread is navigation systems and a refusal to let the UX process be boring for the client.</div>
+      <div class="expertise-grid">
+        <div>
+          <div class="ex-col-label">Disciplines</div>
+          <div class="ex-item">Information Architecture<br>UX / UI Design<br>Navigation Systems<br>Design Systems<br>Prototyping &amp; Testing<br>Client Workshops<br>Product Strategy</div>
+        </div>
+        <div>
+          <div class="ex-col-label">Platforms &amp; Tools</div>
+          <div class="ex-item">Figma / Sketch<br>SAP Hybris / SFCC<br>Shopify (Plus)<br>Workarea (WebLinc)<br>iOS (native)<br>WCAG 2.0 AA<br>Agile / Scrum</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="selected reveal">
+    <div class="sel-eyebrow">↓ Selected Work</div>
+    <div class="sel-title">Selected<br>Case Studies</div>
+    <div class="sel-year">2007—Now</div>
+    <div class="sel-cats">
+      <div class="sel-cat"><span class="sel-cat-n">1.0</span> Enterprise</div>
+      <div class="sel-cat"><span class="sel-cat-n">2.0</span> E-Commerce</div>
+      <div class="sel-cat"><span class="sel-cat-n">3.0</span> .EDU</div>
+      <div class="sel-cat"><span class="sel-cat-n">4.0</span> Startup / iOS</div>
+    </div>
+  </section>
+
+  <div class="cs-list">
+    <div class="cs-row" data-nav="cs-bny">
+      <div class="cs-idx">1.1</div>
+      <div><div class="cs-client">BNY Mellon / Pershing X</div><div class="cs-type">Advisory Experience Platform</div></div>
+      <div class="cs-type">Principal UX Lead · Design Systems · Client Workshops<br><span class="tag ac" style="margin-top:4px">Publicis Sapient</span></div>
+      <div class="cs-yr">2023<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-gnc">
+      <div class="cs-idx">2.1</div>
+      <div><div class="cs-client">GNC</div><div class="cs-type">Shopify Plus Redesign</div></div>
+      <div class="cs-type">Lead UX Designer · Mobile-First Navigation<br><span class="tag" style="margin-top:4px">Elva Design Group</span></div>
+      <div class="cs-yr">2022<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-hardinge">
+      <div class="cs-idx">2.2</div>
+      <div><div class="cs-client">Hardinge Inc.</div><div class="cs-type">B2B SAP Hybris E-Commerce</div></div>
+      <div class="cs-type">Principal UX · Cards Against Bad UX<br><span class="tag" style="margin-top:4px">LiveArea</span></div>
+      <div class="cs-yr">2020<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-kent">
+      <div class="cs-idx">3.1</div>
+      <div><div class="cs-client">Kent State University</div><div class="cs-type">.EDU Overhaul</div></div>
+      <div class="cs-type">IA Refactor · Navigation Design · Visual Design<br><span class="tag" style="margin-top:4px">160over90</span></div>
+      <div class="cs-yr">2016<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-dana">
+      <div class="cs-idx">3.2</div>
+      <div><div class="cs-client">Dana Foundation</div><div class="cs-type">Mobile-First Redesign + Bespoke Logo</div></div>
+      <div class="cs-type">Full-spectrum redesign · Brand Identity<br><span class="tag" style="margin-top:4px">FlightPath</span></div>
+      <div class="cs-yr">2018<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-power">
+      <div class="cs-idx">4.1</div>
+      <div><div class="cs-client">Power Home Remodeling</div><div class="cs-type">Campaign &amp; Digital Experience</div></div>
+      <div class="cs-type">Cross-dept. coordination · Video · Photography<br><span class="tag" style="margin-top:4px">160over90</span></div>
+      <div class="cs-yr">2015<div class="cs-arr">→</div></div>
+    </div>
+    <div class="cs-row" data-nav="cs-wovn">
+      <div class="cs-idx">4.2</div>
+      <div><div class="cs-client">WOVN</div><div class="cs-type">iOS Video Sharing App · MVP</div></div>
+      <div class="cs-type">UX Research · Agile Sprint · Go-to-market<br><span class="tag" style="margin-top:4px">O3 World</span></div>
+      <div class="cs-yr">2017<div class="cs-arr">→</div></div>
+    </div>
+  </div>
+
+  <div class="sep"></div>
+  <section class="ethos-section reveal">
+    <div class="ethos-title">Ethos</div>
+    <div class="ethos-grid">
+      <div>
+        <div class="ethos-desc">Navigation systems are my forté and my favorite. But it's not just about drawing boxes and arrows — it's about maintaining full communication with the team, diving deep into a new platform and/or client ecosystem, putting in the hours (not all billed) to make everything right, being patient despite egos and exceptional deadlines. It's about caring about the work.</div>
+        <div class="ethos-desc">I was an artist before I was a designer. That means I observe. I read the room. I gauge vocal inflections on client calls when everyone has their camera off. And then I go make something that hits closer to the mark than anyone expected — usually on the first pass.</div>
+      </div>
+      <div>
+        <div class="principle"><span class="p-num">1</span>Translate data into conversation — not just pixels.</div>
+        <div class="principle"><span class="p-num">2</span>Navigation done right is invisible. Done wrong, it's a disaster.</div>
+        <div class="principle"><span class="p-num">3</span>Educate the client. A confused stakeholder approves nothing.</div>
+        <div class="principle"><span class="p-num">4</span>Stay up all night if you have to. Then show up and present.</div>
+        <div class="principle"><span class="p-num">5</span>Art is creating. Design is discerning &amp; dissecting.</div>
+        <div class="principle"><span class="p-num">6</span>Could you imagine if Cy Twombly designed a website?</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="sep"></div>
+  <section class="testi-section reveal">
+    <div style="font-size:clamp(36px,6vw,72px);font-weight:900;letter-spacing:-.03em;line-height:.92;margin-bottom:8px;">What teammates say</div>
+    <div style="font-size:11px;color:var(--mid)">Unsolicited. From the people who worked alongside me.</div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-quote">"Zack has a deep connection to emotions, imagination, and sensitivity — the quintessential idealist. His greatest strength is his depth of sensitivity and empathy, which allows him to give voice to human connections in a way that works with people on a profound level. Zack brings fresh perspective to things when I felt in a rut — a great person to work with."</div>
+        <div class="testi-attr">Christopher Bayle — ACD UX, Publicis Sapient</div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote">"Zack is one of the most talented, hard working and knowledgeable individuals I have had the pleasure of working with. He has truly been excellent, trying to foster communication not only between us, but with the whole team; to set them up for success. He always gives his best and more."</div>
+        <div class="testi-attr">Andrés Moros, MPS — Sr. UX Designer, Publicis Sapient</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-section reveal">
+    <div class="contact-title">Say<br>Hello.</div>
+    <div class="contact-right">
+      <div class="contact-desc">Works referenced herein are intended to provide perspective into a few of my favorite UI+UX experiences. For each of these projects, I served as the principal UI+UX designer.<br><br>©All works shown belong to their respective copyright owners.</div>
+      <a href="mailto:hello@zack.cx" class="contact-link">hello@zack.cx</a>
+      <a href="https://zack.cx" class="contact-link" target="_blank">zack.cx</a>
+    </div>
+  </section>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div><div class="foot-note">UX &amp; Product Design<br>Philadelphia · Available</div></div>
+    <div class="foot-nav">
+      <a data-nav="work">Work</a>
+      <a data-nav="about">About / CV</a>
+      <a href="mailto:hello@zack.cx">Contact</a>
+    </div>
+    <div class="foot-copy">© Zack Gort 2026<br>All works belong to their<br>respective copyright owners.</div>
+  </footer>
+
+</div><!-- /home -->
+
+
+<!-- ══════════════════════════════════ WORK ══ -->
+<div id="view-work" class="view">
+
+  <div class="sec-hero dk">
+    <div class="big-n w">07</div>
+    <div class="sec-title anim">UX<br>Stories.</div>
+    <div class="sec-sub anim d1" style="color:rgba(255,255,255,.45)">A non-linear but carefully curated career path, from homegrown startups to working with A-list brands at global scale. Navigation systems are my forté. Caring about the work is non-negotiable.</div>
+  </div>
+
+  <div class="work-grid">
+    <div class="wg">
+      <div class="wc" data-nav="cs-bny">
+        <div class="wc-img" style="background:#0a0a0a;overflow:hidden;">
+          <img src="https://i.ibb.co/r2rQn4z4/1.png" alt="BNY Pershing X" style="width:100%;height:100%;object-fit:cover;opacity:.7;">
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">Enterprise</div><div class="wc-name">BNY Mellon / Pershing X</div></div><div class="wc-type">2023</div></div>
+      </div>
+      <div class="wc" data-nav="cs-gnc">
+        <div class="wc-img" style="background:#f5f3f0;overflow:hidden;">
+          <img src="https://placehold.co/600x600/f5f3f0/aaa?text=[image]" alt="GNC Shopify" style="width:100%;height:100%;object-fit:cover;">
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;">
+            <div style="font-size:28px;font-weight:900;color:rgba(0,0,0,.12);letter-spacing:-.03em;">GNC</div>
+            <div style="width:60px;height:1px;background:rgba(0,0,0,.1);"></div>
+            <div style="font-size:9px;color:rgba(0,0,0,.2);letter-spacing:.1em;text-transform:uppercase;">Shopify</div>
+          </div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">E-Commerce</div><div class="wc-name">GNC</div></div><div class="wc-type">2022</div></div>
+      </div>
+      <div class="wc" data-nav="cs-hardinge">
+        <div class="wc-img ph" style="background:linear-gradient(135deg,#1a1a1a,#2a2a2a);flex-direction:column;gap:8px;">
+          <div style="font-size:18px;font-weight:900;color:rgba(255,255,255,.12);letter-spacing:-.02em;text-align:center;">B2B<br>SAP<br>Hybris</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">B2B</div><div class="wc-name">Hardinge Inc.</div></div><div class="wc-type">2020</div></div>
+      </div>
+      <div class="wc" data-nav="cs-kent">
+        <div class="wc-img ph ph-dark" style="flex-direction:column;gap:8px;">
+          <div style="font-size:14px;font-weight:900;color:rgba(255,255,255,.12);letter-spacing:-.01em;text-align:center;">KENT<br>STATE<br>.EDU</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">.EDU</div><div class="wc-name">Kent State University</div></div><div class="wc-type">2016</div></div>
+      </div>
+      <div class="wc" data-nav="cs-dana">
+        <div class="wc-img ph" style="background:linear-gradient(135deg,#1e1e1e,#2e2e2e);flex-direction:column;gap:8px;">
+          <div style="font-size:14px;font-weight:900;color:rgba(255,255,255,.12);letter-spacing:-.01em;text-align:center;">DANA<br>FOUNDATION</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">Non-Profit</div><div class="wc-name">Dana Foundation</div></div><div class="wc-type">2018</div></div>
+      </div>
+      <div class="wc" data-nav="cs-power">
+        <div class="wc-img ph" style="background:linear-gradient(135deg,#222,#333);flex-direction:column;">
+          <div style="font-size:12px;font-weight:900;color:rgba(255,255,255,.12);letter-spacing:-.01em;text-align:center;padding:16px;">POWER<br>HOME<br>REMODELING</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">Campaign</div><div class="wc-name">Power HRG</div></div><div class="wc-type">2015</div></div>
+      </div>
+      <div class="wc" data-nav="cs-wovn">
+        <div class="wc-img ph ph-dark" style="flex-direction:column;gap:8px;">
+          <div style="font-size:20px;font-weight:900;color:rgba(255,255,255,.12);letter-spacing:.1em;">WOVN</div>
+          <div style="font-size:8px;color:rgba(255,255,255,.15);letter-spacing:.12em;text-transform:uppercase;">iOS App</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta"><div><div class="wc-tag">iOS / Mobile</div><div class="wc-name">WOVN App</div></div><div class="wc-type">2017</div></div>
+      </div>
+      <div class="wc" data-nav="about">
+        <div class="wc-img" style="background:var(--accent);flex-direction:column;align-items:flex-start;padding:20px;display:flex;">
+          <div style="font-size:11px;font-weight:700;color:rgba(0,0,0,.6);margin-bottom:8px;">~20 years</div>
+          <div style="font-size:22px;font-weight:900;color:var(--black);line-height:1.1;letter-spacing:-.02em;">Full CV<br>&amp; Story</div>
+          <div style="font-size:18px;margin-top:auto;color:var(--black);">→</div>
+        </div>
+        <div class="wc-overlay"></div>
+        <div class="wc-meta" style="background:none;"><div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div><div class="foot-note">UX &amp; Product Design, 2007–Now</div></div>
+    <div class="foot-nav"><a data-nav="home">Home</a><a data-nav="about">About</a><a href="mailto:hello@zack.cx">Contact</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /work -->
+
+
+<!-- ══════════════════════════════════ ABOUT ══ -->
+<div id="view-about" class="view">
+
+  <div class="sec-hero of" style="padding-bottom:60px;position:relative;">
+    <div class="big-n" style="font-size:clamp(60px,12vw,130px);">Zack</div>
+    <div class="sec-title anim" style="max-width:700px;">The Story<br>Behind the Work.</div>
+    <div style="height:1px;background:var(--rule);margin:28px 0;" class="anim d2"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px;" class="anim d3">
+      <div><div style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);margin-bottom:6px;">Location</div><div style="font-size:13px;font-weight:600;">Philadelphia, PA</div></div>
+      <div><div style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);margin-bottom:6px;">Studio</div><div style="font-size:13px;font-weight:600;">Wolfgang &amp; Co.</div></div>
+      <div><div style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);margin-bottom:6px;">Background</div><div style="font-size:13px;font-weight:600;">Pratt Institute · Autodidact</div></div>
+    </div>
+  </div>
+
+  <div class="narrative-strip reveal">
+    <div class="ns-header"><span class="ns-idx">Ch.1</span><span class="ns-title">The non-linear origin story.</span></div>
+    <div class="ns-body">Before I was a "UX Designer", I was a "Web Designer". Before that, a "Graphic Designer". Before that, a teenager who could draw well and had a passion for animation. <strong>What is animation? It is the creation of something in motion; something that requires forethought into the next step, while maintaining a frame of reference for that which has occurred. What is UX? Exactly that.</strong><br><br>I didn't graduate from Pratt. I couldn't afford it. So I worked construction, the bowling alley, the hardware store, the grocery store, the gas station. Built my own computer. Installed pirated Adobe software. Studied typography by reading magazines on the train. Studied color theory from whatever I could find online. Landed a job via Craigslist at $16.50/hour, full benefits, a 401K, and my own cubicle. I had no idea how happy I was.</div>
+  </div>
+
+  <div class="sep-dk"></div>
+  <div class="narrative-strip reveal">
+    <div class="ns-header"><span class="ns-idx">Ch.4–5</span><span class="ns-title">Startup life — AmericanMuscle.com.</span></div>
+    <div class="ns-body">My formal education: Turn5 Inc., parent of AmericanMuscle.com, shipping millions of dollars of automotive parts to a fanatical fanbase out of a warehouse in southeastern Pennsylvania. I did everything — <strong>graphic design, product photography, email marketing, package design, catalog design, and eventually, web design with a specific focus on UX.</strong><br><br>95.8% conversion rate. 14.6% bounce rate. That wasn't magic. That was iterative testing, Sutton's Law, and an obsessive attention to the conversion funnel from homepage through checkout to your doorstep. Also: I took all the product photos. The Raxiom logo too.</div>
+  </div>
+
+  <div class="sep-dk"></div>
+  <div class="narrative-strip reveal">
+    <div class="ns-header"><span class="ns-idx">Ch.6</span><span class="ns-title">Enter #agencylife. Exit #worklifebalance.</span></div>
+    <div class="ns-body">160over90. Center City Philadelphia. Hired as one of two "Interaction Designers" to stand up a newly minted Interactive Department. $12K less than my previous job, zero regrets. <strong>Kent State .EDU. University of Wisconsin–Madison. Power Home Remodeling Group.</strong> Cross-department coordination with photographers, motion designers, video teams. The level of coordination with Power was significant — nay, tremendous. "Power is a ______ company." That was my idea. The team liked it. Power loved it.</div>
+  </div>
+
+  <div class="sep-dk"></div>
+  <div class="narrative-strip reveal">
+    <div class="ns-header"><span class="ns-idx">Ch.10–12</span><span class="ns-title">From PHI to NYC. Cards Against Bad UX.</span></div>
+    <div class="ns-body">LiveArea: UX Manager, contracts exceeding $1M in value, $235/hr billable. <strong>Hardinge Inc. — B2B SAP Hybris. Board-level visibility. Cards Against Bad UX</strong> — a presentation format I invented to shift client conversations away from jargon and toward user-centric thinking. It worked. Client approved on the first call with two modest adjustments. I stayed up all night before one presentation to rebuild the deck. We showed the other version first. The client asked if we had anything else. They approved mine on the spot.<br><br>Then GNC: Shopify Plus, mobile-first navigation, post-bankruptcy. The brief was to shake things up. We did.</div>
+  </div>
+
+  <div class="sep-dk"></div>
+  <div class="narrative-strip reveal">
+    <div class="ns-header"><span class="ns-idx">Ch.15</span><span class="ns-title">Pershing X. The most sophisticated work of my career.</span></div>
+    <div class="ns-body">Publicis Sapient. BNY Mellon / Pershing X Advisory Experience Platform. I became the de facto Team Lead and Product Owner. Led research and discovery. Led client workshops. Collaborated across multiple concurrent tracks while mentoring junior and associate designers. <strong>My efforts were directly responsible for securing a contract extension and influencing the overall direction of the now-live product.</strong><br><br>"Organizational Spaghetti" — a term I coined to describe the experience. But the work was real, and it showed. I was laid off. "Separated amicably," the exit contract said. Happens to the best of us.</div>
+  </div>
+
+  <section style="background:var(--off);padding:80px 28px 60px;" class="reveal">
+    <div style="font-size:clamp(36px,6vw,72px);font-weight:900;letter-spacing:-.03em;line-height:.92;margin-bottom:40px;">Career<br>Timeline.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead>
+        <tr>
+          <th style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);text-align:left;padding:8px 0;border-bottom:1px solid var(--rule);">Period</th>
+          <th style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);text-align:left;padding:8px 0;border-bottom:1px solid var(--rule);">Company</th>
+          <th style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);text-align:left;padding:8px 0;border-bottom:1px solid var(--rule);">Role</th>
+          <th style="font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);text-align:left;padding:8px 0;border-bottom:1px solid var(--rule);">Notable</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2023</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Publicis Sapient</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Senior / Staff UX Designer, Lead</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">BNY Mellon · Pershing X</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2022</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Elva Design Group</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Lead UX Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">GNC · Shopify Plus post-bankruptcy</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2021</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Code &amp; Theory</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Senior Designer / ACD responsibilities</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Top social media platform</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2020</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">LiveArea</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">UX Manager</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Hardinge · SAP Hybris · $1M+ contracts</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2019</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Huge</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">UX Designer (Contract)</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Global enterprise</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--rule);">2018</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">FlightPath NYC</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Senior UX Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Dana Foundation · Merck · Zoetis</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2017</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">O3 World</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">UX Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">WOVN iOS · SEI · La Colombe</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2014–16</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">160over90</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Interaction Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Kent State · Wisc-Madison · Power HRG</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2013–14</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">WebLinc / Workarea</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Senior Visual &amp; UX Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Proprietary SaaS e-commerce platform</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2011–13</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Leadnomics</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">UX Designer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">95.8% conversion rate · Bootstrap</td></tr>
+        <tr><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">2007–11</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);font-weight:700;">Turn5 / AmericanMuscle.com</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);">Web &amp; Graphic Designer, Photographer</td><td style="padding:11px 0;border-bottom:1px solid var(--rule);color:var(--mid);">Built the whole damn thing</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="sep"></div>
+  <section class="testi-section reveal">
+    <div style="font-size:clamp(36px,6vw,72px);font-weight:900;letter-spacing:-.03em;line-height:.92;margin-bottom:8px;">What colleagues say.</div>
+    <div class="testi-grid">
+      <div class="testi-card">
+        <div class="testi-quote">"Zack has a deep connection to emotions, imagination, and sensitivity — the quintessential idealist. His greatest strength is his depth of sensitivity and empathy, which allows him to give voice to human connections in a way that works with people on a profound level."</div>
+        <div class="testi-attr">Christopher Bayle — ACD UX, Publicis Sapient</div>
+      </div>
+      <div class="testi-card">
+        <div class="testi-quote">"Zack is one of the most talented, hard working and knowledgeable individuals I have had the pleasure of working with. He always gives his best and more. I feel he should be recognized for his tremendous effort and for being such a great team player."</div>
+        <div class="testi-attr">Andrés Moros, MPS — Sr. UX Designer, Publicis Sapient</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="contact-section reveal">
+    <div class="contact-title">Let's<br>Work.</div>
+    <div class="contact-right">
+      <div class="contact-desc">Available for senior / staff UX roles, contract engagements, or anything interesting. Navigation systems, enterprise platforms, e-commerce, design systems — all day.</div>
+      <a href="mailto:hello@zack.cx" class="contact-link">hello@zack.cx</a>
+      <a href="https://zack.cx" class="contact-link" target="_blank">zack.cx</a>
+    </div>
+  </section>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div><div class="foot-note">Wolfgang &amp; Co.<br>Philadelphia · Available</div></div>
+    <div class="foot-nav"><a data-nav="home">Home</a><a data-nav="work">Work</a><a href="mailto:hello@zack.cx">Contact</a></div>
+    <div class="foot-copy">© Zack Gort 2026<br>All works belong to their<br>respective copyright owners.</div>
+  </footer>
+
+</div><!-- /about -->
+
+
+<!-- ══════════════════ CS: BNY MELLON ══ -->
+<div id="view-cs-bny" class="view fs-view">
+
+  <div class="fs-topbar">
+    <div class="fs-topbar-left">Zack Gort<br>Wolfgang &amp; Co.<br>2023</div>
+    <div class="fs-topbar-mid">↓ &nbsp; Case Study</div>
+    <div class="fs-topbar-dot"></div>
+  </div>
+
+  <div class="fs-hero" style="padding-left:28px;padding-right:28px;">
+    <div class="fs-hero-inner">
+      <span class="fs-num">1.1</span>
+      <span class="fs-client-name">BNY Mellon / Pershing X</span>
+    </div>
+
+    <!-- 4-col metadata -->
+    <div class="fs-meta">
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Client Name</div>
+        <div class="fs-meta-val">BNY Mellon / Pershing X</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Project Title</div>
+        <div class="fs-meta-val">Advisory Experience Platform</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Project Type</div>
+        <div class="fs-meta-val">Enterprise UX</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Date Completed</div>
+        <div class="fs-meta-val">2023</div>
+      </div>
+    </div>
+
+    <!-- Body: description | deliverables | hero image -->
+    <div class="fs-body">
+      <div class="fs-desc-col">
+        <div class="fs-desc-text">The most sophisticated work of my career. I became the de facto Team Lead and Product Owner on a platform that — two years prior — was only a thought. I led research and discovery, ran client workshops, collaborated across multiple concurrent tracks, and mentored junior and associate designers. My efforts were directly responsible for securing a contract extension leading into the next fiscal year and influencing the overall direction of the now-live product.</div>
+      </div>
+      <div class="fs-deliv-col">
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Primary Deliverable</div>
+          Extensive Industry Research
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Client Workshop Facilitation
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Design System Architecture
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Design Paradigm Refactoring
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Mentorship · Junior + Associate Designers
+        </div>
+      </div>
+      <div class="fs-img-col">
+        <img src="https://i.ibb.co/r2rQn4z4/1.png" alt="BNY Pershing X — Hero" style="opacity:.9;">
+      </div>
+    </div>
+  </div><!-- /fs-hero -->
+
+  <!-- Deliverables image grid (Vanta-style: numbered squares) -->
+  <div class="fs-photo-grid" style="padding-left:28px;padding-right:28px;">
+    <div class="fs-photo-grid-label">↓ Deliverable Artifacts — Research, Discovery &amp; Systems Design</div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="Org Structure"><span class="fs-photo-cell-num">01</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="Competency Framework"><span class="fs-photo-cell-num">02</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="Heuristic Analysis"><span class="fs-photo-cell-num">03</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="Research &amp; Support"><span class="fs-photo-cell-num">04</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="Use Case Flows"><span class="fs-photo-cell-num">05</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/HpP1VhpV/8.png" alt="Terminology"><span class="fs-photo-cell-num">06</span></div>
+    </div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell" style="aspect-ratio:2/1;grid-column:span 2;"><img src="https://i.ibb.co/bjvXg3wd/9.png" alt="Navigation Schema"><span class="fs-photo-cell-num">07</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/8LRTjpLV/10.png" alt="Holistic POC"><span class="fs-photo-cell-num">08</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/PsLHRH6C/11.png" alt="User Data Flows"><span class="fs-photo-cell-num">09</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/xSjq2Lfr/12.png" alt="Design System"><span class="fs-photo-cell-num">10</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/qFd4yvk3/13.png" alt="Systems Design"><span class="fs-photo-cell-num">11</span></div>
+    </div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/0yNw4tmV/14.png" alt="Discovery Audit"><span class="fs-photo-cell-num">12</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/35DRchRF/15.png" alt="Design System Figma"><span class="fs-photo-cell-num">13</span></div>
+      <div class="fs-photo-cell" style="aspect-ratio:2/1;grid-column:span 2;"><img src="https://i.ibb.co/3552czJ9/16.png" alt="IA Flow Comparison"><span class="fs-photo-cell-num">14</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/KcqqfY8m/17.png" alt="Workshop"><span class="fs-photo-cell-num">15</span></div>
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/VZQszBd/18.png" alt="Duty &amp; Diligence"><span class="fs-photo-cell-num">16</span></div>
+    </div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell"><img src="https://i.ibb.co/nMRWhCNq/19.png" alt="Camera On"><span class="fs-photo-cell-num">17</span></div>
+      <div class="fs-photo-cell" style="aspect-ratio:5/1;grid-column:span 5;background:#f2f0ed;"><img src="https://i.ibb.co/5g26nzzh/20.png" alt="Handwritten Notes" style="height:100%;object-fit:cover;"><span class="fs-photo-cell-num">18</span></div>
+    </div>
+  </div>
+
+  <!-- Figma live embed -->
+  <div class="fs-figma">
+    <div class="fs-figma-label">↓ Live Figma — Advisory Experience Platform · Sandbox</div>
+    <iframe
+      src="https://www.figma.com/embed?embed_host=share&url=https%3A%2F%2Fwww.figma.com%2Fdesign%2FjAoi6OG8SaV9Q1GvIjd9XA%2FZAX-SANDBOX%3Fnode-id%3D1380-1184"
+      allowfullscreen
+      loading="lazy"
+    ></iframe>
+  </div>
+
+  <div class="fs-narrative">
+    <div class="fs-narrative-label">↓ #BonCourage<br>SeizeTheSpace</div>
+    <div class="fs-narrative-body">I negotiated company-paid lunches for my in-office workshops. I was a remote employee who chose to be a consistent in-office presence. I coined the term <strong>"Organizational Spaghetti"</strong> to describe the operational reality. I was laid off. "Separated amicably." Happens. What doesn't happen is the level of care and output I put in — and that's evidenced by the product that launched.</div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="home">← Home</a><a data-nav="work">All Work</a><a data-nav="cs-gnc">Next: GNC →</a></div>
+    <div class="foot-copy">NDA-safe content only.<br>© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-bny -->
+
+
+
+
+<!-- ══════════════════ CS: GNC ══ -->
+<div id="view-cs-gnc" class="view fs-view">
+
+  <div class="fs-topbar">
+    <div class="fs-topbar-left">Zack Gort<br>Wolfgang &amp; Co.<br>2022</div>
+    <div class="fs-topbar-mid">↓ &nbsp; Case Study</div>
+    <div class="fs-topbar-dot"></div>
+  </div>
+
+  <div class="fs-hero" style="padding-left:28px;padding-right:28px;">
+    <div class="fs-hero-inner">
+      <span class="fs-num">2.1</span>
+      <span class="fs-client-name">GNC</span>
+    </div>
+
+    <div class="fs-meta">
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Client Name</div>
+        <div class="fs-meta-val">GNC</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Project Title</div>
+        <div class="fs-meta-val">Shopify Plus Redesign</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Project Type</div>
+        <div class="fs-meta-val">E-Commerce UX</div>
+      </div>
+      <div class="fs-meta-col">
+        <div class="fs-meta-label">↓ Date Completed</div>
+        <div class="fs-meta-val">2022</div>
+      </div>
+    </div>
+
+    <div class="fs-body">
+      <div class="fs-desc-col">
+        <div class="fs-desc-text">GNC leadership wanted to shake things up — a mobile-first navigation schema with conventional fallbacks. Post-bankruptcy, they needed to relaunch their brand and reinvigorate consumer interest. The directive: modernize, optimize, and make it feel like a real rebrand without blowing the budget.<br><br>I'm comfortable in not being comfortable. We made foolhardy decisions in favor of shaking things up, as directed.</div>
+      </div>
+      <div class="fs-deliv-col">
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Primary Deliverable</div>
+          Mobile-First Navigation System
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Discovery &amp; Requirements Gathering
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          E-Commerce UX Optimization
+        </div>
+        <div class="fs-deliv-item">
+          <div class="fs-deliv-item-label">↓ Secondary Deliverable</div>
+          Shopify Plus Architecture
+        </div>
+      </div>
+      <div class="fs-img-col">
+        <img src="https://placehold.co/800x560/f5f3f0/aaa?text=[image]" alt="GNC — Shopify Plus Redesign" style="opacity:.9;">
+      </div>
+    </div>
+  </div><!-- /fs-hero -->
+
+  <!-- GNC deep dive embed -->
+  <div style="border-top:1px solid #d0ceca;border-bottom:1px solid #d0ceca;">
+    <div style="padding:10px 28px;font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#aaa;border-bottom:1px solid #d0ceca;">↓ Deep Dive — zackgort.com/dive</div>
+    <iframe
+      src="https://zackgort.com/dive"
+      style="width:100%;height:80vh;border:none;display:block;background:#f5f3f0;"
+      title="GNC — Shopify Plus Redesign Deep Dive"
+      loading="lazy"
+    ></iframe>
+  </div>
+
+  <!-- GNC image grid (Vanta-style) — placeholder slots for real screens -->
+  <div class="fs-photo-grid" style="padding-left:28px;padding-right:28px;">
+    <div class="fs-photo-grid-label">↓ Deliverable Artifacts — Navigation, Mobile UX &amp; E-Commerce Flows</div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 01"><span class="fs-photo-cell-num">01</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 02"><span class="fs-photo-cell-num">02</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 03"><span class="fs-photo-cell-num">03</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 04"><span class="fs-photo-cell-num">04</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 05"><span class="fs-photo-cell-num">05</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 06"><span class="fs-photo-cell-num">06</span></div>
+    </div>
+    <div class="fs-photo-row cols-6">
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 07"><span class="fs-photo-cell-num">07</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 08"><span class="fs-photo-cell-num">08</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 09"><span class="fs-photo-cell-num">09</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 10"><span class="fs-photo-cell-num">10</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 11"><span class="fs-photo-cell-num">11</span></div>
+      <div class="fs-photo-cell"><img src="https://placehold.co/300x300/f0ede8/aaa?text=[image]" alt="GNC 12"><span class="fs-photo-cell-num">12</span></div>
+    </div>
+  </div>
+
+  <div class="fs-narrative">
+    <div class="fs-narrative-label">↓ Mobile-First<br>Navigation.</div>
+    <div class="fs-narrative-body">GNC relaunched, reinvigorated its consumer base, and modernized its online shopping experience — even in lieu of continued shuttering of physical retail locations. <strong>Post-bankruptcy, every UX decision carried real weight.</strong> We built a navigation system designed for mobile first, with thoughtful conventional fallbacks — bold enough to feel like a genuine rebrand, disciplined enough to actually ship.</div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-bny">← BNY Mellon</a><a data-nav="work">All Work</a><a data-nav="cs-hardinge">Next: Hardinge →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-gnc -->
+
+
+
+
+<!-- ══════════════════ CS: HARDINGE ══ -->
+<div id="view-cs-hardinge" class="view">
+
+  <div class="cs-page-header">
+    <div class="cs-eyebrow">
+      <div><div class="cs-label">↓ Client</div><div class="cs-val">Hardinge Inc.</div></div>
+      <div><div class="cs-label">↓ Project</div><div class="cs-val">B2B SAP Hybris E-Commerce</div></div>
+      <div><div class="cs-label">↓ Agency</div><div class="cs-val">LiveArea · 2020</div></div>
+    </div>
+  </div>
+
+  <div class="cs-body">
+    <div class="cs-img-col" style="background:#1c1c1c;padding:0;overflow:hidden;position:relative;">
+      <img src="https://placehold.co/800x600/1c1c1c/383838?text=[image]" alt="Hardinge — SAP Hybris Wireframes &amp; Mockups" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <div class="cs-num-stamp">2.2</div>
+    </div>
+    <div class="cs-info">
+      <div class="cs-block">
+        <div class="cs-label">↓ The Challenge</div>
+        <div class="cs-body-text">Board-level visibility. SAP Hybris. A client so unfamiliar with the design process that jargon-laden spreadsheets were causing frustration and near-contract abandonment. Navigation system slated as a Drop 1 deliverable despite the actual taxonomy review being months away. Oh — and what the heck is a 5C Collet?</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Invention</div>
+        <div class="cs-service">Cards Against Bad UX™</div>
+        <div class="cs-body-text" style="margin-top:8px;">I shifted the conversation away from jargon and toward user-centric thinking. Simple visual cards — "As a shopper," "As a content manager," "As a guest user" — let stakeholders empathize with their end users. The client responded enthusiastically. <strong>Approved on the first call. Two modest feedback adjustments.</strong></div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ Drop 1 Scope (partial)</div>
+        <div class="cs-body-text" style="font-size:10px;line-height:2;">Style Guide · Header (Default / Guest / Authenticated) · Type Ahead / Search Suggestions · Tools (B2B) Menu · Category Navigation · My Account · Account Registration · Guest Order History Lookup · Cookies/Tracking Consent · Footer · Homepage</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Override</div>
+        <div class="cs-quote">A ranking teammate insisted their version ship the night before the presentation. I stayed up all night and made both happen. We showed their version first. Client was pleased — but asked if we had anything else. Within minutes of showing my version: enthusiastic approval on the spot.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hardinge deliverables gallery -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0a0a0a;">
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x540/1c1c1c/404040?text=[image]" alt="Hardinge PDP — Desktop wireframe" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">PDP — Desktop, Single Purchase Item</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x540/1c1c1c/404040?text=[image]" alt="Hardinge PDP — Mobile wireframe" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">PDP — Mobile, Variable &amp; Kit Items</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1c1c1c/404040?text=[image]" alt="Hardinge Navigation IA" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Drop 1 — Navigation, Header &amp; Search</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1c1c1c/404040?text=[image]" alt="ShopHardinge.com UI" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">ShopHardinge.com — High-Fidelity UI</div>
+    </div>
+  </div>
+
+  <div class="narrative-strip">
+    <div class="ns-header"><span class="ns-idx">PDP</span><span class="ns-title">Perspective, Diligence &amp; Payoff.</span></div>
+    <div class="ns-body">I was given one week to produce a Product Detail Page accounting for single purchase items, variable purchase items, kit and bundled items — iterated in both desktop and mobile. That's normal fare. The quirk: the PM and Solutions Architect wanted to force it to dev sight-unseen. Obviously the client wanted to see it. We showed. They responded.<br><br><strong>There are some folks who diligently take notes on calls, and then there are others who are engaged in the call — gauging vocal inflections and reading between the lines. Well, I am a user experience designer.</strong></div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-gnc">← GNC</a><a data-nav="work">All Work</a><a data-nav="cs-kent">Next: Kent State →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-hardinge -->
+
+
+<!-- ══════════════════ CS: KENT STATE ══ -->
+<div id="view-cs-kent" class="view">
+
+  <div class="cs-page-header">
+    <div class="cs-eyebrow">
+      <div><div class="cs-label">↓ Client</div><div class="cs-val">Kent State University</div></div>
+      <div><div class="cs-label">↓ Project</div><div class="cs-val">.EDU Complete Overhaul</div></div>
+      <div><div class="cs-label">↓ Agency</div><div class="cs-val">160over90 · 2016</div></div>
+    </div>
+  </div>
+
+  <div class="cs-body">
+    <div class="cs-img-col" style="background:#002664;padding:0;overflow:hidden;position:relative;">
+      <img src="https://placehold.co/800x600/002664/eaaa00?text=[image]" alt="Kent State .EDU Overhaul — IA &amp; Navigation" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <div class="cs-num-stamp" style="color:rgba(234,170,0,.2)">3.1</div>
+    </div>
+    <div class="cs-info">
+      <div class="cs-block">
+        <div class="cs-label">↓ The Brief</div>
+        <div class="cs-body-text">A massive project covering the full gamut of a .EDU overhaul. Complete IA refactoring, infusion of a fresh brand identity, ground-up redesign — with a green light to "do it different." 8 regional campuses, dozens of international locations, and multiple internal entities with unique priorities.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Nav (my forté)</div>
+        <div class="cs-body-text">Navigation UX/UI for a .EDU with atypical infrastructure. I explored base-line options, mega menus, full-screen takeovers, pop-outs. Then I dared to seek our own solution — a proprietary navigation system designed from ground-up for Kent State's unique complexity. It didn't make it to fruition, but it served as an invaluable thought experiment.</div>
+        <div class="cs-quote">Psst... shout-out to my developer for that insane implementation.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ Contributions</div>
+        <div class="cs-service">IA Refactoring</div>
+        <div class="cs-service">Navigation System Design</div>
+        <div class="cs-service">Wireframe + Design Prototypes</div>
+        <div class="cs-service">User Flow Walkthroughs</div>
+        <div class="cs-service">Visual Design</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kent State gallery -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0a0a0a;">
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/002664/eaaa00?text=[image]" alt="Kent State Homepage Desktop" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Homepage — Desktop</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/eaaa00/002664?text=[image]" alt="Kent State Brand System" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Brand Refresh — Feature Headlines &amp; Typography</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1a1a1a/555555?text=[image]" alt="Kent State Navigation System" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Proprietary Nav System — Concept Exploration</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/002664/eaaa00?text=[image]" alt="Kent State Mobile" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Mobile-First — 8 Campuses, One System</div>
+    </div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-hardinge">← Hardinge</a><a data-nav="work">All Work</a><a data-nav="cs-dana">Next: Dana →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-kent -->
+
+
+<!-- ══════════════════ CS: DANA ══ -->
+<div id="view-cs-dana" class="view">
+
+  <div class="cs-page-header">
+    <div class="cs-eyebrow">
+      <div><div class="cs-label">↓ Client</div><div class="cs-val">The Dana Foundation</div></div>
+      <div><div class="cs-label">↓ Project</div><div class="cs-val">Mobile-First Redesign + Bespoke Logo</div></div>
+      <div><div class="cs-label">↓ Agency</div><div class="cs-val">FlightPath NYC · 2018</div></div>
+    </div>
+  </div>
+
+  <div class="cs-body">
+    <div class="cs-img-col" style="background:#f0ede8;padding:0;overflow:hidden;position:relative;">
+      <img src="https://placehold.co/800x600/e8e4de/aaa8a4?text=[image]" alt="Dana Foundation — Mobile-First Redesign &amp; Sitemap" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <div class="cs-num-stamp" style="color:rgba(0,0,0,.08)">3.2</div>
+    </div>
+    <div class="cs-info">
+      <div class="cs-block">
+        <div class="cs-label">↓ The Work</div>
+        <div class="cs-body-text">Full-spectrum mobile-first redesign: brand new identity, intuitive navigation structure, flexible layout for a comprehensive array of neuroscience content. The previous site hadn't seen a refresh in over a decade. I delivered a design system maintaining near 1:1 desktop-to-mobile experience while minding modern accessibility (WCAG 2.0).</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Nav Problem</div>
+        <div class="cs-body-text">A traditional top-bar navigation was not going to work. No way was I hiding these taxonomies behind a hamburger button. (Okay — burgers are acceptable for mobile.) My card-system interface accommodated both Dana.org and their Brain Awareness Week subsidiary with only modest CSS adjustments.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Logo That Didn't Win</div>
+        <div class="cs-body-text">I proposed a bespoke logo system — dots (circles) as individuals, many as humankind, as a metaphor for the mind. Avoided cliché brain icons. Thought modularly. Used general geometry relative to circle proportions to create a custom typeface.<br><br>It lost by a few votes. I'm told it was close.</div>
+        <div class="cs-quote">I was an artist before I was a graphic designer. So while this didn't make the cut, it may offer a look into how I approach design.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dana Foundation gallery -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#e0dcd6;">
+    <div style="background:#e0dcd6;">
+      <img src="https://placehold.co/900x540/e8e4de/aaa8a4?text=[image]" alt="Dana.org — Sitemap IA" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.3);padding:6px 12px;">Sitemap — Content Architecture &amp; Taxonomy</div>
+    </div>
+    <div style="background:#e0dcd6;">
+      <img src="https://placehold.co/900x540/e8e4de/aaa8a4?text=[image]" alt="Dana.org — Mobile UI" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.3);padding:6px 12px;">Mobile-First UI — dana.org</div>
+    </div>
+  </div>
+  <div style="background:#ffffff;">
+    <img src="https://placehold.co/1800x480/ffffff/cccccc?text=[image]" alt="Dana Foundation — Bespoke Logo Concept" style="width:100%;display:block;object-fit:cover;">
+    <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(0,0,0,.3);padding:8px 28px;">A Brainy, Bespoke Logo — Proposed Identity Concept</div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-kent">← Kent State</a><a data-nav="work">All Work</a><a data-nav="cs-power">Next: Power HRG →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-dana -->
+
+
+<!-- ══════════════════ CS: POWER HRG ══ -->
+<div id="view-cs-power" class="view">
+
+  <div class="cs-page-header dk">
+    <div class="cs-eyebrow">
+      <div><div class="cs-label">↓ Client</div><div class="cs-val">Power Home Remodeling Group</div></div>
+      <div><div class="cs-label">↓ Project</div><div class="cs-val">Campaign &amp; Digital Experience</div></div>
+      <div><div class="cs-label">↓ Agency</div><div class="cs-val">160over90 · 2015</div></div>
+    </div>
+  </div>
+
+  <div class="cs-body dk">
+    <div class="cs-img-col dk" style="padding:0;overflow:hidden;position:relative;">
+      <img src="https://placehold.co/800x600/1a1a1a/333333?text=[image]" alt="Power Home Remodeling — Campaign Digital Experience" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <div class="cs-num-stamp">4.1</div>
+    </div>
+    <div class="cs-info">
+      <div class="cs-block">
+        <div class="cs-label">↓ The Brief</div>
+        <div class="cs-body-text">The cofounders had one requirement: unlike anything else in home remodeling. Not an inventory of services — showcase the lifestyle benefits of achieving your dream home. They wanted video, animation, lifestyle photography, and had the budget and enthusiasm to see it through.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Idea</div>
+        <div class="cs-service">"Power is a _____ company."</div>
+        <div class="cs-body-text" style="margin-top:8px;">Rather than a singular brand statement, the blank becomes a canvas. Each visit fills it differently. A loaded sentence framework — "make every word count," as a copywriter once taught me. Since I'm not really a copywriter, I gave them a whole bunch of sentences.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ Coordination</div>
+        <div class="cs-body-text">Cross-department: brand designers, on-site photographers, motion designers, video team. The level of coordination was significant — nay, tremendous. Shout out to the dev team. (Okay, it was just Greg.)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power HRG gallery -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0a0a0a;">
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/1a1a1a/3366cc?text=[image]" alt="Power HRG — Campaign Hero Page" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Campaign — "Power is a _____ company."</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/1a1a1a/3366cc?text=[image]" alt="Power HRG — Dream-Realization" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Dream-Realization Company — Digital Experience</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1a1a1a/3366cc?text=[image]" alt="Power HRG — Far More Than Just a Home Remodeling Company" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Far More Than Just a Home Remodeling Company</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1a1a1a/3366cc?text=[image]" alt="Power HRG — Animation &amp; Video Integration" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Technology Company — Animation &amp; Video</div>
+    </div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-dana">← Dana</a><a data-nav="work">All Work</a><a data-nav="cs-wovn">Next: WOVN →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-power -->
+
+
+<!-- ══════════════════ CS: WOVN ══ -->
+<div id="view-cs-wovn" class="view">
+
+  <div class="cs-page-header">
+    <div class="cs-eyebrow">
+      <div><div class="cs-label">↓ Client</div><div class="cs-val">WOVN</div></div>
+      <div><div class="cs-label">↓ Project</div><div class="cs-val">iOS Video Sharing App — MVP</div></div>
+      <div><div class="cs-label">↓ Agency</div><div class="cs-val">O3 World · 2017</div></div>
+    </div>
+  </div>
+
+  <div class="cs-body">
+    <div class="cs-img-col" style="background:#1a3d2c;padding:0;overflow:hidden;position:relative;">
+      <img src="https://placehold.co/800x600/1a3d2c/2d7a57?text=[image]" alt="WOVN — iOS App Screens" style="width:100%;height:100%;object-fit:cover;display:block;">
+      <div class="cs-num-stamp" style="color:rgba(255,255,255,.1)">4.2</div>
+    </div>
+    <div class="cs-info">
+      <div class="cs-block">
+        <div class="cs-label">↓ The Work</div>
+        <div class="cs-body-text">My first real native app work. A story-sharing app for iOS: capture and share real-time moments — all high-quality video — on a personalized timeline. Operating on a 2-week agile sprint cycle with weekly face-to-face meetings with the client's founder.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The UX</div>
+        <div class="cs-body-text">Deep research into how real users interact with video-sharing apps. That research influenced every phase — UX specifications to wireframes and prototypes to UI design and branding. Flows covered: account creation/login, friend invites, tagging, story creation and publishing, account maintenance, video camera interface.</div>
+      </div>
+      <div class="cs-block">
+        <div class="cs-label">↓ The Relationship</div>
+        <div class="cs-body-text">Privately funded by its founder. Weekly face-to-face. In a world where most meetings occur on the cloud, having in-person time with the client meant direct feedback, real-time solutions, and real approvals. The client relationship on this project was pretty special.</div>
+      </div>
+      <div class="accent-block">
+        <div class="accent-block-label">Built Without<br>Limits.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WOVN iOS app gallery -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;background:#0a0a0a;">
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/1a3d2c/2d7a57?text=[image]" alt="WOVN — Feed &amp; Story Timeline" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Feed &amp; Story Timeline — iOS</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x560/1a3d2c/2d7a57?text=[image]" alt="WOVN — Video Camera Interface" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Video Camera Interface &amp; Publishing Flow</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1a3d2c/2d7a57?text=[image]" alt="WOVN — Account &amp; Profile" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Account Creation, Login &amp; Profile</div>
+    </div>
+    <div style="background:#0a0a0a;">
+      <img src="https://placehold.co/900x500/1a3d2c/2d7a57?text=[image]" alt="WOVN — Friend Invites &amp; Tagging" style="width:100%;display:block;object-fit:cover;">
+      <div style="font-size:7px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:6px 12px;">Friend Invites, Tagging &amp; Social Graph</div>
+    </div>
+  </div>
+
+  <footer>
+    <div><div class="foot-logo">Zack Gort</div></div>
+    <div class="foot-nav"><a data-nav="cs-power">← Power HRG</a><a data-nav="work">All Work</a><a data-nav="home">Home →</a></div>
+    <div class="foot-copy">© Zack Gort 2026</div>
+  </footer>
+
+</div><!-- /cs-wovn -->
+
+
+<script>
+  // CURSOR
+  const cur = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => {
+    cur.style.left = e.clientX + 'px';
+    cur.style.top  = e.clientY + 'px';
+    cur.style.opacity = '1';
+  });
+  document.querySelectorAll('a, [data-nav], .wc, .cs-row, .h-nav-item').forEach(el => {
+    el.addEventListener('mouseenter', () => cur.classList.add('lg'));
+    el.addEventListener('mouseleave', () => cur.classList.remove('lg'));
+  });
+
+  // ROUTING
+  const cover = document.getElementById('cover');
+  const nav   = document.getElementById('nav');
+  let current = 'home';
+
+  const navMode = {
+    home: 'dk', work: 'dk', about: 'lt',
+    'cs-bny': 'lt', 'cs-gnc': 'lt', 'cs-hardinge': 'lt',
+    'cs-kent': 'lt', 'cs-dana': 'lt', 'cs-power': 'lt', 'cs-wovn': 'lt'
+  };
+
+  function go(target) {
+    if (target === current) return;
+    const el = document.getElementById('view-' + target);
+    if (!el) return;
+    cover.style.transition = '';
+    cover.style.transform  = 'translateY(100%)';
+    cover.className = '';
+    void cover.offsetWidth;
+    cover.classList.add('in');
+    setTimeout(() => {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      el.classList.add('active');
+      window.scrollTo(0, 0);
+      nav.className = navMode[target] || 'lt';
+      document.querySelectorAll('.nav-links a').forEach(a => {
+        const t = a.getAttribute('data-nav');
+        a.classList.toggle('on', t === target || (target.startsWith('cs-') && t === 'work'));
+      });
+      current = target;
+      el.querySelectorAll('.anim').forEach(a => { a.style.animation = 'none'; void a.offsetWidth; a.style.animation = ''; });
+      cover.classList.remove('in');
+      cover.classList.add('out');
+      setTimeout(() => {
+        cover.className = '';
+        cover.style.transform = 'translateY(100%)';
+        initReveal();
+      }, 650);
+    }, 520);
+  }
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-nav]');
+    if (el) { e.preventDefault(); const t = el.getAttribute('data-nav'); if (t) go(t); }
+  });
+
+  // SCROLL REVEAL
+  function initReveal() {
+    const els = document.querySelectorAll('.view.active .reveal');
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+    }, { threshold: 0.08 });
+    els.forEach(el => { el.classList.remove('in'); obs.observe(el); });
+  }
+  initReveal();
+
+  // NAV SCROLL ADAPTATION
+  window.addEventListener('scroll', () => {
+    if (current === 'home') nav.className = window.scrollY > window.innerHeight * 0.85 ? 'lt' : 'dk';
+  });
+</script>
+</body>
+</html>
