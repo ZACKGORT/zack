@@ -16,7 +16,7 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='1' width='13' height='13' fill='none' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='24' cy='8' r='6.5' fill='none' stroke='%23ffffff' stroke-width='1.5'/%3E%3Cpolygon points='16,32 32,32 24,18' fill='none' stroke='%23ffffff' stroke-width='1.5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wdth,wght@75..125,100..700&family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wdth,wght@75..125,100..700&family=Instrument+Serif:ital@0;1&family=Instrument+Sans:ital,wght@0,400;0,500;1,400&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
 body{background:#0a0a0a;overflow:hidden;font-family:'Space Mono',monospace;cursor:none;user-select:none;-webkit-user-select:none;}
@@ -694,6 +694,165 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 }
 #project-card-close:hover { color: rgba(255,255,255,0.5); }
 
+/* ── Resume / Agent widget system ── */
+:root {
+  --bar-h: 34px;
+  --widget-bg: rgba(8,8,8,0.94);
+  --border: rgba(255,255,255,0.07);
+  --fg: rgba(255,255,248,0.92);
+  --bg: #0a0a0a;
+  --mono: 'DM Mono','Space Mono',monospace;
+}
+.fw {
+  position: fixed;
+  z-index: 650;
+  background: var(--widget-bg);
+  border: 1px solid var(--border);
+  user-select: none;
+  /* overflow must NOT be hidden — it clips the scroll zones inside fw-body */
+}
+/* collapsed = just the topbar visible */
+.fw.collapsed { width: auto; min-width: 0; }
+.fw-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--bar-h);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: none;
+  white-space: nowrap;
+  user-select: none;
+}
+.fw.collapsed .fw-topbar { border-bottom: none; }
+.fw-topbar:hover { background: rgba(255,255,255,0.04); }
+.fw-title {
+  font-family: var(--mono); font-size: 9px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg); opacity: 0.65; pointer-events: none;
+}
+.fw-toggle {
+  font-family: var(--mono); font-size: 13px; line-height: 1;
+  color: var(--fg); opacity: 0.5; cursor: none;
+  padding: 0 0 0 10px;
+}
+.fw-toggle:hover { opacity: 1; }
+.fw-body { display: block; overflow: hidden; }
+.fw.collapsed .fw-body { display: none; }
+.fw-body { max-height: calc(100vh - var(--bar-h) - 8px); overflow-y: auto; }
+
+/* ── Resume widget ── */
+#resume-widget { min-width: 0; overflow: hidden; }
+#resume-widget.collapsed { bottom: auto; }
+/* width is set entirely by dockWidgets() JS — no CSS width rule here */
+#resume-widget .fw-body { padding: 0; position: relative; overflow: hidden; max-height: none; }
+/* Fully opaque when expanded so orb-rail doesn't bleed through */
+#resume-widget:not(.collapsed) { background: #0a0a0a; }
+#resume-canvas-wrap {
+  position: relative; width: 100%;
+  height: calc(100vh - var(--bar-h) - 44px);
+  overflow: hidden;
+}
+#resume-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
+#resume-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; pointer-events: auto; }
+#resume-scroll-inner { width: 1px; }
+
+/* ── hide system scrollbar on scroll zones ── */
+#resume-scroll-zone::-webkit-scrollbar,
+#agent-scroll-zone::-webkit-scrollbar  { display: none; }
+#resume-scroll-zone,
+#agent-scroll-zone  { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* ── custom scroll indicator ── */
+.fw-scroll-track {
+  position: absolute;
+  top: 8px; right: 5px; bottom: 8px;
+  width: 2px;
+  z-index: 10;
+  pointer-events: none;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.04);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.fw-scroll-track.visible { opacity: 1; }
+.fw-scroll-thumb {
+  position: absolute;
+  left: 0; right: 0;
+  min-height: 24px;
+  border-radius: 1px;
+  background: rgba(255,255,248,0.28);
+  transition: background 0.2s;
+}
+.fw-scroll-track.active .fw-scroll-thumb {
+  background: rgba(255,255,248,0.55);
+}
+#resume-dl-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: 36px;
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+#resume-dl-label {
+  font-family: var(--mono); font-size: 8px; font-weight: 300;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg); opacity: 0.35; pointer-events: none;
+}
+#resume-dl-link {
+  font-family: var(--mono); font-size: 8px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg); opacity: 0.55; text-decoration: none;
+  cursor: none; transition: opacity 0.15s;
+  border: 1px solid var(--border); padding: 4px 10px;
+}
+#resume-dl-link:hover { opacity: 1; }
+
+/* ── Agent widget ── */
+#agent-widget { min-width: 0; }
+#agent-widget.collapsed { bottom: auto; }
+/* width is set entirely by dockWidgets() JS */
+#agent-widget .fw-body { padding: 0; overflow: hidden; max-height: none; }
+#agent-canvas-wrap {
+  position: relative; width: 100%;
+  height: calc(100vh - var(--bar-h) - 36px);
+  overflow: hidden;
+}
+#agent-canvas { display: block; width: 100%; height: 100%; image-rendering: crisp-edges; }
+#agent-scroll-zone { position: absolute; inset: 0; cursor: none; overflow-y: scroll; overflow-x: hidden; pointer-events: auto; }
+#agent-scroll-inner { width: 1px; }
+#agent-dl-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: 36px;
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+#agent-dl-label {
+  font-family: var(--mono); font-size: 8px; font-weight: 300;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg); opacity: 0.35; pointer-events: none;
+}
+#agent-copy-btn {
+  font-family: var(--mono); font-size: 8px; font-weight: 500;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--fg); opacity: 0.55;
+  cursor: none; transition: opacity 0.15s;
+  border: 1px solid var(--border); padding: 4px 10px;
+  background: transparent;
+}
+#agent-copy-btn:hover { opacity: 1; }
+#agent-copy-btn.copied { opacity: 1; background: var(--fg); color: var(--bg); }
+
+@media (max-width: 700px) {
+  #resume-widget:not(.collapsed) { top: 0 !important; left: 0 !important; bottom: auto; }
+  #resume-widget.collapsed { bottom: auto; border-top: none; }
+  #resume-canvas-wrap { height: calc(100vh - var(--bar-h) - 80px); }
+  #resume-dl-link { cursor: pointer; }
+  #agent-widget:not(.collapsed) { top: 0 !important; left: 0 !important; }
+  #agent-widget.collapsed { bottom: auto; }
+  #agent-canvas-wrap { height: calc(100vh - var(--bar-h) - 36px); }
+  #agent-scroll-zone { cursor: auto; }
+  #agent-copy-btn { cursor: pointer; }
+  .fw-topbar { cursor: pointer; }
+}
+
 </style>
 </head>
 <body>
@@ -983,6 +1142,44 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
     <a href="https://linkedin.com/in/zackgort" target="_blank" rel="noopener">linkedin</a>
   </div>
 </div>
+<!-- Resume Widget — top-right corner -->
+<div id="resume-widget" class="fw collapsed">
+  <div class="fw-topbar">
+    <span class="fw-title">Résumé</span>
+    <span class="fw-toggle">+</span>
+  </div>
+  <div class="fw-body">
+    <div id="resume-canvas-wrap">
+      <canvas id="resume-canvas"></canvas>
+      <div id="resume-scroll-zone"><div id="resume-scroll-inner"></div></div>
+      <div class="fw-scroll-track" id="resume-scroll-track"><div class="fw-scroll-thumb" id="resume-scroll-thumb"></div></div>
+    </div>
+    <div id="resume-dl-bar">
+      <span id="resume-dl-label">Zack Gort · Designer · 2026</span>
+      <a id="resume-dl-link" href="https://github.com/ZACKGORT/zack/blob/main/Zack%20Gort-%20Staff%20Designer%20-%202026.pdf" target="_blank" rel="noopener">Download PDF ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- Agent Widget — agentic layer / particle canvas -->
+<div id="agent-widget" class="fw collapsed">
+  <div class="fw-topbar">
+    <span class="fw-title">Agent</span>
+    <span class="fw-toggle">+</span>
+  </div>
+  <div class="fw-body">
+    <div id="agent-canvas-wrap">
+      <canvas id="agent-canvas"></canvas>
+      <div id="agent-scroll-zone"><div id="agent-scroll-inner"></div></div>
+      <div class="fw-scroll-track" id="agent-scroll-track"><div class="fw-scroll-thumb" id="agent-scroll-thumb"></div></div>
+    </div>
+    <div id="agent-dl-bar">
+      <span id="agent-dl-label">Zack Gort · Agentic Layer · 2026</span>
+      <button id="agent-copy-btn">Copy JSON-LD</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
@@ -2796,6 +2993,7 @@ function initLevel(n){
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
     if (_bbBall) { const _bi=attractors.indexOf(_bbBall); if(_bi>=0)attractors.splice(_bi,1); _bbBall.dispose(); _bbBall=null; }
+    if (_bbBallLight) { scene.remove(_bbBallLight); _bbBallLight = null; }
     if (_rimRingPoints) { scene.remove(_rimRingPoints); _rimRingGeo.dispose(); _rimRingPoints=null; _rimRingGeo=null; }
     if (_netPoints) { scene.remove(_netPoints); _netGeo.dispose(); _netPoints=null; _netGeo=null; }
     if (_rimRingVels && _rimRingVels._mesh) { scene.remove(_rimRingVels._mesh); _rimRingVels._geo.dispose(); _rimRingVels=null; }
@@ -3156,9 +3354,10 @@ let _orbRailActive = true; // default: railed
       // Force reflow then slide in
       rail.getBoundingClientRect();
       rail.classList.add('visible');
+      _textSettledDrawn = false; // orb-rail slide can flush GPU layer — force text redraw
     } else {
       btn.classList.remove('active');
-      // Slide rail out, then move widgets back to body as minimal link chips
+      // Slide rail out — orb 3D meshes stay invisible permanently
       rail.classList.remove('visible');
       const duration = 400;
       setTimeout(() => {
@@ -3168,7 +3367,6 @@ let _orbRailActive = true; // default: railed
           if (el && el.parentNode !== document.body) document.body.appendChild(el);
           if (el) {
             el.style.position = 'fixed'; el._userAnchored = false;
-            // Collapse to minimal link chip
             el.style.padding = '0';
             el.style.border = '1px solid rgba(255,255,255,0.55)';
             el.style.width = 'auto';
@@ -3176,11 +3374,11 @@ let _orbRailActive = true; // default: railed
             const chip = el.querySelector('.orb-card-chip');
             if (full) full.style.display = 'none';
             if (chip) chip.style.display = 'block';
-            // Hide iframe wrap if open
             const iw = el.querySelector('.orb-widget-iframe-wrap');
             if (iw) iw.style.display = 'none';
           }
-          if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
+          // Never show 3D mesh — widgets are the only presence
+          if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
         }
       }, duration);
     }
@@ -3279,6 +3477,8 @@ function _spawnProjectOrbs() {
     const orb = new ProjectOrb(data,new THREE.Vector3(x,y,0),i);
     _projectOrbs.push(orb);
     attractors.push(orb._attractor);
+    // Always hide 3D orb mesh — iframe widgets are the sole presence
+    if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
     _createOrbWidget(orb);
   });
   // Apply current rail state to newly spawned orbs
@@ -4503,6 +4703,8 @@ window.addEventListener('mouseup',e=>{
 });
 
 window.addEventListener('wheel',e=>{
+  // Let scroll zones handle their own wheel events — don't intercept
+  if (e.target.closest && (e.target.closest('#resume-scroll-zone') || e.target.closest('#agent-scroll-zone'))) return;
   e.preventDefault();
   const dir=e.deltaY>0?-1:1;
   const isBball=lvl===6&&LEVELS[6]&&LEVELS[6].basketball;
@@ -4925,6 +5127,7 @@ document.getElementById('sl-font').addEventListener('input',e=>setFontSize(parse
   renderer.domElement.addEventListener('touchmove',e=>{
     const t0=e.touches[0];
     if(t0 && document.elementFromPoint(t0.clientX,t0.clientY)?.closest('.orb-widget')) return;
+    if(t0 && document.elementFromPoint(t0.clientX,t0.clientY)?.closest('#resume-scroll-zone, #agent-scroll-zone')) return;
     e.preventDefault();
     const t=e.touches[0];
     mX=t.clientX;mY=t.clientY;
@@ -5220,21 +5423,22 @@ document.getElementById('screenshot-btn').addEventListener('click',()=>{
       const rail = document.getElementById('orb-rail');
       if (rail) {
         if (_orbRailActive) {
+          // Show rail — move widgets in and slide open; orb meshes stay hidden always
           for (const orb of _projectOrbs) {
             const el = document.getElementById(`orb-widget-${orb.index}`);
             if (el && el.parentNode !== rail) rail.appendChild(el);
             if (el) { el.style.position='static'; el.style.left=el.style.top=el.style.right=el.style.bottom=''; }
+            // Orb 3D meshes always invisible — we only use the iframe widgets
             if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = false;
           }
           rail.classList.remove('hidden');
           rail.getBoundingClientRect();
           rail.classList.add('visible');
         } else {
+          // Hide rail — slide out; never restore orb meshes
           rail.classList.remove('visible');
-          setTimeout(()=>rail.classList.add('hidden'),400);
-          for (const orb of _projectOrbs) {
-            if (orb._attractor && orb._attractor.mesh) orb._attractor.mesh.visible = true;
-          }
+          setTimeout(() => rail.classList.add('hidden'), 400);
+          // Orb 3D meshes stay hidden regardless
         }
       }
     });
@@ -5340,6 +5544,20 @@ let _textLayerWasClear = false;
 // Perf: track max char velocity to skip canvas redraw on settled text
 let _textMaxVel = 0;
 let _textPrevBX = 0, _textPrevBY = 0;
+let _textSettledDrawn = false; // true after drawing one fully-settled (at-rest) frame
+
+// ── Idle-return fix: reset settled/clear flags when the tab becomes visible again
+// or the window regains focus, so the canvas redraws after the GPU layer is discarded.
+function _resetTextCanvas() {
+  _textSettledDrawn = false;
+  _textLayerWasClear = false;
+  // Restore display in case it was hidden
+  if (tc && tc.style.display === 'none' && textChars.length > 0) tc.style.display = '';
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) _resetTextCanvas(); });
+window.addEventListener('focus', _resetTextCanvas);
+window.addEventListener('pageshow', _resetTextCanvas);
+
 function drawTextLayer(){
   // fade alpha first so early-exit is accurate
   lvlTextAlpha+=(lvlTextAlphaTgt-lvlTextAlpha)*0.04;
@@ -5379,10 +5597,18 @@ function drawTextLayer(){
       if (_pdx * _pdx + _pdy * _pdy < REPEL_R * REPEL_R) { _cursorNearText = true; break; }
     }
   }
-  if(!isMobile && !_bulletTime && !_blobNotConverged && !_cursorNearText && !_alphaTransitioning && _textMaxVel < 0.12 && !_textLayerWasClear){
-    // Still need to advance blob physics even when skipping draw
-    bX+=(_curX-bX)*BLOB_LERP;bY+=(_curY-bY)*BLOB_LERP;
-    return;
+  if(!isMobile && !_bulletTime && !_blobNotConverged && !_cursorNearText && !_alphaTransitioning && _textMaxVel < 0.12){
+    // Only skip if we've already drawn the fully-settled frame at least once.
+    // Without this guard, the canvas goes stale whenever the compositor discards
+    // the layer (orb-rail slide, widget open/close, any GPU layer budget flush).
+    if(_textSettledDrawn){
+      bX+=(_curX-bX)*BLOB_LERP;bY+=(_curY-bY)*BLOB_LERP;
+      return;
+    }
+    // else fall through to draw one more frame, then set the flag
+    _textSettledDrawn = true;
+  } else {
+    _textSettledDrawn = false; // any change resets — must draw fresh again on next settle
   }
 
   tctx.clearRect(0,0,W,H);
@@ -6126,8 +6352,13 @@ function _tickRimRing(dt) {
 
 const BALL_SPAWN={x:-4.5,y:isMobile?-7.0:-2.0,z:0};
 
+// Ball luminance light — warm orange-white, tracks ball position every frame
+let _bbBallLight = null;
+
 function _spawnBall(){
   if(_bbBall){_bbBall.dispose();const _bi=attractors.indexOf(_bbBall);if(_bi>=0)attractors.splice(_bi,1);}
+  // Dispose previous ball light
+  if (_bbBallLight) { scene.remove(_bbBallLight); _bbBallLight = null; }
   const pos=new THREE.Vector3(BALL_SPAWN.x,BALL_SPAWN.y,0);
   const ball=new Attractor('blackhole',pos,true);
   ball._bouncingBH=true; ball._isBBall=true;
@@ -6137,6 +6368,11 @@ function _spawnBall(){
   attractors.push(ball); _bbBall=ball;
   HOOP._lastBallY=null; HOOP._passThroughArmed=false;
   HOOP._dbTilt=0; HOOP._dbVel=0;
+  // Create luminance PointLight — warm basketbball-orange tone, moderate range
+  // so it pools on the particle floor without blowing out nearby geometry
+  _bbBallLight = new THREE.PointLight(0xff8833, isMobile ? 5.0 : 9.0, isMobile ? 38 : 52, 1.6); // color, intensity, distance, decay
+  _bbBallLight.position.copy(ball.pos);
+  scene.add(_bbBallLight);
 }
 
 function _tickBBall(dt){
@@ -6216,7 +6452,14 @@ function _tickBBall(dt){
   const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
-    if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
+    if(b.vel.y<0){
+      b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985;
+      // Bounce flash — spike light intensity briefly on impact
+      if (_bbBallLight) {
+        const impactSpd = Math.abs(b.vel.y);
+        _bbBallLight.intensity = (isMobile ? 5.0 : 9.0) + Math.min(isMobile ? 10.0 : 18.0, impactSpd * (isMobile ? 0.45 : 0.80));
+      }
+    }
   }
   if(b.pos.y+ballR>BY_CEIL){ b.pos.y=BY_CEIL-ballR; if(b.vel.y>0) b.vel.y=-b.vel.y*0.5; }
   if(b.pos.x-ballR<edgeL2){ b.pos.x=edgeL2+ballR; if(b.vel.x<0) b.vel.x=-b.vel.x*0.72; }
@@ -6285,6 +6528,18 @@ function _tickBBall(dt){
 
   b.mesh.position.set(b.pos.x,b.pos.y,b.pos.z||0);
   b.mesh.updateMatrixWorld(true);
+
+  // ── Ball luminance: track position, scale intensity with proximity to floor ──
+  if (_bbBallLight) {
+    _bbBallLight.position.set(b.pos.x, b.pos.y, (b.pos.z||0) + 1.0);
+    // Intensity ramps up as ball nears floor — pools light on ground surface
+    const heightAboveFloor = b.pos.y - (BY_FLOOR + ballR);
+    const proxT = Math.max(0, 1.0 - heightAboveFloor / 14.0);
+    const baseI = isMobile
+      ? 5.0 + proxT * proxT * 9.0   // mobile: original values (perfect as-is)
+      : 9.0 + proxT * proxT * 16.0; // desktop: stronger aloft, brighter near ground
+    _bbBallLight.intensity += (baseI - _bbBallLight.intensity) * Math.min(1, dt * 6.0);
+  }
 }
 
 var _lastActionWasSpacebar = false;
@@ -6482,7 +6737,7 @@ function _drawBulletTimeOverlay(){
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.55})`; ctx.fill();
   ctx.font='600 9px "Helvetica Neue",Arial,sans-serif';
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.3})`; ctx.textAlign='center';
-  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-24);
+  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-80);
   ctx.restore();
   _drawBballHUD(ctx,dpr);
 }
@@ -6639,11 +6894,21 @@ function _drawScoreFlash(){
       const touchR=Math.max(52,visualR*1.5); // generous touch target
       return Math.sqrt((cx-sx)**2+(cy-sy)**2)<touchR;
     }
+    // ── Bullet-time release: listen on window so touches over the link list
+    // overlay (or any other DOM element) still trigger the shot ──────────────
+    window.addEventListener('touchstart',e=>{
+      if(!_bulletTime||!_isBBallActive()) return;
+      _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
+      _bulletTime=false;
+      const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
+      e.stopPropagation();
+    },{capture:true,passive:false});
+
     canvas.addEventListener('touchstart',e=>{
       if(!_isBBallActive()) return;
       if(_hoopDragging) return;
       if(_bulletTime){
-        // tap while in bullet-time = launch
+        // tap while in bullet-time = launch (canvas path; window handler above covers overlays)
         _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
         _bulletTime=false;
         const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
@@ -6883,6 +7148,7 @@ function _buildStatement(idx, immediate) {
     s.p,
     s.pull,
   ];
+  _textSettledDrawn = false; // force at least one fresh draw after new content loads
   _buildFloatText(lines, immediate, true /* useDisplay for line 0 */);
   _updateStmtNav(idx % STATEMENTS.length);
   _updateStmtCta(s.cta);
@@ -6936,6 +7202,21 @@ function _showSlamDunk() {
 // Init on load
 setTimeout(() => { _buildStatement(0, true); }, 1200);
 
+// ── Mobile: tap a link-list name → switch floating statement ─────────────────
+if (isMobile) {
+  document.querySelectorAll('#mb-link-list .mb-link-row').forEach((row, i) => {
+    const name = row.querySelector('.mb-link-name');
+    if (!name) return;
+    name.style.cursor = 'pointer';
+    name.addEventListener('click', e => {
+      e.stopPropagation();
+      if (i === _stmtIdx) return; // already showing — no-op
+      _stmtIdx = i;
+      _buildStatement(_stmtIdx, false);
+    });
+  });
+}
+
 
 
 // Clear the basketball tutorial hint, then set the portfolio opening statement
@@ -6950,6 +7231,944 @@ setTimeout(() => {
   }, 600);
 }, 900);
 
+// Reset settled-draw flag on visibility change so returning to tab redraws text
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') _textSettledDrawn = false;
+});
+
+// ══════════════════════════════════════════════════════════════════
+// RESUME + AGENT WIDGET SYSTEM
+// Ported from zack_cx.html — draggable floating panel widgets
+// Uses bX/bY and REPEL_R globals already defined in this file
+// ══════════════════════════════════════════════════════════════════
+
+// Shared: alias repelRadius to this file's REPEL_R
+var repelRadius = REPEL_R;
+
+// Shared: active drag widget tracker
+var activeDragWidget = null;
+
+// ── dockWidgets: position résumé top-right, agent left of it ─────
+//
+// CRITICAL: always set style.width = 'auto' BEFORE reading offsetWidth for
+// collapsed tabs. If a leftover inline "100vw" or "780px" remains from the
+// expanded state, offsetWidth returns the full/large value and left = resumeLeft
+// minus that becomes a huge negative — pushing the tab off-screen.
+function dockWidgets() {
+  const resumeW = document.getElementById('resume-widget');
+  const agentW  = document.getElementById('agent-widget');
+  const vW = window.innerWidth;
+  const isMobileD = vW < 700;
+
+  // ── résumé ──────────────────────────────────────────────────────
+  if (resumeW) {
+    const isCollapsed = resumeW.classList.contains('collapsed');
+    resumeW.style.transition = 'none';
+    resumeW.style.transform  = 'none';
+    resumeW.style.bottom     = 'auto';
+    resumeW.style.right      = 'auto';
+
+    if (isMobileD) {
+      if (isCollapsed) {
+        resumeW.style.width = 'auto';
+        resumeW.style.top   = '0px';
+        resumeW.style.left  = (vW - resumeW.offsetWidth) + 'px';
+      } else {
+        resumeW.style.width = vW + 'px';
+        resumeW.style.top   = '0px';
+        resumeW.style.left  = '0px';
+      }
+    } else {
+      if (isCollapsed) {
+        // MUST clear width before measuring — prevents "780px" ghost value
+        resumeW.style.width = 'auto';
+        const tabW = resumeW.offsetWidth;
+        resumeW.style.top  = '0px';
+        resumeW.style.left = (vW - tabW) + 'px';
+      } else {
+        // Explicit pixel width — never rely on CSS, avoids auto-collapse to topbar width
+        const panelW = Math.min(780, Math.round(vW * 0.92));
+        resumeW.style.width = panelW + 'px';
+        resumeW.style.top   = '0px';
+        resumeW.style.left  = (vW - panelW) + 'px';
+      }
+    }
+    requestAnimationFrame(() => { resumeW.style.transition = ''; });
+  }
+
+  // ── agent ───────────────────────────────────────────────────────
+  if (agentW) {
+    const isCollapsed = agentW.classList.contains('collapsed');
+    agentW.style.transition = 'none';
+    agentW.style.transform  = 'none';
+    agentW.style.bottom     = 'auto';
+    agentW.style.right      = 'auto';
+
+    // Résumé left edge (already positioned above, or computed fresh)
+    let resumeTabLeft = vW;
+    if (resumeW) {
+      const rl = parseFloat(resumeW.style.left);
+      if (!isNaN(rl)) {
+        resumeTabLeft = rl;
+      } else {
+        resumeW.style.width = 'auto';
+        resumeTabLeft = vW - resumeW.offsetWidth;
+      }
+    }
+
+    if (isMobileD) {
+      if (isCollapsed) {
+        agentW.style.width = 'auto';
+        const rTabW = resumeW ? resumeW.offsetWidth : 0;
+        const aTabW = agentW.offsetWidth;
+        agentW.style.top  = '0px';
+        agentW.style.left = (vW - rTabW - aTabW) + 'px';
+      } else {
+        agentW.style.width = vW + 'px';
+        agentW.style.top   = '0px';
+        agentW.style.left  = '0px';
+      }
+    } else {
+      if (isCollapsed) {
+        // MUST clear width before measuring
+        agentW.style.width = 'auto';
+        const aTabW = agentW.offsetWidth;
+        agentW.style.top  = '0px';
+        agentW.style.left = (resumeTabLeft - aTabW) + 'px';
+      } else {
+        // Full-viewport overlay — explicit px, not vw string
+        agentW.style.width = vW + 'px';
+        agentW.style.top   = '0px';
+        agentW.style.left  = '0px';
+      }
+    }
+    requestAnimationFrame(() => { agentW.style.transition = ''; });
+  }
+}
+
+// Stub — basketball file has its own repel system; no filterRepelZones here
+function invalidateWidgetRepel() {}
+
+// ── No drag: widgets are fixed/clamped by dockWidgets() only ──────
+
+// Initial dock
+// Double-RAF ensures a full layout pass before measuring offsetWidth
+requestAnimationFrame(() => requestAnimationFrame(dockWidgets));
+window.addEventListener('resize', dockWidgets);
+
+// ══════════════════════════════════════════════════════════════════
+// AGENT WIDGET — particle canvas renderer (agentic layer)
+// ══════════════════════════════════════════════════════════════════
+(function() {
+
+const AGENT_DATA = {
+  entity: [
+    { key: 'Entity',       val: 'Zachary (Zack) Gort' },
+    { key: 'Type',         val: 'Senior / Staff UX & Product Designer — IC' },
+    { key: 'Studio',       val: 'Wolfgang & Co.' },
+    { key: 'Location',     val: 'Philadelphia, PA, USA (Remote-ready)' },
+    { key: 'Experience',   val: '~20 years' },
+    { key: 'Availability', val: 'Active — open to full-time senior / staff IC roles' },
+    { key: 'Identity',     val: 'Presence Designer · Narrative-as-Nodes · Sentence-first' },
+    { key: 'Contact',      val: 'zack@reasonably.cc · linkedin.com/in/zackgort' },
+    { key: 'Portfolio',    val: 'zackgort.com · ifimaybefrank.com · zack.cx' },
+    { key: 'Status',       val: 'Active — May 2026' },
+  ],
+  qa: [
+    { section: 'Mission',
+      q: "What is Zack Gort's design philosophy?",
+      a: "The sentence is the irreducible unit of thought. Every interface, system, and product Zack builds derives from this conviction — clarity before decoration, structure before surface, language before layout." },
+    { section: 'Approach',
+      q: "How does Zack work?",
+      a: "Design, Architect, Build — not in sequence, but simultaneously. Zack operates as a code-native designer who moves from concept to shipped product without translation loss. He has lived on both sides of the handoff and eliminated the gap." },
+    { section: 'Capabilities',
+      q: "What does Zack Gort do?",
+      a: "Systems & Architecture — IA, design systems, component UI, headless CMS, AI workflow. Product & Strategy — 0-1 product design, UX strategy, product ownership, Agile. Craft & Build — interaction design, Figma, Three.js, vanilla JS, Shopify, Salesforce CC, prompt engineering." },
+    { section: 'Key Engagements',
+      q: "What are Zack's most significant engagements?",
+      a: "BNY Mellon / Publicis Sapient — Wove platform design system, 3 Agile tracks, $2T AUM, interim Product Owner. GNC — Shopify redesign post-bankruptcy, rebuilt taxonomy, ~$500M revenue, 12 weeks. TikTok For Business / Code & Theory — UX and IA, fastest-growing ad platform, Sr. Designer to ACD to DRI. Phenom — end-to-end UX strategy, named silos nobody else had mapped. Wolfgang & Co. — founder, production proofs of sentence-first thesis." },
+    { section: 'Positioning',
+      q: "What kind of role is Zack looking for?",
+      a: "Senior or Staff IC. Remote, full-time. The problem worth solving — with people who want to solve it well. Not a title. Not a credential. The work itself." },
+  ],
+  keyinfo: [
+    { key: 'Seniority',      val: 'Senior IC / Staff IC' },
+    { key: 'Domain',         val: 'UX, Product Design, Systems, Interaction, Content Strategy' },
+    { key: 'Verticals',      val: 'Fintech, E-commerce, Enterprise SaaS, Hospitality, Pharma, .EDU' },
+    { key: 'Stack',          val: 'Figma, Three.js, vanilla JS/HTML/CSS, Shopify, Salesforce CC, Contentful, Claude API' },
+    { key: 'Differentiator', val: 'Code-native designer. Ships production. No handoff gap.' },
+    { key: 'Credential',     val: 'No degree. 20 years of shipped product.' },
+  ],
+  meta: [
+    { key: 'Last Updated', val: '2026-05' },
+    { key: 'Content Type', val: 'Person / Designer / Portfolio' },
+    { key: 'Schema',       val: 'Person, CreativeWork, ProfessionalService' },
+    { key: 'Version',      val: '1.0' },
+  ],
+  jsonld: `{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "Zachary Gort",
+  "alternateName": "Zack Gort",
+  "jobTitle": "Staff UX & Product Designer",
+  "url": "https://zackgort.com",
+  "sameAs": [
+    "https://linkedin.com/in/zackgort",
+    "https://zack.cx",
+    "https://ifimaybefrank.com"
+  ],
+  "worksFor": {
+    "@type": "Organization",
+    "name": "Wolfgang & Co.",
+    "url": "https://wolfie.love"
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Philadelphia",
+    "addressRegion": "PA",
+    "addressCountry": "US"
+  },
+  "email": "zack@reasonably.cc",
+  "knowsAbout": [
+    "UX Design","Product Design","Design Systems",
+    "Information Architecture","Interaction Design",
+    "Three.js","Sentence-first Publishing",
+    "AI Workflow Integration","Prompt Engineering"
+  ]
+}`,
+};
+
+const AF = {
+  section: { size:11, weight:'500', family:'"DM Mono",monospace', lh:1.4,  op:0.38 },
+  key:     { size:13, weight:'500', family:'"DM Mono",monospace', lh:1.55, op:0.55 },
+  val:     { size:13, weight:'300', family:'"DM Mono",monospace', lh:1.6,  op:0.72 },
+  qglyph:  { size:11, weight:'500', family:'"DM Mono",monospace', lh:1.4,  op:0.32 },
+  qtext:   { size:13, weight:'300', family:'"DM Mono",monospace', lh:1.6,  op:0.40 },
+  atext:   { size:14, weight:'400', family:'"Instrument Sans",sans-serif', lh:1.72, op:0.75 },
+  code:    { size:11, weight:'300', family:'"DM Mono",monospace', lh:1.7,  op:0.50 },
+  rule:    { size:9,  weight:'300', family:'"DM Mono",monospace', lh:1.4,  op:0.10 },
+};
+function afStr(f) { return f.weight + ' ' + f.size + 'px ' + f.family; }
+
+const _AF_BASE = {};
+Object.keys(AF).forEach(k => { _AF_BASE[k] = AF[k].size; });
+
+window._applyAgentScale = function(scale) {
+  Object.keys(AF).forEach(k => { AF[k].size = Math.round(_AF_BASE[k] * scale); });
+  if (aActive) buildAgentParticles();
+};
+
+const aCvs = document.getElementById('agent-canvas');
+const aCtx = aCvs ? aCvs.getContext('2d') : null;
+
+let aParticles  = [];
+let aScrollY    = 0;
+let aSmoothScrollY = 0;
+const A_SCROLL_LERP = 0.22;
+let aTotalH     = 0;
+let aFloatT     = Math.random() * Math.PI * 2;
+let aRAF        = null;
+let aActive     = false;
+let aDPR        = 1;
+
+const A_TETHER    = 0.016;
+const A_DAMP      = 0.74;
+const A_FLOAT_SPD = 0.008;
+const A_FLOAT_AX  = 1.8;
+const A_FLOAT_AY  = 1.2;
+
+function buildAgentParticles() {
+  const cW   = aCvs.width / aDPR;
+  const cH   = aCvs.height / aDPR;
+  const isMobileA = cW < 700;
+  const COLS      = isMobileA ? 1 : 2;
+  const PAD_X     = isMobileA ? 20 : 48;
+  const PAD_Y     = 36;
+  const GAP       = isMobileA ? 0 : 56;
+  // Right gutter: 18px for scroll indicator track + breathing room
+  const PAD_R     = isMobileA ? 20 : 30;
+  const totalInner = cW - PAD_X - PAD_R;
+  const colW      = COLS === 1
+    ? totalInner
+    : Math.max(120, Math.floor((totalInner - GAP) / 2));
+
+  const chars = [];
+
+  function mW(text, f) { aCtx.font = afStr(f); return aCtx.measureText(text).width; }
+  function wrapLines(text, f, maxW) {
+    aCtx.font = afStr(f);
+    const words = text.split(' '), lines = []; let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (aCtx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function pushChar(ch, f, x, y, op) {
+    aCtx.font = afStr(f);
+    const cw = aCtx.measureText(ch).width;
+    const baseOp = op !== undefined ? op : f.op;
+    chars.push({ ch, restX:x, restY:y, x:x+(Math.random()-.5)*20, y:y+(Math.random()-.5)*20, vx:0, vy:0, font:afStr(f), baseOp, cw });
+    return cw;
+  }
+  function pushLine(text, f, x, y, op) {
+    let cx = x;
+    for (const ch of text) cx += pushChar(ch, f, cx, y, op);
+  }
+  function pushWrapped(text, f, x, y, maxW, op) {
+    const lines = wrapLines(text, f, maxW);
+    const lh = f.size * f.lh;
+    lines.forEach((l, i) => pushLine(l, f, x, y + i * lh, op));
+    return y + lines.length * lh;
+  }
+  function pushRule(x, y, w) {
+    aCtx.font = afStr(AF.rule);
+    const dw = aCtx.measureText('─').width + 1.2;
+    const count = Math.floor(w / dw);
+    let cx = x;
+    for (let i = 0; i < count; i++) {
+      chars.push({ ch:'─', restX:cx, restY:y, x:cx+(Math.random()-.5)*10, y:y+(Math.random()-.5)*6, vx:0, vy:0, font:afStr(AF.rule), baseOp:AF.rule.op, cw:dw });
+      cx += dw;
+    }
+  }
+  function secHead(label, x, y, w) {
+    pushLine(label.toUpperCase(), AF.section, x, y);
+    pushRule(x, y + AF.section.size * 0.5, w);
+    return y + AF.section.size * AF.section.lh + 6;
+  }
+  function renderTable(rows, ox, startY, w) {
+    let cy = startY;
+    const keyW = Math.min(120, Math.floor(w * 0.38));
+    const valX = ox + keyW + 12;
+    const valW = w - keyW - 12;
+    for (const row of rows) {
+      cy += AF.key.size;
+      pushLine(row.key, AF.key, ox, cy);
+      const endY = pushWrapped(row.val, AF.val, valX, cy - AF.val.size * 0.05, valW);
+      cy = Math.max(cy + AF.key.size * AF.key.lh, endY) + 5;
+    }
+    return cy;
+  }
+  function renderQA(qa, ox, startY, w) {
+    let cy = startY;
+    const indent = ox + 18;
+    const innerW = w - 18;
+    cy += AF.qglyph.size;
+    pushLine('Q', AF.qglyph, ox, cy);
+    cy = pushWrapped(qa.q, AF.qtext, indent, cy - AF.qtext.size * 0.05, innerW) + 4;
+    cy += AF.qglyph.size;
+    pushLine('A', AF.qglyph, ox, cy);
+    cy = pushWrapped(qa.a, AF.atext, indent, cy - AF.atext.size * 0.05, innerW) + 8;
+    return cy;
+  }
+
+  if (COLS === 1) {
+    const ox = PAD_X;
+    let cy = PAD_Y;
+    cy = secHead('Entity Overview', ox, cy, colW) + 4;
+    cy = renderTable(AGENT_DATA.entity, ox, cy, colW) + 14;
+    pushRule(ox, cy, colW); cy += 20;
+    for (const qa of AGENT_DATA.qa) {
+      cy = secHead(qa.section, ox, cy, colW) + 2;
+      cy = renderQA(qa, ox, cy, colW) + 8;
+      pushRule(ox, cy, colW); cy += 20;
+    }
+    cy = secHead('Key Information', ox, cy, colW) + 4;
+    cy = renderTable(AGENT_DATA.keyinfo, ox, cy, colW) + 14;
+    pushRule(ox, cy, colW); cy += 20;
+    cy = secHead('Metadata', ox, cy, colW) + 4;
+    cy = renderTable(AGENT_DATA.meta, ox, cy, colW) + 14;
+    pushRule(ox, cy, colW); cy += 20;
+    cy = secHead('JSON-LD', ox, cy, colW) + 4;
+    cy = pushWrapped(AGENT_DATA.jsonld, AF.code, ox, cy + AF.code.size, colW) + 20;
+    aTotalH = cy + PAD_Y;
+  } else {
+    const ox0 = PAD_X;
+    const ox1 = PAD_X + colW + GAP;
+    let cyL = PAD_Y, cyR = PAD_Y;
+    cyL = secHead('Entity Overview', ox0, cyL, colW) + 4;
+    cyL = renderTable(AGENT_DATA.entity, ox0, cyL, colW) + 14;
+    pushRule(ox0, cyL, colW); cyL += 20;
+    for (let i = 0; i < 3 && i < AGENT_DATA.qa.length; i++) {
+      const qa = AGENT_DATA.qa[i];
+      cyL = secHead(qa.section, ox0, cyL, colW) + 2;
+      cyL = renderQA(qa, ox0, cyL, colW) + 8;
+      pushRule(ox0, cyL, colW); cyL += 20;
+    }
+    for (let i = 3; i < AGENT_DATA.qa.length; i++) {
+      const qa = AGENT_DATA.qa[i];
+      cyR = secHead(qa.section, ox1, cyR, colW) + 2;
+      cyR = renderQA(qa, ox1, cyR, colW) + 8;
+      pushRule(ox1, cyR, colW); cyR += 20;
+    }
+    cyR = secHead('Key Information', ox1, cyR, colW) + 4;
+    cyR = renderTable(AGENT_DATA.keyinfo, ox1, cyR, colW) + 14;
+    pushRule(ox1, cyR, colW); cyR += 20;
+    cyR = secHead('Metadata', ox1, cyR, colW) + 4;
+    cyR = renderTable(AGENT_DATA.meta, ox1, cyR, colW) + 14;
+    pushRule(ox1, cyR, colW); cyR += 20;
+    cyR = secHead('JSON-LD', ox1, cyR, colW) + 4;
+    cyR = pushWrapped(AGENT_DATA.jsonld, AF.code, ox1, cyR + AF.code.size, colW) + 20;
+    aTotalH = Math.max(cyL, cyR) + PAD_Y;
+  }
+
+  aParticles = chars.map((def, i) => {
+    const ex = aParticles[i];
+    return ex ? { ...def, x:ex.x, y:ex.y, vx:ex.vx, vy:ex.vy } : def;
+  });
+  const scrollInner = document.getElementById('agent-scroll-inner');
+  if (scrollInner) scrollInner.style.height = aTotalH + 'px';
+}
+
+function agentLoop() {
+  if (!aActive) return;
+  aRAF = requestAnimationFrame(agentLoop);
+  const rgb = '232,228,220';
+  const bgCol = '#0a0a0a';
+  const cW = aCvs.width / aDPR, cH = aCvs.height / aDPR;
+  aCtx.setTransform(aDPR, 0, 0, aDPR, 0, 0);
+  aCtx.clearRect(0, 0, cW, cH);
+  aCtx.fillStyle = bgCol;
+  aCtx.fillRect(0, 0, cW, cH);
+  aFloatT += A_FLOAT_SPD;
+  const fdx = Math.sin(aFloatT) * A_FLOAT_AX + Math.sin(aFloatT * 1.7) * A_FLOAT_AX * 0.3;
+  const fdy = Math.sin(aFloatT * 0.8 + 1) * A_FLOAT_AY + Math.sin(aFloatT * 1.3 + 2) * A_FLOAT_AY * 0.35;
+  aSmoothScrollY += (aScrollY - aSmoothScrollY) * A_SCROLL_LERP;
+  const rect = aCvs.getBoundingClientRect();
+  const lcX = bX - rect.left;
+  const lcY = bY - rect.top;
+  aCtx.textBaseline = 'alphabetic';
+  for (const p of aParticles) {
+    const viewY = p.restY - aSmoothScrollY;
+    if (viewY < -200 || viewY > cH + 200) {
+      p.x  += (p.restX - p.x) * A_TETHER * 0.3;
+      p.y  += ((p.restY - aSmoothScrollY) - p.y) * A_TETHER * 0.3;
+      p.vx *= 0.85; p.vy *= 0.85;
+      continue;
+    }
+    const tgtX = p.restX + fdx;
+    const tgtY = viewY   + fdy;
+    p.vx += (tgtX - p.x) * A_TETHER;
+    p.vy += (tgtY - p.y) * A_TETHER;
+    const dx = p.x - lcX, dy = p.y - lcY;
+    const d  = Math.sqrt(dx * dx + dy * dy);
+    if (d < repelRadius && d > 0.5) {
+      const f = 1 - d / repelRadius;
+      p.vx += (dx / d) * f * f * 14;
+      p.vy += (dy / d) * f * f * 14;
+    }
+    p.vx *= A_DAMP; p.vy *= A_DAMP;
+    p.x  += p.vx;  p.y  += p.vy;
+    const proximity = d < 30 ? 0 : Math.min(1, (d - 16) / 52);
+    const alpha = p.baseOp * proximity;
+    if (alpha > 0.008) {
+      aCtx.font      = p.font;
+      aCtx.fillStyle = 'rgba(' + rgb + ',' + alpha.toFixed(3) + ')';
+      aCtx.fillText(p.ch, p.x, p.y);
+    }
+  }
+  const bgFull = 'rgba(10,10,10,1)', bgZero = 'rgba(10,10,10,0)';
+  const topFade = aCtx.createLinearGradient(0, 0, 0, 36);
+  topFade.addColorStop(0, bgFull); topFade.addColorStop(1, bgZero);
+  aCtx.fillStyle = topFade; aCtx.fillRect(0, 0, cW, 36);
+  const botFade = aCtx.createLinearGradient(0, cH - 44, 0, cH);
+  botFade.addColorStop(0, bgZero); botFade.addColorStop(1, bgFull);
+  aCtx.fillStyle = botFade; aCtx.fillRect(0, cH - 44, cW, 44);
+  // keep scroll indicator in sync with smooth scroll
+  if (window._updateAgentScrollbar) window._updateAgentScrollbar();
+}
+
+function initAgentCanvas() {
+  const wrap = document.getElementById('agent-canvas-wrap');
+  if (!wrap || !wrap.clientWidth) return;
+  aDPR = Math.min(window.devicePixelRatio || 1, 2);
+  const cW = wrap.clientWidth, cH = wrap.clientHeight;
+  aCvs.width  = cW * aDPR; aCvs.height = cH * aDPR;
+  aCvs.style.width = cW + 'px'; aCvs.style.height = cH + 'px';
+  buildAgentParticles();
+  requestAnimationFrame(() => { if (window._updateAgentScrollbar) window._updateAgentScrollbar(); });
+}
+
+const aScrollZone = document.getElementById('agent-scroll-zone');
+if (aScrollZone) {
+  aScrollZone.addEventListener('scroll', () => { aScrollY = aScrollZone.scrollTop; }, { passive:true });
+}
+
+// ── Custom scroll indicator — agent ─────────────────────────────
+(function() {
+  const track = document.getElementById('agent-scroll-track');
+  const thumb = document.getElementById('agent-scroll-thumb');
+  if (!track || !thumb) return;
+  let hideTimer = null;
+
+  function updateAgentScrollbar() {
+    const wrap = document.getElementById('agent-canvas-wrap');
+    if (!wrap || aTotalH <= 0) return;
+    const viewH = wrap.clientHeight;
+    if (aTotalH <= viewH) { track.classList.remove('visible'); return; }
+
+    const trackH  = wrap.clientHeight - 16;
+    const ratio   = viewH / aTotalH;
+    const thumbH  = Math.max(24, Math.round(trackH * ratio));
+    const maxScrl = aTotalH - viewH;
+    const thumbY  = Math.round((aScrollY / maxScrl) * (trackH - thumbH));
+
+    thumb.style.height = thumbH + 'px';
+    thumb.style.top    = thumbY + 'px';
+
+    track.classList.add('visible', 'active');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      track.classList.remove('active');
+      hideTimer = setTimeout(() => track.classList.remove('visible'), 1200);
+    }, 800);
+  }
+
+  window._updateAgentScrollbar = updateAgentScrollbar;
+  if (aScrollZone) {
+    aScrollZone.addEventListener('scroll', updateAgentScrollbar, { passive: true });
+  }
+})();
+
+const agentWidget = document.getElementById('agent-widget');
+const agentToggle = agentWidget ? agentWidget.querySelector('.fw-toggle') : null;
+const agentTopbar = agentWidget ? agentWidget.querySelector('.fw-topbar') : null;
+
+if (agentTopbar) {
+  agentTopbar.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasCollapsed = agentWidget.classList.contains('collapsed');
+    agentWidget.style.transition = 'none';
+    agentWidget.classList.toggle('collapsed');
+    if (agentToggle) agentToggle.textContent = wasCollapsed ? '−' : '+';
+
+    if (wasCollapsed) {
+      dockWidgets();
+      aActive = true;
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        initAgentCanvas();
+        agentLoop();
+        agentWidget.style.transition = '';
+      }));
+    } else {
+      agentWidget.style.width = 'auto';
+      aActive = false;
+      if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
+      dockWidgets();
+      requestAnimationFrame(() => { agentWidget.style.transition = ''; });
+    }
+  });
+}
+
+document.addEventListener('mousedown', e => {
+  if (!agentWidget || agentWidget.classList.contains('collapsed')) return;
+  if (!agentWidget.contains(e.target)) {
+    agentWidget.style.transition = 'none';
+    agentWidget.style.width = 'auto';
+    agentWidget.classList.add('collapsed');
+    if (agentToggle) agentToggle.textContent = '+';
+    aActive = false;
+    if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
+    dockWidgets();
+    requestAnimationFrame(() => { agentWidget.style.transition = ''; });
+  }
+});
+
+if (agentWidget) {
+  agentWidget.addEventListener('agent-collapse', () => {
+    aActive = false;
+    if (aRAF) { cancelAnimationFrame(aRAF); aRAF = null; }
+  });
+}
+
+window.addEventListener('resize', () => { if (aActive) initAgentCanvas(); });
+
+const copyBtn = document.getElementById('agent-copy-btn');
+if (copyBtn) {
+  copyBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(AGENT_DATA.jsonld).then(() => {
+      copyBtn.textContent = 'Copied \u2713';
+      copyBtn.classList.add('copied');
+      setTimeout(() => { copyBtn.textContent = 'Copy JSON-LD'; copyBtn.classList.remove('copied'); }, 2000);
+    }).catch(() => {});
+  });
+}
+
+})();
+
+// ══════════════════════════════════════════════════════════════════
+// RESUME WIDGET — particle canvas renderer
+// ══════════════════════════════════════════════════════════════════
+(function() {
+
+const RESUME_DATA = {
+  name: 'ZACHARY GORT',
+  tagline: 'Experience Architecture, Design & Strategy',
+  links: 'zackgort.com · zack.cx · /in/zackgort',
+  skills: [
+    { label: 'Systems & Architecture', items: 'Information Architecture · Design Systems · Component-Based Design · Modular UI · Headless CMS · Content Strategy · IA Workshop Facilitation · A.I. Workflow' },
+    { label: 'Product & Strategy', items: '0–1 Product Design · UX Strategy · Product Ownership · Agile/Scrum · Cross-functional Collaboration · Stakeholder Management · Roadmap Planning' },
+    { label: 'Craft & Tools', items: 'Interaction Design · Visual Design · Mobile-First · Responsive · Prototyping · Wireframing · ADA / Accessibility · Figma · Salesforce Commerce Cloud · Shopify · Contentful · Jira · Claude · Prompt-Engineering · LLM Prompt Design' },
+    { label: 'Leadership', items: 'Team Lead · Mentorship · Creative Direction · Client-Facing Lead' },
+  ],
+  experience: [
+    { company: 'Wolfgang & Co.', period: 'Current', title: 'Outlook Heuristics for Human & A.I. Cognition', body: 'A concept studio focused on craft, language, and human intent — as realized through a bespoke narrative-as-nodes engine. Self-taught designer, developer, and autodidactic learner. My answer to how we communicate is The Sentence.', sub: 'ifimaybefrank.com · neverever.land · reasonably.cc' },
+    { company: 'Phenom', period: '02/2025–05/2025', title: 'User Experience Strategist', body: 'Owned the corporate web presence end-to-end — content strategy, product roadmap, third-party integrations, and live event infrastructure. Operated across Marketing, Sales, and Product; named operational silos nobody else had mapped. Contentful, Jira, digital content systems.' },
+    { company: 'Publicis Sapient', period: '04/2022–03/2023', title: 'Senior User Experience Designer', body: "Embedded in BNY Mellon's digital transformation as interim Product Owner and primary client liaison — a role I wasn't hired for and became anyway. Architected user data models and flows across three Agile tracks. Centralized a sprawling product ecosystem into a modular, scalable design system." },
+    { company: 'Code & Theory', period: '08/2021–04/2022', title: 'Senior Interaction Designer', body: 'Led UX and interaction design for TikTok For Business from 62 floors above Manhattan. Ran IA and headless CMS workshops. Moved from Senior Designer to ACD to Directly Responsible Individual on one of the fastest-growing advertising platforms in the world.' },
+    { company: 'Elva Design Group', period: '04/2021–08/2021', title: 'Senior User Experience Designer', body: "Owned discovery through delivery for GNC's Shopify redesign — mobile-first, component-based, shipped in 12 weeks. Strategy and execution in the same hands." },
+    { company: 'HUGE Inc.', period: '03/2021–04/2021', title: 'Senior User Experience Designer', body: 'Defined end-to-end UX and booking flow for Sentral Lifestyle Apartments. Brand activation strategy, competitive analysis, critical flows delivered under constrained conditions.' },
+    { company: 'PFSWeb LiveArea', period: '01/2020–02/2021', title: 'Manager, UX', body: 'Managed full-spectrum Salesforce Commerce Cloud builds across B2C and B2B clients. Ran the UX strategy and design function throughout project lifecycles. Conversion, post-sale re-engagement, design systems at platform scale.' },
+    { company: 'FlightPath', period: '08/2018–01/2020', title: 'Senior User Experience Designer', body: 'Full-spectrum builds across B2C and B2B clients: Merck, Goya, Charter. Ran the UX strategy and design function throughout project lifecycles.' },
+    { company: 'Workarea', period: '07/2017–09/2018', title: 'Senior User Experience Designer', body: 'Shaped a proprietary SaaS e-commerce platform through direct client relationships and data-informed iteration. No mockup theater — napkin sketches and real conversations with engineers until the thing was right.' },
+    { company: 'O3 World', period: '07/2016–06/2017', title: 'User Experience Designer', body: 'Lean UX for FinTech and iOS products in Fishtown. Whiteboards, wireframes, sprint cycles, shipped. Certified Scrum Master.' },
+    { company: 'One Sixty Over Ninety', period: '09/2014–07/2016', title: 'Interaction Designer', body: 'Full-service interaction design for .EDU clients — Comcast, Kent State, Philadelphia Eagles. Information architecture, prototyping, ADA compliance, client-facing creative lead. This is where I learned what design culture could be.' },
+  ],
+  testimonials: [
+    { quote: '"Zack has a deep connection to emotions, imagination, and sensitivity — the quintessential idealist. His depth of empathy allows him to give voice to human connections in a profound manner."', attr: '— Christopher Bayle, ACD UX, Publicis Sapient' },
+    { quote: '"Zack is one of the most talented, hard-working, and knowledgeable professionals I have worked with. He fosters strong communication and consistently delivers exceptional results."', attr: '— Andrés Moros, MPS, Sr. UX Designer, Publicis Sapient' },
+  ],
+};
+
+const RF = {
+  name:     { size:32, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.15, op:0.95 },
+  tagline:  { size:13, weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.5,  op:0.55 },
+  links:    { size:11, weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
+  section:  { size:10, weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
+  skillLbl: { size:12, weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.55, op:0.65 },
+  skillItm: { size:12, weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.6,  op:0.48 },
+  company:  { size:18, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.2,  op:0.90 },
+  period:   { size:10, weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.32 },
+  jobtitle: { size:11, weight:'500', family:'"DM Mono",monospace',          italic:false, lh:1.5,  op:0.55 },
+  body:     { size:14, weight:'400', family:'"Instrument Sans",sans-serif', italic:false, lh:1.72, op:0.65 },
+  sub:      { size:10, weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.38 },
+  quote:    { size:15, weight:'400', family:'"Instrument Serif",serif',     italic:true,  lh:1.6,  op:0.60 },
+  attr:     { size:10, weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.35 },
+  rule:     { size:9,  weight:'300', family:'"DM Mono",monospace',          italic:false, lh:1.4,  op:0.10 },
+};
+function rfStr(f) { return (f.italic ? 'italic ' : '') + f.weight + ' ' + f.size + 'px ' + f.family; }
+
+const _RF_BASE = {};
+['name','company','body','quote'].forEach(k => { _RF_BASE[k] = RF[k].size; });
+
+window._applyResumeScale = function(scale) {
+  ['name','company','body','quote'].forEach(k => { RF[k].size = Math.round(_RF_BASE[k] * scale); });
+  if (rActive) buildResumeParticles();
+};
+
+const rCvs = document.getElementById('resume-canvas');
+const rCtx = rCvs ? rCvs.getContext('2d') : null;
+
+let rParticles = [];
+let rScrollY   = 0;
+let rSmoothScrollY = 0;
+const R_SCROLL_LERP = 0.22;
+let rTotalH    = 0;
+let rFloatT    = Math.random() * Math.PI * 2;
+let rRAF       = null;
+let rActive    = false;
+let rDPR       = 1;
+
+const R_TETHER    = 0.016;
+const R_DAMP      = 0.74;
+const R_FLOAT_SPD = 0.008;
+const R_FLOAT_AX  = 1.8;
+const R_FLOAT_AY  = 1.2;
+
+function buildResumeParticles() {
+  const cW = rCvs.width / rDPR;
+  const PAD_X = 32, PAD_Y = 28;
+  // Right gutter accounts for scroll indicator (18px) + breathing room
+  const PAD_R = 24;
+  const colW  = cW - PAD_X - PAD_R;
+  const chars = [];
+  let cy = PAD_Y;
+
+  function mW(text, f) { rCtx.font = rfStr(f); return rCtx.measureText(text).width; }
+  function wrapLines(text, f, maxW) {
+    rCtx.font = rfStr(f);
+    const words = text.split(' '), lines = []; let line = '';
+    for (const w of words) {
+      const test = line ? line + ' ' + w : w;
+      if (rCtx.measureText(test).width > maxW && line) { lines.push(line); line = w; }
+      else line = test;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function pushChar(ch, f, x, y, op) {
+    rCtx.font = rfStr(f);
+    const cw = rCtx.measureText(ch).width;
+    const baseOp = op !== undefined ? op : f.op;
+    chars.push({ ch, restX:x, restY:y, x:x+(Math.random()-.5)*22, y:y+(Math.random()-.5)*22, vx:0, vy:0, font:rfStr(f), baseOp, cw });
+    return cw;
+  }
+  function pushLine(text, f, x, y, op) {
+    let cx = x;
+    for (const ch of text) cx += pushChar(ch, f, cx, y, op);
+  }
+  function pushWrapped(text, f, x, y, maxW, op) {
+    const lines = wrapLines(text, f, maxW);
+    const lh = f.size * f.lh;
+    lines.forEach((l, i) => pushLine(l, f, x, y + i * lh, op));
+    return y + lines.length * lh;
+  }
+  function pushRule(x, y, w) {
+    rCtx.font = rfStr(RF.rule);
+    const dw = rCtx.measureText('─').width + 1.2;
+    const count = Math.floor(w / dw);
+    let cx = x;
+    for (let i = 0; i < count; i++) {
+      chars.push({ ch:'─', restX:cx, restY:y, x:cx+(Math.random()-.5)*10, y:y+(Math.random()-.5)*6, vx:0, vy:0, font:rfStr(RF.rule), baseOp:RF.rule.op, cw:dw });
+      cx += dw;
+    }
+  }
+  function secHead(label, x, y) {
+    pushLine(label.toUpperCase(), RF.section, x, y);
+    return y + RF.section.size * RF.section.lh + 2;
+  }
+
+  cy += RF.name.size;
+  pushLine(RESUME_DATA.name, RF.name, PAD_X, cy);
+  cy += RF.name.size * RF.name.lh * 0.35 + RF.tagline.size;
+  pushLine(RESUME_DATA.tagline, RF.tagline, PAD_X, cy);
+  cy += RF.tagline.size * RF.tagline.lh * 0.5 + RF.links.size;
+  pushLine(RESUME_DATA.links, RF.links, PAD_X, cy);
+  cy += RF.links.size * RF.links.lh + 16;
+  pushRule(PAD_X, cy, colW); cy += 20;
+
+  cy = secHead('Senior User Experience & Visual Design', PAD_X, cy) + 6;
+  for (const sk of RESUME_DATA.skills) {
+    const lblW   = mW(sk.label, RF.skillLbl);
+    const indent = PAD_X + lblW + 10;
+    const bodyW  = colW - lblW - 10;
+    cy += RF.skillLbl.size;
+    pushLine(sk.label, RF.skillLbl, PAD_X, cy);
+    const endY = pushWrapped(sk.items, RF.skillItm, indent, cy - RF.skillItm.size * 0.1, bodyW);
+    cy = Math.max(cy + RF.skillLbl.size * RF.skillLbl.lh, endY) + 7;
+  }
+  cy += 12;
+  pushRule(PAD_X, cy, colW); cy += 22;
+
+  cy = secHead('Professional Experience', PAD_X, cy) + 6;
+  for (const job of RESUME_DATA.experience) {
+    cy += RF.company.size;
+    const pW = mW(job.period, RF.period);
+    pushLine(job.company, RF.company, PAD_X, cy);
+    pushLine(job.period,  RF.period,  PAD_X + colW - pW, cy + 2);
+    cy += RF.company.size * RF.company.lh * 0.3 + RF.jobtitle.size;
+    pushLine(job.title, RF.jobtitle, PAD_X, cy);
+    cy += RF.jobtitle.size * RF.jobtitle.lh * 0.45 + RF.body.size;
+    cy = pushWrapped(job.body, RF.body, PAD_X, cy, colW) + 4;
+    if (job.sub) {
+      cy += 2;
+      pushLine(job.sub, RF.sub, PAD_X, cy);
+      cy += RF.sub.size * RF.sub.lh;
+    }
+    cy += 14;
+    pushRule(PAD_X, cy, colW); cy += 18;
+  }
+
+  cy += 6;
+  cy = secHead('Testimonials', PAD_X, cy) + 10;
+  for (const t of RESUME_DATA.testimonials) {
+    cy += RF.quote.size;
+    cy = pushWrapped(t.quote, RF.quote, PAD_X + 14, cy, colW - 28) + 5;
+    cy += RF.attr.size;
+    pushLine(t.attr, RF.attr, PAD_X + 14, cy);
+    cy += RF.attr.size * RF.attr.lh + 22;
+  }
+
+  cy += PAD_Y + 20;
+  rTotalH = cy;
+
+  rParticles = chars.map((def, i) => {
+    const ex = rParticles[i];
+    return ex ? { ...def, x:ex.x, y:ex.y, vx:ex.vx, vy:ex.vy } : def;
+  });
+  const scrollInner = document.getElementById('resume-scroll-inner');
+  if (scrollInner) scrollInner.style.height = rTotalH + 'px';
+}
+
+function resumeLoop() {
+  if (!rActive) return;
+  rRAF = requestAnimationFrame(resumeLoop);
+  const rgb = '232,228,220';
+  const bgCol = '#0a0a0a';
+  const cW = rCvs.width / rDPR, cH = rCvs.height / rDPR;
+  rCtx.setTransform(rDPR, 0, 0, rDPR, 0, 0);
+  rCtx.clearRect(0, 0, cW, cH);
+  rCtx.fillStyle = bgCol;
+  rCtx.fillRect(0, 0, cW, cH);
+  rFloatT += R_FLOAT_SPD;
+  const fdx = Math.sin(rFloatT) * R_FLOAT_AX + Math.sin(rFloatT * 1.7) * R_FLOAT_AX * 0.3;
+  const fdy = Math.sin(rFloatT * 0.8 + 1) * R_FLOAT_AY + Math.sin(rFloatT * 1.3 + 2) * R_FLOAT_AY * 0.35;
+  rSmoothScrollY += (rScrollY - rSmoothScrollY) * R_SCROLL_LERP;
+  const rect = rCvs.getBoundingClientRect();
+  const lcX = bX - rect.left;
+  const lcY = bY - rect.top;
+  rCtx.textBaseline = 'alphabetic';
+  for (const p of rParticles) {
+    const viewY = p.restY - rSmoothScrollY;
+    if (viewY < -200 || viewY > cH + 200) {
+      p.x  += (p.restX - p.x) * R_TETHER * 0.3;
+      p.y  += ((p.restY - rSmoothScrollY) - p.y) * R_TETHER * 0.3;
+      p.vx *= 0.85; p.vy *= 0.85;
+      continue;
+    }
+    const tgtX = p.restX + fdx;
+    const tgtY = viewY   + fdy;
+    p.vx += (tgtX - p.x) * R_TETHER;
+    p.vy += (tgtY - p.y) * R_TETHER;
+    const dx = p.x - lcX, dy = p.y - lcY;
+    const d  = Math.sqrt(dx * dx + dy * dy);
+    if (d < repelRadius && d > 0.5) {
+      const f = 1 - d / repelRadius;
+      p.vx += (dx / d) * f * f * 14;
+      p.vy += (dy / d) * f * f * 14;
+    }
+    p.vx *= R_DAMP; p.vy *= R_DAMP;
+    p.x  += p.vx; p.y  += p.vy;
+    const proximity = d < 30 ? 0 : Math.min(1, (d - 16) / 52);
+    const alpha = p.baseOp * proximity;
+    if (alpha > 0.008) {
+      rCtx.font      = p.font;
+      rCtx.fillStyle = 'rgba(' + rgb + ',' + alpha.toFixed(3) + ')';
+      rCtx.fillText(p.ch, p.x, p.y);
+    }
+  }
+  const bgFull = 'rgba(10,10,10,1)', bgZero = 'rgba(10,10,10,0)';
+  const topFade = rCtx.createLinearGradient(0, 0, 0, 36);
+  topFade.addColorStop(0, bgFull); topFade.addColorStop(1, bgZero);
+  rCtx.fillStyle = topFade; rCtx.fillRect(0, 0, cW, 36);
+  const botFade = rCtx.createLinearGradient(0, cH - 44, 0, cH);
+  botFade.addColorStop(0, bgZero); botFade.addColorStop(1, bgFull);
+  rCtx.fillStyle = botFade; rCtx.fillRect(0, cH - 44, cW, 44);
+  // keep scroll indicator in sync with smooth scroll
+  if (window._updateResumeScrollbar) window._updateResumeScrollbar();
+}
+
+function initResumeCanvas() {
+  const wrap = document.getElementById('resume-canvas-wrap');
+  if (!wrap || !wrap.clientWidth) return;
+  rDPR = Math.min(window.devicePixelRatio || 1, 2);
+  const cW = wrap.clientWidth, cH = wrap.clientHeight;
+  rCvs.width  = cW * rDPR; rCvs.height = cH * rDPR;
+  rCvs.style.width = cW + 'px'; rCvs.style.height = cH + 'px';
+  buildResumeParticles();
+  requestAnimationFrame(() => { if (window._updateResumeScrollbar) window._updateResumeScrollbar(); });
+}
+
+const rScrollZone = document.getElementById('resume-scroll-zone');
+if (rScrollZone) {
+  rScrollZone.addEventListener('scroll', () => { rScrollY = rScrollZone.scrollTop; }, { passive:true });
+}
+
+// ── Custom scroll indicator — résumé ────────────────────────────
+(function() {
+  const track = document.getElementById('resume-scroll-track');
+  const thumb = document.getElementById('resume-scroll-thumb');
+  if (!track || !thumb) return;
+  let hideTimer = null;
+
+  function updateResumeScrollbar() {
+    const wrap = document.getElementById('resume-canvas-wrap');
+    if (!wrap || rTotalH <= 0) return;
+    const viewH = wrap.clientHeight;
+    if (rTotalH <= viewH) { track.classList.remove('visible'); return; }
+
+    const trackH  = wrap.clientHeight - 16;   // 8px padding top+bottom
+    const ratio   = viewH / rTotalH;
+    const thumbH  = Math.max(24, Math.round(trackH * ratio));
+    const maxScrl = rTotalH - viewH;
+    const thumbY  = Math.round((rScrollY / maxScrl) * (trackH - thumbH));
+
+    thumb.style.height = thumbH + 'px';
+    thumb.style.top    = thumbY + 'px';
+
+    track.classList.add('visible', 'active');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      track.classList.remove('active');
+      // fade track out after 1.2s idle
+      hideTimer = setTimeout(() => track.classList.remove('visible'), 1200);
+    }, 800);
+  }
+
+  // Called from the scroll event and also each render frame while scrolling
+  window._updateResumeScrollbar = updateResumeScrollbar;
+  if (rScrollZone) {
+    rScrollZone.addEventListener('scroll', updateResumeScrollbar, { passive: true });
+  }
+})();
+
+const resumeWidget = document.getElementById('resume-widget');
+const resumeTopbar = resumeWidget ? resumeWidget.querySelector('.fw-topbar') : null;
+const resumeToggle = resumeWidget ? resumeWidget.querySelector('.fw-toggle') : null;
+
+if (resumeTopbar) {
+  resumeTopbar.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasCollapsed = resumeWidget.classList.contains('collapsed');
+    resumeWidget.style.transition = 'none';
+    resumeWidget.classList.toggle('collapsed');
+    if (resumeToggle) resumeToggle.textContent = wasCollapsed ? '−' : '+';
+
+    if (wasCollapsed) {
+      dockWidgets();
+      rActive = true;
+      const orbRail = document.getElementById('orb-rail');
+      if (orbRail) orbRail.style.visibility = 'hidden';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        initResumeCanvas();
+        resumeLoop();
+        resumeWidget.style.transition = '';
+      }));
+    } else {
+      resumeWidget.style.width = 'auto';
+      rActive = false;
+      if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
+      dockWidgets();
+      const orbRail = document.getElementById('orb-rail');
+      if (orbRail) orbRail.style.visibility = '';
+      requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
+    }
+  });
+}
+
+document.addEventListener('mousedown', e => {
+  if (!resumeWidget || resumeWidget.classList.contains('collapsed')) return;
+  if (!resumeWidget.contains(e.target)) {
+    resumeWidget.style.transition = 'none';
+    resumeWidget.style.width = 'auto';
+    resumeWidget.classList.add('collapsed');
+    if (resumeToggle) resumeToggle.textContent = '+';
+    rActive = false;
+    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
+    dockWidgets();
+    const orbRail = document.getElementById('orb-rail');
+    if (orbRail) orbRail.style.visibility = '';
+    requestAnimationFrame(() => { resumeWidget.style.transition = ''; });
+  }
+});
+
+if (resumeWidget) {
+  resumeWidget.addEventListener('resume-collapse', () => {
+    rActive = false;
+    if (rRAF) { cancelAnimationFrame(rRAF); rRAF = null; }
+    const orbRail = document.getElementById('orb-rail');
+    if (orbRail) orbRail.style.visibility = '';
+  });
+}
+
+window.addEventListener('resize', () => { if (rActive) initResumeCanvas(); });
+
+})();
+
 </script>
+
 </body>
 </html>
