@@ -301,14 +301,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .fs-layout-active{padding:3px 10px;border-radius:2px;background:rgba(var(--fg-rgb),.1);color:rgba(var(--fg-rgb),.65);font-weight:600}
 .fs-specimen-display{padding:28px 16px 16px;border-bottom:1px solid var(--rule)}
 .fs-specimen-headline{font-size:var(--work-font-size,clamp(28px,4.5vw,58px));font-weight:700;letter-spacing:-.02em;line-height:1.08;color:var(--fg);margin-bottom:10px;text-align:var(--work-align,left)}
-.fs-specimen-subhead{font-size:12px;font-weight:400;color:rgba(var(--fg-rgb),.4);max-width:600px;line-height:1.75;margin-bottom:16px}
-.fs-specimen-body{columns:2;column-gap:28px;font-size:9.5px;line-height:1.9;color:rgba(var(--fg-rgb),.28);max-width:860px}
+.fs-specimen-subhead{font-size:var(--content-size-body,12px);font-weight:400;color:rgba(var(--fg-rgb),.4);max-width:600px;line-height:1.75;margin-bottom:16px}
+.fs-specimen-body{columns:2;column-gap:28px;font-size:var(--content-size,10px);line-height:1.9;color:rgba(var(--fg-rgb),.28);max-width:860px}
 
 /* Details */
 .fs-details{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 2fr;min-height:160px}
 .fs-details-label-col{padding:16px;border-right:1px solid var(--rule);font-size:8px;font-weight:600;letter-spacing:.08em;color:rgba(var(--fg-rgb),.25)}
 .fs-details-body{padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:0 28px}
-.fs-detail-row{padding:7px 0;border-bottom:1px solid var(--faint);display:flex;justify-content:space-between;align-items:baseline;font-size:8.5px}
+.fs-detail-row{padding:7px 0;border-bottom:1px solid var(--faint);display:flex;justify-content:space-between;align-items:baseline;font-size:var(--content-size-sm,8.5px)}
 .fs-detail-row:last-child{border-bottom:none}
 .fs-detail-key{font-weight:500;letter-spacing:.03em;color:rgba(var(--fg-rgb),.28)}
 .fs-detail-val{font-weight:600;color:rgba(var(--fg-rgb),.7);text-align:right}
@@ -401,8 +401,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 
 /* Narrative */
 .fs-narrative{padding:32px 16px;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:160px 1fr;gap:32px;align-items:start;background:var(--bg)}
-.fs-narrative-label{font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);line-height:1.8;padding-top:2px}
-.fs-narrative-body{font-size:12px;line-height:1.9;color:rgba(var(--fg-rgb),.5)}
+.fs-narrative-label{font-size:var(--content-size-sm,7px);font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);line-height:1.8;padding-top:2px}
+.fs-narrative-body{font-size:var(--content-size-body,12px);line-height:1.9;color:rgba(var(--fg-rgb),.5)}
 .fs-narrative-body strong{color:var(--fg);font-weight:700}
 
 /* CS Footer */
@@ -1320,6 +1320,10 @@ function tbApplySize(px) {
   document.querySelectorAll('.wt-size-label, .cs-size-label').forEach(el => el.textContent = px + 'px');
   // sync all sliders
   document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => sl.value = px);
+  // resize active CS particle hero canvas
+  if (window._activeInstances) {
+    window._activeInstances.forEach(inst => { if (!inst.dead && inst.resize) inst.resize(); });
+  }
 }
 
 function tbApplyAlign(a) {
@@ -1488,6 +1492,7 @@ const REPEL_R   = 155;
 
 // Track all active instances so we can kill them on view change
 const activeInstances = new Map();
+window._activeInstances = activeInstances;
 
 function initParticleHero(viewEl) {
   // Kill any existing instance for this view
@@ -1520,12 +1525,16 @@ function initParticleHero(viewEl) {
   let particles = [];
   const inst = { dead: false };
   activeInstances.set(viewId, inst);
+  // Expose resize so tbApplySize can re-render when slider moves
+  inst.resize = () => resize();
 
   function heroFontSize1() {
-    return Math.round(Math.min(window.innerWidth * (isIndex ? 0.145 : 0.135), 195));
+    // getComputedStyle resolves clamp() to a plain px number at runtime
+    const cssVal = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size'));
+    return isNaN(cssVal) || cssVal < 10 ? 48 : cssVal;
   }
   function heroFontSize2(fs1) {
-    return isIndex ? Math.round(fs1 * 0.28) : Math.round(fs1 * 0.32);
+    return Math.round(fs1 * 0.32);
   }
 
   function resize() {
