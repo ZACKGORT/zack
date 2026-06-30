@@ -3517,7 +3517,20 @@ function initAllNarrativeParticles(container) {
 
 // ── PORTRAIT HERO (index) ──────────────────────────────────────────────────
 (function initPortraitHero() {
-  const POEM_TEXT = "Comcast Charter Rachel Roy LimeCrime Organic Girl Goya General Nutrition Centers Worldwide Stereo Simpson Strong-Tie Shop Hardinge YETI Aquasana Kent State University University of Wisconsin-Madison Texas A&M Centro.edu.mx Power Home Remodeling Group TikTok For Business BNY Pershing X The Dana Foundation Daz3D Sentral Lifestyle Apartments Publicis Sapient Code & Theory Huge Elva Design Group LiveArea WebLinc Workarea O3 World 160OVER90 Leadnomics Turn5 Inc Phenom";
+  // Individual client/employer names — each one is a single "phrase" that
+  // gets its own randomly-assigned font, rather than randomizing per letter.
+  const POEM_PHRASES = [
+    "Comcast", "Charter", "Rachel Roy", "LimeCrime", "Organic Girl", "Goya",
+    "General Nutrition Centers", "Worldwide Stereo", "Simpson Strong-Tie",
+    "Shop Hardinge", "YETI", "Aquasana", "Kent State University",
+    "University of Wisconsin-Madison", "Texas A&M", "Centro.edu.mx",
+    "Power Home Remodeling Group", "TikTok For Business", "BNY Pershing X",
+    "The Dana Foundation", "Daz3D", "Sentral Lifestyle Apartments",
+    "Publicis Sapient", "Huge", "Code & Theory", "Elva Design Group",
+    "LiveArea", "WebLinc", "Workarea", "O3 World", "160OVER90",
+    "Leadnomics", "Turn5 Inc", "Phenom",
+  ];
+  const POEM_TEXT = POEM_PHRASES.join(" ");
 
   const PT_TETHER = 0.014;
   const PT_DAMP   = 0.76;
@@ -3530,6 +3543,17 @@ function initAllNarrativeParticles(container) {
   let FONT_SIZE = particleSize();
   let CHAR_W    = FONT_SIZE * 0.11;
   let LINE_H    = FONT_SIZE * 0.33;
+
+  // Pool of fonts already loaded elsewhere on the site — each tiled character
+  // is randomly (but stably) assigned one of these at build time.
+  const PT_FONTS = [
+    '"Inter",sans-serif',
+    '"Playfair Display",serif',
+    '"Syne",sans-serif',
+    '"Bebas Neue",sans-serif',
+    '"Space Grotesk",sans-serif',
+    '"DM Serif Display",serif',
+  ];
 
   const heroSection = document.getElementById('hero');
   const canvas = document.getElementById('hero-canvas');
@@ -3568,12 +3592,24 @@ function initAllNarrativeParticles(container) {
   function buildChars() {
     const { cols, rows } = buildGrid();
     const total = cols * rows;
-    const clean = POEM_TEXT.replace(/\s+/g,' ').trim();
-    let tiled = '';
-    while (tiled.length < total + clean.length) tiled += clean + ' ';
+
+    // Build a flat stream of {ch, font} long enough to fill the grid,
+    // repeating through the phrase list and picking one random font per
+    // phrase occurrence (every letter in that phrase shares the same font).
+    const stream = [];
+    let i = 0;
+    while (stream.length < total) {
+      const phrase = POEM_PHRASES[i % POEM_PHRASES.length];
+      const font   = PT_FONTS[Math.floor(Math.random() * PT_FONTS.length)];
+      for (const ch of phrase) stream.push({ ch, font });
+      stream.push({ ch: ' ', font });
+      i++;
+    }
+
     return Array.from({ length: total }, (_, idx) => {
       const c = idx % cols, r = Math.floor(idx / cols);
-      return { ch: tiled[idx % tiled.length], restX: c*CHAR_W, restY: r*LINE_H, x: c*CHAR_W, y: r*LINE_H, vx:0, vy:0, baseOpacity: 1 };
+      const s = stream[idx % stream.length];
+      return { ch: s.ch, font: s.font, restX: c*CHAR_W, restY: r*LINE_H, x: c*CHAR_W, y: r*LINE_H, vx:0, vy:0, baseOpacity: 1 };
     });
   }
 
@@ -3608,10 +3644,11 @@ function initAllNarrativeParticles(container) {
     if (loaded) {
       const ptRepel   = window._ptRepel;
       const ptRepelSq = ptRepel * ptRepel;
-      ctx.font = `${dark ? '300' : '500'} ${FONT_SIZE}px "DM Mono", monospace`;
       ctx.textBaseline = 'top';
       const rgbStr = dark ? '255,255,255' : '0,0,0';
+      const fontWeight = dark ? '300' : '500';
       let lastAlphaBucket = -1;
+      let lastFont = '';
 
       for (const p of allChars) {
         if (p.x < -CHAR_W || p.x > W + CHAR_W || p.y < -LINE_H || p.y > H + LINE_H) continue;
@@ -3639,6 +3676,10 @@ function initAllNarrativeParticles(container) {
           if (bucket !== lastAlphaBucket) {
             ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
             lastAlphaBucket = bucket;
+          }
+          if (p.font !== lastFont) {
+            ctx.font = `${fontWeight} ${FONT_SIZE}px ${p.font}`;
+            lastFont = p.font;
           }
           ctx.fillText(p.ch, p.x, p.y);
         }
