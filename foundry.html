@@ -3826,13 +3826,19 @@ function initAllNarrativeParticles(container) {
     const padH = parseFloat(cs2.paddingLeft) + parseFloat(cs2.paddingRight);
     const maxW = panel.clientWidth - padH;
     let guard = 0;
-    while (heroEl.offsetWidth > maxW && guard < 40) {
+    // Temporarily unhide overflow so getBoundingClientRect returns the true
+    // unclipped width, then restore — this is the only reliable cross-browser
+    // method when the parent has overflow:hidden.
+    const prevOverflow = panel.style.overflow;
+    panel.style.overflow = 'visible';
+    while (heroEl.getBoundingClientRect().width > maxW && guard < 60) {
       const cs = window.getComputedStyle(heroEl);
       const cur = parseFloat(cs.fontSize);
       if (!cur || cur <= 10) break;
       heroEl.style.fontSize = Math.max(10, cur * 0.94) + 'px';
       guard++;
     }
+    panel.style.overflow = prevOverflow || '';
   }
 
   function place() {
