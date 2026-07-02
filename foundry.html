@@ -2154,7 +2154,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <div style="max-width:860px;margin:0 auto;padding:0 16px 60px">
 
       <!-- ZCK GRT heading — particle canvas -->
-      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" style="margin-bottom:32px;min-height:120px">
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" style="margin-bottom:32px;min-height:120px">
         <canvas></canvas>
         <div class="fs-narrative-sr">ZCK GRT</div>
       </div>
@@ -2902,6 +2902,7 @@ tbApplySize(toolbarState.size);
 tbApplyAlign(TOOLBAR_DEFAULTS.align);
 tbApplyTheme(TOOLBAR_DEFAULTS.theme);
 window._heroBg = '#0a0a0a';
+window._aboutFont = "'Syne',sans-serif";
 
 initToolbar(document.getElementById('work-toolbar'));
 document.querySelectorAll('.cs-toolbar-inst').forEach(t => initToolbar(t));
@@ -2957,15 +2958,14 @@ document.querySelectorAll('.cs-toolbar-inst').forEach(t => initLayoutToggle(t));
 // ── ABOUT PAGE FONT SWITCHER ───────────────────────────────────────────────
 const ABOUT_FONT_DEFAULT = "'Syne',sans-serif";
 function applyAboutFont(fontVal) {
+  window._aboutFont = fontVal;
   document.documentElement.style.setProperty('--about-font', fontVal);
   document.querySelectorAll('.about-font-pill').forEach(p =>
     p.classList.toggle('active', p.dataset.aboutFont === fontVal)
   );
-  // Rebuild narrative particle canvases since the font affects measured char widths
-  document.querySelectorAll('[data-narrative-particles]').forEach(wrap => {
-    if (wrap._narrInst && !wrap._narrInst.dead) {
-      wrap._narrInst.dead = true;
-    }
+  // Only rebuild the heading canvas — body canvases always use Inter
+  document.querySelectorAll('[data-narrative-font="heading"]').forEach(wrap => {
+    if (wrap._narrInst) { wrap._narrInst.dead = true; }
     initNarrativeParticles(wrap);
   });
 }
@@ -3482,8 +3482,12 @@ function initNarrativeParticles(wrap) {
   function isDarkMode() { return (window._heroBg || '#0a0a0a') === '#0a0a0a'; }
 
   function currentFont() {
-    const f = getComputedStyle(document.documentElement).getPropertyValue('--about-font').trim();
-    return f || '"DM Mono", monospace';
+    // Heading canvases (data-narrative-font="heading") use the pill-selected font.
+    // All body/narrative canvases always use Inter regardless of pill selection.
+    if (wrap.dataset.narrativeFont === 'heading') {
+      return window._aboutFont || "'Syne', sans-serif";
+    }
+    return "'Inter','Helvetica Neue',sans-serif";
   }
 
   function measureCharW(font, size) {
@@ -3532,25 +3536,40 @@ function initNarrativeParticles(wrap) {
     return rows.length ? rows : [''];
   }
 
+  // Per-character width cache: font+size+char -> px
+  const _charWidthCache = {};
+  function charAdvance(ch) {
+    const key = `${currentFont()}|${FONT_SIZE}|${ch}`;
+    if (_charWidthCache[key] !== undefined) return _charWidthCache[key];
+    ctx.font = `${isDarkMode() ? '300' : '500'} ${FONT_SIZE}px ${currentFont()}`;
+    const w = ctx.measureText(ch).width;
+    _charWidthCache[key] = w;
+    return w;
+  }
+
   function buildChars() {
-    const { cols, charW } = buildGrid();
+    const { cols } = buildGrid();
     const rows = layoutRows(cols);
     const prev = allChars;
     const next = [];
     let idx = 0;
     rows.forEach((row, r) => {
-      for (let c = 0; c < cols; c++) {
-        const ch = c < row.length ? row[c] : ' ';
-        const restX = c * charW, restY = r * LINE_H;
+      const baseY = r * LINE_H;
+      let x = 0;
+      // Place each character at its actual measured advance width
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
         const p = prev[idx];
         next.push({
-          ch, restX, restY,
-          x:  p ? p.x : restX,
-          y:  p ? p.y : restY,
+          ch,
+          restX: x, restY: baseY,
+          x:  p ? p.x : x,
+          y:  p ? p.y : baseY,
           vx: p ? p.vx : 0,
           vy: p ? p.vy : 0,
           baseOpacity: 1,
         });
+        x += charAdvance(ch);
         idx++;
       }
     });
@@ -3561,6 +3580,8 @@ function initNarrativeParticles(wrap) {
     FONT_SIZE = Math.round(narrParticleSize() * scaleMult);
     CHAR_W    = FONT_SIZE * 0.602;
     LINE_H    = FONT_SIZE * 1.45;
+    // Clear per-char width cache so new font/size is measured fresh
+    Object.keys(_charWidthCache).forEach(k => delete _charWidthCache[k]);
     DPR = Math.min(window.devicePixelRatio || 1, 2);
     W = wrap.clientWidth;
     const { cols } = buildGrid();
@@ -3645,7 +3666,12 @@ function initNarrativeParticles(wrap) {
     if (inst.started) return;
     inst.started = true;
     if (window._activeInstances) window._activeInstances.set('narrative-' + Math.random().toString(36).slice(2), inst);
-    document.fonts.ready.then(() => { rebuild(); loop(); });
+    const fontToLoad = currentFont();
+    const loadPromise = fontToLoad.includes('DM Mono')
+      ? document.fonts.ready
+      : document.fonts.load(`${isDarkMode() ? '300' : '500'} ${FONT_SIZE}px ${fontToLoad}`)
+          .catch(() => {}).then(() => document.fonts.ready);
+    loadPromise.then(() => { rebuild(); loop(); });
   }
 
   const obs = new IntersectionObserver(entries => {
