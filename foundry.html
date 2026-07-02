@@ -218,7 +218,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   position:absolute;
   bottom:60px;
   right:12px;
-  width:240px;
+  width:clamp(280px, 28vw, 480px);
   background:var(--bg);
   border:1px solid rgba(var(--fg-rgb),.14);
   pointer-events:none;
@@ -226,14 +226,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   transition:opacity .18s ease,transform .18s ease;
   z-index:500;
   border-radius:1px;
-  box-shadow:0 16px 48px rgba(0,0,0,.22);
+  box-shadow:0 24px 64px rgba(0,0,0,.32);
   transform:translateY(8px);
   overflow:hidden;
 }
 .wr-tooltip .tip-thumb{
   display:block;
   width:100%;
-  height:130px;
+  height:clamp(160px, 18vw, 300px);
   object-fit:cover;
   object-position:center top;
   border-bottom:1px solid rgba(var(--fg-rgb),.08);
@@ -766,7 +766,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .nav-right{gap:8px}
   .nav-right-link{display:none}
   .nav-cta{padding:0 9px}
-  .wr-tooltip{width:min(240px, calc(100vw - 32px));right:0}
+  .wr-tooltip{width:min(clamp(280px,28vw,480px), calc(100vw - 32px));right:0}
   .fs-glyph-cell[data-glyph-tip]::after{width:min(280px, calc(100vw - 32px))}
   .work-row{grid-template-columns:1fr;gap:8px;padding:20px 14px;min-height:unset}
   .wr-num{display:none}
@@ -3197,6 +3197,52 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
     return pick;
   }
 
+  function positionTip(tip, trigger) {
+    // Reset to default CSS-driven position first
+    tip.style.top = '';
+    tip.style.bottom = '';
+    tip.style.left = '';
+    tip.style.right = '';
+
+    // Measure after browser has laid out
+    requestAnimationFrame(() => {
+      const vw     = window.innerWidth;
+      const vh     = window.innerHeight;
+      const tr     = trigger.getBoundingClientRect();
+      const tw     = tip.offsetWidth  || 320;
+      const th     = tip.offsetHeight || 260;
+      const margin = 12;
+
+      // Horizontal: prefer right-aligned to bulb, clamp left edge
+      let left = tr.right - tw;
+      if (left < margin) left = margin;
+      if (left + tw > vw - margin) left = vw - tw - margin;
+
+      // Vertical: prefer above bulb, flip below if not enough room
+      let top;
+      const spaceAbove = tr.top;
+      const spaceBelow = vh - tr.bottom;
+      if (spaceAbove >= th + margin) {
+        top = tr.top - th - margin + window.scrollY;
+      } else if (spaceBelow >= th + margin) {
+        top = tr.bottom + margin + window.scrollY;
+      } else {
+        // Not enough space either way — center vertically in viewport
+        top = window.scrollY + (vh - th) / 2;
+      }
+
+      // Apply as fixed-ish positioning via page offsets
+      const rowR = tip.closest('.work-row')?.getBoundingClientRect() || {left:0, top:0};
+      tip.style.position = 'fixed';
+      tip.style.left = left + 'px';
+      tip.style.top  = (tr.top - th - margin) < margin
+        ? (tr.bottom + margin) + 'px'
+        : (tr.top - th - margin) + 'px';
+      tip.style.bottom = '';
+      tip.style.right  = '';
+    });
+  }
+
   document.querySelectorAll('.work-row').forEach(row => {
     const tip = row.querySelector('.wr-tooltip');
     if (!tip) return;
@@ -3219,10 +3265,16 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
         }
         bulb.classList.add('active');
         tip.classList.add('visible');
+        // Reposition tooltip to stay within viewport
+        positionTip(tip, bulb);
       });
       bulb.addEventListener('mouseleave', () => {
         bulb.classList.remove('active');
         tip.classList.remove('visible');
+        // Reset to CSS-driven absolute positioning
+        tip.style.position = '';
+        tip.style.left = '';
+        tip.style.top  = '';
       });
     }
   });
