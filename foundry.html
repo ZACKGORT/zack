@@ -2804,11 +2804,6 @@ function tbApplySize(px) {
   window._repelR  = Math.round(155 * scale);
   document.querySelectorAll('.wt-size-label, .cs-size-label').forEach(el => el.textContent = px + 'px');
   document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => sl.value = px);
-  // Rebuild narrative particle canvases — particle size is coupled to the scaler
-  document.querySelectorAll('[data-narrative-particles]').forEach(wrap => {
-    if (wrap._narrInst) { wrap._narrInst.dead = true; }
-    initNarrativeParticles(wrap);
-  });
   // Transition grid through 4-up/3-up/2-up/1-up based on slider position
   const workRows = document.getElementById('work-rows');
   if (workRows && workRows.classList.contains('grid-mode')) {
@@ -3400,10 +3395,7 @@ const NARR_DAMP   = 0.76;
 const NARR_LERP   = 0.11;
 
 function narrParticleSize() {
-  const sliderPx = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 48;
-  // Scale with the slider but keep it readable — maps the 28-72px slider range
-  // to a sensible 10-18px particle text range.
-  return Math.round(Math.min(18, Math.max(10, sliderPx * 0.28)));
+  return 13; // fixed — completely independent of the size scaler
 }
 
 function initNarrativeParticles(wrap) {
@@ -3679,7 +3671,6 @@ function initAllNarrativeParticles(container) {
   let mX = W/2, mY = H/2;
   let bX = W/2, bY = H/2;
   let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
-  let heroTop = heroSection.getBoundingClientRect().top + window.scrollY;
 
   let _dark = !document.body.classList.contains('light-mode');
   function isDarkMode() { return _dark; }
@@ -3854,17 +3845,21 @@ function initAllNarrativeParticles(container) {
     cctx.beginPath(); cctx.arc(mX, mY, 1.5, 0, Math.PI*2); cctx.fill();
   }
 
-  window.addEventListener('scroll', () => { heroTop = heroSection.getBoundingClientRect().top + window.scrollY; }, { passive: true });
-  window.addEventListener('mousemove',  e => { mX = e.clientX; mY = e.clientY - (heroTop - window.scrollY); });
-  window.addEventListener('touchmove',  e => { mX = e.touches[0].clientX; mY = e.touches[0].clientY - (heroTop - window.scrollY); }, { passive: true });
+  window.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.clientX - r.left;
+    mY = e.clientY - r.top;
+  });
+  window.addEventListener('touchmove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.touches[0].clientX - r.left;
+    mY = e.touches[0].clientY - r.top;
+  }, { passive: true });
 
   let _resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(() => {
-      rebuild();
-      heroTop = heroSection.getBoundingClientRect().top + window.scrollY;
-    }, 120);
+    _resizeTimer = setTimeout(() => { rebuild(); }, 120);
   });
 
   window._portraitRebuild = rebuild;
@@ -3873,13 +3868,12 @@ function initAllNarrativeParticles(container) {
   window.addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
-    const step   = e.deltaY > 0 ? -2 : 2;          // scroll down = smaller
+    const step   = e.deltaY > 0 ? -2 : 2;
     const cur    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 28;
     const next   = Math.min(72, Math.max(28, cur + step));
     tbApplySize(next);
     toolbarState.size = next;
     document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => { sl.value = next; });
-    rebuild();
   }, { passive: false });
 
   rebuild();
