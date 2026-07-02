@@ -3299,49 +3299,44 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
   }
 
   function positionTip(tip, trigger) {
-    // Reset to default CSS-driven position first
-    tip.style.top = '';
-    tip.style.bottom = '';
-    tip.style.left = '';
-    tip.style.right = '';
+    const vw     = window.innerWidth;
+    const vh     = window.innerHeight;
+    const tr     = trigger.getBoundingClientRect();
+    const margin = 12;
 
-    // Measure after browser has laid out
-    requestAnimationFrame(() => {
-      const vw     = window.innerWidth;
-      const vh     = window.innerHeight;
-      const tr     = trigger.getBoundingClientRect();
-      const tw     = tip.offsetWidth  || 320;
-      const th     = tip.offsetHeight || 260;
-      const margin = 12;
+    // Park off-screen as fixed so the browser can measure its true rendered height
+    tip.style.position = 'fixed';
+    tip.style.left     = '-9999px';
+    tip.style.top      = '0px';
+    tip.style.bottom   = '';
+    tip.style.right    = '';
 
-      // Horizontal: prefer right-aligned to bulb, clamp left edge
+    // Two rAFs: first lets the browser apply the fixed position, second reads stable layout
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const tw = tip.offsetWidth  || 320;
+      const th = tip.offsetHeight || 260;
+
+      // Horizontal: prefer right-aligned to bulb, clamp to viewport edges
       let left = tr.right - tw;
       if (left < margin) left = margin;
       if (left + tw > vw - margin) left = vw - tw - margin;
 
       // Vertical: prefer above bulb, flip below if not enough room
       let top;
-      const spaceAbove = tr.top;
-      const spaceBelow = vh - tr.bottom;
-      if (spaceAbove >= th + margin) {
-        top = tr.top - th - margin + window.scrollY;
-      } else if (spaceBelow >= th + margin) {
-        top = tr.bottom + margin + window.scrollY;
+      if (tr.top - th - margin >= margin) {
+        top = tr.top - th - margin;
+      } else if (vh - tr.bottom - margin >= th) {
+        top = tr.bottom + margin;
       } else {
-        // Not enough space either way — center vertically in viewport
-        top = window.scrollY + (vh - th) / 2;
+        // Not enough room either way — center vertically in viewport
+        top = Math.max(margin, (vh - th) / 2);
       }
 
-      // Apply as fixed-ish positioning via page offsets
-      const rowR = tip.closest('.work-row')?.getBoundingClientRect() || {left:0, top:0};
-      tip.style.position = 'fixed';
-      tip.style.left = left + 'px';
-      tip.style.top  = (tr.top - th - margin) < margin
-        ? (tr.bottom + margin) + 'px'
-        : (tr.top - th - margin) + 'px';
+      tip.style.left   = left + 'px';
+      tip.style.top    = top  + 'px';
       tip.style.bottom = '';
       tip.style.right  = '';
-    });
+    }));
   }
 
   document.querySelectorAll('.work-row').forEach(row => {
