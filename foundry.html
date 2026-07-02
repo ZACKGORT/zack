@@ -332,6 +332,47 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .ic-footer-slider{-webkit-appearance:none;appearance:none;width:80px;height:1px;background:rgba(var(--fg-rgb),.2);outline:none;cursor:none}
 .ic-footer-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--fg);cursor:none}
 
+/* ── HOOP IFRAME FOOTER ── */
+.ic-hoop-wrap{
+  border-top:1px solid var(--rule);
+  position:relative;
+  overflow:hidden;
+  background:var(--bg);
+  width:100%;
+}
+.ic-hoop-label{
+  position:absolute;top:0;left:0;
+  font-size:var(--fs-nano);font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(var(--fg-rgb),.18);
+  padding:8px 16px;
+  z-index:2;
+  pointer-events:none;
+  user-select:none;
+}
+.ic-hoop-frame{
+  display:block;
+  width:100%;
+  aspect-ratio:16/6.75;
+  min-height:360px;
+  border:none;
+  background:transparent;
+}
+.ic-hoop-top{
+  position:absolute;bottom:28px;right:28px;z-index:10;
+  font-family:inherit;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:#0a0a0a;background:#ffffff;
+  border:none;border-radius:999px;
+  width:96px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:none;
+  opacity:0;pointer-events:none;
+  transition:opacity .35s ease, transform .2s ease;
+  box-shadow:0 2px 16px rgba(0,0,0,.45);
+  white-space:nowrap;
+}
+.ic-hoop-top.visible{opacity:1;pointer-events:auto}
+.ic-hoop-top:hover{transform:scale(1.06)}
+
 /* ══════════════════════════════════════════
    CASE STUDY TEMPLATE
 ══════════════════════════════════════════ */
@@ -792,13 +833,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .fs-specimen-body{columns:1}
   .fs-weight-row{grid-template-columns:1fr;min-height:unset}
   .fs-weight-add{display:none}
-  .fs-weight-name{font-size:clamp(26px,9vw,52px);overflow-wrap:break-word;word-break:break-word;max-width:100%}
+  .fs-weight-name{font-size:var(--work-font-size,clamp(26px,9vw,52px));overflow-wrap:break-word;word-break:break-word;max-width:100%}
   .wrc-title{font-size:var(--fs-heading)}
   .cs-footer{flex-direction:column;gap:12px}
   .csf-nav{flex-direction:row;gap:16px}
   .index-contact{flex-direction:column;align-items:flex-start;gap:12px}
   .fs-styles-row{flex-wrap:wrap;height:auto;padding:8px 14px;gap:8px}
   .fs-styles-controls{flex-wrap:wrap;gap:10px}
+  .ic-hoop-frame{min-height:240px}
+  /* Larger touch targets for slider thumbs on mobile */
+  .wt-slider{touch-action:none}
+  .wt-slider::-webkit-slider-thumb{width:22px;height:22px}
+  .wt-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
+  .cs-slider::-webkit-slider-thumb{width:22px;height:22px}
+  .cs-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
+  .fs-range::-webkit-slider-thumb{width:18px;height:18px}
+  .fs-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--fg);border:none}
 }
 
 /* ── CS PAGE TOOLBAR ── */
@@ -1239,6 +1289,20 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         <span class="ic-footer-label">Footer size</span>
         <input type="range" class="ic-footer-slider" id="ic-footer-slider" min="8" max="18" value="11">
       </div>
+    </div>
+
+    <div class="ic-hoop-wrap">
+      <div class="ic-hoop-label">↓ Proof of life / zack.cx/hoop</div>
+      <button class="ic-hoop-top" id="ic-hoop-top" aria-label="Back to top">↑ top</button>
+      <iframe
+        src="https://zack.cx/hoop"
+        class="ic-hoop-frame"
+        title="zack.cx/hoop"
+        loading="lazy"
+        scrolling="no"
+        allowtransparency="true"
+        frameborder="0"
+      ></iframe>
     </div>
   </div>
 </div>
@@ -3297,6 +3361,7 @@ const wipe = document.getElementById('wipe');
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && currentView !== 'index') navigate('index');
+  if (e.key === 'Escape' && currentView === 'index') (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
 });
 
 function navigate(id) {
@@ -4266,6 +4331,22 @@ function initAllNarrativeParticles(container) {
   }
 
   initAll();
+})();
+
+// ── HOOP BACK-TO-TOP OVERLAY ─────────────────────────────────────────────────
+(function hoopTopBtn() {
+  const wrap = document.querySelector('.ic-hoop-wrap');
+  const btn  = document.getElementById('ic-hoop-top');
+  if (!wrap || !btn) return;
+
+  const obs = new IntersectionObserver(entries => {
+    btn.classList.toggle('visible', entries[0].isIntersecting);
+  }, { threshold: 0.1 });
+  obs.observe(wrap);
+
+  btn.addEventListener('click', () => {
+    (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
+  });
 })();
 </script>
 </body>
