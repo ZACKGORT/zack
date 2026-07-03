@@ -128,6 +128,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   user-select:none;
 }
 #bb-score-tracker.flash{color:#ffd060;}
+#bb-score-tracker.flash-neg{color:#ff5c5c;}
 /* ── FLOATING HOOP SCORE (in-scene, tracks hoop position/tilt) ── */
 #hoop-score-float{
   position:fixed;top:0;left:0;z-index:250;pointer-events:none;
@@ -142,6 +143,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 }
 #hoop-score-float.visible{opacity:1;}
 #hoop-score-float.pop{color:#ffd060;text-shadow:0 0 26px rgba(255,208,96,0.85);}
+#hoop-score-float.pop-neg{color:#ff5c5c;text-shadow:0 0 26px rgba(255,92,92,0.85);}
 @media(max-width:600px){ #hoop-score-float{font-size:16px;} }
 /* ── MOBILE SCORE OVERRIDE ── */
 @media(max-width:600px){
@@ -1700,16 +1702,26 @@ var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
 var _hoopVelX=0,_hoopVelY=0,_hoopVelZ=0,_prevHoopX=0,_prevHoopY=0,_prevHoopZ=0,_hoopDragStartT=0;
-var _hoopUfoT=0,_bbSupernovaFlash=0;
+var _bbSupernovaFlash=0;
 var HOOP={
-  x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
+  x:4.5,y:3.8,z:-0.9,rimR:2.3,rimTube:0.0932,
+  // Fixed home spot the hoop springs back toward when not being pushed around
+  _homeX:4.5,_homeY:3.8,_homeZ:-0.9,
+  _posVelX:0,_posVelY:0,_posVelZ:0,
   boardW:3.6,boardH:2.6,boardDepth:0.12,
   scored:false,scoreFlash:0,totalScore:0,streak:0,
   _lastBallY:null,_inFrontOfRim:false,_lastRelY:null,
-  _rimTilt:0,_rimTiltVel:0,_rimTiltRest:0,
+  _rimTiltX:0,_rimTiltVelX:0,_rimTiltZ:0,_rimTiltVelZ:0,_rimTiltRest:0,
   _rimSpringK:18.0,_rimDamp:5.5,_rimImpulseScale:1.4,
-  // diving-board secondary oscillator — lower damping, softer spring for edge wobble
-  _dbTilt:0,_dbVel:0,_dbSpringK:7.5,_dbDamp:1.8,_dbDecay:0.0,
+  // diving-board secondary oscillator — lower damping, softer spring for edge wobble.
+  // Both this and the primary rim spring run on two independent axes (X and Z)
+  // so a hit from ANY direction around the rim — not just left/right — produces
+  // a correctly-directed dip toward that side, rather than only ever reacting
+  // to the X component of the impact.
+  _dbTiltX:0,_dbVelX:0,_dbTiltZ:0,_dbVelZ:0,_dbSpringK:7.5,_dbDamp:1.8,_dbDecay:0.0,
+  // Miss-streak hoop sizing — grows the more consecutive shots miss, resets on a make
+  rimRMin:1.4,rimRBase:2.3,rimRMax:5.2,_missStreak:0,
+  _airborne:false,_scoredThisFlight:false,_flightPeakVX:0,
 };
 
 // ── ATTRACTORS (Black Hole & Neutron Star) ────────────────────────────────────
@@ -2109,7 +2121,10 @@ class Attractor {
         // Use actual viewport edges in world space for horizontal bounds
         const edgeLW = s2w(0, H / 2).x;
         const edgeRW = s2w(W, H / 2).x;
-        const BY_FLOOR = -7.5, BY_CEIL = 12;
+        // Basketball: ceiling pushed way above any viewport so a hard shot can
+        // sail off the top instead of bouncing back down. Other bouncing-black-
+        // hole toys sharing this same physics keep their normal ceiling.
+        const BY_FLOOR = -7.5, BY_CEIL = this._isBBall ? 500 : 12;
 
         // ── BH Wormhole teleportation — checked BEFORE wall bounce ───────────────
         let teleported = false;
@@ -3803,9 +3818,8 @@ function spawn(i){
       const r2 = Math.random() * HOOP.rimR * 0.98;
       const emitX = HOOP.x + Math.cos(angle2) * r2;
       const emitZ = HOOP.z + Math.sin(angle2) * r2;
-      const anchorX2 = HOOP.x + HOOP.rimR;
-      const leverArm2 = anchorX2 - emitX;
-      const tiltedY2 = HOOP.y + Math.sin(HOOP._rimTilt+HOOP._dbTilt) * leverArm2;
+      const offX2 = emitX - HOOP.x, offZ2 = emitZ - HOOP.z;
+      const tiltedY2 = HOOP.y + Math.sin(HOOP._rimTiltX+HOOP._dbTiltX)*offX2 + Math.sin(HOOP._rimTiltZ+HOOP._dbTiltZ)*offZ2;
       pp[b]   = emitX;
       pp[b+1] = tiltedY2 + (Math.random()-0.5)*0.06;
       pp[b+2] = emitZ;
@@ -5556,11 +5570,10 @@ function _spawnNetParticle(i) {
   const angle=Math.random()*Math.PI*2;
   const rFrac=0.25+Math.random()*0.75;
   const spawnR=HOOP.rimR*rFrac;
-  const anchorX=HOOP.x+HOOP.rimR;
   const spawnX=HOOP.x+Math.cos(angle)*spawnR;
   const spawnZ=HOOP.z+Math.sin(angle)*spawnR;
-  const leverArm=anchorX-spawnX;
-  const spawnY=HOOP.y+Math.sin(HOOP._rimTilt+HOOP._dbTilt)*leverArm-0.04;
+  const offX=spawnX-HOOP.x, offZ=spawnZ-HOOP.z;
+  const spawnY=HOOP.y+Math.sin(HOOP._rimTiltX+HOOP._dbTiltX)*offX+Math.sin(HOOP._rimTiltZ+HOOP._dbTiltZ)*offZ-0.04;
   _netPts[b]=spawnX; _netPts[b+1]=spawnY; _netPts[b+2]=spawnZ;
   const inwardFrac=rFrac*0.4;
   const inwardSpd=inwardFrac*(0.8+Math.random()*0.7);
@@ -5585,8 +5598,8 @@ function _tickRimRing(dt) {
   const ORBIT_SPEED=1.8;
   const pulse=1.0+Math.sin(_rimRingT*2.1)*0.08;
   if(_rimRingPoints.material.uniforms) _rimRingPoints.material.uniforms.uPulse.value=pulse;
-  const anchorX=HOOP.x+HOOP.rimR;
-  const combinedTiltVis=HOOP._rimTilt+HOOP._dbTilt;
+  const combinedTiltVisX=HOOP._rimTiltX+HOOP._dbTiltX;
+  const combinedTiltVisZ=HOOP._rimTiltZ+HOOP._dbTiltZ;
 
   for(let i=0;i<RIM_RING_COUNT;i++){
     _rimRingAngles[i]+=ORBIT_SPEED*dt*(1.0+(i%11)*0.003);
@@ -5596,8 +5609,7 @@ function _tickRimRing(dt) {
     const r=HOOP.rimR+jR;
     const rx=HOOP.x+Math.cos(angle)*r;
     const rz=HOOP.z+Math.sin(angle)*r;
-    const leverArm=anchorX-rx;
-    const tiltY=Math.sin(combinedTiltVis)*leverArm;
+    const tiltY=Math.sin(combinedTiltVisX)*(rx-HOOP.x)+Math.sin(combinedTiltVisZ)*(rz-HOOP.z);
     _rimRingPts[i*3]=rx; _rimRingPts[i*3+1]=HOOP.y+tiltY+jY; _rimRingPts[i*3+2]=rz;
   }
   _rimRingGeo.attributes.position.needsUpdate=true;
@@ -5608,8 +5620,7 @@ function _tickRimRing(dt) {
       _rimCloudA[i]+=_rimCloudSA[i]*dt; _rimCloudT[i]+=_rimCloudST[i]*dt;
       const a=_rimCloudA[i],t=_rimCloudT[i];
       const cx=HOOP.x+Math.cos(a)*HOOP.rimR, cz=HOOP.z+Math.sin(a)*HOOP.rimR;
-      const leverArm=anchorX-cx;
-      const cy=HOOP.y+Math.sin(combinedTiltVis)*leverArm;
+      const cy=HOOP.y+Math.sin(combinedTiltVisX)*(cx-HOOP.x)+Math.sin(combinedTiltVisZ)*(cz-HOOP.z);
       const nr=Math.cos(t)*TUBE_R, ny=Math.sin(t)*TUBE_R;
       cv._pts[i*3]=cx+Math.cos(a)*nr; cv._pts[i*3+1]=cy+ny; cv._pts[i*3+2]=cz+Math.sin(a)*nr;
     }
@@ -5728,7 +5739,7 @@ function _spawnBall(){
   ball._bbGravity=17.0; ball._bbRestitution=0.62; ball._bbFriction=0.985; ball._bbMaxSpd=36;
   attractors.push(ball); _bbBall=ball;
   HOOP._lastBallY=null; HOOP._lastRelY=null;
-  HOOP._dbTilt=0; HOOP._dbVel=0;
+  HOOP._dbTiltX=0; HOOP._dbVelX=0; HOOP._dbTiltZ=0; HOOP._dbVelZ=0;
 }
 
 function _tickBBall(dt){
@@ -5741,18 +5752,23 @@ function _tickBBall(dt){
   b.vel.y-=GRAV*dt*gravMult; b.pos.x+=b.vel.x*dt; b.pos.y+=b.vel.y*dt;
 
   // ── Primary rim spring (stiff, well-damped — keeps rim roughly level) ──────
-  const rimTiltSpring=-HOOP._rimSpringK*HOOP._rimTilt;
-  const rimTiltDamp=-HOOP._rimDamp*HOOP._rimTiltVel;
-  HOOP._rimTiltVel+=(rimTiltSpring+rimTiltDamp)*dt;
-  HOOP._rimTilt+=HOOP._rimTiltVel*dt;
-  HOOP._rimTilt=Math.max(-0.32,Math.min(0.32,HOOP._rimTilt));
+  // Runs independently on both axes: X-axis rotation (driven by Z-direction
+  // hits) and Z-axis rotation (driven by X-direction hits) — so the rim can
+  // spring back level regardless of which direction it was knocked from.
+  const rimSpringX=-HOOP._rimSpringK*HOOP._rimTiltX, rimDampX=-HOOP._rimDamp*HOOP._rimTiltVelX;
+  HOOP._rimTiltVelX+=(rimSpringX+rimDampX)*dt; HOOP._rimTiltX+=HOOP._rimTiltVelX*dt;
+  HOOP._rimTiltX=Math.max(-0.32,Math.min(0.32,HOOP._rimTiltX));
+  const rimSpringZ=-HOOP._rimSpringK*HOOP._rimTiltZ, rimDampZ=-HOOP._rimDamp*HOOP._rimTiltVelZ;
+  HOOP._rimTiltVelZ+=(rimSpringZ+rimDampZ)*dt; HOOP._rimTiltZ+=HOOP._rimTiltVelZ*dt;
+  HOOP._rimTiltZ=Math.max(-0.32,Math.min(0.32,HOOP._rimTiltZ));
 
   // ── Diving-board secondary oscillator (soft spring, low damping = wobble) ──
-  const dbSpring=-HOOP._dbSpringK*HOOP._dbTilt;
-  const dbDamp=-HOOP._dbDamp*HOOP._dbVel;
-  HOOP._dbVel+=(dbSpring+dbDamp)*dt;
-  HOOP._dbTilt+=HOOP._dbVel*dt;
-  HOOP._dbTilt=Math.max(-0.38,Math.min(0.38,HOOP._dbTilt));
+  const dbSpringX=-HOOP._dbSpringK*HOOP._dbTiltX, dbDampX=-HOOP._dbDamp*HOOP._dbVelX;
+  HOOP._dbVelX+=(dbSpringX+dbDampX)*dt; HOOP._dbTiltX+=HOOP._dbVelX*dt;
+  HOOP._dbTiltX=Math.max(-0.38,Math.min(0.38,HOOP._dbTiltX));
+  const dbSpringZ=-HOOP._dbSpringK*HOOP._dbTiltZ, dbDampZ=-HOOP._dbDamp*HOOP._dbVelZ;
+  HOOP._dbVelZ+=(dbSpringZ+dbDampZ)*dt; HOOP._dbTiltZ+=HOOP._dbVelZ*dt;
+  HOOP._dbTiltZ=Math.max(-0.38,Math.min(0.38,HOOP._dbTiltZ));
 
   const rimCX=HOOP.x,rimCZ=HOOP.z;
   const rdx=b.pos.x-rimCX,rdz=(b.pos.z||0)-rimCZ;
@@ -5762,14 +5778,20 @@ function _tickBBall(dt){
   if(radDist>0.001){
     const closestRingX=rimCX+(rdx/radDist)*HOOP.rimR;
     const closestRingZ=rimCZ+(rdz/radDist)*HOOP.rimR;
-    // contactDirX: signed X component of the radial hit direction (-1=left, +1=right)
+    // contactDir: signed unit direction of the radial hit, in the full XZ
+    // plane — not just its X component — so any angle around the rim is
+    // captured correctly, not only left/right hits.
     const contactDirX=rdx/radDist;
-    // rimOffsetX: signed X offset of contact point from rim center
+    const contactDirZ=rdz/radDist;
+    // rimOffset: signed offset of the contact point from rim center, per axis
     const rimOffsetX=closestRingX-rimCX;
-    // Combined tilt: primary + diving-board, applied along X for visual
-    const combinedTilt=HOOP._rimTilt+HOOP._dbTilt;
-    // Tilt displaces Y based on signed X offset from rim center
-    const tiltedRingY=HOOP.y+Math.sin(combinedTilt)*rimOffsetX;
+    const rimOffsetZ=closestRingZ-rimCZ;
+    // Combined tilt on each axis: primary + diving-board
+    const combinedTiltX=HOOP._rimTiltX+HOOP._dbTiltX;
+    const combinedTiltZ=HOOP._rimTiltZ+HOOP._dbTiltZ;
+    // Tilt displaces Y based on signed offset from rim center, summed across
+    // both axes — a proper tilted-plane height field, not a single hinge line.
+    const tiltedRingY=HOOP.y+Math.sin(combinedTiltX)*rimOffsetX+Math.sin(combinedTiltZ)*rimOffsetZ;
     const toX=b.pos.x-closestRingX,toY=b.pos.y-tiltedRingY,toZ=(b.pos.z||0)-closestRingZ;
     const toRimDist=Math.sqrt(toX*toX+toY*toY+toZ*toZ);
     const minDist=HOOP.rimTube+ballR;
@@ -5778,10 +5800,14 @@ function _tickBBall(dt){
     // The hoop leans toward whichever side the ball currently sits on — but
     // only when the ball is near the physical rim material itself. A clean
     // shot through dead-center exerts no net torque on either side; this
-    // should taper to zero there, not peak there.
+    // should taper to zero there, not peak there. Applied on both axes so a
+    // ball resting near the front/back of the rim dips that side too.
     const edgeCloseness=Math.max(0,1-Math.abs(HOOP.rimR-radDist)/(HOOP.rimTube*4.5+ballR*1.5));
     const vertT=Math.max(0,1-Math.abs(b.pos.y-HOOP.y)/(HOOP.rimTube*3.5+ballR*2.2));
-    if(edgeCloseness>0&&vertT>0) HOOP._dbVel+=contactDirX*edgeCloseness*vertT*7.5*dt;
+    if(edgeCloseness>0&&vertT>0){
+      HOOP._dbVelX+=contactDirX*edgeCloseness*vertT*7.5*dt;
+      HOOP._dbVelZ+=contactDirZ*edgeCloseness*vertT*7.5*dt;
+    }
 
     if(toRimDist<minDist&&toRimDist>0.001){
       const nx=toX/toRimDist,ny=toY/toRimDist,nz=toZ/toRimDist;
@@ -5796,8 +5822,17 @@ function _tickBBall(dt){
       const relVX=b.vel.x-_hoopVelX, relVY=b.vel.y-_hoopVelY, relVZ=(b.vel.z||0)-_hoopVelZ;
       const vDotN=relVX*nx+relVY*ny+relVZ*nz;
       if(vDotN<0){
-        // edgeFrac: 0 at rim center, ramps to 1 in outer 40% of the rim ring
-        const edgeFrac=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
+        // edgeFrac per axis: 0 for a hit near the front/back (for X) or
+        // left/right (for Z) pole of the rim, ramping to 1 for a hit that
+        // lines up directly with that axis. This is an ANGULAR measure (how
+        // directly the hit direction points along each axis), not radial —
+        // radDist is always ~rimR here since this block only runs once the
+        // ball is already touching the ring. Using the per-axis component of
+        // the unit contact direction is what generalizes correctly to a hit
+        // from any angle, rather than only ever grading left/right hits.
+        const edgeFracX=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
+        const edgeFracZ=Math.max(0,(Math.abs(contactDirZ)-0.60)/0.40);
+        const edgeFrac=Math.max(edgeFracX,edgeFracZ);
         const REST_RIM=0.55+edgeFrac*0.32;
         const impulse=(1+REST_RIM)*vDotN;
         let nvx=relVX-impulse*nx, nvy=relVY-impulse*ny, nvz=relVZ-impulse*nz;
@@ -5807,13 +5842,27 @@ function _tickBBall(dt){
         const impactSpeed=Math.abs(vDotN);
         const downImpact=Math.max(0,-ny)*impactSpeed;
 
-        // ── Symmetric diving-board response ──────────────────────────────────
-        // contactDirX: +1 = right-side hit, -1 = left-side hit.
-        // _dbTilt > 0 = right side low; _dbVel drives it in that direction.
-        // So multiplying by contactDirX makes either side dip correctly.
+        // ── Symmetric diving-board response, any direction ───────────────────
+        // contactDirX/Z: the unit direction of the hit around the full rim.
+        // Each tilt axis is driven by its own component AND gated by its own
+        // edgeFrac, so a hit from the front, back, or any angle in between
+        // dips correctly toward wherever it was actually struck — not just
+        // left or right — and a diagonal hit contributes to both axes at once.
+        if(edgeFracX>0.02){
+          HOOP._dbVelX+=downImpact*edgeFracX*2.8*contactDirX;
+          HOOP._rimTiltVelX+=downImpact*edgeFracX*HOOP._rimImpulseScale*0.5*contactDirX;
+        }
+        if(edgeFracZ>0.02){
+          HOOP._dbVelZ+=downImpact*edgeFracZ*2.8*contactDirZ;
+          HOOP._rimTiltVelZ+=downImpact*edgeFracZ*HOOP._rimImpulseScale*0.5*contactDirZ;
+        }
+
+        // A solid hit also shoves the whole hoop a little, not just tilting it —
+        // the spring in _tickHoopPosition pulls it back toward home afterward.
         if(edgeFrac>0.02){
-          HOOP._dbVel+=downImpact*edgeFrac*2.8*contactDirX;
-          HOOP._rimTiltVel+=downImpact*edgeFrac*HOOP._rimImpulseScale*0.5*contactDirX;
+          const pushScale=0.32;
+          HOOP._posVelX+=downImpact*pushScale*contactDirX;
+          HOOP._posVelZ+=downImpact*pushScale*contactDirZ;
         }
 
         HOOP.scoreFlash=Math.max(HOOP.scoreFlash,0.22+edgeFrac*0.18);
@@ -5823,14 +5872,26 @@ function _tickBBall(dt){
 
   const edgeL2=s2w(0,H/2).x-1.5, edgeR2=s2w(W,H/2).x+1.5;
   const BY_FLOOR=FLR+ballR+0.05; // ball rests on FLR ground
-  const BY_CEIL=s2w(W/2, isMobile ? -20 : -60).y; // mobile: tighter clip so ball reaches near top
   if(b.pos.y-ballR<BY_FLOOR){
     b.pos.y=BY_FLOOR+ballR;
     if(b.vel.y<0){ b.vel.y=-b.vel.y*(b._bbRestitution||0.62); b.vel.x*=b._bbFriction||0.985; }
   }
-  if(b.pos.y+ballR>BY_CEIL){ b.pos.y=BY_CEIL-ballR; if(b.vel.y>0) b.vel.y=-b.vel.y*0.5; }
   if(b.pos.x-ballR<edgeL2){ b.pos.x=edgeL2+ballR; if(b.vel.x<0) b.vel.x=-b.vel.x*0.72; }
   if(b.pos.x+ballR>edgeR2){ b.pos.x=edgeR2-ballR; if(b.vel.x>0) b.vel.x=-b.vel.x*0.72; }
+
+  // ── Miss-streak tracking (drives the hoop's size — see _tickHoopSize) ──────
+  // A "flight" is any airborne stretch of the ball's path. We gate it on peak
+  // horizontal speed so the initial spawn-drop (pure vertical, vx≈0) never
+  // counts as a shot attempt — only ever a real throw does. If a flight ends
+  // (ball settles) without a score having happened during it, that's a miss.
+  const wasAirborne=HOOP._airborne;
+  const nowAirborne=(b.pos.y>BY_FLOOR+0.3)||Math.abs(b.vel.y)>0.8||Math.abs(b.vel.x)>0.8;
+  if(nowAirborne&&!wasAirborne){ HOOP._scoredThisFlight=false; HOOP._flightPeakVX=0; }
+  if(nowAirborne) HOOP._flightPeakVX=Math.max(HOOP._flightPeakVX,Math.abs(b.vel.x));
+  if(!nowAirborne&&wasAirborne&&!HOOP._scoredThisFlight&&HOOP._flightPeakVX>1.5){
+    HOOP._missStreak=Math.min(HOOP._missStreak+1,12);
+  }
+  HOOP._airborne=nowAirborne;
 
   // ── Widget collision: ball bounces off floating orb-widget cards ─────────────
   if(!_orbRailActive){
@@ -5867,19 +5928,23 @@ function _tickBBall(dt){
 
   const rimXZDist=Math.sqrt((b.pos.x-HOOP.x)**2+((b.pos.z||0)-HOOP.z)**2);
   const ballInsideRim=rimXZDist<HOOP.rimR*0.88;
-  // Score = a downward crossing of the rim plane, measured in height RELATIVE
-  // to the hoop each frame (not an absolute "was above / now below" latch).
-  // The old latch compared the ball to whatever the hoop's position happened
-  // to be at two different, possibly far-apart moments — fine for a static
-  // hoop, but a moving/bobbing one can drift enough between those moments
-  // that a ball which visibly dropped straight through never satisfies both
-  // checks. Comparing consecutive relative positions is immune to that,
-  // since both samples are always taken against the hoop's current spot.
-  const relY=b.pos.y-HOOP.y;
+  // Score = a crossing of the rim's PLANE, measured in height relative to the
+  // hoop each frame — and since the rim can now tilt on both axes (any angle,
+  // not just level), "relative height" is measured against the actual tilted
+  // plane at the ball's XZ position, not flat world Y. A pass from above the
+  // plane to below it (top → bottom) is +1; the reverse (bottom → top) is -1.
+  // Comparing consecutive relative positions (rather than a stale multi-frame
+  // "armed" latch) stays correct even while the hoop itself drifts or tilts.
+  const scoreTiltX=HOOP._rimTiltX+HOOP._dbTiltX, scoreTiltZ=HOOP._rimTiltZ+HOOP._dbTiltZ;
+  const planeY=HOOP.y+Math.sin(scoreTiltX)*(b.pos.x-HOOP.x)+Math.sin(scoreTiltZ)*((b.pos.z||0)-HOOP.z);
+  const relY=b.pos.y-planeY;
   if(ballInsideRim){
-    if(HOOP._lastRelY!=null&&HOOP._lastRelY>0.02&&relY<-0.02&&b.vel.y<0){
+    if(HOOP._lastRelY!=null&&HOOP._lastRelY>0.02&&relY<-0.02){
       HOOP._lastRelY=null; // consume — avoid double-counting the same pass
-      _registerScore();
+      _registerScore(1);
+    } else if(HOOP._lastRelY!=null&&HOOP._lastRelY<-0.02&&relY>0.02){
+      HOOP._lastRelY=null;
+      _registerScore(-1);
     } else {
       HOOP._lastRelY=relY;
     }
@@ -5894,17 +5959,21 @@ function _tickBBall(dt){
 var _lastActionWasSpacebar = false;
 var _spacebarSlamTimer = null; // clears slam-dunk eligibility after window expires
 
-function _registerScore(){
-  HOOP.totalScore++; HOOP.streak++; HOOP.scoreFlash=1.0; HOOP.scored=true;
+function _registerScore(dir){
+  dir=dir||1;
+  HOOP.totalScore+=dir;
+  if(dir>0) HOOP.streak++; else HOOP.streak=0;
+  HOOP.scoreFlash=1.0; HOOP.scored=true;
+  HOOP._scoredThisFlight=true; HOOP._missStreak=0;
   setTimeout(()=>{HOOP.scored=false;},2200);
   const sc=document.getElementById('bball-score'); if(sc) sc.textContent=HOOP.totalScore;
   // Bold lower-right score tracker
   const tr=document.getElementById('bb-score-tracker');
   if(tr){
     const n=HOOP.totalScore;
-    tr.textContent=n<10?'0'+n:String(n);
-    tr.classList.add('flash');
-    setTimeout(()=>tr.classList.remove('flash'),400);
+    tr.textContent=(n<10&&n>=0)?'0'+n:String(n);
+    tr.classList.add(dir>0?'flash':'flash-neg');
+    setTimeout(()=>tr.classList.remove(dir>0?'flash':'flash-neg'),400);
   }
   const st=document.getElementById('bball-streak');
   if(st){ if(HOOP.streak>=3) st.textContent=HOOP.streak+'x STREAK'; else if(HOOP.streak>=2) st.textContent='× '+HOOP.streak; else st.textContent=''; }
@@ -5912,20 +5981,21 @@ function _registerScore(){
   if(!_hoopScoreFloatEl) _hoopScoreFloatEl=document.getElementById('hoop-score-float');
   if(_hoopScoreFloatEl){
     _hoopScoreFloatEl.textContent=HOOP.totalScore;
-    _hoopScoreFloatEl.classList.add('visible','pop');
-    setTimeout(()=>{ if(_hoopScoreFloatEl) _hoopScoreFloatEl.classList.remove('pop'); },300);
+    _hoopScoreFloatEl.classList.add('visible',dir>0?'pop':'pop-neg');
+    setTimeout(()=>{ if(_hoopScoreFloatEl) _hoopScoreFloatEl.classList.remove(dir>0?'pop':'pop-neg'); },300);
   }
-  // Show SLAM DUNK if last action was spacebar
-  if(_lastActionWasSpacebar){
-    _showSlamDunk();
+  { const kickAngle=Math.random()*Math.PI*2; HOOP._rimTiltVelX+=0.6*Math.cos(kickAngle); HOOP._rimTiltVelZ+=0.6*Math.sin(kickAngle); }
+  if(dir>0){
+    // Show SLAM DUNK if last action was spacebar
+    if(_lastActionWasSpacebar){ _showSlamDunk(); }
+    if(_hoopGroup){ const rimL=_hoopGroup.children.find(c=>c.isLight); if(rimL){rimL.intensity=6.0;setTimeout(()=>{rimL.intensity=1.2;},400);} }
+    _scoreBurst();
+    _scoreSupernova();
+  } else {
+    // Bottom-to-top pass — a smaller, redder cue instead of the full celebration
+    if(_hoopGroup){ const rimL=_hoopGroup.children.find(c=>c.isLight); if(rimL){rimL.intensity=3.0;setTimeout(()=>{rimL.intensity=1.2;},300);} }
   }
   _lastActionWasSpacebar=false;
-  // Score text suppressed on basketball level — statement panel owns left-side copy
-  if(_hoopGroup){ const rimL=_hoopGroup.children.find(c=>c.isLight); if(rimL){rimL.intensity=6.0;setTimeout(()=>{rimL.intensity=1.2;},400);} }
-  HOOP._rimTiltVel+=0.6*(Math.random()>0.5?1:-1);
-  // (statement cycling removed in basketball standalone)
-  _scoreBurst();
-  _scoreSupernova();
 }
 
 function _scoreBurst(){
@@ -6376,60 +6446,60 @@ window.addEventListener('mousemove',e=>{ _bulletTimeMouse.x=e.clientX; _bulletTi
 // ── HOOP DRAG ─────────────────────────────────────────────────────────────────
 // _hoopDragging vars hoisted at top
 
+// ── MISS-STREAK HOOP SIZE ─────────────────────────────────────────────────────
+// The more consecutive shots miss, the larger (more forgiving) the hoop grows.
+// A make resets the streak instantly, so the hoop eases back down to its
+// default size — small, but always comfortably above rimRMin, which is the
+// hard floor where the ball can still physically pass through the opening.
+function _tickHoopSize(dt){
+  const growthT=1-Math.exp(-HOOP._missStreak*0.32);
+  const target=HOOP.rimRBase+(HOOP.rimRMax-HOOP.rimRBase)*growthT;
+  const k=1-Math.exp(-1.4*dt);
+  HOOP.rimR+=(target-HOOP.rimR)*k;
+  HOOP.rimR=Math.max(HOOP.rimRMin,HOOP.rimR);
+  // Keep the tube-to-radius ratio consistent with the hand-tuned baseline
+  HOOP.rimTube=0.075*(HOOP.rimR/1.85);
+}
 
-// ── UFO HOOP FLIGHT ───────────────────────────────────────────────────────────
-// The hoop drifts across the scene like a saucer hovering above, giving the
-// ball a moving target. Pauses while the user is dragging it, and glides
-// (rather than snaps) back onto its flight path once they let go.
-function _tickHoopUFO(dt){
+function _tickHoopPosition(dt){
   if(!_hoopGroup) return;
-  _hoopUfoT+=dt;
   if(_hoopDragging){ _updateHoopScoreFloat(); return; }
 
-  const t=_hoopUfoT;
-  const edgeL=s2w(0,H*0.5).x, edgeR=s2w(W,H*0.5).x;
-  const edgeT=s2w(W*0.5,0).y, edgeB=s2w(W*0.5,H).y;
+  // ── Spring pulling the hoop back toward its fixed home spot ─────────────
+  const springK=2.6, damp=3.2;
+  let fx=-springK*(HOOP.x-HOOP._homeX);
+  let fy=-springK*(HOOP.y-HOOP._homeY);
+  let fz=-springK*(HOOP.z-HOOP._homeZ);
 
-  const marginX=2.6;
-  const rangeX=Math.max(1.0,(edgeR-edgeL)*0.5-marginX);
-  const centerX=(edgeR+edgeL)*0.5;
+  // ── Cursor repel — the hoop shies away when the pointer gets close ──────
+  const cw=s2w(_bulletTimeMouse.x,_bulletTimeMouse.y);
+  const cdx=HOOP.x-cw.x, cdy=HOOP.y-cw.y;
+  const cDist=Math.sqrt(cdx*cdx+cdy*cdy);
+  const REPEL_R=HOOP.rimR*2.4;
+  if(cDist<REPEL_R&&cDist>0.001){
+    const t=1-cDist/REPEL_R;
+    const strength=11.0*t*t;
+    fx+=(cdx/cDist)*strength;
+    fy+=(cdy/cDist)*strength;
+  }
 
-  // Keep the saucer up in the sky — roughly the upper half of the play space
-  const skyTop=edgeT-1.6, skyBot=edgeB+(edgeT-edgeB)*0.58;
-  const rangeY=Math.max(0.4,(skyTop-skyBot)*0.5);
-  // Bias the resting altitude toward the lower part of that band — the saucer
-  // prefers to cruise low, with higher excursions being smaller and less frequent.
-  const centerY=skyBot+(skyTop-skyBot)*0.32;
+  HOOP._posVelX+=fx*dt; HOOP._posVelY+=fy*dt; HOOP._posVelZ+=fz*dt;
+  const dampK=Math.max(0,1-damp*dt);
+  HOOP._posVelX*=dampK; HOOP._posVelY*=dampK; HOOP._posVelZ*=dampK;
 
-  // Lazy figure-8 drift — two out-of-phase sines so the path never quite repeats
-  const nx=Math.sin(t*0.16)*0.7+Math.sin(t*0.067+1.4)*0.3;
-  const nyRaw=Math.sin(t*0.21+0.8)*0.55+Math.sin(t*0.09+2.3)*0.45;
-  // Asymmetric shaping: dips downward travel further/faster, upward climbs are damped
-  const ny=nyRaw>=0?Math.pow(nyRaw,1.7)*0.5:-Math.pow(-nyRaw,0.75);
-  const nz=Math.sin(t*0.12+0.5);
+  HOOP.x+=HOOP._posVelX*dt;
+  HOOP.y+=HOOP._posVelY*dt;
+  HOOP.z+=HOOP._posVelZ*dt;
 
-  const targetX=centerX+nx*rangeX;
-  const targetY=centerY+ny*rangeY;
   // The ball's flight never meaningfully changes its z — it lives on a fixed
-  // depth plane near z≈0 the whole way through the arc. The x-axis is what
-  // the player actually aims for, so it's fine to sweep the hoop across the
-  // full playable width. z isn't aimable at all, though, so it has to stay
-  // clamped well inside the rim's actual scoring reach at all times, or the
-  // hoop can drift to a depth that's geometrically unscorable no matter how
-  // well the shot is aimed.
+  // depth plane near z≈0 the whole way through the arc. z isn't aimable at
+  // all, so however the hoop gets pushed around, it has to stay clamped well
+  // inside the rim's actual scoring reach, or it can end up at a depth no
+  // shot could ever geometrically reach regardless of aim.
   const Z_SAFE=HOOP.rimR*0.88*0.62;
-  const targetZ=Math.max(-Z_SAFE,Math.min(Z_SAFE,-0.9+nz*0.55));
-
-  // Glide toward the target like a hovering craft, not a snap
-  const k=1-Math.exp(-0.9*dt);
-  HOOP.x+=(targetX-HOOP.x)*k;
-  HOOP.y+=(targetY-HOOP.y)*k+Math.sin(t*2.4)*0.015; // subtle hover bob
-  HOOP.z+=(targetZ-HOOP.z)*k;
+  HOOP.z=Math.max(-Z_SAFE,Math.min(Z_SAFE,HOOP.z));
 
   _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z);
-  // Gentle bank into turns, saucer-style (kept small so it doesn't fight the rim collision math)
-  _hoopGroup.rotation.z=-nx*0.05;
-  _hoopGroup.rotation.x=Math.sin(t*0.21)*0.02;
 
   // Track the hoop's own world-space velocity so ball/rim collisions can be
   // resolved relative to a moving rim instead of a stationary one.
@@ -6476,7 +6546,7 @@ renderer.domElement.addEventListener('mousedown',e=>{
   if(_hoopHitTest(e.clientX,e.clientY)){
     _hoopDragging=true; const wp=s2w(e.clientX,e.clientY);
     _hoopDragOffX=wp.x-HOOP.x; _hoopDragOffY=wp.y-HOOP.y;
-    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z;
+    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z; HOOP._posVelX=HOOP._posVelY=HOOP._posVelZ=0;
     _hoopDragStartT=performance.now(); e.stopImmediatePropagation();
   }
 },{capture:true});
@@ -6490,14 +6560,14 @@ window.addEventListener('pointermove',e=>{
   HOOP.x=nx; HOOP.y=ny; _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z);
   HOOP._lastRelY=null; // hoop moved — re-arm needed from scratch
 });
-window.addEventListener('pointerup',e=>{ if(!_hoopDragging) return; _hoopDragging=false; HOOP._lastRelY=null; });
+window.addEventListener('pointerup',e=>{ if(!_hoopDragging) return; _hoopDragging=false; HOOP._lastRelY=null; HOOP._homeX=HOOP.x; HOOP._homeY=HOOP.y; HOOP._homeZ=HOOP.z; });
 renderer.domElement.addEventListener('touchstart',e=>{
   if(!_hoopGroup||_aimDrag) return;
   const t=e.touches[0];
   if(_hoopHitTest(t.clientX,t.clientY)){
     _hoopDragging=true; const wp=s2w(t.clientX,t.clientY);
     _hoopDragOffX=wp.x-HOOP.x; _hoopDragOffY=wp.y-HOOP.y;
-    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z;
+    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z; HOOP._posVelX=HOOP._posVelY=HOOP._posVelZ=0;
     _hoopDragStartT=performance.now(); e.stopImmediatePropagation();
   }
 },{capture:true,passive:false});
@@ -6508,7 +6578,7 @@ renderer.domElement.addEventListener('touchmove',e=>{
   HOOP.x=wp.x-_hoopDragOffX; HOOP.y=wp.y-_hoopDragOffY;
   _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z); e.preventDefault();
 },{capture:true,passive:false});
-renderer.domElement.addEventListener('touchend',e=>{ if(_hoopDragging){_hoopDragging=false; HOOP._lastRelY=null; e.stopImmediatePropagation();} },{capture:true,passive:false});
+renderer.domElement.addEventListener('touchend',e=>{ if(_hoopDragging){_hoopDragging=false; HOOP._lastRelY=null; HOOP._homeX=HOOP.x; HOOP._homeY=HOOP.y; HOOP._homeZ=HOOP.z; e.stopImmediatePropagation();} },{capture:true,passive:false});
 
 // ── TICK HOOK: run basketball systems each frame via emitter update ────────────
 setTimeout(()=>{
@@ -6520,7 +6590,8 @@ setTimeout(()=>{
         const targetScale=_bulletTime?0.08:1.0;
         _bulletTimeScale+=( targetScale-_bulletTimeScale)*Math.min(1.0,dt*6.0);
         const scaledDt=dt*Math.max(0.07,_bulletTimeScale);
-        _tickHoopUFO(scaledDt);
+        _tickHoopPosition(scaledDt);
+        _tickHoopSize(scaledDt);
         if(_bbBall&&!_bbBall.dragging) _tickBBall(scaledDt);
         _tickRimRing(scaledDt);
         _bbHaloDt=dt; // feed real dt to halo animator
