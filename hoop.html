@@ -1189,10 +1189,38 @@ function _positionNextBtn() {
 let _textTitleIdx = 0; // which title line is showing (alternates on level)
 let _titleFlipTimer = null;
 
+// ── Large, bold, cursor-reactive particle headline for the basketball page ──
+// Each character is its own physics particle: it tethers back to its rest
+// spot and scatters away from the cursor blob, drawn/animated in drawTextLayer().
+function showBballSwissText(text, immediate){
+  textChars = [];
+  getFontMetrics();
+  const role = TYPO.swiss;
+  const { charW } = role;
+  const upper = String(text).toUpperCase();
+  const rowW = upper.length * charW;
+  const startX = isMobile ? Math.max(16, (W - rowW) / 2) : PAD_X;
+  const startY = isMobile ? Math.max(90, H * 0.16) : Math.max(120, H * 0.24);
+  const allChars = [];
+  for (let ci = 0; ci < upper.length; ci++) {
+    const scatter = immediate ? 0 : 1;
+    allChars.push({
+      ch: upper[ci],
+      restX: startX + ci * charW, restY: startY,
+      x: startX + ci * charW + (Math.random() - 0.5) * 70 * scatter,
+      y: startY + (Math.random() - 0.5) * 50 * scatter,
+      vx: (Math.random() - 0.5) * 1.8, vy: (Math.random() - 0.5) * 1.8,
+      baseOp: role.op,
+      role: 'swiss',
+    });
+  }
+  textChars = allChars;
+  lvlTextAlphaTgt = 1;
+}
+
 function showLevelTitle(lvlN, immediate) {
   _textMode = 'idle';
-  // On basketball level, statement panel owns the copy — don't show floating canvas text
-  if (lvlN === 6) { textChars = []; lvlTextAlphaTgt = 0; return; }
+  if (lvlN === 6) { showBballSwissText('BASKETBALL', immediate); return; }
   const line = LEVEL_TITLES[Math.min(lvlN, LEVEL_TITLES.length - 1)];
   _textTitleIdx++; 
   _buildFloatText([line], immediate);
@@ -1535,6 +1563,8 @@ const TYPO = {
   headline: { weight: '400', family: '"Instrument Serif",Georgia,serif', op: 1.0 },
   pull:     { weight: '400', family: '"Instrument Serif",Georgia,serif', op: 0.85 },
   body:     { weight: '400', family: '"Space Mono",monospace', op: 0.92 },
+  // Large, bold, tight-tracked grotesque — International Typographic Style
+  swiss:    { weight: '900', family: '"Helvetica Neue",Arial,sans-serif', op: 1.0 },
 };
 function getFontMetrics(){
   const sz = Math.max(10, FONT_SIZE);
@@ -1572,6 +1602,15 @@ function getFontMetrics(){
   TYPO.body.size  = bodySz;
   TYPO.body.charW = bodySz * 0.62;
   TYPO.body.lineH = bodySz * 1.85;          // slightly tighter leading at larger size
+
+  // ── Swiss display headline — big, bold, tight tracking ─────────────────────
+  const swissSz = isMobile
+    ? Math.round(Math.min(W * 0.15, 58))
+    : Math.round(Math.min(W * 0.085, 150));
+  TYPO.swiss.size  = swissSz;
+  TYPO.swiss.charW = swissSz * 0.64;  // tight tracking — bold Swiss caps sit close together
+  TYPO.swiss.lineH = swissSz * 1.02;
+
   return { CHAR_W: TYPO.body.charW, LINE_H: TYPO.body.lineH };
 }
 // Column: left-biased — desktop gets more width now that h1 is smaller
@@ -2768,7 +2807,7 @@ function initLevel(n){
     ['panel','game-hud'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
     _buildHoop();
     setTimeout(() => { _spawnBall(); for(let _i=0;_i<MP;_i++) spawn(_i); }, 200);
-    _buildFloatText(['cx // craft.experience.'], false);
+    _buildFloatText(['Shot your shot. Practice makes better. UX makes it fun. No cheaters. No haters.'], false);
   } else {
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
@@ -5141,16 +5180,48 @@ let _textLayerWasClear = false;
 let _textMaxVel = 0;
 let _textPrevBX = 0, _textPrevBY = 0;
 function drawTextLayer(){
-  // Stubbed: no text canvas content in basketball standalone mode.
-  // Ensure canvas stays clear (only needed once after first clear).
-  if (!_textLayerWasClear) {
-    tctx.clearRect(0, 0, W, H);
-    _textLayerWasClear = true;
-    if (tc.style.display !== 'none') tc.style.display = 'none';
-  }
-  // Still advance blob cursor so basketball physics that reference bX/bY stay coherent
   bX += (mX - bX) * BLOB_LERP;
   bY += (mY - bY) * BLOB_LERP;
+
+  if (!textChars.length) {
+    if (!_textLayerWasClear) {
+      tctx.clearRect(0, 0, W, H);
+      _textLayerWasClear = true;
+      if (tc.style.display !== 'none') tc.style.display = 'none';
+    }
+    return;
+  }
+  if (tc.style.display === 'none') tc.style.display = 'block';
+  _textLayerWasClear = false;
+
+  lvlTextAlpha += (lvlTextAlphaTgt - lvlTextAlpha) * 0.12;
+  tctx.clearRect(0, 0, W, H);
+  tctx.textBaseline = 'alphabetic';
+
+  for (let i = 0; i < textChars.length; i++) {
+    const c = textChars[i];
+    // Tether back toward its rest position
+    c.vx += (c.restX - c.x) * TETHER_K;
+    c.vy += (c.restY - c.y) * TETHER_K;
+    // Scatter away from the cursor blob when it gets close
+    const dx = c.x - bX, dy = c.y - bY;
+    const d = Math.sqrt(dx * dx + dy * dy) || 0.001;
+    if (d < BLOOM_R) {
+      const f = 1 - d / BLOOM_R;
+      const push = f * f * (d < REPEL_R ? 22 : 10);
+      c.vx += (dx / d) * push;
+      c.vy += (dy / d) * push;
+    }
+    c.vx *= DAMP; c.vy *= DAMP;
+    c.x += c.vx; c.y += c.vy;
+
+    const role = TYPO[c.role] || TYPO.body;
+    tctx.font = `${role.weight} ${role.size}px ${role.family}`;
+    const a = Math.max(0, Math.min(1, c.baseOp * lvlTextAlpha));
+    if (a <= 0.002) continue;
+    tctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    tctx.fillText(c.ch, c.x, c.y);
+  }
 }
 
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
