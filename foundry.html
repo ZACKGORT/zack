@@ -239,6 +239,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   border-bottom:1px solid rgba(var(--fg-rgb),.08);
   transition:opacity .2s ease;
 }
+.wr-tooltip .tip-thumb:not([src]),
+.wr-tooltip .tip-thumb[src=""]{
+  display:none;
+}
+
 .wr-tooltip .tip-head{
   display:block;
   font-size:var(--tip-head-size,7px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;
@@ -3129,6 +3134,14 @@ function tbResetWithLayout() {
 
 window._heroBg = '#0a0a0a';
 
+// ── RIGHT-CLICK THEME TOGGLE ───────────────────────────────────────────────
+document.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const next = document.body.classList.contains('light-mode') ? 'dark' : 'light';
+  toolbarState.theme = next;
+  tbApplyTheme(next);
+});
+
 // ── CURSOR ─────────────────────────────────────────────────────────────────
 const cur = document.getElementById('cursor');
 document.addEventListener('mousemove', e => {
@@ -3298,47 +3311,6 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
     return pick;
   }
 
-  function positionTip(tip, trigger) {
-    const vw     = window.innerWidth;
-    const vh     = window.innerHeight;
-    const tr     = trigger.getBoundingClientRect();
-    const margin = 12;
-
-    // Park off-screen as fixed so the browser can measure its true rendered height
-    tip.style.position = 'fixed';
-    tip.style.left     = '-9999px';
-    tip.style.top      = '0px';
-    tip.style.bottom   = '';
-    tip.style.right    = '';
-
-    // Two rAFs: first lets the browser apply the fixed position, second reads stable layout
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const tw = tip.offsetWidth  || 320;
-      const th = tip.offsetHeight || 260;
-
-      // Horizontal: prefer right-aligned to bulb, clamp to viewport edges
-      let left = tr.right - tw;
-      if (left < margin) left = margin;
-      if (left + tw > vw - margin) left = vw - tw - margin;
-
-      // Vertical: prefer above bulb, flip below if not enough room
-      let top;
-      if (tr.top - th - margin >= margin) {
-        top = tr.top - th - margin;
-      } else if (vh - tr.bottom - margin >= th) {
-        top = tr.bottom + margin;
-      } else {
-        // Not enough room either way — center vertically in viewport
-        top = Math.max(margin, (vh - th) / 2);
-      }
-
-      tip.style.left   = left + 'px';
-      tip.style.top    = top  + 'px';
-      tip.style.bottom = '';
-      tip.style.right  = '';
-    }));
-  }
-
   document.querySelectorAll('.work-row').forEach(row => {
     const tip = row.querySelector('.wr-tooltip');
     if (!tip) return;
@@ -3360,17 +3332,42 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
           thumb.src = src;
         }
         bulb.classList.add('active');
+        // Reset inline overrides before measuring
+        tip.style.right = '';
+        tip.style.left  = '';
+        tip.style.bottom = '';
+        tip.style.top   = '';
         tip.classList.add('visible');
-        // Reposition tooltip to stay within viewport
-        positionTip(tip, bulb);
+        // Clamp to viewport after browser paints the tooltip
+        requestAnimationFrame(() => {
+          const tr  = tip.getBoundingClientRect();
+          const margin = 8;
+          // Horizontal: if clipping left edge, shift right
+          if (tr.left < margin) {
+            const shift = margin - tr.left;
+            const curRight = parseFloat(tip.style.right) || 12;
+            tip.style.right = (curRight - shift) + 'px';
+          }
+          // Horizontal: if clipping right edge, shift left
+          if (tr.right > window.innerWidth - margin) {
+            const overshoot = tr.right - (window.innerWidth - margin);
+            const curRight = parseFloat(tip.style.right) || 12;
+            tip.style.right = (curRight + overshoot) + 'px';
+          }
+          // Vertical: if clipping top, flip below bulb instead of above
+          if (tr.top < margin) {
+            tip.style.bottom = 'auto';
+            tip.style.top    = (bulb.offsetTop + bulb.offsetHeight + 8) + 'px';
+          }
+        });
       });
       bulb.addEventListener('mouseleave', () => {
         bulb.classList.remove('active');
         tip.classList.remove('visible');
-        // Reset to CSS-driven absolute positioning
-        tip.style.position = '';
-        tip.style.left = '';
-        tip.style.top  = '';
+        tip.style.right  = '';
+        tip.style.left   = '';
+        tip.style.bottom = '';
+        tip.style.top    = '';
       });
     }
   });
