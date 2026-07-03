@@ -815,6 +815,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
 </div>
 <canvas id="aim-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:160;display:none;"></canvas>
 <div id="hoop-score-float">0</div>
+<div id="bb-score-tracker">00</div>
 <div id="slam-dunk-toast">SLAM DUNK!</div>
 <!-- Statement top nav: arrows + dots -->
 <div id="stmt-top-nav">
@@ -5191,8 +5192,8 @@ function tick(){
   // Advance waterfall wave phase — one full cycle every ~3.5s
   if(P.waterfall) _wfPhase += dt * (Math.PI * 2 / 3.5);
 
-  if(_bbSupernovaFlash>0) _bbSupernovaFlash=Math.max(0,_bbSupernovaFlash-dt*2.6);
-  pMat.uniforms.uSz.value=P.size+_bbSupernovaFlash;
+  if(_bbSupernovaFlash>0) _bbSupernovaFlash=Math.max(0,_bbSupernovaFlash-dt*3.4);
+  pMat.uniforms.uSz.value=P.size*(1+_bbSupernovaFlash);
   const N=Math.min(P.count,MP);
 
   // Compute world-space viewport edges at z=0 for edge repulsion
@@ -5774,13 +5775,13 @@ function _tickBBall(dt){
     const minDist=HOOP.rimTube+ballR;
 
     // ── Continuous side-weighting ────────────────────────────────────────────
-    // The hoop leans toward whichever side the ball currently sits on — even
-    // while just passing through the opening, not only on a hard rim impact.
-    // This is what actually lets the ball read as "weighing down" a side as it
-    // drops through, on top of the discrete bounce impulse below.
-    const proximityT=Math.max(0,1-radDist/(HOOP.rimR*1.05));
+    // The hoop leans toward whichever side the ball currently sits on — but
+    // only when the ball is near the physical rim material itself. A clean
+    // shot through dead-center exerts no net torque on either side; this
+    // should taper to zero there, not peak there.
+    const edgeCloseness=Math.max(0,1-Math.abs(HOOP.rimR-radDist)/(HOOP.rimTube*4.5+ballR*1.5));
     const vertT=Math.max(0,1-Math.abs(b.pos.y-HOOP.y)/(HOOP.rimTube*3.5+ballR*2.2));
-    if(proximityT>0&&vertT>0) HOOP._dbVel+=contactDirX*proximityT*vertT*7.5*dt;
+    if(edgeCloseness>0&&vertT>0) HOOP._dbVel+=contactDirX*edgeCloseness*vertT*7.5*dt;
 
     if(toRimDist<minDist&&toRimDist>0.001){
       const nx=toX/toRimDist,ny=toY/toRimDist,nz=toZ/toRimDist;
@@ -5984,7 +5985,7 @@ function _scoreSupernova(){
     pv[b+1]+=(dy/dist)*f+LIFT/(1+dist*0.3);
     pv[b+2]+=(dz/dist)*f;
   }
-  _bbSupernovaFlash=2.4; // decayed each frame — spikes particle brightness/size scene-wide
+  _bbSupernovaFlash=0.55; // decayed each frame — modest, proportional particle-size pulse scene-wide
   flashEl('flash-complete');
 }
 
