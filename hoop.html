@@ -128,6 +128,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   user-select:none;
 }
 #bb-score-tracker.flash{color:#ffd060;}
+/* ── FLOATING HOOP SCORE (in-scene, tracks hoop position/tilt) ── */
+#hoop-score-float{
+  position:fixed;top:0;left:0;z-index:250;pointer-events:none;
+  font-family:'Helvetica Neue',Arial,sans-serif;font-weight:900;
+  font-size:22px;line-height:1;letter-spacing:-0.02em;
+  color:rgba(255,255,255,0.9);
+  text-shadow:0 0 16px rgba(255,200,80,0.4);
+  opacity:0;transform:translate(-9999px,-9999px);
+  transition:opacity 0.35s ease,color 0.15s;
+  will-change:transform;
+  user-select:none;
+}
+#hoop-score-float.visible{opacity:1;}
+#hoop-score-float.pop{color:#ffd060;text-shadow:0 0 26px rgba(255,208,96,0.85);}
+@media(max-width:600px){ #hoop-score-float{font-size:16px;} }
 /* ── MOBILE SCORE OVERRIDE ── */
 @media(max-width:600px){
   #bb-score-tracker{
@@ -799,7 +814,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   <div id="bball-streak" style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.2em;color:rgba(255,180,60,0.55);text-transform:uppercase;margin-top:4px;min-height:14px;"></div>
 </div>
 <canvas id="aim-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:160;display:none;"></canvas>
-<div id="bb-score-tracker">00</div>
+<div id="hoop-score-float">0</div>
 <div id="slam-dunk-toast">SLAM DUNK!</div>
 <!-- Statement top nav: arrows + dots -->
 <div id="stmt-top-nav">
@@ -1683,7 +1698,7 @@ var _bulletTime=false,_bulletTimeScale=1.0,_bulletTimeMouse={x:0,y:0};
 var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
-var _hoopVelX=0,_hoopVelY=0,_prevHoopX=0,_prevHoopY=0,_hoopDragStartT=0;
+var _hoopVelX=0,_hoopVelY=0,_hoopVelZ=0,_prevHoopX=0,_prevHoopY=0,_prevHoopZ=0,_hoopDragStartT=0;
 var _hoopUfoT=0,_bbSupernovaFlash=0;
 var HOOP={
   x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
@@ -2720,6 +2735,8 @@ function initLevel(n){
   if (bbHud) bbHud.style.display = isBball ? '' : 'none';
   const aimCv = document.getElementById('aim-canvas');
   if (aimCv) aimCv.style.display = isBball ? '' : 'none';
+  const hsf = document.getElementById('hoop-score-float');
+  if (hsf) { hsf.classList.remove('visible','pop'); hsf.textContent='0'; }
   if (isBball) {
     P.count=BASE_COUNT; P.gravity = 11.0; P.spread = 0.5; P.bounce = 0.10;
     P.size = isMobile ? 0.32 : 0.52; P.waterfall = true; _wfPhase = 0;
@@ -5755,19 +5772,37 @@ function _tickBBall(dt){
     const toX=b.pos.x-closestRingX,toY=b.pos.y-tiltedRingY,toZ=(b.pos.z||0)-closestRingZ;
     const toRimDist=Math.sqrt(toX*toX+toY*toY+toZ*toZ);
     const minDist=HOOP.rimTube+ballR;
+
+    // ── Continuous side-weighting ────────────────────────────────────────────
+    // The hoop leans toward whichever side the ball currently sits on — even
+    // while just passing through the opening, not only on a hard rim impact.
+    // This is what actually lets the ball read as "weighing down" a side as it
+    // drops through, on top of the discrete bounce impulse below.
+    const proximityT=Math.max(0,1-radDist/(HOOP.rimR*1.05));
+    const vertT=Math.max(0,1-Math.abs(b.pos.y-HOOP.y)/(HOOP.rimTube*3.5+ballR*2.2));
+    if(proximityT>0&&vertT>0) HOOP._dbVel+=contactDirX*proximityT*vertT*7.5*dt;
+
     if(toRimDist<minDist&&toRimDist>0.001){
       const nx=toX/toRimDist,ny=toY/toRimDist,nz=toZ/toRimDist;
       const pen=minDist-toRimDist;
       b.pos.x+=nx*pen*1.1; b.pos.y+=ny*pen*1.1;
       if(b.pos.z!==undefined) b.pos.z+=nz*pen*1.1;
-      const vDotN=b.vel.x*nx+b.vel.y*ny+(b.vel.z||0)*nz;
+      // Use velocity RELATIVE to the hoop's own motion — the hoop drifts around
+      // the scene now, and testing/resolving against absolute ball velocity
+      // would let a moving rim shove or snag the ball as it swept through.
+      // Relative-velocity resolution keeps the opening genuinely passable while
+      // the physical rim edge still bounces correctly, moving or not.
+      const relVX=b.vel.x-_hoopVelX, relVY=b.vel.y-_hoopVelY, relVZ=(b.vel.z||0)-_hoopVelZ;
+      const vDotN=relVX*nx+relVY*ny+relVZ*nz;
       if(vDotN<0){
         // edgeFrac: 0 at rim center, ramps to 1 in outer 40% of the rim ring
         const edgeFrac=Math.max(0,(Math.abs(contactDirX)-0.60)/0.40);
         const REST_RIM=0.55+edgeFrac*0.32;
-        b.vel.x-=(1+REST_RIM)*vDotN*nx; b.vel.y-=(1+REST_RIM)*vDotN*ny;
-        if(b.vel.z!==undefined) b.vel.z-=(1+REST_RIM)*vDotN*nz;
-        b.vel.x*=0.85+edgeFrac*0.08; b.vel.y*=0.85+edgeFrac*0.08;
+        const impulse=(1+REST_RIM)*vDotN;
+        let nvx=relVX-impulse*nx, nvy=relVY-impulse*ny, nvz=relVZ-impulse*nz;
+        nvx*=0.85+edgeFrac*0.08; nvy*=0.85+edgeFrac*0.08;
+        b.vel.x=nvx+_hoopVelX; b.vel.y=nvy+_hoopVelY;
+        if(b.vel.z!==undefined) b.vel.z=nvz+_hoopVelZ;
         const impactSpeed=Math.abs(vDotN);
         const downImpact=Math.max(0,-ny)*impactSpeed;
 
@@ -5858,6 +5893,13 @@ function _registerScore(){
   }
   const st=document.getElementById('bball-streak');
   if(st){ if(HOOP.streak>=3) st.textContent=HOOP.streak+'x STREAK'; else if(HOOP.streak>=2) st.textContent='× '+HOOP.streak; else st.textContent=''; }
+  // Floating score readout that lives right next to the hoop itself
+  if(!_hoopScoreFloatEl) _hoopScoreFloatEl=document.getElementById('hoop-score-float');
+  if(_hoopScoreFloatEl){
+    _hoopScoreFloatEl.textContent=HOOP.totalScore;
+    _hoopScoreFloatEl.classList.add('visible','pop');
+    setTimeout(()=>{ if(_hoopScoreFloatEl) _hoopScoreFloatEl.classList.remove('pop'); },300);
+  }
   // Show SLAM DUNK if last action was spacebar
   if(_lastActionWasSpacebar){
     _showSlamDunk();
@@ -6327,7 +6369,7 @@ window.addEventListener('mousemove',e=>{ _bulletTimeMouse.x=e.clientX; _bulletTi
 function _tickHoopUFO(dt){
   if(!_hoopGroup) return;
   _hoopUfoT+=dt;
-  if(_hoopDragging) return;
+  if(_hoopDragging){ _updateHoopScoreFloat(); return; }
 
   const t=_hoopUfoT;
   const edgeL=s2w(0,H*0.5).x, edgeR=s2w(W,H*0.5).x;
@@ -6365,6 +6407,36 @@ function _tickHoopUFO(dt){
   // Gentle bank into turns, saucer-style (kept small so it doesn't fight the rim collision math)
   _hoopGroup.rotation.z=-nx*0.05;
   _hoopGroup.rotation.x=Math.sin(t*0.21)*0.02;
+
+  // Track the hoop's own world-space velocity so ball/rim collisions can be
+  // resolved relative to a moving rim instead of a stationary one.
+  const dtSafe=Math.max(0.0001,dt);
+  _hoopVelX=(HOOP.x-_prevHoopX)/dtSafe;
+  _hoopVelY=(HOOP.y-_prevHoopY)/dtSafe;
+  _hoopVelZ=(HOOP.z-_prevHoopZ)/dtSafe;
+  _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z;
+
+  _updateHoopScoreFloat();
+}
+
+// ── FLOATING HOOP SCORE ───────────────────────────────────────────────────────
+// A small score readout parented to the hoop's own transform (offset to the
+// side of the backboard) — it rides along with the hoop's drift AND its tilt,
+// since it's projected through the group's live world matrix each frame.
+// Purely cosmetic: never touched by, or touching, the physics.
+let _hoopScoreFloatEl=null;
+const _hsfV3=new THREE.Vector3();
+function _updateHoopScoreFloat(){
+  if(!_hoopGroup) return;
+  if(!_hoopScoreFloatEl) _hoopScoreFloatEl=document.getElementById('hoop-score-float');
+  const el=_hoopScoreFloatEl; if(!el) return;
+  _hoopGroup.updateMatrixWorld(true);
+  _hsfV3.set(HOOP.boardW*0.5+0.85,HOOP.boardH*0.2,0.1);
+  _hoopGroup.localToWorld(_hsfV3);
+  _hsfV3.project(camera);
+  const sx=(_hsfV3.x+1)/2*W, sy=(-_hsfV3.y+1)/2*H;
+  const tf=`translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px) translate(-50%,-50%)`;
+  if(el._tf!==tf){ el.style.transform=tf; el._tf=tf; }
 }
 
 function _hoopScreenPos(){ const sc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera); return{sx:(sc.x+1)/2*W,sy:(-sc.y+1)/2*H}; }
@@ -6381,7 +6453,7 @@ renderer.domElement.addEventListener('mousedown',e=>{
   if(_hoopHitTest(e.clientX,e.clientY)){
     _hoopDragging=true; const wp=s2w(e.clientX,e.clientY);
     _hoopDragOffX=wp.x-HOOP.x; _hoopDragOffY=wp.y-HOOP.y;
-    _hoopVelX=_hoopVelY=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y;
+    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z;
     _hoopDragStartT=performance.now(); e.stopImmediatePropagation();
   }
 },{capture:true});
@@ -6402,7 +6474,7 @@ renderer.domElement.addEventListener('touchstart',e=>{
   if(_hoopHitTest(t.clientX,t.clientY)){
     _hoopDragging=true; const wp=s2w(t.clientX,t.clientY);
     _hoopDragOffX=wp.x-HOOP.x; _hoopDragOffY=wp.y-HOOP.y;
-    _hoopVelX=_hoopVelY=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y;
+    _hoopVelX=_hoopVelY=_hoopVelZ=0; _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _prevHoopZ=HOOP.z;
     _hoopDragStartT=performance.now(); e.stopImmediatePropagation();
   }
 },{capture:true,passive:false});
