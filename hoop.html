@@ -6340,11 +6340,15 @@ function _tickHoopUFO(dt){
   // Keep the saucer up in the sky — roughly the upper half of the play space
   const skyTop=edgeT-1.6, skyBot=edgeB+(edgeT-edgeB)*0.58;
   const rangeY=Math.max(0.4,(skyTop-skyBot)*0.5);
-  const centerY=(skyTop+skyBot)*0.5;
+  // Bias the resting altitude toward the lower part of that band — the saucer
+  // prefers to cruise low, with higher excursions being smaller and less frequent.
+  const centerY=skyBot+(skyTop-skyBot)*0.32;
 
   // Lazy figure-8 drift — two out-of-phase sines so the path never quite repeats
   const nx=Math.sin(t*0.16)*0.7+Math.sin(t*0.067+1.4)*0.3;
-  const ny=Math.sin(t*0.21+0.8)*0.55+Math.sin(t*0.09+2.3)*0.45;
+  const nyRaw=Math.sin(t*0.21+0.8)*0.55+Math.sin(t*0.09+2.3)*0.45;
+  // Asymmetric shaping: dips downward travel further/faster, upward climbs are damped
+  const ny=nyRaw>=0?Math.pow(nyRaw,1.7)*0.5:-Math.pow(-nyRaw,0.75);
   const nz=Math.sin(t*0.12+0.5);
 
   const targetX=centerX+nx*rangeX;
