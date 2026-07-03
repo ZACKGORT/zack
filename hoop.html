@@ -1684,6 +1684,7 @@ var _btLockOn=0,_btLaunchVx=0,_btLaunchVy=0;
 var _aimDrag=false,_aimStart={x:0,y:0},_aimCurrent={x:0,y:0};
 var _hoopDragging=false,_hoopDragOffX=0,_hoopDragOffY=0;
 var _hoopVelX=0,_hoopVelY=0,_prevHoopX=0,_prevHoopY=0,_hoopDragStartT=0;
+var _hoopUfoT=0,_bbSupernovaFlash=0;
 var HOOP={
   x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
   boardW:3.6,boardH:2.6,boardDepth:0.12,
@@ -5173,7 +5174,8 @@ function tick(){
   // Advance waterfall wave phase — one full cycle every ~3.5s
   if(P.waterfall) _wfPhase += dt * (Math.PI * 2 / 3.5);
 
-  pMat.uniforms.uSz.value=P.size;
+  if(_bbSupernovaFlash>0) _bbSupernovaFlash=Math.max(0,_bbSupernovaFlash-dt*2.6);
+  pMat.uniforms.uSz.value=P.size+_bbSupernovaFlash;
   const N=Math.min(P.count,MP);
 
   // Compute world-space viewport edges at z=0 for edge repulsion
@@ -5866,6 +5868,7 @@ function _registerScore(){
   HOOP._rimTiltVel+=0.6*(Math.random()>0.5?1:-1);
   // (statement cycling removed in basketball standalone)
   _scoreBurst();
+  _scoreSupernova();
 }
 
 function _scoreBurst(){
@@ -5919,6 +5922,28 @@ function _scoreBurst(){
       ps[i]=0.18+Math.random()*0.22; pl[i]=1.8+Math.random()*2.2; pa[i]=0; pal[i]=1; pGravTier[i]=0; ringCount++;
     }
   }
+}
+
+// Massive scene-wide shockwave — every live particle in the whole scene (not just
+// the rim splash) gets flung outward from the hoop the instant a shot scores.
+function _scoreSupernova(){
+  const N=Math.min(P.count,MP);
+  const cx=HOOP.x,cy=HOOP.y,cz=HOOP.z;
+  const FORCE=24.0,LIFT=7.0;
+  for(let i=0;i<N;i++){
+    if(!pal[i]) continue;
+    const b=i*3;
+    const dx=pp[b]-cx,dy=pp[b+1]-cy,dz=pp[b+2]-cz;
+    const dist=Math.sqrt(dx*dx+dy*dy+dz*dz)||0.001;
+    // Smooth inverse falloff (no hard cutoff radius) — guarantees every particle
+    // in the scene feels the blast, strongest close in, a ripple far away.
+    const f=FORCE/(1+dist*0.22);
+    pv[b]  +=(dx/dist)*f;
+    pv[b+1]+=(dy/dist)*f+LIFT/(1+dist*0.3);
+    pv[b+2]+=(dz/dist)*f;
+  }
+  _bbSupernovaFlash=2.4; // decayed each frame — spikes particle brightness/size scene-wide
+  flashEl('flash-complete');
 }
 
 // ── AIM & THROW SYSTEM ────────────────────────────────────────────────────────
@@ -6295,6 +6320,49 @@ window.addEventListener('mousemove',e=>{ _bulletTimeMouse.x=e.clientX; _bulletTi
 // _hoopDragging vars hoisted at top
 
 
+// ── UFO HOOP FLIGHT ───────────────────────────────────────────────────────────
+// The hoop drifts across the scene like a saucer hovering above, giving the
+// ball a moving target. Pauses while the user is dragging it, and glides
+// (rather than snaps) back onto its flight path once they let go.
+function _tickHoopUFO(dt){
+  if(!_hoopGroup) return;
+  _hoopUfoT+=dt;
+  if(_hoopDragging) return;
+
+  const t=_hoopUfoT;
+  const edgeL=s2w(0,H*0.5).x, edgeR=s2w(W,H*0.5).x;
+  const edgeT=s2w(W*0.5,0).y, edgeB=s2w(W*0.5,H).y;
+
+  const marginX=2.6;
+  const rangeX=Math.max(1.0,(edgeR-edgeL)*0.5-marginX);
+  const centerX=(edgeR+edgeL)*0.5;
+
+  // Keep the saucer up in the sky — roughly the upper half of the play space
+  const skyTop=edgeT-1.6, skyBot=edgeB+(edgeT-edgeB)*0.58;
+  const rangeY=Math.max(0.4,(skyTop-skyBot)*0.5);
+  const centerY=(skyTop+skyBot)*0.5;
+
+  // Lazy figure-8 drift — two out-of-phase sines so the path never quite repeats
+  const nx=Math.sin(t*0.16)*0.7+Math.sin(t*0.067+1.4)*0.3;
+  const ny=Math.sin(t*0.21+0.8)*0.55+Math.sin(t*0.09+2.3)*0.45;
+  const nz=Math.sin(t*0.12+0.5);
+
+  const targetX=centerX+nx*rangeX;
+  const targetY=centerY+ny*rangeY;
+  const targetZ=-1.5+nz*1.8;
+
+  // Glide toward the target like a hovering craft, not a snap
+  const k=1-Math.exp(-0.9*dt);
+  HOOP.x+=(targetX-HOOP.x)*k;
+  HOOP.y+=(targetY-HOOP.y)*k+Math.sin(t*2.4)*0.015; // subtle hover bob
+  HOOP.z+=(targetZ-HOOP.z)*k;
+
+  _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z);
+  // Gentle bank into turns, saucer-style (kept small so it doesn't fight the rim collision math)
+  _hoopGroup.rotation.z=-nx*0.05;
+  _hoopGroup.rotation.x=Math.sin(t*0.21)*0.02;
+}
+
 function _hoopScreenPos(){ const sc=new THREE.Vector3(HOOP.x,HOOP.y,HOOP.z).project(camera); return{sx:(sc.x+1)/2*W,sy:(-sc.y+1)/2*H}; }
 function _hoopHitTest(cx,cy){
   const{sx,sy}=_hoopScreenPos();
@@ -6353,6 +6421,7 @@ setTimeout(()=>{
         const targetScale=_bulletTime?0.08:1.0;
         _bulletTimeScale+=( targetScale-_bulletTimeScale)*Math.min(1.0,dt*6.0);
         const scaledDt=dt*Math.max(0.07,_bulletTimeScale);
+        _tickHoopUFO(scaledDt);
         if(_bbBall&&!_bbBall.dragging) _tickBBall(scaledDt);
         _tickRimRing(scaledDt);
         _bbHaloDt=dt; // feed real dt to halo animator
