@@ -1705,7 +1705,7 @@ var HOOP={
   x:4.5,y:3.8,z:-1.5,rimR:1.85,rimTube:0.075,
   boardW:3.6,boardH:2.6,boardDepth:0.12,
   scored:false,scoreFlash:0,totalScore:0,streak:0,
-  _lastBallY:null,_inFrontOfRim:false,_passThroughArmed:false,
+  _lastBallY:null,_inFrontOfRim:false,_lastRelY:null,
   _rimTilt:0,_rimTiltVel:0,_rimTiltRest:0,
   _rimSpringK:18.0,_rimDamp:5.5,_rimImpulseScale:1.4,
   // diving-board secondary oscillator — lower damping, softer spring for edge wobble
@@ -5727,7 +5727,7 @@ function _spawnBall(){
   ball.vel.set(0,-0.4,0);
   ball._bbGravity=17.0; ball._bbRestitution=0.62; ball._bbFriction=0.985; ball._bbMaxSpd=36;
   attractors.push(ball); _bbBall=ball;
-  HOOP._lastBallY=null; HOOP._passThroughArmed=false;
+  HOOP._lastBallY=null; HOOP._lastRelY=null;
   HOOP._dbTilt=0; HOOP._dbVel=0;
 }
 
@@ -5866,12 +5866,26 @@ function _tickBBall(dt){
   if(spd>(b._bbMaxSpd||24)){const s=b._bbMaxSpd/spd;b.vel.x*=s;b.vel.y*=s;}
 
   const rimXZDist=Math.sqrt((b.pos.x-HOOP.x)**2+((b.pos.z||0)-HOOP.z)**2);
-  const ballAboveRim=b.pos.y>HOOP.y+ballR+0.05;
   const ballInsideRim=rimXZDist<HOOP.rimR*0.88;
-  const ballBelowRim=b.pos.y<HOOP.y-0.12;
-  if(!HOOP._passThroughArmed&&ballAboveRim&&ballInsideRim) HOOP._passThroughArmed=true;
-  if(HOOP._passThroughArmed&&ballBelowRim&&ballInsideRim&&b.vel.y<0){ HOOP._passThroughArmed=false; _registerScore(); }
-  if(HOOP._passThroughArmed&&!ballInsideRim) HOOP._passThroughArmed=false;
+  // Score = a downward crossing of the rim plane, measured in height RELATIVE
+  // to the hoop each frame (not an absolute "was above / now below" latch).
+  // The old latch compared the ball to whatever the hoop's position happened
+  // to be at two different, possibly far-apart moments — fine for a static
+  // hoop, but a moving/bobbing one can drift enough between those moments
+  // that a ball which visibly dropped straight through never satisfies both
+  // checks. Comparing consecutive relative positions is immune to that,
+  // since both samples are always taken against the hoop's current spot.
+  const relY=b.pos.y-HOOP.y;
+  if(ballInsideRim){
+    if(HOOP._lastRelY!=null&&HOOP._lastRelY>ballR*0.35&&relY<-0.1&&b.vel.y<0){
+      HOOP._lastRelY=null; // consume — avoid double-counting the same pass
+      _registerScore();
+    } else {
+      HOOP._lastRelY=relY;
+    }
+  } else {
+    HOOP._lastRelY=null;
+  }
 
   b.mesh.position.set(b.pos.x,b.pos.y,b.pos.z||0);
   b.mesh.updateMatrixWorld(true);
@@ -6466,9 +6480,9 @@ window.addEventListener('pointermove',e=>{
   _hoopVelX=(nx-_prevHoopX)/dt2; _hoopVelY=(ny-_prevHoopY)/dt2;
   _prevHoopX=HOOP.x; _prevHoopY=HOOP.y; _hoopDragStartT=performance.now();
   HOOP.x=nx; HOOP.y=ny; _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z);
-  HOOP._passThroughArmed=false; // hoop moved — re-arm needed from scratch
+  HOOP._lastRelY=null; // hoop moved — re-arm needed from scratch
 });
-window.addEventListener('pointerup',e=>{ if(!_hoopDragging) return; _hoopDragging=false; HOOP._passThroughArmed=false; });
+window.addEventListener('pointerup',e=>{ if(!_hoopDragging) return; _hoopDragging=false; HOOP._lastRelY=null; });
 renderer.domElement.addEventListener('touchstart',e=>{
   if(!_hoopGroup||_aimDrag) return;
   const t=e.touches[0];
@@ -6486,7 +6500,7 @@ renderer.domElement.addEventListener('touchmove',e=>{
   HOOP.x=wp.x-_hoopDragOffX; HOOP.y=wp.y-_hoopDragOffY;
   _hoopGroup.position.set(HOOP.x,HOOP.y,HOOP.z); e.preventDefault();
 },{capture:true,passive:false});
-renderer.domElement.addEventListener('touchend',e=>{ if(_hoopDragging){_hoopDragging=false; HOOP._passThroughArmed=false; e.stopImmediatePropagation();} },{capture:true,passive:false});
+renderer.domElement.addEventListener('touchend',e=>{ if(_hoopDragging){_hoopDragging=false; HOOP._lastRelY=null; e.stopImmediatePropagation();} },{capture:true,passive:false});
 
 // ── TICK HOOK: run basketball systems each frame via emitter update ────────────
 setTimeout(()=>{
