@@ -5877,7 +5877,7 @@ function _tickBBall(dt){
   // since both samples are always taken against the hoop's current spot.
   const relY=b.pos.y-HOOP.y;
   if(ballInsideRim){
-    if(HOOP._lastRelY!=null&&HOOP._lastRelY>ballR*0.35&&relY<-0.1&&b.vel.y<0){
+    if(HOOP._lastRelY!=null&&HOOP._lastRelY>0.02&&relY<-0.02&&b.vel.y<0){
       HOOP._lastRelY=null; // consume — avoid double-counting the same pass
       _registerScore();
     } else {
@@ -6410,7 +6410,15 @@ function _tickHoopUFO(dt){
 
   const targetX=centerX+nx*rangeX;
   const targetY=centerY+ny*rangeY;
-  const targetZ=-1.5+nz*1.8;
+  // The ball's flight never meaningfully changes its z — it lives on a fixed
+  // depth plane near z≈0 the whole way through the arc. The x-axis is what
+  // the player actually aims for, so it's fine to sweep the hoop across the
+  // full playable width. z isn't aimable at all, though, so it has to stay
+  // clamped well inside the rim's actual scoring reach at all times, or the
+  // hoop can drift to a depth that's geometrically unscorable no matter how
+  // well the shot is aimed.
+  const Z_SAFE=HOOP.rimR*0.88*0.62;
+  const targetZ=Math.max(-Z_SAFE,Math.min(Z_SAFE,-0.9+nz*0.55));
 
   // Glide toward the target like a hovering craft, not a snap
   const k=1-Math.exp(-0.9*dt);
