@@ -121,29 +121,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:8px;height
   position:fixed;top:18px;left:50%;transform:translateX(-50%);right:auto;bottom:auto;z-index:400;
   font-family:'Helvetica Neue',Arial,sans-serif;font-weight:900;
   font-size:64px;line-height:1;letter-spacing:-0.04em;
-  color:rgba(255,255,255,0.88);
+  color:rgba(20,20,20,0.85);
   pointer-events:none;
-  text-shadow:0 0 40px rgba(255,200,80,0.28);
+  text-shadow:0 0 30px rgba(0,0,0,0.12);
   transition:color 0.15s;
   user-select:none;
 }
-#bb-score-tracker.flash{color:#ffd060;}
-#bb-score-tracker.flash-neg{color:#ff5c5c;}
+#bb-score-tracker.flash{color:#d98a00;}
+#bb-score-tracker.flash-neg{color:#c22f2f;}
 /* ── FLOATING HOOP SCORE (in-scene, tracks hoop position/tilt) ── */
 #hoop-score-float{
   position:fixed;top:0;left:0;z-index:250;pointer-events:none;
   font-family:'Helvetica Neue',Arial,sans-serif;font-weight:900;
   font-size:22px;line-height:1;letter-spacing:-0.02em;
-  color:rgba(255,255,255,0.9);
-  text-shadow:0 0 16px rgba(255,200,80,0.4);
+  color:rgba(20,20,20,0.85);
+  text-shadow:0 0 10px rgba(0,0,0,0.1);
   opacity:0;transform:translate(-9999px,-9999px);
   transition:opacity 0.35s ease,color 0.15s;
   will-change:transform;
   user-select:none;
 }
 #hoop-score-float.visible{opacity:1;}
-#hoop-score-float.pop{color:#ffd060;text-shadow:0 0 26px rgba(255,208,96,0.85);}
-#hoop-score-float.pop-neg{color:#ff5c5c;text-shadow:0 0 26px rgba(255,92,92,0.85);}
+#hoop-score-float.pop{color:#d98a00;text-shadow:0 0 18px rgba(217,138,0,0.5);}
+#hoop-score-float.pop-neg{color:#c22f2f;text-shadow:0 0 18px rgba(194,47,47,0.5);}
 @media(max-width:600px){ #hoop-score-float{font-size:16px;} }
 /* ── MOBILE SCORE OVERRIDE ── */
 @media(max-width:600px){
@@ -1507,13 +1507,24 @@ function _tickParticleGlow() {
   });
 }
 
-const floorMat = new THREE.MeshPhysicalMaterial({
-  color: 0xe6e3de,
-  roughness: 1.0,
-  metalness: 0.0,
-  clearcoat: 0.0,
-  clearcoatRoughness: 0.18,
-  reflectivity: 0.0,
+// Ground gradient: goes from a soft neutral gray near the camera to the exact
+// sky/background color at the far edge (horizon), so the floor blends
+// seamlessly into the background instead of showing a lit/unlit seam.
+const _floorGradCanvas=document.createElement('canvas');
+_floorGradCanvas.width=8; _floorGradCanvas.height=256;
+(function(){
+  const gctx=_floorGradCanvas.getContext('2d');
+  const g=gctx.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#f1efec');   // top of canvas → far edge (horizon) → matches sky exactly
+  g.addColorStop(0.35,'#ece9e4');
+  g.addColorStop(1,'#e2ded8');   // bottom of canvas → near edge (camera side)
+  gctx.fillStyle=g; gctx.fillRect(0,0,8,256);
+})();
+const _floorGradTex=new THREE.CanvasTexture(_floorGradCanvas);
+_floorGradTex.minFilter=THREE.LinearFilter;
+const floorMat = new THREE.MeshBasicMaterial({
+  map: _floorGradTex,
+  fog: true,
 });
 const floorM=new THREE.Mesh(new THREE.PlaneGeometry(100,100),floorMat);
 floorM.rotation.x=-Math.PI/2;floorM.position.y=-9;scene.add(floorM);
