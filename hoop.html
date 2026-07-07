@@ -19,9 +19,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wdth,wght@75..125,100..700&family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;}
-body{background:#0a0a0a;overflow:hidden;font-family:'Space Mono',monospace;cursor:none;user-select:none;-webkit-user-select:none;}
+body{background:#f1efec;overflow:hidden;font-family:'Space Mono',monospace;cursor:none;user-select:none;-webkit-user-select:none;}
 canvas{display:block;}
-#cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:9999;width:18px;height:11px;border-radius:50%;background:rgba(255,255,248,0.92);will-change:transform;}
+#cursor{position:fixed;top:0;left:0;pointer-events:none;z-index:9999;width:18px;height:11px;border-radius:50%;background:rgba(15,15,15,0.85);will-change:transform;}
 #snap-hint{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.22),transparent);pointer-events:none;z-index:299;opacity:0;transition:opacity 0.3s;}
 #snap-hint.visible{opacity:1;}
 /* text cursor canvas */
@@ -1446,11 +1446,11 @@ const renderer=new THREE.WebGLRenderer({antialias:(!isMobile && !isChrome),prese
 renderer.setSize(W,H);
 // Fix #4: cap DPR — mobile 1.5, Chrome desktop 1.0 (fill rate scales as DPR², 2.0→1.0 = 4× saving), others 2.0
 renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : (isChrome ? 1.0 : 2.0)));
-renderer.setClearColor(0x0a0a0a);
+renderer.setClearColor(0xf1efec);
 renderer.autoClear = false;
 document.body.appendChild(renderer.domElement);
 
-const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x0a0a0a,0.016);
+const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0xf1efec,0.016);
 const camera=new THREE.PerspectiveCamera(50,W/H,0.1,200);
 camera.position.set(0,1.5,28);camera.lookAt(0,0,0);
 // Mobile: zoom out camera to give more viewport space for text
@@ -1508,7 +1508,7 @@ function _tickParticleGlow() {
 }
 
 const floorMat = new THREE.MeshPhysicalMaterial({
-  color: 0x050505,
+  color: 0xe6e3de,
   roughness: 1.0,
   metalness: 0.0,
   clearcoat: 0.0,
@@ -1856,35 +1856,35 @@ class Attractor {
     if (this.type === 'blackhole') {
       // Check if this is a zen orb variant
       if (this._zenOrb) {
-        // Glowing glass orb — bright, luminous star-like sphere
+        // Solid black ball
         const coreGeo = new THREE.SphereGeometry(this.radius, 64, 40);
         const coreMat = new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          emissive: 0xffffff,
-          emissiveIntensity: 3.5,
-          roughness: 0.0,
-          metalness: 1.0,
-          reflectivity: 1.0,
-          clearcoat: 1.0,
-          clearcoatRoughness: 0.0,
-          transparent: true,
-          opacity: 0.97,
+          color: 0x0c0c0c,
+          emissive: 0x000000,
+          emissiveIntensity: 0.0,
+          roughness: 0.45,
+          metalness: 0.05,
+          reflectivity: 0.15,
+          clearcoat: 0.12,
+          clearcoatRoughness: 0.35,
+          transparent: false,
+          opacity: 1.0,
         });
         this.core = new THREE.Mesh(coreGeo, coreMat);
         this.mesh.add(this.core);
 
-        // Point light — warm golden glow emanating from orb
+        // Small neutral highlight light — just enough to read the ball's form
         if (!isChrome) {
-          this._zenLight = new THREE.PointLight(0xfff8e8, 6.0, 30);
+          this._zenLight = new THREE.PointLight(0xffffff, 0.8, 14);
           this.mesh.add(this._zenLight);
         }
 
-        // Glow corona layers — barely visible, just a breath of light
+        // Glow corona layers — faint neutral ambient occlusion halo, no color cast
         const glowLayers = [
-          { r: this.radius * 1.18, color: 0xffffff, opacity: 0.06 },
-          { r: this.radius * 1.55, color: 0xfff0d0, opacity: 0.03 },
-          { r: this.radius * 2.20, color: 0xffe090, opacity: 0.015 },
-          { r: this.radius * 3.60, color: 0xffcc60, opacity: 0.006 },
+          { r: this.radius * 1.18, color: 0x000000, opacity: 0.05 },
+          { r: this.radius * 1.55, color: 0x000000, opacity: 0.025 },
+          { r: this.radius * 2.20, color: 0x000000, opacity: 0.012 },
+          { r: this.radius * 3.60, color: 0x000000, opacity: 0.005 },
         ];
         this.glowMeshes = glowLayers.map(({ r, color, opacity }) => {
           const g = new THREE.Mesh(
@@ -2110,18 +2110,15 @@ class Attractor {
 
     if (this.type === 'blackhole') {
       if (this._zenOrb) {
-        // Gentle breathing pulse for zen orb
+        // Gentle breathing pulse for the ball's faint ambient-occlusion halo
         const pulse = 0.5 + Math.sin(this._pulseT * 0.9) * 0.5;
         const pulse2 = 0.5 + Math.sin(this._pulseT * 1.4 + 1.2) * 0.5;
-        this.glowMeshes[0].material.opacity = 0.04 + pulse * 0.025;
-        this.glowMeshes[1].material.opacity = 0.02 + pulse2 * 0.012;
-        this.glowMeshes[2].material.opacity = 0.008 + pulse * 0.007;
-        this.glowMeshes[3].material.opacity = 0.003 + pulse2 * 0.003;
+        this.glowMeshes[0].material.opacity = 0.035 + pulse * 0.02;
+        this.glowMeshes[1].material.opacity = 0.018 + pulse2 * 0.01;
+        this.glowMeshes[2].material.opacity = 0.008 + pulse * 0.006;
+        this.glowMeshes[3].material.opacity = 0.003 + pulse2 * 0.002;
         if (this._zenLight) {
-          this._zenLight.intensity = 4.5 + pulse * 2.0;
-        }
-        if (this.core && this.core.material) {
-          this.core.material.emissiveIntensity = 3.0 + pulse * 1.0;
+          this._zenLight.intensity = 0.6 + pulse * 0.3;
         }
       } else {
       const pulse = 0.5 + Math.sin(this._pulseT * 2.2) * 0.5;
@@ -2491,9 +2488,11 @@ function drawBlackHoleOverlay() {
       : Math.sqrt(bh.pullStrength / 3.5);
     _ovV3.set(bh.pos.x + pullRadiusWorld, bh.pos.y, 0).project(camera);
     const pullR = Math.abs((_ovV3.x + 1) / 2 * W - sx);
+    if (!bh._isBBall) {
     ovCtx.beginPath(); ovCtx.arc(sx, sy, pullR, 0, Math.PI * 2);
     ovCtx.strokeStyle = bh.type === 'neutronstar' ? 'rgba(100,200,255,0.30)' : (bh._isProjectOrb ? 'rgba(255,255,255,0.04)' : 'rgba(255,220,100,0.18)');
     ovCtx.lineWidth = 1; ovCtx.stroke();
+    }
   });
   ovCtx.setLineDash([]); // single reset for all dashed arcs above
 
@@ -2512,6 +2511,7 @@ function drawBlackHoleOverlay() {
     ovCtx.save();
     if (bh.type === 'blackhole') {
       if (bh._zenOrb) {
+        if (!bh._isBBall) {
         [
           { r: coreR * 4.5, a: 0.02, col: '255,200,80' },
           { r: coreR * 2.8, a: 0.04, col: '255,240,140' },
@@ -2532,6 +2532,7 @@ function drawBlackHoleOverlay() {
         ovCtx.fillStyle = 'rgba(255,220,100,0.28)';
         ovCtx.textAlign = 'center';
         ovCtx.fillText('ZEN ORB', sx, sy + coreR + 14);
+        }
       } else {
         [
           { r: coreR * 4.5, a: 0.02, col: '255,200,80' },
@@ -2714,7 +2715,7 @@ function initLevel(n){
     });
 
     // Default particle shader for this level
-    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}`);
     pMat.needsUpdate = true;
 
     // Level 5: waterfall ON by default
@@ -2726,7 +2727,7 @@ function initLevel(n){
     if (wfTog) { wfTog.textContent = 'ON'; wfTog.classList.add('on'); }
   } else {
     // Restore default particle shader for levels 1–4
-    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}`);
     pMat.needsUpdate = true;
 
     // Levels 1–4: waterfall OFF, hide the row
@@ -2769,7 +2770,7 @@ function initLevel(n){
     // No neutron stars on level 6
 
     // Same particle shader as level 5
-    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}`);
     pMat.needsUpdate = true;
 
     // Waterfall ON
@@ -2801,7 +2802,7 @@ function initLevel(n){
     setSl('sl-grav',11.0);  setVl('v-grav','11.0');
     setSl('sl-spread',0.5); setVl('v-spread','0.50');
     setSl('sl-size',P.size); setVl('v-size',String(P.size));
-    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.96,0.97,0.93,a*0.88);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);float warmth=1.0-d*0.9;gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`);
+    pMat.fragmentShader = ((isMobile || isChrome) ? `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float a=(1.0-d*2.0)*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}` : `varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*28.0);float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;float bloom=smoothstep(0.5,0.0,d)*0.6;float brightness=core*1.8+halo+bloom;float a=brightness*(1.0-vF*0.72);gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}`);
     pMat.needsUpdate = true;
     if (emitterShape && emitterShape.mesh) { scene.remove(emitterShape.mesh); emitterShape.mesh.visible = false; }
     ['panel','game-hud'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
@@ -2812,6 +2813,7 @@ function initLevel(n){
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
     if (_bbBall) { const _bi=attractors.indexOf(_bbBall); if(_bi>=0)attractors.splice(_bi,1); _bbBall.dispose(); _bbBall=null; }
+    if (_bbBallShadow) _bbBallShadow.visible=false;
     if (_rimRingPoints) { scene.remove(_rimRingPoints); _rimRingGeo.dispose(); _rimRingPoints=null; _rimRingGeo=null; }
     if (_netPoints) { scene.remove(_netPoints); _netGeo.dispose(); _netPoints=null; _netGeo=null; }
     if (_rimRingVels && _rimRingVels._mesh) { scene.remove(_rimRingVels._mesh); _rimRingVels._geo.dispose(); _rimRingVels=null; }
@@ -3918,18 +3920,17 @@ const pMat=new THREE.ShaderMaterial({
   uniforms:{uSz:{value:1.0}},
   vertexShader:`attribute float size;varying float vF;uniform float uSz;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);float d=-mv.z;gl_PointSize=size*uSz*(260.0/d);gl_Position=projectionMatrix*mv;vF=clamp(d*0.025,0.0,1.0);}`,
   fragmentShader:`varying float vF;void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;
-    // Hard core — incandescent white centre
+    // Hard core — solid black centre
     float core=exp(-d*28.0);
-    // Mid halo — warm glow ring
+    // Mid halo — soft dark ring
     float halo=exp(-d*9.0)*(1.0-exp(-d*4.0))*1.4;
-    // Outer bloom — wide soft radiance
+    // Outer bloom — wide soft falloff
     float bloom=smoothstep(0.5,0.0,d)*0.6;
     float brightness=core*1.8+halo+bloom;
     float a=brightness*(1.0-vF*0.72);
-    // Colour: white-hot core → warm cream edge
-    float warmth=1.0-d*0.9;
-    gl_FragColor=vec4(min(1.0,0.96+core*0.04),min(1.0,0.97+warmth*0.02*core),min(1.0,0.93+core*0.07),a*0.88);}`,
-  transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    // Colour: near-black particle, composited normally against the light background
+    gl_FragColor=vec4(0.04,0.04,0.04,a*0.9);}`,
+  transparent:true,depthWrite:false,blending:THREE.NormalBlending,
 });
 particleScene.add(new THREE.Points(pGeo,pMat));
 
@@ -5080,7 +5081,7 @@ document.getElementById('screenshot-btn').addEventListener('click',()=>{
     const r2=new THREE.WebGLRenderer({canvas:sc2,antialias:true,preserveDrawingBuffer:true});
     r2.setPixelRatio(renderer.getPixelRatio());
     r2.setSize(W,H);
-    r2.setClearColor(0x0a0a0a);
+    r2.setClearColor(0xf1efec);
     r2.autoClear=false;
     r2.clear();
     r2.render(scene,camera);
@@ -5591,8 +5592,8 @@ function _buildRimRing() {
   const ringMat=new THREE.ShaderMaterial({
     uniforms:{uPulse:{value:1.0}},
     vertexShader:`uniform float uPulse;void main(){gl_PointSize=4.2*uPulse;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*22.0);float halo=exp(-d*7.0)*0.7;float bloom=smoothstep(0.5,0.0,d)*0.5;float a=(core*1.8+halo+bloom)*0.95;vec3 col=mix(vec3(1.0,0.92,0.72),vec3(1.0,0.98,0.95),core);gl_FragColor=vec4(col,a);}`,
-    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*22.0);float halo=exp(-d*7.0)*0.7;float bloom=smoothstep(0.5,0.0,d)*0.5;float a=(core*1.8+halo+bloom)*0.95;vec3 col=vec3(0.04,0.04,0.04);gl_FragColor=vec4(col,a);}`,
+    transparent:true,depthWrite:false,blending:THREE.NormalBlending,
   });
   _rimRingPoints=new THREE.Points(_rimRingGeo,ringMat);
   scene.add(_rimRingPoints);
@@ -5614,8 +5615,8 @@ function _buildRimRing() {
   cloudGeo.setAttribute('position',new THREE.BufferAttribute(cloudPts,3));
   const cloudMat=new THREE.ShaderMaterial({
     vertexShader:`void main(){gl_PointSize=2.6;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*16.0);float halo=exp(-d*5.5)*0.5;float a=(core+halo)*0.78;vec3 col=mix(vec3(1.0,0.88,0.55),vec3(1.0,0.97,0.88),core);gl_FragColor=vec4(col,a);}`,
-    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*16.0);float halo=exp(-d*5.5)*0.5;float a=(core+halo)*0.78;vec3 col=vec3(0.04,0.04,0.04);gl_FragColor=vec4(col,a);}`,
+    transparent:true,depthWrite:false,blending:THREE.NormalBlending,
   });
   const cloudPoints=new THREE.Points(cloudGeo,cloudMat);
   scene.add(cloudPoints);
@@ -5629,8 +5630,8 @@ function _buildRimRing() {
   _netGeo.setAttribute('position',new THREE.BufferAttribute(_netPts,3));
   const netMat=new THREE.ShaderMaterial({
     vertexShader:`void main(){gl_PointSize=3.2;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*14.0);float halo=exp(-d*5.0)*0.55;float a=(core*1.6+halo)*0.88;vec3 col=mix(vec3(1.0,0.96,0.88),vec3(1.0,1.0,1.0),core);gl_FragColor=vec4(col,a);}`,
-    transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,
+    fragmentShader:`void main(){vec2 uv=gl_PointCoord-0.5;float d=length(uv);if(d>0.5)discard;float core=exp(-d*14.0);float halo=exp(-d*5.0)*0.55;float a=(core*1.6+halo)*0.95;vec3 col=mix(vec3(0.62,0.62,0.62),vec3(1.0,1.0,1.0),core);gl_FragColor=vec4(col,a);}`,
+    transparent:true,depthWrite:false,blending:THREE.NormalBlending,
   });
   _netPoints=new THREE.Points(_netGeo,netMat);
   scene.add(_netPoints);
@@ -5800,6 +5801,47 @@ function _tickRimRing(dt) {
 
 const BALL_SPAWN={x:-4.5,y:-2.0,z:0};
 
+// ── BALL CONTACT SHADOW ──────────────────────────────────────────────────────
+// A soft radial-gradient disc lying flat on the floor beneath the ball. It
+// stays centered under the ball's XZ position and fades out (and softens/
+// spreads slightly) the further the ball gets from the floor surface.
+let _bbBallShadow=null;
+function _ensureBallShadow(){
+  if(_bbBallShadow) return _bbBallShadow;
+  const size=128;
+  const c=document.createElement('canvas'); c.width=c.height=size;
+  const ctx=c.getContext('2d');
+  const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  g.addColorStop(0,'rgba(0,0,0,0.9)');
+  g.addColorStop(0.6,'rgba(0,0,0,0.35)');
+  g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
+  const tex=new THREE.CanvasTexture(c);
+  const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,color:0x000000});
+  const geo=new THREE.CircleGeometry(1,32);
+  const mesh=new THREE.Mesh(geo,mat);
+  mesh.rotation.x=-Math.PI/2;
+  mesh.renderOrder=1;
+  mesh.visible=false;
+  scene.add(mesh);
+  _bbBallShadow=mesh;
+  return mesh;
+}
+function _updateBallShadow(b){
+  const sh=_ensureBallShadow();
+  if(!b){ sh.visible=false; return; }
+  sh.visible=true;
+  const ballR=b.radius||0.72;
+  const heightAbove=Math.max(0,(b.pos.y||0)-(FLR+ballR));
+  const FADE_DIST=9.0; // distance over which the shadow fades to nothing
+  const t=Math.min(1,heightAbove/FADE_DIST);
+  const opacity=0.55*(1-t)*(1-t);
+  const radius=ballR*(1.25+t*1.1);
+  sh.material.opacity=opacity;
+  sh.scale.set(radius,radius,1);
+  sh.position.set(b.pos.x,FLR+0.02,b.pos.z||0);
+}
+
 function _spawnBall(){
   if(_bbBall){_bbBall.dispose();const _bi=attractors.indexOf(_bbBall);if(_bi>=0)attractors.splice(_bi,1);}
   const pos=new THREE.Vector3(BALL_SPAWN.x,BALL_SPAWN.y,0);
@@ -5811,6 +5853,7 @@ function _spawnBall(){
   attractors.push(ball); _bbBall=ball;
   HOOP._lastBallY=null; HOOP._lastRelY=null;
   HOOP._dbTiltX=0; HOOP._dbVelX=0; HOOP._dbTiltZ=0; HOOP._dbVelZ=0;
+  _ensureBallShadow();
 }
 
 function _tickBBall(dt){
@@ -6025,6 +6068,7 @@ function _tickBBall(dt){
 
   b.mesh.position.set(b.pos.x,b.pos.y,b.pos.z||0);
   b.mesh.updateMatrixWorld(true);
+  _updateBallShadow(b);
 }
 
 var _lastActionWasSpacebar = false;
