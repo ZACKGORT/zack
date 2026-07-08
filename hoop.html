@@ -1218,31 +1218,54 @@ let _titleFlipTimer = null;
 
 // ── Large, bold, cursor-reactive particle headline for the basketball page ──
 // Each character is its own physics particle: it tethers back to its rest
-// spot and scatters away from the cursor blob, drawn/animated in drawTextLayer().
+// spot and scatters away from the cursor blob (and the basketball itself),
+// drawn/animated in drawTextLayer().
 function showBballSwissText(text, immediate){
   textChars = [];
   getFontMetrics();
   const role = TYPO.swiss;
-  const { charW } = role;
-  const upper = String(text).toUpperCase();
-  const rowW = upper.length * charW;
-  const startX = isMobile ? Math.max(16, (W - rowW) / 2) : PAD_X;
-  const startY = isMobile ? Math.max(90, H * 0.16) : Math.max(120, H * 0.24);
-  const allChars = [];
-  for (let ci = 0; ci < upper.length; ci++) {
-    const scatter = immediate ? 0 : 1;
-    allChars.push({
-      ch: upper[ci],
-      restX: startX + ci * charW, restY: startY,
-      x: startX + ci * charW + (Math.random() - 0.5) * 70 * scatter,
-      y: startY + (Math.random() - 0.5) * 50 * scatter,
-      vx: (Math.random() - 0.5) * 1.8, vy: (Math.random() - 0.5) * 1.8,
-      baseOp: role.op,
-      role: 'swiss',
+  const { charW, lineH } = role;
+  const maxW = isMobile ? W * 0.88 : Math.min(W * 0.72, W - PAD_X * 2);
+
+  // Explicit <br> breaks are honored first (hard line breaks), then each
+  // resulting section is greedy word-wrapped so the big swiss type reads as
+  // a proper headline block instead of one unbounded row running off-screen.
+  const sections = String(text).toUpperCase().split(/<br\s*\/?>/i);
+  const rows = [];
+  sections.forEach(section => {
+    const words = section.trim().split(' ').filter(Boolean);
+    let row = [], rowW = 0;
+    words.forEach(w => {
+      const sw = (w.length + 1) * charW;
+      if (rowW + sw > maxW && row.length) { rows.push(row.join(' ')); row = []; rowW = 0; }
+      row.push(w); rowW += sw;
     });
-  }
+    rows.push(row.join(' ')); // always end the section on its own row, even if short
+  });
+
+  const startY = isMobile ? Math.max(90, H * 0.16) : Math.max(100, H * 0.22);
+  const allChars = [];
+  rows.forEach((r, li) => {
+    const y = startY + li * lineH;
+    const rowWidthActual = r.length * charW;
+    const rx = isMobile ? Math.max(16, (W - rowWidthActual) / 2) : PAD_X;
+    const scatter = immediate ? 0 : 1;
+    for (let ci = 0; ci < r.length; ci++) {
+      allChars.push({
+        ch: r[ci],
+        restX: rx + ci * charW, restY: y,
+        x: rx + ci * charW + (Math.random() - 0.5) * 70 * scatter,
+        y: y + (Math.random() - 0.5) * 50 * scatter,
+        vx: (Math.random() - 0.5) * 1.8, vy: (Math.random() - 0.5) * 1.8,
+        baseOp: role.op,
+        role: 'swiss',
+      });
+    }
+  });
   textChars = allChars;
   lvlTextAlphaTgt = 1;
+  _textBlockTopY = startY;
+  _textBlockBottomY = startY + rows.length * lineH;
 }
 
 function showLevelTitle(lvlN, immediate) {
@@ -1593,6 +1616,7 @@ const BLOB_LERP=0.11,TETHER_K=0.014,DAMP=0.76,REPEL_R=isMobile?55:110,BLOOM_R=RE
 // text chars — each char is a physics particle
 let textChars=[];
 let lvlTextAlpha=0,lvlTextAlphaTgt=0;
+const _textBallV3=new THREE.Vector3(),_textBallEdgeV3=new THREE.Vector3();
 
 let FONT_SIZE=24;
 // Typographic roles — basketball statement layout matches screenshot proportions
@@ -1643,8 +1667,8 @@ function getFontMetrics(){
 
   // ── Swiss display headline — big, bold, tight tracking ─────────────────────
   const swissSz = isMobile
-    ? Math.round(Math.min(W * 0.15, 58))
-    : Math.round(Math.min(W * 0.085, 150));
+    ? Math.round(Math.min(W * 0.055, 24))
+    : Math.round(Math.min(W * 0.030, 48));
   TYPO.swiss.size  = swissSz;
   TYPO.swiss.charW = swissSz * 0.64;  // tight tracking — bold Swiss caps sit close together
   TYPO.swiss.lineH = swissSz * 1.02;
@@ -2172,10 +2196,19 @@ class Attractor {
       this.glowMeshes[2].material.opacity = 0.04 + pulse * 0.03;
     }
 
-    // Dynamic Scale Based on Pull Strength
-    const basePull = this.type === 'neutronstar' ? 38.0 : 57.0;
-    const scale = Math.sqrt(this.pullStrength / basePull);
-    this.mesh.scale.set(scale, scale, scale);
+    // Dynamic Scale Based on Pull Strength — except the basketball, whose
+    // rendered size must always exactly match its physics collision radius
+    // (0.72), not a pullStrength-derived scale of its original build radius
+    // (1.001). Any mismatch there shows up as the ball visually overlapping
+    // the floor even though the physics contact point is correct.
+    if (this._isBBall) {
+      const s = this.radius / 1.001;
+      this.mesh.scale.set(s, s, s);
+    } else {
+      const basePull = this.type === 'neutronstar' ? 38.0 : 57.0;
+      const scale = Math.sqrt(this.pullStrength / basePull);
+      this.mesh.scale.set(scale, scale, scale);
+    }
 
     if (!this.dragging) {
       if (this._bouncingBH) {
@@ -2198,7 +2231,11 @@ class Attractor {
         // Basketball: ceiling pushed way above any viewport so a hard shot can
         // sail off the top instead of bouncing back down. Other bouncing-black-
         // hole toys sharing this same physics keep their normal ceiling.
-        const BY_FLOOR = -7.5, BY_CEIL = this._isBBall ? 500 : 12;
+        // Floor: the basketball aligns to the actual floor plane (FLR) instead
+        // of the generic hardcoded value, which sat ~1.5 units above it and is
+        // what made the ball look like it was floating. This is a position-only
+        // correction — gravity/restitution/friction/boost below are untouched.
+        const BY_FLOOR = this._isBBall ? (FLR + 0.05) : -7.5, BY_CEIL = this._isBBall ? 500 : 12;
 
         // ── BH Wormhole teleportation — checked BEFORE wall bounce ───────────────
         let teleported = false;
@@ -2236,7 +2273,11 @@ class Attractor {
         const BH_WALL_BOOST = 0.18; // lateral nudge on side hits
         const BH_FLOOR_BOOST = 0.22; // vertical nudge on floor hit
         if (this.pos.y - rEff < BY_FLOOR) {
-          this.pos.y = BY_FLOOR + rEff;
+          // Basketball: snap to its true render radius + a touch of clearance
+          // (rEff is a pullStrength-derived approximation used for the trigger
+          // test only; the actual rendered ball is locked to this.radius, so
+          // the resting position should be derived from that, not rEff).
+          this.pos.y = this._isBBall ? (BY_FLOOR + this.radius + 0.15) : (BY_FLOOR + rEff);
           if (this.vel.y < 0) {
             this.vel.y = -this.vel.y * RESTITUTION + BH_FLOOR_BOOST;
             this.vel.x *= FRICTION;
@@ -2844,14 +2885,23 @@ function initLevel(n){
     pMat.needsUpdate = true;
     if (emitterShape && emitterShape.mesh) { scene.remove(emitterShape.mesh); emitterShape.mesh.visible = false; }
     ['panel','game-hud'].forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+    // Reset hoop to its default position/home each time this level loads —
+    // otherwise a prior drag or drift carries over indefinitely since the
+    // hoop object persists across level switches.
+    HOOP.x=4.5; HOOP.y=3.8; HOOP.z=-0.9;
+    HOOP._homeX=4.5; HOOP._homeY=3.8; HOOP._homeZ=-0.9;
+    HOOP._posVelX=0; HOOP._posVelY=0; HOOP._posVelZ=0;
+    HOOP._rimTiltX=0; HOOP._rimTiltVelX=0; HOOP._rimTiltZ=0; HOOP._rimTiltVelZ=0;
+    HOOP._dbTiltX=0; HOOP._dbVelX=0; HOOP._dbTiltZ=0; HOOP._dbVelZ=0;
+    HOOP.rimR=HOOP.rimRBase; HOOP._missStreak=0;
     _buildHoop();
     setTimeout(() => { _spawnBall(); for(let _i=0;_i<MP;_i++) spawn(_i); }, 200);
-    _buildFloatText(['cx // craft.experience.'], false);
+    showBballSwissText('cx // craft.<br>experience.', false);
   } else {
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
     if (_bbBall) { const _bi=attractors.indexOf(_bbBall); if(_bi>=0)attractors.splice(_bi,1); _bbBall.dispose(); _bbBall=null; }
-    if (_bbBallShadow) _bbBallShadow.visible=false;
+    if (_bbShadowGroup) _bbShadowGroup.visible=false;
     if (_rimRingPoints) { scene.remove(_rimRingPoints); _rimRingGeo.dispose(); _rimRingPoints=null; _rimRingGeo=null; }
     if (_netPoints) { scene.remove(_netPoints); _netGeo.dispose(); _netPoints=null; _netGeo=null; }
     if (_rimRingVels && _rimRingVels._mesh) { scene.remove(_rimRingVels._mesh); _rimRingVels._geo.dispose(); _rimRingVels=null; }
@@ -5237,6 +5287,21 @@ function drawTextLayer(){
   tctx.clearRect(0, 0, W, H);
   tctx.textBaseline = 'alphabetic';
 
+  // Basketball level: project the ball into screen space once per frame so
+  // the headline can scatter away from it the same way it scatters from the
+  // cursor blob — a real, physical-feeling interaction with the ball itself.
+  let _ballTSX = null, _ballTSY = null, _ballTR = 0;
+  if (lvl === 6 && _bbBall) {
+    _textBallV3.set(_bbBall.pos.x, _bbBall.pos.y, _bbBall.pos.z || 0).project(camera);
+    _ballTSX = (_textBallV3.x + 1) / 2 * W;
+    _ballTSY = (-_textBallV3.y + 1) / 2 * H;
+    // Rough on-screen radius estimate from a point on the ball's equator, so
+    // the push scales sensibly whether the ball is near or far from camera.
+    _textBallEdgeV3.set(_bbBall.pos.x + (_bbBall.radius || 0.72), _bbBall.pos.y, _bbBall.pos.z || 0).project(camera);
+    const edgeSX = (_textBallEdgeV3.x + 1) / 2 * W;
+    _ballTR = Math.max(20, Math.abs(edgeSX - _ballTSX));
+  }
+
   for (let i = 0; i < textChars.length; i++) {
     const c = textChars[i];
     // Tether back toward its rest position
@@ -5250,6 +5315,18 @@ function drawTextLayer(){
       const push = f * f * (d < REPEL_R ? 22 : 10);
       c.vx += (dx / d) * push;
       c.vy += (dy / d) * push;
+    }
+    // Scatter away from the basketball itself
+    if (_ballTSX !== null) {
+      const dxb = c.x - _ballTSX, dyb = c.y - _ballTSY;
+      const db = Math.sqrt(dxb * dxb + dyb * dyb) || 0.001;
+      const ballBloomR = _ballTR * 3.4, ballRepelR = _ballTR * 1.7;
+      if (db < ballBloomR) {
+        const fb = 1 - db / ballBloomR;
+        const pushb = fb * fb * (db < ballRepelR ? 34 : 16);
+        c.vx += (dxb / db) * pushb;
+        c.vy += (dyb / db) * pushb;
+      }
     }
     c.vx *= DAMP; c.vy *= DAMP;
     c.x += c.vx; c.y += c.vy;
@@ -5861,44 +5938,76 @@ function _tickRimRing(dt) {
 const BALL_SPAWN={x:-4.5,y:-2.0,z:0};
 
 // ── BALL CONTACT SHADOW ──────────────────────────────────────────────────────
-// A soft radial-gradient disc lying flat on the floor beneath the ball. It
-// stays centered under the ball's XZ position and fades out (and softens/
-// spreads slightly) the further the ball gets from the floor surface.
-let _bbBallShadow=null;
-function _ensureBallShadow(){
-  if(_bbBallShadow) return _bbBallShadow;
+// Two stacked radial-gradient discs lying flat on the floor beneath the ball:
+// a soft/wide one and a tight/crisp one, cross-faded by the ball's height off
+// the floor. Near the floor the shadow reads big and blurry (soft disc up,
+// crisp disc down); the higher the ball climbs, the more it swaps toward the
+// small, dark, crisp disc. The group's X position is also clamped to the
+// visible viewport, so once the ball itself flies off-screen along X, the
+// shadow stays pinned at the edge it exited from — a persistent marker of
+// which side of the screen the ball is currently on, even though the ball
+// itself can't be seen.
+let _bbShadowGroup=null,_bbShadowSoft=null,_bbShadowCrisp=null;
+function _makeShadowDisc(innerStop,midStop,midAlpha,edgeAlpha){
   const size=128;
   const c=document.createElement('canvas'); c.width=c.height=size;
   const ctx=c.getContext('2d');
   const g=ctx.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
-  g.addColorStop(0,'rgba(0,0,0,0.9)');
-  g.addColorStop(0.6,'rgba(0,0,0,0.35)');
+  g.addColorStop(0,`rgba(0,0,0,${edgeAlpha})`);
+  g.addColorStop(midStop,`rgba(0,0,0,${midAlpha})`);
   g.addColorStop(1,'rgba(0,0,0,0)');
   ctx.fillStyle=g; ctx.fillRect(0,0,size,size);
   const tex=new THREE.CanvasTexture(c);
-  const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,color:0x000000});
+  const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,depthWrite:false,color:0x000000,opacity:0});
   const geo=new THREE.CircleGeometry(1,32);
   const mesh=new THREE.Mesh(geo,mat);
   mesh.rotation.x=-Math.PI/2;
   mesh.renderOrder=1;
-  mesh.visible=false;
-  scene.add(mesh);
-  _bbBallShadow=mesh;
   return mesh;
 }
+function _ensureBallShadow(){
+  if(_bbShadowGroup) return _bbShadowGroup;
+  const grp=new THREE.Group();
+  // Soft disc: large, gentle falloff — dominant when the ball is close to the floor
+  _bbShadowSoft=_makeShadowDisc(0,0.45,0.32,0.55);
+  // Crisp disc: small, hard edge — dominant when the ball is high above the floor
+  _bbShadowCrisp=_makeShadowDisc(0,0.72,0.85,0.95);
+  grp.add(_bbShadowSoft,_bbShadowCrisp);
+  grp.visible=false;
+  scene.add(grp);
+  _bbShadowGroup=grp;
+  return grp;
+}
 function _updateBallShadow(b){
-  const sh=_ensureBallShadow();
-  if(!b){ sh.visible=false; return; }
-  sh.visible=true;
+  const grp=_ensureBallShadow();
+  if(!b){ grp.visible=false; return; }
+  grp.visible=true;
   const ballR=b.radius||0.72;
   const heightAbove=Math.max(0,(b.pos.y||0)-(FLR+ballR));
-  const FADE_DIST=9.0; // distance over which the shadow fades to nothing
+  const FADE_DIST=9.0; // distance over which the shadow fully swaps soft→crisp
   const t=Math.min(1,heightAbove/FADE_DIST);
-  const opacity=0.55*(1-t)*(1-t);
-  const radius=ballR*(1.25+t*1.1);
-  sh.material.opacity=opacity;
-  sh.scale.set(radius,radius,1);
-  sh.position.set(b.pos.x,FLR+0.02,b.pos.z||0);
+
+  // Soft disc: big + faint near the floor, shrinks and fades out with height.
+  const softRadius=ballR*(2.3-t*0.9);
+  const softOpacity=0.5*(1-t)*(1-t);
+  _bbShadowSoft.scale.set(softRadius,softRadius,1);
+  _bbShadowSoft.material.opacity=softOpacity;
+
+  // Crisp disc: tight + dark, grows in as height increases — the higher the
+  // ball is, the darker and more defined the marker gets (it's doing more
+  // work as a positional indicator the farther it is from view).
+  const crispRadius=ballR*(1.05+t*0.35);
+  const crispOpacity=0.65*t*t;
+  _bbShadowCrisp.scale.set(crispRadius,crispRadius,1);
+  _bbShadowCrisp.material.opacity=crispOpacity;
+
+  // Pin X to the visible viewport so the shadow persists as an edge marker
+  // once the ball itself has flown off-screen horizontally.
+  const edgeLW=s2w(0,H/2).x, edgeRW=s2w(W,H/2).x;
+  const inset=ballR*0.6;
+  const clampedX=Math.max(edgeLW+inset,Math.min(edgeRW-inset,b.pos.x));
+
+  grp.position.set(clampedX,FLR+0.02,b.pos.z||0);
 }
 
 function _spawnBall(){
@@ -6353,7 +6462,7 @@ function _drawBulletTimeOverlay(){
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.55})`; ctx.fill();
   ctx.font='600 9px "Helvetica Neue",Arial,sans-serif';
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.3})`; ctx.textAlign='center';
-  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-24);
+  ctx.fillText(locked>0.6?'LOCKED · RELEASE TO FIRE':'BULLET TIME · AIM WITH MOUSE · RELEASE RIGHT-CLICK TO FIRE',W/2,H-24);
   ctx.restore();
   _drawBballHUD(ctx,dpr);
 }
@@ -6490,6 +6599,21 @@ function _drawScoreFlash(){
     }
   },{capture:true});
 
+  // ── Right-click: hold to aim, release to fire — one continuous gesture ──────
+  // instead of a right-click toggle followed by a separate left-click to fire.
+  canvas.addEventListener('mousedown',e=>{
+    if(e.button!==2||!_isBBallActive()||_hoopDragging) return;
+    _bulletTime=true;
+    _bulletTimeMouse.x=e.clientX; _bulletTimeMouse.y=e.clientY;
+    e.preventDefault(); e.stopImmediatePropagation();
+  },{capture:true});
+  window.addEventListener('mouseup',e=>{
+    if(e.button!==2||!_bulletTime||!_bbBall) return;
+    _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
+    _bulletTime=false;
+    const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
+  });
+
   window.addEventListener('mousemove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.clientX; _aimCurrent.y=e.clientY; });
   window.addEventListener('mouseup',e=>{
     if(!_aimDrag||e.button!==0) return;
@@ -6611,8 +6735,6 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('contextmenu',e=>{
   if(!(LEVELS[6]&&LEVELS[6].basketball&&lvl===6)) return;
   e.preventDefault();
-  _bulletTime=!_bulletTime;
-  if(!_bulletTime){ const ac=_getAimCanvas(); if(ac){const ctx=ac.getContext('2d');ctx.clearRect(0,0,ac.width,ac.height);} }
 },true);
 
 window.addEventListener('mousemove',e=>{ _bulletTimeMouse.x=e.clientX; _bulletTimeMouse.y=e.clientY; });
