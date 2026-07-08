@@ -1670,8 +1670,8 @@ function getFontMetrics(){
     ? Math.round(Math.min(W * 0.055, 24))
     : Math.round(Math.min(W * 0.030, 48));
   TYPO.swiss.size  = swissSz;
-  TYPO.swiss.charW = swissSz * 0.64;  // tight tracking — bold Swiss caps sit close together
-  TYPO.swiss.lineH = swissSz * 1.02;
+  TYPO.swiss.charW = swissSz * 0.74;  // was 0.64 — too tight for a 900-weight face, caps were crowding/overlapping
+  TYPO.swiss.lineH = swissSz * 1.18;  // was 1.02 — rows had almost no breathing room
 
   return { CHAR_W: TYPO.body.charW, LINE_H: TYPO.body.lineH };
 }
@@ -2222,8 +2222,8 @@ class Attractor {
         const scaleBH = Math.sqrt(this.pullStrength / basePullBH);
         const rEff = this.radius * scaleBH * 1.2;
 
-        const RESTITUTION = 0.78;
-        const FRICTION = 0.985;
+        const RESTITUTION = this._isBBall ? 0.78 : 0.77;
+        const FRICTION = this._isBBall ? 0.992 : 0.985;
 
         // Use actual viewport edges in world space for horizontal bounds
         const edgeLW = s2w(0, H / 2).x;
@@ -2271,7 +2271,7 @@ class Attractor {
         // Wall bounces — only apply horizontal bounce if no wormhole teleport
         // Soft energy boost on collision: gentle persistent kick so BH never fully loses momentum
         const BH_WALL_BOOST = 0.18; // lateral nudge on side hits
-        const BH_FLOOR_BOOST = 0.22; // vertical nudge on floor hit
+        const BH_FLOOR_BOOST = this._isBBall ? 0.32 : 0.22; // vertical nudge on floor hit
         if (this.pos.y - rEff < BY_FLOOR) {
           // Basketball: snap to its true render radius + a touch of clearance
           // (rEff is a pullStrength-derived approximation used for the trigger
@@ -2896,7 +2896,7 @@ function initLevel(n){
     HOOP.rimR=HOOP.rimRBase; HOOP._missStreak=0;
     _buildHoop();
     setTimeout(() => { _spawnBall(); for(let _i=0;_i<MP;_i++) spawn(_i); }, 200);
-    showBballSwissText('cx // craft.<br>experience.', false);
+    showBballSwissText('craft & experience<br>under development', false);
   } else {
     // Leaving basketball — tear down hoop/ball/net
     if (_hoopGroup) { scene.remove(_hoopGroup); _hoopGroup.traverse(c=>{if(c.geometry)c.geometry.dispose();if(c.material){if(Array.isArray(c.material))c.material.forEach(m=>m.dispose());else c.material.dispose();}}); _hoopGroup=null; }
@@ -4515,7 +4515,7 @@ window.addEventListener('wheel',e=>{
   if(isBball&&tAttractor&&tAttractor===_bbBall){
     // Ball held: scroll scales gravity
     const GRAV_MIN=0.5,GRAV_MAX=28.0,GRAV_STEP=0.55;
-    _bbBall._bbGravity=Math.max(GRAV_MIN,Math.min(GRAV_MAX,(_bbBall._bbGravity||17.0)+dir*GRAV_STEP));
+    _bbBall._bbGravity=Math.max(GRAV_MIN,Math.min(GRAV_MAX,(_bbBall._bbGravity||15.0)+dir*GRAV_STEP));
     return;
   }
 
@@ -6018,7 +6018,7 @@ function _spawnBall(){
   ball._bouncingBH=true; ball._isBBall=true;
   ball.radius=0.72; ball.consumeRadius=0.001; ball.pullStrength=32.0;
   ball.vel.set(0,-0.4,0);
-  ball._bbGravity=17.0; ball._bbRestitution=0.62; ball._bbFriction=0.985; ball._bbMaxSpd=36;
+  ball._bbGravity=12.0; ball._bbRestitution=0.72; ball._bbFriction=0.99; ball._bbMaxSpd=36;
   attractors.push(ball); _bbBall=ball;
   HOOP._lastBallY=null; HOOP._lastRelY=null;
   HOOP._dbTiltX=0; HOOP._dbVelX=0; HOOP._dbTiltZ=0; HOOP._dbVelZ=0;
@@ -6028,7 +6028,7 @@ function _spawnBall(){
 function _tickBBall(dt){
   if(!_bbBall||_bbBall.dragging) return;
   const b=_bbBall;
-  const GRAV=b._bbGravity||17.0;
+  const GRAV=b._bbGravity||12.0;
   // During bullet time, scaledDt is ~0.08× normal. Compensate gravity so the ball
   // still falls at close to normal speed — only slightly floatier, not moon-physics.
   const gravMult = _bulletTime ? (1.0 / Math.max(0.08, _bulletTimeScale)) * 0.82 : 1.0;
