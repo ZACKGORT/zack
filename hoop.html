@@ -4454,6 +4454,7 @@ renderer.domElement.addEventListener('contextmenu', e => { e.preventDefault(); }
 
 renderer.domElement.addEventListener('mousedown', e => {
   if (e.button !== 2) return; // right button only
+  if (LEVELS[6] && LEVELS[6].basketball && lvl === 6) return; // basketball has its own right-click flow (bullet-time)
   e.preventDefault();
   _collapseStart(e.clientX, e.clientY);
 }, true);
@@ -6462,7 +6463,7 @@ function _drawBulletTimeOverlay(){
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.55})`; ctx.fill();
   ctx.font='600 9px "Helvetica Neue",Arial,sans-serif';
   ctx.fillStyle=`rgba(${arcR},${arcG},${arcB},${0.35+locked*0.3})`; ctx.textAlign='center';
-  ctx.fillText(locked>0.6?'LOCKED · RELEASE TO FIRE':'BULLET TIME · AIM WITH MOUSE · RELEASE RIGHT-CLICK TO FIRE',W/2,H-24);
+  ctx.fillText(locked>0.6?'LOCKED · CLICK TO FIRE':'BULLET TIME · AIM WITH MOUSE · CLICK TO FIRE · RIGHT-CLICK TO EXIT',W/2,H-24);
   ctx.restore();
   _drawBballHUD(ctx,dpr);
 }
@@ -6599,21 +6600,6 @@ function _drawScoreFlash(){
     }
   },{capture:true});
 
-  // ── Right-click: hold to aim, release to fire — one continuous gesture ──────
-  // instead of a right-click toggle followed by a separate left-click to fire.
-  canvas.addEventListener('mousedown',e=>{
-    if(e.button!==2||!_isBBallActive()||_hoopDragging) return;
-    _bulletTime=true;
-    _bulletTimeMouse.x=e.clientX; _bulletTimeMouse.y=e.clientY;
-    e.preventDefault(); e.stopImmediatePropagation();
-  },{capture:true});
-  window.addEventListener('mouseup',e=>{
-    if(e.button!==2||!_bulletTime||!_bbBall) return;
-    _bbBall.vel.x=_btLaunchVx; _bbBall.vel.y=_btLaunchVy; _bbBall._wasThrown=true; HOOP.streak=0;
-    _bulletTime=false;
-    const ac=_getAimCanvas(); if(ac) ac.getContext('2d').clearRect(0,0,ac.width,ac.height);
-  });
-
   window.addEventListener('mousemove',e=>{ if(!_aimDrag) return; _aimCurrent.x=e.clientX; _aimCurrent.y=e.clientY; });
   window.addEventListener('mouseup',e=>{
     if(!_aimDrag||e.button!==0) return;
@@ -6735,6 +6721,8 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('contextmenu',e=>{
   if(!(LEVELS[6]&&LEVELS[6].basketball&&lvl===6)) return;
   e.preventDefault();
+  _bulletTime=!_bulletTime;
+  if(!_bulletTime){ const ac=_getAimCanvas(); if(ac){const ctx=ac.getContext('2d');ctx.clearRect(0,0,ac.width,ac.height);} }
 },true);
 
 window.addEventListener('mousemove',e=>{ _bulletTimeMouse.x=e.clientX; _bulletTimeMouse.y=e.clientY; });
