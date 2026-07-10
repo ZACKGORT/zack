@@ -1106,25 +1106,200 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   .work-rows.list-mode .work-row{display:grid}
 }
 
-/* ── ABOUT FONT SWITCHER ── */
-.about-font-group{display:flex;align-items:center;gap:6px;margin-right:16px}
-.about-font-pill{
-  height:22px;padding:0 10px;
-  font-size:var(--fs-caption);font-weight:700;letter-spacing:-.01em;
-  color:rgba(var(--fg-rgb),.35);
-  border:1px solid rgba(var(--fg-rgb),.15);
-  border-radius:2px;background:none;cursor:none;
-  transition:color .15s,background .15s,border-color .15s;
-  white-space:nowrap;line-height:22px;
+/* ── LETTERS: bottom floating HUD (letter selector / arrows) ── */
+.letters-hud{
+  position:fixed;
+  left:50%;bottom:24px;
+  transform:translateX(-50%);
+  display:flex;align-items:center;gap:14px;
+  padding:10px 18px;
+  background:var(--nav-bg,var(--bg));
+  background:rgba(var(--nav-bg-rgb),.9);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1px solid var(--rule);
+  border-radius:999px;
+  box-shadow:0 16px 48px rgba(0,0,0,.28);
+  z-index:400;
 }
-.about-font-pill:hover{color:rgba(var(--fg-rgb),.7);border-color:rgba(var(--fg-rgb),.3)}
-.about-font-pill.active{background:rgba(var(--fg-rgb),.1);color:rgba(var(--fg-rgb),.85);border-color:rgba(var(--fg-rgb),.25)}
-.fp-aa{display:none}
+.letters-pager-arrow{
+  width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;color:rgba(var(--fg-rgb),.45);background:none;border:none;cursor:pointer;
+  transition:color .15s;
+}
+.letters-pager-arrow:hover{color:var(--fg)}
+.letters-pager-dots{display:flex;align-items:center;gap:7px}
+.letters-dot{
+  width:6px;height:6px;border-radius:50%;padding:0;border:none;
+  background:rgba(var(--fg-rgb),.2);cursor:pointer;transition:background .15s,transform .15s;
+}
+.letters-dot:hover{background:rgba(var(--fg-rgb),.45)}
+.letters-dot.active{background:var(--fg);transform:scale(1.3)}
+.letters-pager-label{
+  font-size:var(--fs-caption);font-weight:700;letter-spacing:.02em;color:rgba(var(--fg-rgb),.6);
+  min-width:64px;text-align:center;
+}
 @media(max-width:640px){
-  .fp-name{display:none}
-  .fp-aa{display:inline}
+  .letters-hud{display:none}
 }
-#view-about .about-heading{font-family:var(--about-font,'Inter',sans-serif);transition:font-family .0s}
+
+/* ── LETTERS: desktop horizontal scroll-snap track ── */
+.letters-viewport{position:relative;overflow:hidden}
+.letters-track{
+  display:flex;
+  gap:20px;
+  padding:0 12vw;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;
+  -webkit-overflow-scrolling:touch;
+  cursor:grab;
+  user-select:none;
+  box-sizing:border-box;
+}
+.letters-track.dragging{
+  cursor:grabbing;
+  scroll-snap-type:none;
+  scroll-behavior:auto;
+}
+.letter-panel{
+  flex:0 0 76%;
+  width:76%;
+  scroll-snap-align:center;
+  min-height:calc(100vh - var(--nav-h) - var(--bc-h) - 32px);
+  box-sizing:border-box;
+  transition:opacity .25s ease;
+}
+.letter-panel.letter-panel-clone{
+  opacity:.45;
+  pointer-events:none;
+}
+@media(max-width:900px){
+  .letters-track{padding:0 6vw}
+  .letter-panel{flex:0 0 88%;width:88%}
+}
+
+/* ── LETTERS: consistent spacing scale + responsive type ── */
+:root{
+  --l-sp-1:8px; --l-sp-2:16px; --l-sp-3:24px; --l-sp-4:32px; --l-sp-5:40px; --l-sp-6:56px;
+  --l-hud-clearance:96px; /* room for the fixed bottom HUD so captions never sit under it */
+}
+.letter-panel-inner{
+  max-width:960px;margin:0 auto;
+  padding:calc(var(--nav-h) + var(--bc-h) + var(--l-sp-5)) clamp(16px,3vw,32px) var(--l-sp-6);
+}
+.letter-card-frame{
+  position:relative;
+  border:1px solid var(--rule);
+  padding:var(--l-sp-4) clamp(24px,4vw,var(--l-sp-5)) var(--l-hud-clearance);
+  min-height:calc(100vh - var(--nav-h) - var(--bc-h) - 140px);
+  display:flex;flex-direction:column;
+}
+.letter-card-num{
+  position:absolute;top:var(--l-sp-3);left:var(--l-sp-3);
+  font-size:var(--fs-nano);font-weight:700;letter-spacing:.1em;
+  color:rgba(var(--fg-rgb),.2);font-variant-numeric:tabular-nums;
+}
+.letter-card-arrow{
+  position:absolute;top:var(--l-sp-2);right:var(--l-sp-2);
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;color:rgba(var(--fg-rgb),.25);
+  background:none;border:none;cursor:pointer;
+  transition:color .15s,transform .15s;
+}
+.letter-card-arrow:hover{color:var(--fg);transform:translateX(3px)}
+.letter-card-arrow:disabled{opacity:.15;pointer-events:none}
+.letter-card-caption{
+  margin-top:auto;padding-top:var(--l-sp-4);
+  font-size:var(--fs-micro);font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:rgba(var(--fg-rgb),.3);
+}
+.letter-cover{
+  display:flex;flex-direction:column;gap:var(--l-sp-1);
+  padding-top:var(--l-sp-1);padding-bottom:var(--l-sp-3);margin-bottom:var(--l-sp-4);
+  border-bottom:1px solid var(--rule);
+}
+.letter-cover-kicker{
+  font-size:clamp(9px,.8vw,10px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(var(--fg-rgb),.35);
+}
+.letter-cover-name{font-size:clamp(22px,2.6vw,30px);line-height:1;letter-spacing:-.01em;color:var(--fg)}
+.letter-cover-deck{
+  font-size:clamp(12px,1.1vw,14px);line-height:1.55;color:rgba(var(--fg-rgb),.5);max-width:520px;
+}
+@media(max-width:640px){
+  .letter-card-frame{border:none;padding:0;min-height:0}
+  .letter-card-num,.letter-card-arrow{display:none}
+}
+.letters-grid-mobile{display:none}
+.letter-modal-overlay{display:none}
+
+@media(max-width:640px){
+  .letters-viewport{display:none}
+
+  /* ── LETTERS: mobile grid of cards ── */
+  .letters-grid-mobile{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:1px;
+    background:var(--rule);
+    padding:0 16px 60px;
+  }
+  .letter-card{
+    display:flex;align-items:center;gap:16px;
+    background:var(--bg);
+    border:none;
+    padding:24px 4px;
+    cursor:pointer;
+    text-align:left;
+  }
+  .letter-card-index{
+    font-size:11px;font-weight:600;letter-spacing:.08em;
+    color:rgba(var(--fg-rgb),.3);
+  }
+  .letter-card-name{
+    flex:1;
+    font-family:'Syne',sans-serif;font-weight:800;
+    font-size:28px;letter-spacing:-.01em;color:var(--fg);
+  }
+  .letter-card-arrow-icon{color:rgba(var(--fg-rgb),.35);font-size:18px}
+  .letter-card:active .letter-card-arrow-icon{color:var(--accent)}
+
+  /* ── LETTERS: mobile modal / bottom-sheet ── */
+  .letter-modal-overlay{
+    display:block;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.5);
+    z-index:900;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease;
+  }
+  .letter-modal-overlay.open{opacity:1;pointer-events:auto}
+  .letter-modal-sheet{
+    position:absolute;left:0;right:0;bottom:0;
+    max-height:86vh;
+    background:var(--bg);
+    border-top:1px solid var(--rule);
+    border-radius:16px 16px 0 0;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.16,1,.3,1);
+    padding-bottom:40px;
+  }
+  .letter-modal-overlay.open .letter-modal-sheet{transform:translateY(0)}
+  .letter-modal-close{
+    position:sticky;top:12px;left:calc(100% - 48px);
+    width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:rgba(var(--fg-rgb),.5);
+    background:rgba(var(--fg-rgb),.06);border:none;border-radius:50%;
+    z-index:2;cursor:pointer;
+  }
+  .letter-modal-slot .letter-panel{min-height:0}
+  .letter-modal-slot .letter-panel-inner{padding:8px 20px 32px}
+  body.letters-modal-locked{overflow:hidden}
+}
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(var(--fg-rgb),.2);border-radius:2px}
@@ -2400,25 +2575,43 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <span class="wt-chevron">◀</span>
     <input type="range" class="wt-slider cs-slider" min="28" max="72" value="48">
     <div class="wt-spacer"></div>
-    <div class="about-font-group">
-      <button class="about-font-pill" data-about-font="'Inter','Helvetica Neue',sans-serif" style="font-family:'Inter',sans-serif" data-label="Inter"><span class="fp-name">Inter</span><span class="fp-aa">Aa</span></button>
-      <button class="about-font-pill" data-about-font="'Playfair Display',serif" style="font-family:'Playfair Display',serif" data-label="Playfair"><span class="fp-name">Playfair</span><span class="fp-aa">Aa</span></button>
-      <button class="about-font-pill active" data-about-font="'Syne',sans-serif" style="font-family:'Syne',sans-serif;font-weight:800" data-label="Syne"><span class="fp-name">Syne</span><span class="fp-aa">Aa</span></button>
-      <button class="about-font-pill" data-about-font="'Bebas Neue',sans-serif" style="font-family:'Bebas Neue',sans-serif;font-weight:400;letter-spacing:.04em" data-label="Bebas"><span class="fp-name">Bebas</span><span class="fp-aa">Aa</span></button>
-      <button class="about-font-pill" data-about-font="'Space Grotesk',sans-serif" style="font-family:'Space Grotesk',sans-serif;font-weight:700" data-label="Space GK"><span class="fp-name">Space GK</span><span class="fp-aa">Aa</span></button>
-      <button class="about-font-pill" data-about-font="'DM Serif Display',serif" style="font-family:'DM Serif Display',serif;font-weight:400" data-label="DM Serif"><span class="fp-name">DM Serif</span><span class="fp-aa">Aa</span></button>
-    </div>
     <div class="wt-theme-group">
       <button class="wt-theme-btn dark-btn" title="Dark mode"></button>
       <button class="wt-theme-btn light-btn active" title="Light mode"></button>
     </div>
     <button class="wt-reset cs-reset-btn">Reset All</button>
   </div>
-  <div class="page-body" style="padding-top:calc(var(--nav-h) + var(--bc-h) + 40px)">
-    <div style="max-width:860px;margin:0 auto;padding:0 16px 60px">
 
-      <!-- ZCK GRT heading — particle canvas -->
-      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" style="margin-bottom:32px;min-height:120px">
+  <!-- Floating HUD: letter selector, clamped to the bottom of the viewport -->
+  <div class="letters-hud" role="group" aria-label="Letter navigation">
+    <button class="letters-pager-arrow letters-prev" aria-label="Previous letter">←</button>
+    <div class="letters-pager-dots">
+        <button class="letters-dot active" data-letter-index="0" aria-label="Go to About"></button>
+        <button class="letters-dot" data-letter-index="1" aria-label="Go to Insight"></button>
+        <button class="letters-dot" data-letter-index="2" aria-label="Go to Outlook"></button>
+        <button class="letters-dot" data-letter-index="3" aria-label="Go to Manifesto"></button>
+    </div>
+    <span class="letters-pager-label">About</span>
+    <button class="letters-pager-arrow letters-next" aria-label="Next letter">→</button>
+  </div>
+
+  <!-- Desktop: horizontal scroll-snap track of letters -->
+  <div class="letters-viewport">
+    <div class="letters-track" id="lettersTrack">
+      <section class="letter-panel" data-letter="about" id="letter-about" role="tabpanel" aria-label="About">
+        <div class="letter-panel-inner">
+        <div class="letter-card-frame">
+          <span class="letter-card-num">01</span>
+          <button class="letter-card-arrow" data-letter-arrow>→</button>
+
+      <div class="letter-cover">
+        <span class="letter-cover-kicker">LETTER 01 · ABOUT</span>
+        <span class="letter-cover-name" style="font-family:'Syne',sans-serif">About</span>
+        <span class="letter-cover-deck">Who I am, what I actually do, and why the résumé undersells it.</span>
+      </div>
+
+      <!-- About heading — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" data-heading-font="'Syne',sans-serif" style="margin-bottom:32px;min-height:120px">
         <canvas></canvas>
         <div class="fs-narrative-sr">ZCK GRT</div>
       </div>
@@ -2470,6 +2663,128 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <span class="tl-entry"><span class="tl-label">2007–11 · Turn5 / Bootstrap Startup: E-commerce</span><span class="tl-tooltip">Email and display ad marketing, UI and UX for multi-vertical e-commerce, product photography, catalog, packaging, print.</span></span>
         </div>
       </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="letter-panel" data-letter="insight" id="letter-insight" role="tabpanel" aria-label="Insight">
+        <div class="letter-panel-inner">
+        <div class="letter-card-frame">
+          <span class="letter-card-num">02</span>
+          <button class="letter-card-arrow" data-letter-arrow>→</button>
+
+      <div class="letter-cover">
+        <span class="letter-cover-kicker">LETTER 02 · INSIGHT</span>
+        <span class="letter-cover-name" style="font-family:'Space Grotesk',sans-serif">Insight</span>
+        <span class="letter-cover-deck">How I actually think about problems, before there’s a deck involved.</span>
+      </div>
+
+      <!-- Insight heading — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" data-heading-font="'Space Grotesk',sans-serif" style="margin-bottom:32px;min-height:120px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">PATTERNS, NOT PANIC</div>
+      </div>
+
+      <!-- Insight body — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles style="margin-bottom:40px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">Most &ldquo;insights&rdquo; are just observations wearing a blazer.<br><br>Real insight is noticing the same complaint show up in three different departments, worded three different ways, and realizing it's one problem in a trench coat.<br><br>I spend less time asking what users want and more time asking what they're already doing to get around us. That workaround is the real spec &mdash; nobody puts it in the ticket, but it's the truest research you'll get.<br><br>*psst &mdash; the workaround is always more honest than the roadmap.</div>
+      </div>
+
+      <div class="letter-card-caption">Insight · How I Actually Think About Problems</div>
+        </div>
+        </div>
+      </section>
+
+      <section class="letter-panel" data-letter="outlook" id="letter-outlook" role="tabpanel" aria-label="Outlook">
+        <div class="letter-panel-inner">
+        <div class="letter-card-frame">
+          <span class="letter-card-num">03</span>
+          <button class="letter-card-arrow" data-letter-arrow>→</button>
+
+      <div class="letter-cover">
+        <span class="letter-cover-kicker">LETTER 03 · OUTLOOK</span>
+        <span class="letter-cover-name" style="font-family:'Playfair Display',serif">Outlook</span>
+        <span class="letter-cover-deck">Where this job is headed, and what’s actually worth worrying about.</span>
+      </div>
+
+      <!-- Outlook heading — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" data-heading-font="'Playfair Display',serif" style="margin-bottom:32px;min-height:120px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">STILL SHIPPING</div>
+      </div>
+
+      <!-- Outlook body — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles style="margin-bottom:40px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">AI didn't replace my job. It replaced the parts of my job I was quietly resentful of anyway &mdash; the fifteenth spacing audit, the eleventh naming debate.<br><br>What's left is the part machines are bad at: reading a room, protecting a relationship, knowing when &ldquo;no&rdquo; actually means &ldquo;not yet.&rdquo;<br><br>My bet for the next few years: designers who can direct systems win. Designers who can only operate them don't.<br><br>*psst &mdash; I already automated the boring half of this bio.</div>
+      </div>
+
+      <div class="letter-card-caption">Outlook · Where This Is All Headed</div>
+        </div>
+        </div>
+      </section>
+
+      <section class="letter-panel" data-letter="manifesto" id="letter-manifesto" role="tabpanel" aria-label="Manifesto">
+        <div class="letter-panel-inner">
+        <div class="letter-card-frame">
+          <span class="letter-card-num">04</span>
+          <button class="letter-card-arrow" data-letter-arrow>→</button>
+
+      <div class="letter-cover">
+        <span class="letter-cover-kicker">LETTER 04 · MANIFESTO</span>
+        <span class="letter-cover-name" style="font-family:'Bebas Neue',sans-serif">Manifesto</span>
+        <span class="letter-cover-deck">Five rules I keep even when nobody’s checking.</span>
+      </div>
+
+      <!-- Manifesto heading — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles data-narrative-scale="7" data-narrative-font="heading" data-heading-font="'Bebas Neue',sans-serif" style="margin-bottom:32px;min-height:120px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">THE DOCTRINE</div>
+      </div>
+
+      <!-- Manifesto body — particle canvas -->
+      <div class="fs-narrative-canvas-wrap" data-narrative-particles style="margin-bottom:40px">
+        <canvas></canvas>
+        <div class="fs-narrative-sr">1. Ship the boring version first. Delight is a second draft.<br><br>2. If it needs a tooltip to explain itself, it's not done &mdash; it's confused.<br><br>3. Constraints aren't the enemy of good work. Boredom is.<br><br>4. The client is not always right, but they're always the client. Design the argument, not just the artifact.<br><br>5. If a.i. can do it in one prompt, that was never the interesting part of my job.<br><br>*psst &mdash; rule six is &ldquo;don't publish a manifesto,&rdquo; and yet.</div>
+      </div>
+
+      <div class="letter-card-caption">Manifesto · The Rules I Actually Keep</div>
+        </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Mobile: grid of letter cards -->
+  <div class="letters-grid-mobile" style="padding-top:calc(var(--nav-h) + var(--bc-h) + 24px)">
+      <button class="letter-card reveal" data-letter="about">
+        <span class="letter-card-index">01</span>
+        <span class="letter-card-name">About</span>
+        <span class="letter-card-arrow-icon">↗</span>
+      </button>
+      <button class="letter-card reveal" data-letter="insight">
+        <span class="letter-card-index">02</span>
+        <span class="letter-card-name">Insight</span>
+        <span class="letter-card-arrow-icon">↗</span>
+      </button>
+      <button class="letter-card reveal" data-letter="outlook">
+        <span class="letter-card-index">03</span>
+        <span class="letter-card-name">Outlook</span>
+        <span class="letter-card-arrow-icon">↗</span>
+      </button>
+      <button class="letter-card reveal" data-letter="manifesto">
+        <span class="letter-card-index">04</span>
+        <span class="letter-card-name">Manifesto</span>
+        <span class="letter-card-arrow-icon">↗</span>
+      </button>
+  </div>
+
+  <!-- Mobile: modal / bottom-sheet overlay for a tapped letter -->
+  <div class="letter-modal-overlay" id="letterModalOverlay">
+    <div class="letter-modal-sheet">
+      <button class="letter-modal-close" aria-label="Close">×</button>
+      <div class="letter-modal-slot" id="letterModalSlot"></div>
     </div>
   </div>
 </div>
@@ -2540,7 +2855,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <br><br>
         </section>
 
-        <section class="ct-section" data-label="Chapter 1 — Hi, I'm Zack">
+        <section class="ct-section" data-label="Hi, I'm Zack">
           <h2 class="ct-heading">Chapter 1</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Hi, I'm Zack</h1>
           <br><img src="https://i.ibb.co/XLRJ0yL/IMG-20160930-105946.jpg" style="width:100%;border-radius:4px"><br>
@@ -2548,7 +2863,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <blockquote style="border-left:2px solid var(--rule);padding-left:20px;margin:24px 0;font-style:italic;opacity:.7">"I think. I make. Will work for work."</blockquote>
         </section>
 
-        <section class="ct-section" data-label="Chapter 2 — The Impetus">
+        <section class="ct-section" data-label="The Impetus">
           <h2 class="ct-heading">Chapter 2</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">The Impetus</h1>
           <p class="ct-body" style="opacity:.5">Circa, 2007–2008</p>
@@ -2560,7 +2875,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">...to working with some well-to-do agencies working with a diverse client array.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 3 — Art School &quot;Stop Out&quot;">
+        <section class="ct-section" data-label="Art School &quot;Stop Out&quot;">
           <h2 class="ct-heading">Chapter 3</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Art School "Stop Out"</h1>
           <p class="ct-body" style="opacity:.5">Pratt Institute of Art, Brooklyn | Circa, 2002–03; 2004–05</p>
@@ -2570,7 +2885,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body" style="opacity:.5">{Attended Pratt: 2002–03; 2004–2005}</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 4 — Doings of an Autodidact">
+        <section class="ct-section" data-label="Doings of an Autodidact">
           <h2 class="ct-heading">Chapter 4</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Doings of an Autodidact</h1>
           <p class="ct-body" style="opacity:.5">Pennsylvania suburbia | Circa, 2002–03; 2004–05</p>
@@ -2584,7 +2899,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">All this culminated with an interview and subsequent job offer from Xoxide Incorporated {later turned Turn5 Inc.} which was the parent company to a number of niche e-commerce businesses operating in a variety of verticals {Beauty, Automotive, Tech}. I found their company through a Craigslist post in the web / design category. I can still pull up my original cover letter {which I just looked at and am considering reusing in my current job search endeavors}.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 5 — Found On Road Designing">
+        <section class="ct-section" data-label="Found On Road Designing">
           <h2 class="ct-heading">Chapter 5</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Found On Road Designing</h1>
           <p class="ct-body" style="opacity:.5">Omni-channel, Multi-vertical E-commerce Startup | Circa, 2008–11</p>
@@ -2604,7 +2919,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body"><strong>In many respects, Turn5 Inc. served as my formal education.</strong><br><br>I learned first and foremost how to work within a team environment, where everyone's role was crucial towards the company's success. There, I learned the ins-and-outs and nuance to graphic design, product photography and related production processes, email and display ad marketing, printed packaging and catalogs, and in the latter half of my nearly four years there, served as a web designer focused on user experience — by the books — as applied to a {then} forty-million per year ecommerce giant born from a garage somewhere in the suburbs of southeastern Pennsylvania.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 6 — Design by Data">
+        <section class="ct-section" data-label="Design by Data">
           <h2 class="ct-heading">Chapter 6</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Design by Data</h1>
           <p class="ct-body" style="opacity:.5">Lead Generation Startup | Circa, 2011–14</p>
@@ -2617,7 +2932,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">In short, my job was to make it intuitive and stress free {daresay pleasant} for one {user} to make catastrophic financial decisions {under clandestine duress} at a scale in tens of thousands per month.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 7 — Enter #AgencyLife">
+        <section class="ct-section" data-label="Enter #AgencyLife">
           <h2 class="ct-heading">Chapter 7</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Enter #AgencyLife</h1>
           <p class="ct-body" style="opacity:.5">One Sixty Over Ninety, an Advertising &amp; Branding Agency | Circa, 2014–2016</p>
@@ -2637,7 +2952,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">Responsibly 'Responsive', of course.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 8 — Gaining XP in UX">
+        <section class="ct-section" data-label="Gaining XP in UX">
           <h2 class="ct-heading">Chapter 8</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Gaining XP in UX</h1>
           <p class="ct-body" style="opacity:.5">O3 World, a digital product shop in Fishtown, Philly | Circa, 2017–18</p>
@@ -2652,7 +2967,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">"Office-friendly"</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 9 — Life at Workarea">
+        <section class="ct-section" data-label="Life at Workarea">
           <h2 class="ct-heading">Chapter 9</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Life at Workarea</h1>
           <p class="ct-body" style="opacity:.5">SaaS E-commerce Platform based in Olde City, PHI | Circa, 2017–18</p>
@@ -2660,7 +2975,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">I had mentioned Agile and Scrum. Well, say hello to Gidget, our adjunct project manager and scrum master at Workarea {a proprietary SaaS e-commerce platform}.<br><br>Here, I served as a Senior Visual and UX Designer. Here, we did wireframes differently. Here, we worked in direct partnership with our ever-ready-to-help developers. Napkin sketches, low-fi mockups, or just a few messages on Slack were all that was needed.<br><br>The work was building out our proprietary SaaS E-commerce Platform which we marketed out in typical agency-style to a number of A-list brands, using all insights and analytics towards optimizing our platform and expanding functionality to meet demand.<br><br>I don't have any work to show from here. I didn't save any of my napkins.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 10 — PHI > NYC; Rinse and Repeat">
+        <section class="ct-section" data-label="PHI > NYC; Rinse and Repeat">
           <h2 class="ct-heading">Chapter 10</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">PHI &gt; NYC; Rinse and Repeat</h1>
           <p class="ct-body" style="opacity:.5">Foot-in-the-door to the NYC agency scene | Circa 2018–2019</p>
@@ -2673,7 +2988,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">This non-profit client only had a $20K budget. Look at what I gave them for $20K. I can't show any of my Merck work due to NDA.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 11 — Cards Against Bad UX">
+        <section class="ct-section" data-label="Cards Against Bad UX">
           <h2 class="ct-heading">Chapter 11</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Cards Against Bad UX</h1>
           <p class="ct-body" style="opacity:.5">PFSweb, LiveArea {Pre Merkle Acquisition} | Circa, 2020–21</p>
@@ -2687,7 +3002,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">All I did was 'simplify what we asked'; to shift the conversation away from technical jargon and towards user-centric thinking. By providing different perspectives such as "As a shopper" "As a content manager" or "As a guest user", and pairing it with a simple visual {a card}, I was able to help our stakeholders empathize with their end-users and focus on their needs and experiences.<br><br>This approach not only catalyzed communication but also encouraged collaboration and problem-solving from both sides of the table. It allowed our client to see the project from various angles and find common ground, ultimately leading to more effective solutions and preventing frustration or contract abandonment.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 12 — Small cog, HUGE Wheel">
+        <section class="ct-section" data-label="Small cog, HUGE Wheel">
           <h2 class="ct-heading">Chapter 12</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Small cog, HUGE Wheel</h1>
           <p class="ct-body" style="opacity:.5">Freelance with HUGE Inc. | Circa, 2021</p>
@@ -2697,7 +3012,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">At Huge, I couldn't tell you what my billable rate was, but I could say this was the first time I had seen a project with at least 20 different people involved {on just the agency side}.<br><br>At Huge, I was responsible for exploring a single user flow. There were other designers responsible for exploring other individual user flows. At no point during my time with Huge did I even know there were other designers on that project. To say we were siloed would be a gross understatement.<br><br>Being completely candid, I get it. This was a mere contract position. Huge hired numerous UX contractors to sign on few weeks or months. It was simply about a little bit of work done without any long-term commitments.<br><br>I would be thrilled to take on a more robust contract, but hopefully with a different {and more vested manager this time around}. Or, may I be the manager? ;)</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 13 — This is the Whey">
+        <section class="ct-section" data-label="This is the Whey">
           <h2 class="ct-heading">Chapter 13</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">This is the Whey</h1>
           <p class="ct-body" style="opacity:.5">Boutique West Coast Design Agency specializing in Shopify builds | Circa, 2021</p>
@@ -2726,7 +3041,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">Reward</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 14 — Long Way to the Top">
+        <section class="ct-section" data-label="Long Way to the Top">
           <h2 class="ct-heading">Chapter 14</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Long Way to the Top</h1>
           <p class="ct-body" style="opacity:.5">62nd Floor of the World One Trade Center Tower | Circa, 2021</p>
@@ -2741,7 +3056,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">Besides resourcing hurdles, there were issues spanning practicality and pragmatism, suffice to say.<br><br>Despite offering to improve internal education initiatives and providing proactive feedback {submitting a 'post mortem', as requested}, I was let go from Code &amp; Theory without explanation. It was a challenging experience, but one that taught me valuable lessons about the realities of working in a large agency environment.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 15 — #SeizeTheSpace #BonCourage">
+        <section class="ct-section" data-label="#SeizeTheSpace #BonCourage">
           <h2 class="ct-heading">Chapter 15</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">#SeizeTheSpace #BonCourage</h1>
           <p class="ct-body" style="opacity:.5">375 Hudson Street, along "Agency Row" | Circa, 2022–2023</p>
@@ -2760,7 +3075,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">Also, lots of design systems work and data refactorization for a suite of Financial Advisor applications.</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 16 — Do the Twist!">
+        <section class="ct-section" data-label="Do the Twist!">
           <h2 class="ct-heading">Chapter 16</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Do the Twist!</h1>
           <p class="ct-body" style="opacity:.5">"Independent Contractor" | Circa, 2023–Present</p>
@@ -2779,7 +3094,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <p class="ct-body">As an aside, I've been keeping up with the latest happenings in the world of "Artificial Intelligence". I am absolutely unequivocally NOT worried about the 'thinking machines' taking over jobs, or the world for that matter. AI will never have the patience required (nor physical dexterity) to run and terminate physical ethernet cables or fiber optic lines. Never. {If it isn't clear, this is written in jest}</p>
         </section>
 
-        <section class="ct-section" data-label="Chapter 17 — Reason &amp; Resolution">
+        <section class="ct-section" data-label="Reason &amp; Resolution">
           <h2 class="ct-heading">Chapter 17</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Reason &amp; Resolution</h1>
           <p class="ct-body" style="opacity:.5">Setting up for success today | Changing paradigms tomorrow</p>
@@ -3166,7 +3481,6 @@ tbApplySize(toolbarState.size);
 tbApplyAlign(TOOLBAR_DEFAULTS.align);
 tbApplyTheme(TOOLBAR_DEFAULTS.theme);
 window._heroBg = '#0a0a0a';
-window._aboutFont = "'Syne',sans-serif";
 
 initToolbar(document.getElementById('work-toolbar'));
 document.querySelectorAll('.cs-toolbar-inst').forEach(t => initToolbar(t));
@@ -3219,23 +3533,218 @@ document.querySelectorAll('.cs-toolbar-inst').forEach(t => initLayoutToggle(t));
   setWorkLayout('grid');
 })();
 
-// ── ABOUT PAGE FONT SWITCHER ───────────────────────────────────────────────
-const ABOUT_FONT_DEFAULT = "'Syne',sans-serif";
-function applyAboutFont(fontVal) {
-  window._aboutFont = fontVal;
-  document.documentElement.style.setProperty('--about-font', fontVal);
-  document.querySelectorAll('.about-font-pill').forEach(p =>
-    p.classList.toggle('active', p.dataset.aboutFont === fontVal)
-  );
-  // Only rebuild the heading canvas — body canvases always use Inter
-  document.querySelectorAll('[data-narrative-font="heading"]').forEach(wrap => {
-    if (wrap._narrInst) { wrap._narrInst.dead = true; }
-    initNarrativeParticles(wrap);
+// ── LETTERS: horizontal pager (desktop) + card/modal (mobile) ──────────────
+(function initLetters() {
+  const LETTER_IDS = ['about', 'insight', 'outlook', 'manifesto'];
+  const LETTER_NAMES = { about: 'About', insight: 'Insight', outlook: 'Outlook', manifesto: 'Manifesto' };
+
+  const track   = document.getElementById('lettersTrack');
+  const pager   = document.querySelector('.letters-hud');
+  if (!track || !pager) return;
+
+  const prevBtn = pager.querySelector('.letters-prev');
+  const nextBtn = pager.querySelector('.letters-next');
+  const dots    = Array.from(pager.querySelectorAll('.letters-dot'));
+  const label   = pager.querySelector('.letters-pager-label');
+
+  // ── Build infinite-loop peek clones: [clone(manifesto), about, insight, outlook, manifesto, clone(about)] ──
+  const realPanels = LETTER_IDS.map(id => document.getElementById('letter-' + id));
+
+  function makeClone(panel, cloneId) {
+    const clone = panel.cloneNode(true);
+    clone.id = cloneId;
+    clone.classList.add('letter-panel-clone');
+    clone.setAttribute('aria-hidden', 'true');
+    clone.querySelectorAll('button, a, [tabindex]').forEach(el => el.setAttribute('tabindex', '-1'));
+    return clone;
+  }
+
+  const cloneStart = makeClone(realPanels[realPanels.length - 1], 'letter-clone-start'); // peek of Manifesto
+  const cloneEnd   = makeClone(realPanels[0], 'letter-clone-end');                        // peek of About
+  track.insertBefore(cloneStart, realPanels[0]);
+  track.appendChild(cloneEnd);
+
+  // allPanels[0] = clone(manifesto), allPanels[1..4] = real About..Manifesto, allPanels[5] = clone(about)
+  function getAllPanels() { return Array.from(track.children); }
+
+  let activeIndex = 0;   // real index, 0-3
+  let isScrolling = false;
+
+  function updatePagerUI(idx) {
+    activeIndex = ((idx % LETTER_IDS.length) + LETTER_IDS.length) % LETTER_IDS.length;
+    dots.forEach((d, i) => d.classList.toggle('active', i === activeIndex));
+    label.textContent = LETTER_NAMES[LETTER_IDS[activeIndex]];
+  }
+
+  function scrollToReal(realIdx, behavior) {
+    const idx = ((realIdx % LETTER_IDS.length) + LETTER_IDS.length) % LETTER_IDS.length;
+    const target = getAllPanels()[idx + 1]; // +1 to skip the leading clone
+    isScrolling = true;
+    target.scrollIntoView({ behavior: behavior || 'smooth', inline: 'center', block: 'nearest' });
+    updatePagerUI(idx);
+    setTimeout(() => { isScrolling = false; }, 500);
+  }
+
+  function nearestPanelIndex() {
+    const panels = getAllPanels();
+    const trackRect = track.getBoundingClientRect();
+    const centerX = trackRect.left + trackRect.width / 2;
+    let best = 0, bestDist = Infinity;
+    panels.forEach((p, i) => {
+      const r = p.getBoundingClientRect();
+      const c = r.left + r.width / 2;
+      const d = Math.abs(c - centerX);
+      if (d < bestDist) { bestDist = d; best = i; }
+    });
+    return best;
+  }
+
+  // If we've settled on a peek clone, silently jump (no animation) to the real slide it mirrors
+  function correctIfOnClone() {
+    const panels = getAllPanels();
+    const idx = nearestPanelIndex();
+    if (panels[idx] === cloneStart) {
+      scrollToReal(LETTER_IDS.length - 1, 'auto'); // land on real Manifesto
+    } else if (panels[idx] === cloneEnd) {
+      scrollToReal(0, 'auto'); // land on real About
+    } else {
+      updatePagerUI(idx - 1);
+    }
+  }
+
+  prevBtn.addEventListener('click', () => scrollToReal(activeIndex - 1));
+  nextBtn.addEventListener('click', () => scrollToReal(activeIndex + 1));
+  dots.forEach((dot, i) => dot.addEventListener('click', () => scrollToReal(i)));
+
+  // In-card arrow (top-right of each tall card) also advances to the next letter — wraps infinitely
+  document.querySelectorAll('[data-letter-arrow]').forEach(btn => {
+    btn.addEventListener('click', () => scrollToReal(activeIndex + 1));
   });
-}
-document.querySelectorAll('.about-font-pill').forEach(pill => {
-  pill.addEventListener('click', () => applyAboutFont(pill.dataset.aboutFont));
-});
+
+  // ── Click-and-drag to pan between letters (like dragging a grid) ─────────
+  let isDragging = false;
+  let dragMoved = false;
+  let dragStartX = 0;
+  let dragStartScroll = 0;
+
+  track.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // left click / touch only
+    isDragging = true;
+    dragMoved = false;
+    dragStartX = e.clientX;
+    dragStartScroll = track.scrollLeft;
+    track.classList.add('dragging');
+    track.setPointerCapture(e.pointerId);
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    if (Math.abs(dx) > 4) dragMoved = true;
+    track.scrollLeft = dragStartScroll - dx;
+  });
+
+  function endDrag(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    track.classList.remove('dragging');
+    if (e && e.pointerId !== undefined) {
+      try { track.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+    // let the nearest panel settle now that scroll-snap is re-enabled — then correct for clones
+    requestAnimationFrame(() => correctIfOnClone());
+  }
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+  track.addEventListener('pointerleave', (e) => { if (isDragging) endDrag(e); });
+
+  // Suppress the click on cards/arrows/dots that immediately follows a drag
+  track.addEventListener('click', (e) => {
+    if (dragMoved) {
+      e.preventDefault();
+      e.stopPropagation();
+      dragMoved = false;
+    }
+  }, true);
+
+  // Debounced "settle" check for native trackpad/wheel scrolling (no pointer drag involved)
+  let scrollRaf = null;
+  let settleTimer = null;
+  track.addEventListener('scroll', () => {
+    if (isScrolling) return;
+    if (scrollRaf) cancelAnimationFrame(scrollRaf);
+    scrollRaf = requestAnimationFrame(() => {
+      const idx = nearestPanelIndex();
+      if (idx - 1 !== activeIndex) updatePagerUI(idx - 1);
+    });
+    if (settleTimer) clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+      if (!isDragging) correctIfOnClone();
+    }, 160);
+  });
+
+  window.addEventListener('resize', () => {
+    if (currentView === 'about') scrollToReal(activeIndex, 'auto');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (currentView !== 'about') return;
+    if (window.innerWidth <= 640) return;
+    const tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.key === 'ArrowLeft') { scrollToReal(activeIndex - 1); }
+    if (e.key === 'ArrowRight') { scrollToReal(activeIndex + 1); }
+  });
+
+  updatePagerUI(0);
+  // Land on the real "About" slide (skip the leading clone), but only once —
+  // scrollIntoView is unreliable while the view is still display:none, so we
+  // do this lazily the first time showView() actually reveals #view-about.
+  let hasInitializedPosition = false;
+  window._lettersOnShow = function () {
+    if (hasInitializedPosition) return;
+    hasInitializedPosition = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollToReal(0, 'auto')));
+  };
+
+  // ── Mobile: tap a card → move its panel into the modal sheet ──────────────
+  const overlay = document.getElementById('letterModalOverlay');
+  const slot    = document.getElementById('letterModalSlot');
+  const closeBtn = overlay.querySelector('.letter-modal-close');
+  let homePanel = null;
+  let homeNextSibling = null;
+
+  function openLetter(id) {
+    const panel = document.getElementById('letter-' + id);
+    if (!panel) return;
+    homePanel = panel;
+    homeNextSibling = panel.nextElementSibling;
+    slot.appendChild(panel);
+    overlay.classList.add('open');
+    document.body.classList.add('letters-modal-locked');
+    initAllNarrativeParticles(panel);
+    setupReveal(panel);
+  }
+
+  function closeLetter() {
+    overlay.classList.remove('open');
+    document.body.classList.remove('letters-modal-locked');
+    if (homePanel) {
+      if (homeNextSibling) track.insertBefore(homePanel, homeNextSibling);
+      else track.appendChild(homePanel);
+      homePanel = null;
+      homeNextSibling = null;
+    }
+  }
+
+  document.querySelectorAll('.letter-card').forEach(card => {
+    card.addEventListener('click', () => openLetter(card.dataset.letter));
+  });
+  closeBtn.addEventListener('click', closeLetter);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeLetter();
+  });
+})();
 
 function tbResetWithLayout() {
   const sz = defaultSizeForView();
@@ -3254,7 +3763,6 @@ function tbResetWithLayout() {
   const wg = document.getElementById('wt-grid');
   if (wl) wl.classList.add('active');
   if (wg) wg.classList.remove('active');
-  applyAboutFont(ABOUT_FONT_DEFAULT);
 }
 
 window._heroBg = '#0a0a0a';
@@ -3572,6 +4080,9 @@ function showView(id) {
   if (typeof window._placeGlyphMetrics === 'function') {
     requestAnimationFrame(() => requestAnimationFrame(window._placeGlyphMetrics));
   }
+  if (id === 'about' && typeof window._lettersOnShow === 'function') {
+    window._lettersOnShow();
+  }
   setupReveal(el);
 }
 
@@ -3789,7 +4300,8 @@ function initNarrativeParticles(wrap) {
 
   let FONT_SIZE = Math.round(narrParticleSize() * scaleMult);
   let CHAR_W = FONT_SIZE * 0.602;
-  let LINE_H = FONT_SIZE * 1.45;
+  const isHeadingBlock = wrap.dataset.narrativeFont === 'heading';
+  let LINE_H = FONT_SIZE * (isHeadingBlock ? 1.02 : 1.45);
   let W, H, DPR;
   let mX = -999, mY = -999;
   let bX = -999, bY = -999;
@@ -3801,10 +4313,10 @@ function initNarrativeParticles(wrap) {
   function isDarkMode() { return (window._heroBg || '#0a0a0a') === '#0a0a0a'; }
 
   function currentFont() {
-    // Heading canvases (data-narrative-font="heading") use the pill-selected font.
-    // All body/narrative canvases always use Inter regardless of pill selection.
+    // Heading canvases (data-narrative-font="heading") use a font fixed per letter
+    // via data-heading-font on the wrap. Body/narrative canvases always use Inter.
     if (wrap.dataset.narrativeFont === 'heading') {
-      return window._aboutFont || "'Syne', sans-serif";
+      return wrap.dataset.headingFont || "'Syne', sans-serif";
     }
     return "'Inter','Helvetica Neue',sans-serif";
   }
@@ -3898,7 +4410,7 @@ function initNarrativeParticles(wrap) {
   function rebuild() {
     FONT_SIZE = Math.round(narrParticleSize() * scaleMult);
     CHAR_W    = FONT_SIZE * 0.602;
-    LINE_H    = FONT_SIZE * 1.45;
+    LINE_H    = FONT_SIZE * (isHeadingBlock ? 1.02 : 1.45);
     // Clear per-char width cache so new font/size is measured fresh
     Object.keys(_charWidthCache).forEach(k => delete _charWidthCache[k]);
     DPR = Math.min(window.devicePixelRatio || 1, 2);
