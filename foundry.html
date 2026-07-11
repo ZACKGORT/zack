@@ -2771,10 +2771,10 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-photo-tile{
   position:absolute;padding:0;overflow:hidden;border-radius:2px;
   background:rgba(var(--fg-rgb),.06);
-  will-change:transform,box-shadow;
   transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s cubic-bezier(.16,1,.3,1);
   cursor:pointer;
 }
+.ga-photo-tile:hover{will-change:transform,box-shadow}
 .ga-photo-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .ga-photo-idx{
   position:absolute;top:10px;left:12px;
@@ -5576,8 +5576,11 @@ function initAllNarrativeParticles(container) {
     setW = COLS * (TW + GAP); setH = ROWS * (TH + GAP);
     const vw = viewport.clientWidth || window.innerWidth;
     const vh = viewport.clientHeight || window.innerHeight;
-    copiesX = Math.max(1, Math.ceil(vw / setW)) + 2;
-    copiesY = Math.max(1, Math.ceil(vh / setH)) + 2;
+    // +1 ring of buffer copies is enough given the modulo-wrapped transform;
+    // +2 (the previous value) was rendering roughly double the DOM/image
+    // nodes for no visible benefit, which was the main source of jank.
+    copiesX = Math.max(1, Math.ceil(vw / setW)) + 1;
+    copiesY = Math.max(1, Math.ceil(vh / setH)) + 1;
   }
 
   function buildTiles() {
@@ -5616,7 +5619,7 @@ function initAllNarrativeParticles(container) {
             tile.dataset.tag = c.tag;
             tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
             tile.dataset.img = c.img;
-            tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
+            tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
             frag.appendChild(tile);
           }
         }
@@ -5700,7 +5703,9 @@ function initAllNarrativeParticles(container) {
     panX += dx; panY += dy;
     velX = velX * 0.72 + dx * 0.28; velY = velY * 0.72 + dy * 0.28;
     lastX = e.clientX; lastY = e.clientY;
-    applyTransform();
+    // No applyTransform() here — the tick loop (already running while
+    // dragging) renders once per animation frame instead of once per raw
+    // pointermove, which can fire far more often than the screen repaints.
   });
 
   const gaPostcardOverlay = document.getElementById('gaPostcardOverlay');
@@ -5761,12 +5766,23 @@ function initAllNarrativeParticles(container) {
 
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
+  let scaleRebuildQueued = false;
   function setBaseFont(px) {
     baseFontPx = Math.min(24, Math.max(11, px));
     if (scaleSlider) scaleSlider.value = String(baseFontPx);
     if (scaleLabel) scaleLabel.textContent = Math.round(baseFontPx) + 'px';
     stopInertia();
-    rebuildAndCenter();
+    // A slider drag can fire many 'input' events between animation frames;
+    // rebuilding the whole tile grid (hundreds of DOM/image nodes) on every
+    // single one of them was the main source of stutter while adjusting it.
+    // Coalesce to at most one rebuild per frame instead.
+    if (!scaleRebuildQueued) {
+      scaleRebuildQueued = true;
+      requestAnimationFrame(() => {
+        scaleRebuildQueued = false;
+        rebuildAndCenter();
+      });
+    }
   }
   if (scaleSlider) scaleSlider.addEventListener('input', () => setBaseFont(parseFloat(scaleSlider.value)));
   viewport.addEventListener('wheel', e => {
@@ -5777,10 +5793,17 @@ function initAllNarrativeParticles(container) {
   }, { passive: false });
 
   const marginSlider = document.getElementById('gaMarginSlider');
+  let marginRebuildQueued = false;
   if (marginSlider) {
     marginSlider.addEventListener('input', () => {
       marginMult = parseFloat(marginSlider.value);
-      recomputeDims(); buildTiles(); centerPan(); applyTransform();
+      if (!marginRebuildQueued) {
+        marginRebuildQueued = true;
+        requestAnimationFrame(() => {
+          marginRebuildQueued = false;
+          recomputeDims(); buildTiles(); centerPan(); applyTransform();
+        });
+      }
     });
   }
 
@@ -5887,7 +5910,7 @@ if (container && canvas) {
   fontLoader.load(
     "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
     (font) => {
-      const textGeometry = new TextGeometry("think. write. make.", {
+      const textGeometry = new TextGeometry("ZACK GORT", {
         font, size: 1, depth: 0, curveSegments: 5,
         bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
       });
