@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ice puck tray</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #000;
+  }
+  .webgl {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+    "jsm/": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas class="webgl"></canvas>
+
+<script type="module">
+import * as THREE from "three";
+import { GUI } from "jsm/libs/lil-gui.module.min.js";
+import { FontLoader } from "jsm/loaders/FontLoader.js";
+import { TextGeometry } from "jsm/geometries/TextGeometry.js";
+import { RectAreaLightUniformsLib } from "jsm/lights/RectAreaLightUniformsLib.js";
+import { RectAreaLightHelper } from "jsm/helpers/RectAreaLightHelper.js";
+
+const gui = new GUI();
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.z = 5;
+
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.querySelector(".webgl"),
+  antialias: true,
+});
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+// fonts (decorative background text, non-interactive)
+const fontLoader = new FontLoader();
+fontLoader.load(
+  "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
+  (font) => {
+    const textGeometry = new TextGeometry("thinking in circles", {
+      font,
+      size: 1,
+      depth: 0,
+      curveSegments: 5,
+      bevelEnabled: true,
+      bevelThickness: 0,
+      bevelSize: 0,
+      bevelOffset: 0,
+      bevelSegments: 4,
+    });
+    textGeometry.computeBoundingBox();
+    textGeometry.center();
+    const textMaterial = new THREE.MeshBasicMaterial();
+    textMaterial.wireframe = false;
+    const text = new THREE.Mesh(textGeometry, textMaterial);
+    text.position.z = -2;
+    scene.add(text);
+  }
+);
+
+// ---------------------------------------------------------
+// The tray: many rounded-glass "ice pucks" that collide with
+// each other and bounce off the screen edges (the tray walls).
+// Cylinders instead of cubes, same physics.
+// ---------------------------------------------------------
+const TRAY_Z = 1; // fixed depth every puck slides on
+
+const CONFIG = {
+  count: 33,      // driven by the GUI slider (quantity / density)
+  sizeScale: 1,    // driven by the scroll wheel
+};
+
+const MIN_SIZE_SCALE = 0.5;
+const MAX_SIZE_SCALE_HARD_CAP = 1.6; // absolute ceiling regardless of tray crowding
+const BASE_PUCK_RADIUS = 0.55; // geometry unit radius before scaling
+const BASE_PUCK_HEIGHT = 0.4;  // geometry unit thickness before scaling
+const BASE_PUCK_FILLET = 0.13; // rim rounding radius
+
+// A plain flat-rimmed cylinder kills the glass look for the same reason
+// a sharp-edged cube would: light can't bend smoothly across a hard corner.
+// This builds a lathe profile with a filleted (rounded) rim, so the glass
+// has a soft edge to catch iridescent highlights on, same as the cube's
+// RoundedBoxGeometry bevel did.
+function makeRoundedPuckGeometry(radius, height, fillet, radialSegments = 48, filletSegments = 8) {
+  const halfHeight = height / 2;
+  const flatRadius = radius - fillet;
+  const points = [];
+
+  points.push(new THREE.Vector2(0, -halfHeight));            // bottom center
+  points.push(new THREE.Vector2(flatRadius, -halfHeight));    // bottom face edge
+
+  const bottomArcCenter = new THREE.Vector2(flatRadius, -halfHeight + fillet);
+  for (let i = 1; i <= filletSegments; i++) {
+    const a = -Math.PI / 2 + (i / filletSegments) * (Math.PI / 2);
+    points.push(new THREE.Vector2(
+      bottomArcCenter.x + fillet * Math.cos(a),
+      bottomArcCenter.y + fillet * Math.sin(a)
+    ));
+  }
+
+  points.push(new THREE.Vector2(radius, halfHeight - fillet)); // top of the straight side wall
+
+  const topArcCenter = new THREE.Vector2(flatRadius, halfHeight - fillet);
+  for (let i = 1; i <= filletSegments; i++) {
+    const a = (i / filletSegments) * (Math.PI / 2);
+    points.push(new THREE.Vector2(
+      topArcCenter.x + fillet * Math.cos(a),
+      topArcCenter.y + fillet * Math.sin(a)
+    ));
+  }
+
+  points.push(new THREE.Vector2(0, halfHeight)); // top center
+
+  const geometry = new THREE.LatheGeometry(points, radialSegments);
+  geometry.rotateX(Math.PI / 2); // lathe revolves around Y by default -- turn it to face the camera along Z
+  return geometry;
+}
+
+// One shared geometry + material -- every puck looks the same glassy
+// way, and per-puck size differences come from group.scale rather
+// than regenerating geometry (which would be far more expensive).
+const puckGeometry = makeRoundedPuckGeometry(BASE_PUCK_RADIUS, BASE_PUCK_HEIGHT, BASE_PUCK_FILLET);
+const puckMaterial = new THREE.MeshPhysicalMaterial();
+puckMaterial.metalness = 0;
+puckMaterial.roughness = 0;
+puckMaterial.iridescence = 1;
+puckMaterial.iridescenceIOR = 1.5;
+puckMaterial.iridescenceThicknessRange = [100, 217];
+puckMaterial.transmission = 1;
+puckMaterial.ior = 1.75;
+puckMaterial.thickness = 1.325;
+
+//lights
+const ambientLight = new THREE.AmbientLight(0xffffff, 10);
+scene.add(ambientLight);
+const pointLight = new THREE.PointLight(0xffffff, 10);
+pointLight.position.set(-1, 2, 0);
+scene.add(pointLight);
+const pointLight2 = new THREE.PointLight(0xffffff, 10);
+pointLight2.position.set(-1, -2, 0);
+scene.add(pointLight2);
+const pointLight3 = new THREE.PointLight(0xffffff, 10);
+pointLight3.position.set(1, -2, 0);
+scene.add(pointLight3);
+const pointLight4 = new THREE.PointLight(0xffffff, 10);
+pointLight4.position.set(1, 2, 0);
+scene.add(pointLight4);
+
+// ---------------------------------------------------------
+// Rim lighting rig: four RectAreaLights ringing the tray so
+// whichever part of a puck's curved rim (or flat cap, at grazing
+// angles) faces one lights up. Same rig as the cube tray, just
+// aimed at a continuous curved surface instead of four flat facets.
+// ---------------------------------------------------------
+RectAreaLightUniformsLib.init();
+
+const RIM_LIGHT_CONFIG = { intensity: 3.1, helpers: false };
+
+function makeRimLight(color) {
+  const light = new THREE.RectAreaLight(color, RIM_LIGHT_CONFIG.intensity, 1, 1);
+  scene.add(light);
+  const helper = new RectAreaLightHelper(light);
+  helper.visible = RIM_LIGHT_CONFIG.helpers;
+  light.add(helper);
+  return light;
+}
+
+const bottomLight = makeRimLight(0xffffff);
+const topLight = makeRimLight(0xffffff);
+const leftLight = makeRimLight(0xffffff);
+const rightLight = makeRimLight(0xffffff);
+const rimLights = [bottomLight, topLight, leftLight, rightLight];
+
+function layoutRimLights() {
+  const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+  const margin = 0.4; // how far outside the tray each light sits
+
+  bottomLight.width = halfW * 2;
+  bottomLight.height = 0.6;
+  bottomLight.position.set(0, -halfH - margin, TRAY_Z);
+  bottomLight.lookAt(0, 0, TRAY_Z);
+
+  topLight.width = halfW * 2;
+  topLight.height = 0.6;
+  topLight.position.set(0, halfH + margin, TRAY_Z);
+  topLight.lookAt(0, 0, TRAY_Z);
+
+  leftLight.width = 0.6;
+  leftLight.height = halfH * 2;
+  leftLight.position.set(-halfW - margin, 0, TRAY_Z);
+  leftLight.lookAt(0, 0, TRAY_Z);
+
+  rightLight.width = 0.6;
+  rightLight.height = halfH * 2;
+  rightLight.position.set(halfW + margin, 0, TRAY_Z);
+  rightLight.lookAt(0, 0, TRAY_Z);
+}
+layoutRimLights();
+
+const rimFolder = gui.addFolder("Rim Lighting");
+rimFolder.add(RIM_LIGHT_CONFIG, "intensity", 0, 20, 0.1).onChange((v) => {
+  for (const l of rimLights) l.intensity = v;
+});
+rimFolder.add(RIM_LIGHT_CONFIG, "helpers").name("show helpers").onChange((v) => {
+  for (const l of rimLights) l.children[0].visible = v;
+});
+rimFolder.addColor({ color: "#ffffff" }, "color").name("bottom").onChange((v) => bottomLight.color.set(v));
+rimFolder.addColor({ color: "#ffffff" }, "color").name("top").onChange((v) => topLight.color.set(v));
+rimFolder.addColor({ color: "#ffffff" }, "color").name("left").onChange((v) => leftLight.color.set(v));
+rimFolder.addColor({ color: "#ffffff" }, "color").name("right").onChange((v) => rightLight.color.set(v));
+
+const materialFolder = gui.addFolder("Glass Material");
+materialFolder.add(puckMaterial, "metalness").min(0).max(1).step(0.001);
+materialFolder.add(puckMaterial, "roughness").min(0).max(1).step(0.001);
+materialFolder.add(puckMaterial, "iridescence").min(0).max(1).step(0.001);
+materialFolder.add(puckMaterial, "iridescenceIOR").min(1).max(2.333).step(0.001);
+materialFolder.add(puckMaterial.iridescenceThicknessRange, "0").min(0).max(1000).step(1).name("iridescence thickness min");
+materialFolder.add(puckMaterial.iridescenceThicknessRange, "1").min(0).max(1000).step(1).name("iridescence thickness max");
+materialFolder.add(puckMaterial, "transmission").min(0).max(1).step(0.001);
+materialFolder.add(puckMaterial, "ior").min(1).max(10).step(0.001);
+materialFolder.add(puckMaterial, "thickness").min(0).max(10).step(0.001);
+
+// ---------------------------------------------------------
+// Puck pool: { group, jitter, velocity(Vector2), angularVelocity, radius, mass }
+// ---------------------------------------------------------
+const pucks = [];
+
+function getBoundsAtDepth(depthZ) {
+  const distance = camera.position.z - depthZ;
+  const vFov = (camera.fov * Math.PI) / 180;
+  const height = 2 * Math.tan(vFov / 2) * distance;
+  const width = height * camera.aspect;
+  return { halfW: width / 2, halfH: height / 2 };
+}
+
+function radiusForPuck(puck) {
+  // a puck's collision footprint is an actual circle -- no corner-diagonal
+  // approximation needed like the cube tray required
+  return BASE_PUCK_RADIUS * puck.jitter * CONFIG.sizeScale;
+}
+
+// The size the scroll wheel can reach is capped two ways: an absolute
+// hard ceiling (MAX_SIZE_SCALE_HARD_CAP), and an adaptive ceiling that
+// shrinks as more pucks are packed in. Without this, e.g. 40 pucks at
+// max size would overlap so much per frame that collision resolution
+// has to shove them apart by huge distances every tick -- the pushes
+// overshoot, pucks fling across the tray, and it never settles.
+function maxSizeScaleForTray() {
+  const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+  const trayArea = halfW * 2 * (halfH * 2);
+  const n = Math.max(pucks.length, 1);
+  const perPuckAreaAtScale1 = Math.PI * BASE_PUCK_RADIUS * BASE_PUCK_RADIUS;
+  const packingBudget = trayArea * 0.55; // keep total footprint under ~55% of the tray
+  const scaleForBudget = Math.sqrt(packingBudget / (n * perPuckAreaAtScale1));
+  return THREE.MathUtils.clamp(scaleForBudget, MIN_SIZE_SCALE, MAX_SIZE_SCALE_HARD_CAP);
+}
+
+function clampSizeScale() {
+  CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale, MIN_SIZE_SCALE, maxSizeScaleForTray());
+}
+
+function applyScale(puck) {
+  const s = puck.jitter * CONFIG.sizeScale;
+  puck.group.scale.setScalar(s);
+  puck.radius = radiusForPuck(puck);
+  puck.mass = Math.pow(s, 3); // bigger pucks push harder, get pushed less
+}
+
+function spawnPuck() {
+  const group = new THREE.Group();
+  group.position.z = TRAY_Z;
+  const mesh = new THREE.Mesh(puckGeometry, puckMaterial);
+  group.add(mesh);
+  scene.add(group);
+
+  const puck = {
+    group,
+    jitter: 0.8 + Math.random() * 0.4, // slight natural size variety
+    velocity: new THREE.Vector2(0, 0),
+    angularVelocity: 0,
+    radius: 0,
+    mass: 1,
+  };
+  applyScale(puck);
+
+  const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+  const limX = Math.max(halfW - puck.radius, 0);
+  const limY = Math.max(halfH - puck.radius, 0);
+  group.position.x = (Math.random() * 2 - 1) * limX;
+  group.position.y = (Math.random() * 2 - 1) * limY;
+
+  pucks.push(puck);
+}
+
+function removePuck() {
+  const puck = pucks.pop();
+  if (puck) scene.remove(puck.group);
+}
+
+function setPuckCount(n) {
+  n = Math.max(1, Math.round(n));
+  while (pucks.length < n) spawnPuck();
+  while (pucks.length > n) removePuck();
+  clampSizeScale();
+  for (const puck of pucks) applyScale(puck);
+}
+
+setPuckCount(CONFIG.count);
+
+const trayFolder = gui.addFolder("Ice Tray");
+const countController = trayFolder.add(CONFIG, "count", 1, 40, 1).name("Quantity / Density").onChange(setPuckCount);
+trayFolder.open();
+gui.close();
+
+// ---------------------------------------------------------
+// Drag / throw physics -- one puck can be picked up at a time
+// ---------------------------------------------------------
+const canvas = renderer.domElement;
+const raycaster = new THREE.Raycaster();
+const pointerNDC = new THREE.Vector2();
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -TRAY_Z);
+const dragOffset = new THREE.Vector3();
+const intersection = new THREE.Vector3();
+
+let draggedPuck = null;
+let lastPointerTime = 0;
+const sampleVelocity = new THREE.Vector2(0, 0);
+
+const FRICTION = 0.85;         // per-second linear damping
+const ANGULAR_FRICTION = 0.9;  // per-second angular damping
+const RESTITUTION = 0.82;      // bounce energy retained
+const MIN_SPEED = 0.02;
+
+function updatePointerNDC(event) {
+  const rect = canvas.getBoundingClientRect();
+  pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+}
+
+function getPointOnDragPlane() {
+  raycaster.setFromCamera(pointerNDC, camera);
+  raycaster.ray.intersectPlane(dragPlane, intersection);
+  return intersection;
+}
+
+canvas.addEventListener("pointerdown", (event) => {
+  updatePointerNDC(event);
+  raycaster.setFromCamera(pointerNDC, camera);
+  const meshes = pucks.map((p) => p.group.children[0]);
+  const hits = raycaster.intersectObjects(meshes);
+  if (hits.length === 0) return;
+
+  const hitMesh = hits[0].object;
+  draggedPuck = pucks.find((p) => p.group.children[0] === hitMesh);
+  if (!draggedPuck) return;
+
+  canvas.style.cursor = "grabbing";
+  draggedPuck.velocity.set(0, 0);
+  draggedPuck.angularVelocity = 0;
+
+  const point = getPointOnDragPlane();
+  dragOffset.copy(draggedPuck.group.position).sub(point);
+
+  lastPointerTime = performance.now();
+  sampleVelocity.set(0, 0);
+
+  canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (!draggedPuck) return;
+  updatePointerNDC(event);
+  const point = getPointOnDragPlane();
+
+  const now = performance.now();
+  const dt = Math.max((now - lastPointerTime) / 1000, 1 / 120);
+
+  const newPos = point.clone().add(dragOffset);
+  const dx = newPos.x - draggedPuck.group.position.x;
+  const dy = newPos.y - draggedPuck.group.position.y;
+
+  draggedPuck.group.position.x = newPos.x;
+  draggedPuck.group.position.y = newPos.y;
+
+  // exponential smoothing so the throw velocity feels natural
+  sampleVelocity.x = sampleVelocity.x * 0.6 + (dx / dt) * 0.4;
+  sampleVelocity.y = sampleVelocity.y * 0.6 + (dy / dt) * 0.4;
+  draggedPuck.angularVelocity = draggedPuck.angularVelocity * 0.6 + (-dx / dt) * 0.15 * 0.4;
+
+  lastPointerTime = now;
+});
+
+function endDrag(event) {
+  if (!draggedPuck) return;
+  canvas.style.cursor = "grab";
+  draggedPuck.velocity.copy(sampleVelocity);
+  draggedPuck = null;
+  if (event && canvas.hasPointerCapture(event.pointerId)) {
+    canvas.releasePointerCapture(event.pointerId);
+  }
+}
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", endDrag);
+canvas.addEventListener("pointerleave", (event) => {
+  if (event.buttons === 0) endDrag(event);
+});
+
+canvas.style.cursor = "grab";
+
+// ---------------------------------------------------------
+// Scroll wheel controls quantity/density; hold Shift while
+// scrolling to resize the pucks instead.
+// ---------------------------------------------------------
+canvas.addEventListener(
+  "wheel",
+  (event) => {
+    event.preventDefault();
+
+    if (event.shiftKey) {
+      const delta = -event.deltaY * 0.0015;
+      CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale + delta, MIN_SIZE_SCALE, maxSizeScaleForTray());
+      for (const puck of pucks) applyScale(puck);
+    } else {
+      const delta = -event.deltaY * 0.02;
+      CONFIG.count = THREE.MathUtils.clamp(Math.round(CONFIG.count + delta), 1, 40);
+      setPuckCount(CONFIG.count);
+      countController.updateDisplay();
+    }
+  },
+  { passive: false }
+);
+
+// ---------------------------------------------------------
+// Pairwise collision resolution (puck vs puck -- an exact
+// circle-circle test, since pucks really are circular in the
+// tray's XY plane, unlike the cube's diagonal approximation)
+// ---------------------------------------------------------
+function resolveCollisions() {
+  for (let i = 0; i < pucks.length; i++) {
+    for (let j = i + 1; j < pucks.length; j++) {
+      const a = pucks[i];
+      const b = pucks[j];
+
+      let dx = b.group.position.x - a.group.position.x;
+      let dy = b.group.position.y - a.group.position.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = a.radius + b.radius;
+      if (dist >= minDist) continue;
+
+      if (dist === 0) {
+        // perfectly overlapping: nudge apart in a random direction
+        const angle = Math.random() * Math.PI * 2;
+        dx = Math.cos(angle);
+        dy = Math.sin(angle);
+        dist = 0.0001;
+      }
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = minDist - dist;
+
+      const totalMass = a.mass + b.mass;
+      const pushA = overlap * (b.mass / totalMass);
+      const pushB = overlap * (a.mass / totalMass);
+
+      // the held puck pushes others but doesn't get pushed back itself
+      if (a !== draggedPuck) {
+        a.group.position.x -= nx * pushA;
+        a.group.position.y -= ny * pushA;
+      }
+      if (b !== draggedPuck) {
+        b.group.position.x += nx * pushB;
+        b.group.position.y += ny * pushB;
+      }
+
+      const rvx = b.velocity.x - a.velocity.x;
+      const rvy = b.velocity.y - a.velocity.y;
+      const velAlongNormal = rvx * nx + rvy * ny;
+      if (velAlongNormal > 0) continue; // already separating
+
+      const e = RESTITUTION;
+      const jImpulse = (-(1 + e) * velAlongNormal) / (1 / a.mass + 1 / b.mass);
+      const impulseX = jImpulse * nx;
+      const impulseY = jImpulse * ny;
+
+      a.velocity.x -= impulseX / a.mass;
+      a.velocity.y -= impulseY / a.mass;
+      b.velocity.x += impulseX / b.mass;
+      b.velocity.y += impulseY / b.mass;
+
+      // a little spin from the impact, purely for visual flair
+      const tangent = -nx * impulseY + ny * impulseX;
+      a.angularVelocity -= tangent * 0.05;
+      b.angularVelocity += tangent * 0.05;
+    }
+  }
+}
+
+const clock = new THREE.Clock();
+
+const tick = () => {
+  const dt = Math.min(clock.getDelta(), 1 / 30);
+  const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+
+  for (const puck of pucks) {
+    if (puck !== draggedPuck) {
+      puck.group.position.x += puck.velocity.x * dt;
+      puck.group.position.y += puck.velocity.y * dt;
+
+      const limX = Math.max(halfW - puck.radius, 0);
+      const limY = Math.max(halfH - puck.radius, 0);
+
+      if (puck.group.position.x > limX) {
+        puck.group.position.x = limX;
+        puck.velocity.x *= -RESTITUTION;
+        puck.angularVelocity += puck.velocity.x * 0.2;
+      } else if (puck.group.position.x < -limX) {
+        puck.group.position.x = -limX;
+        puck.velocity.x *= -RESTITUTION;
+        puck.angularVelocity += puck.velocity.x * 0.2;
+      }
+
+      if (puck.group.position.y > limY) {
+        puck.group.position.y = limY;
+        puck.velocity.y *= -RESTITUTION;
+      } else if (puck.group.position.y < -limY) {
+        puck.group.position.y = -limY;
+        puck.velocity.y *= -RESTITUTION;
+      }
+
+      const linDamp = Math.pow(FRICTION, dt * 60);
+      puck.velocity.multiplyScalar(linDamp);
+      if (puck.velocity.length() < MIN_SPEED) puck.velocity.set(0, 0);
+    }
+
+    const angDamp = Math.pow(ANGULAR_FRICTION, dt * 60);
+    puck.angularVelocity *= angDamp;
+    if (Math.abs(puck.angularVelocity) < 0.001) puck.angularVelocity = 0;
+    puck.group.rotation.z += puck.angularVelocity * dt;
+  }
+
+  resolveCollisions();
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+};
+tick();
+
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  layoutRimLights();
+  clampSizeScale();
+  for (const puck of pucks) applyScale(puck);
+});
+</script>
+
+</body>
+</html>
