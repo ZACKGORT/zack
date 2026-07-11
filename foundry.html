@@ -1363,6 +1363,32 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   .letter-card-arrow-icon{align-self:center}
 }
 
+/* ── JOURNAL HERO: glass ice-tray scene, statement text (not a link) ── */
+.journal-hero-webgl{
+  position:relative;
+  width:100%;
+  height:480px;
+  margin-top:calc(var(--nav-h) + var(--bc-h));
+  background:#000;
+  overflow:hidden;
+}
+.journal-hero-webgl::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg, rgba(0,0,0,0) 45%, var(--bg) 100%);
+  pointer-events:none;
+}
+.journal-hero-canvas{
+  position:absolute;top:0;left:0;
+  width:100%;height:100%;
+  display:block;
+  touch-action:none;
+}
+@media(max-width:640px){
+  .journal-hero-webgl{height:340px}
+}
+
 /* ── JOURNAL FOOTER: glass cube demo, contained black section ── */
 .journal-footer-webgl{
   position:relative;
@@ -1517,7 +1543,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div class="work-row wr-font-bny reveal" onclick="navigate('bny')">
         <div class="wr-num">01</div>
         <div class="wr-left">
-          <div class="wr-client">de facto team lead and unassuming product owner whom assumed ownership in unifying internal and client teams towards transforming the client's disparate legacy software into a unified ecosystem</div>
+          <div class="wr-client">BNY Mellon — Pershing X | Financial Advisor Platform vis-a-vis Publicis Sapient<br></div>As the zero-to-one thinker that ultimately produced → Wove | Integrated Wealth Management Platform for Advisors
           <div class="wr-sub">BNY — Pershing X · WOVE · Advisory Experience Platform · Publicis Sapient</div>
         </div>
         <div class="wr-meta">
@@ -1539,7 +1565,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div class="work-row wr-font-gnc reveal" onclick="navigate('gnc')">
         <div class="wr-num">02</div>
         <div class="wr-left">
-          <div class="wr-client">"if the bar ain't bending, you just pretending" — my neighbor in fairmount, PHI, just <em>wheying in</em></div>
+          <div class="wr-client">"if the bar ain't bending, you just pretending" <br></div>— my neighbor from Fairmount, PHI, wheying in.
           <div class="wr-sub">Shopify Plus Redesign · Post-Bankruptcy Rebrand · $500m/y Recovery · Courtesy of Elva Design Group; now just "Elva"</div>
         </div>
         <div class="wr-meta">
@@ -1586,7 +1612,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div class="work-row wr-font-kent reveal" onclick="navigate('kent')">
         <div class="wr-num">04</div>
         <div class="wr-left">
-          <div class="wr-client">#agencylife — full-service agency and production house in center city, philly .</div>
+          <div class="wr-client">1 S BROAD, FLOOR 9 — a premiere full-service agency. </div> that went from #artdeco office vibes with city hall traffic vying for our clients' conversational time
           <div class="wr-sub">.EDU · Visual &amp; Interactive Design · IA + Navigation Prototypes + ADA-compliance (WCAG 2.0, minimum) · 160over90</div>
         </div>
         <div class="wr-meta">
@@ -2904,6 +2930,11 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
      VIEW: ABOUT
 ══════════════════════════════════════════ -->
 <div id="view-about" class="view">
+  <!-- Hero: glass ice-tray scene (clone of the footer), non-link statement -->
+  <div class="journal-hero-webgl" id="journalHeroWebgl">
+    <canvas class="journal-hero-canvas" id="journalHeroCanvas"></canvas>
+  </div>
+
   <div class="cs-toolbar cs-toolbar-inst">
     <span class="wt-size-label cs-size-label">48px</span>
       <span class="wt-size-hint">Shift+Scroll</span>
@@ -5933,7 +5964,7 @@ if (container && canvas) {
   fontLoader.load(
     "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
     (font) => {
-      const textGeometry = new TextGeometry("in/zackgort", {
+      const textGeometry = new TextGeometry("professional prose @ in/zackgort", {
         font, size: 1, depth: 0, curveSegments: 5,
         bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
       });
@@ -6187,6 +6218,347 @@ if (container && canvas) {
     const hits = raycaster.intersectObject(linkMesh);
     if (hits.length > 0) window.open(LINKEDIN_URL, '_blank', 'noopener');
   });
+
+  // ── Scroll wheel: quantity/density; shift+scroll resizes ──────────────
+  canvas.addEventListener('wheel', (event) => {
+    if (!isJournalActive()) return;
+    event.preventDefault();
+    if (event.shiftKey) {
+      const delta = -event.deltaY * 0.0015;
+      CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale + delta, MIN_SIZE_SCALE, maxSizeScaleForTray());
+      for (const cube of cubes) applyScale(cube);
+    } else {
+      const delta = -event.deltaY * 0.02;
+      CONFIG.count = THREE.MathUtils.clamp(Math.round(CONFIG.count + delta), 1, 40);
+      setCubeCount(CONFIG.count);
+    }
+  }, { passive: false });
+
+  // ── Pairwise collision resolution ──────────────────────────────────────
+  function resolveCollisions() {
+    for (let i = 0; i < cubes.length; i++) {
+      for (let j = i + 1; j < cubes.length; j++) {
+        const a = cubes[i], b = cubes[j];
+        let dx = b.group.position.x - a.group.position.x;
+        let dy = b.group.position.y - a.group.position.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = a.radius + b.radius;
+        if (dist >= minDist) continue;
+        if (dist === 0) {
+          const angle = Math.random() * Math.PI * 2;
+          dx = Math.cos(angle); dy = Math.sin(angle); dist = 0.0001;
+        }
+        const nx = dx / dist, ny = dy / dist;
+        const overlap = minDist - dist;
+        const totalMass = a.mass + b.mass;
+        const pushA = overlap * (b.mass / totalMass);
+        const pushB = overlap * (a.mass / totalMass);
+        if (a !== draggedCube) { a.group.position.x -= nx * pushA; a.group.position.y -= ny * pushA; }
+        if (b !== draggedCube) { b.group.position.x += nx * pushB; b.group.position.y += ny * pushB; }
+        const rvx = b.velocity.x - a.velocity.x, rvy = b.velocity.y - a.velocity.y;
+        const velAlongNormal = rvx * nx + rvy * ny;
+        if (velAlongNormal > 0) continue;
+        const e = RESTITUTION;
+        const jImpulse = (-(1 + e) * velAlongNormal) / (1 / a.mass + 1 / b.mass);
+        const impulseX = jImpulse * nx, impulseY = jImpulse * ny;
+        a.velocity.x -= impulseX / a.mass; a.velocity.y -= impulseY / a.mass;
+        b.velocity.x += impulseX / b.mass; b.velocity.y += impulseY / b.mass;
+        const tangent = -nx * impulseY + ny * impulseX;
+        a.angularVelocity -= tangent * 0.05;
+        b.angularVelocity += tangent * 0.05;
+      }
+    }
+  }
+
+  const clock = new THREE.Clock();
+  function tick() {
+    const dt = Math.min(clock.getDelta(), 1 / 30);
+
+    if (isJournalActive()) {
+      const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+      for (const cube of cubes) {
+        if (cube !== draggedCube) {
+          cube.group.position.x += cube.velocity.x * dt;
+          cube.group.position.y += cube.velocity.y * dt;
+          const limX = Math.max(halfW - cube.radius, 0);
+          const limY = Math.max(halfH - cube.radius, 0);
+          if (cube.group.position.x > limX) { cube.group.position.x = limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
+          else if (cube.group.position.x < -limX) { cube.group.position.x = -limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
+          if (cube.group.position.y > limY) { cube.group.position.y = limY; cube.velocity.y *= -RESTITUTION; }
+          else if (cube.group.position.y < -limY) { cube.group.position.y = -limY; cube.velocity.y *= -RESTITUTION; }
+          const linDamp = Math.pow(FRICTION, dt * 60);
+          cube.velocity.multiplyScalar(linDamp);
+          if (cube.velocity.length() < MIN_SPEED) cube.velocity.set(0, 0);
+        }
+        const angDamp = Math.pow(ANGULAR_FRICTION, dt * 60);
+        cube.angularVelocity *= angDamp;
+        if (Math.abs(cube.angularVelocity) < 0.001) cube.angularVelocity = 0;
+        cube.group.rotation.z += cube.angularVelocity * dt;
+      }
+      resolveCollisions();
+      renderer.render(scene, camera);
+    }
+
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+</script>
+
+<script type="module">
+// ── JOURNAL HERO: ice-tray scene — a clone of the Journal footer's glass
+//    ice tray (and, in turn, the Contact page's), placed at the top of the
+//    Journal page instead of the bottom. Same baked-in material, lighting
+//    rig, and drag/throw/collision physics. The text here is a plain
+//    statement, not a link — no hover/underline/click behavior.
+import * as THREE from "three";
+import { FontLoader } from "jsm/loaders/FontLoader.js";
+import { TextGeometry } from "jsm/geometries/TextGeometry.js";
+import { RoundedBoxGeometry } from "jsm/geometries/RoundedBoxGeometry.js";
+import { RectAreaLightUniformsLib } from "jsm/lights/RectAreaLightUniformsLib.js";
+
+const container = document.getElementById('journalHeroWebgl');
+const canvas = document.getElementById('journalHeroCanvas');
+if (container && canvas) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  camera.position.z = 5;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+
+  function resize() {
+    const w = container.clientWidth || 1;
+    const h = container.clientHeight || 1;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    layoutFacetLights();
+    clampSizeScale();
+    for (const cube of cubes) applyScale(cube);
+  }
+
+  // ── Statement text: real 3D mesh (so the cubes distort it), plain —
+  //    no link, no hover state, no underline. ──────────────────────────
+  const TEXT_Z = -2;
+
+  const fontLoader = new FontLoader();
+  fontLoader.load(
+    "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
+    (font) => {
+      const textGeometry = new TextGeometry("transparency as character currency", {
+        font, size: 0.4, depth: 0, curveSegments: 5,
+        bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
+      });
+      textGeometry.computeBoundingBox();
+      textGeometry.center();
+      const textMaterial = new THREE.MeshBasicMaterial();
+      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+      textMesh.position.z = TEXT_Z;
+      scene.add(textMesh);
+    }
+  );
+
+  // ── The tray: rounded-glass ice cubes ──────────────────────────────────
+  const TRAY_Z = 1;
+  const CONFIG = { count: 16, sizeScale: 1 };
+  const MIN_SIZE_SCALE = 0.5;
+  const MAX_SIZE_SCALE_HARD_CAP = 1.6;
+  const BASE_CUBE_SIZE = 0.9;
+
+  const cubeGeometry = new RoundedBoxGeometry(BASE_CUBE_SIZE, BASE_CUBE_SIZE, BASE_CUBE_SIZE, 6, 0.1);
+  const cubeMaterial = new THREE.MeshPhysicalMaterial();
+  cubeMaterial.metalness = 0;
+  cubeMaterial.roughness = 0;
+  cubeMaterial.iridescence = 1;
+  cubeMaterial.iridescenceIOR = 1.5;
+  cubeMaterial.iridescenceThicknessRange = [100, 217];
+  cubeMaterial.transmission = 1;
+  cubeMaterial.ior = 1.75;
+  cubeMaterial.thickness = 1.325;
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 10);
+  scene.add(ambientLight);
+  [[-1, 2, 0], [-1, -2, 0], [1, -2, 0], [1, 2, 0]].forEach(([x, y, z]) => {
+    const pl = new THREE.PointLight(0xffffff, 10);
+    pl.position.set(x, y, z);
+    scene.add(pl);
+  });
+
+  RectAreaLightUniformsLib.init();
+  const FACET_LIGHT_INTENSITY = 3.1;
+  function makeFacetLight(color) {
+    const light = new THREE.RectAreaLight(color, FACET_LIGHT_INTENSITY, 1, 1);
+    scene.add(light);
+    return light;
+  }
+  const bottomLight = makeFacetLight(0xffffff);
+  const topLight = makeFacetLight(0xffffff);
+  const leftLight = makeFacetLight(0xffffff);
+  const rightLight = makeFacetLight(0xffffff);
+  const facetLights = [bottomLight, topLight, leftLight, rightLight];
+
+  function getBoundsAtDepth(depthZ) {
+    const distance = camera.position.z - depthZ;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * camera.aspect;
+    return { halfW: width / 2, halfH: height / 2 };
+  }
+
+  function layoutFacetLights() {
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const margin = 0.4;
+    bottomLight.width = halfW * 2; bottomLight.height = 0.6;
+    bottomLight.position.set(0, -halfH - margin, TRAY_Z); bottomLight.lookAt(0, 0, TRAY_Z);
+    topLight.width = halfW * 2; topLight.height = 0.6;
+    topLight.position.set(0, halfH + margin, TRAY_Z); topLight.lookAt(0, 0, TRAY_Z);
+    leftLight.width = 0.6; leftLight.height = halfH * 2;
+    leftLight.position.set(-halfW - margin, 0, TRAY_Z); leftLight.lookAt(0, 0, TRAY_Z);
+    rightLight.width = 0.6; rightLight.height = halfH * 2;
+    rightLight.position.set(halfW + margin, 0, TRAY_Z); rightLight.lookAt(0, 0, TRAY_Z);
+  }
+
+  const cubes = [];
+
+  function radiusForCube(cube) {
+    const effectiveSize = BASE_CUBE_SIZE * cube.jitter * CONFIG.sizeScale;
+    return (effectiveSize / 2) * Math.SQRT2;
+  }
+  function maxSizeScaleForTray() {
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const trayArea = halfW * 2 * (halfH * 2);
+    const n = Math.max(cubes.length, 1);
+    const perCubeAreaAtScale1 = BASE_CUBE_SIZE * BASE_CUBE_SIZE;
+    const packingBudget = trayArea * 0.55;
+    const scaleForBudget = Math.sqrt(packingBudget / (n * perCubeAreaAtScale1));
+    return THREE.MathUtils.clamp(scaleForBudget, MIN_SIZE_SCALE, MAX_SIZE_SCALE_HARD_CAP);
+  }
+  function clampSizeScale() {
+    CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale, MIN_SIZE_SCALE, maxSizeScaleForTray());
+  }
+  function applyScale(cube) {
+    const s = cube.jitter * CONFIG.sizeScale;
+    cube.group.scale.setScalar(s);
+    cube.radius = radiusForCube(cube);
+    cube.mass = Math.pow(s, 3);
+  }
+  function spawnCube() {
+    const group = new THREE.Group();
+    group.position.z = TRAY_Z;
+    const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    group.add(mesh);
+    scene.add(group);
+    const cube = { group, jitter: 0.8 + Math.random() * 0.4, velocity: new THREE.Vector2(0, 0), angularVelocity: 0, radius: 0, mass: 1 };
+    applyScale(cube);
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const limX = Math.max(halfW - cube.radius, 0);
+    const limY = Math.max(halfH - cube.radius, 0);
+    group.position.x = (Math.random() * 2 - 1) * limX;
+    group.position.y = (Math.random() * 2 - 1) * limY;
+    cubes.push(cube);
+  }
+  function removeCube() {
+    const cube = cubes.pop();
+    if (cube) scene.remove(cube.group);
+  }
+  function setCubeCount(n) {
+    n = Math.max(1, Math.round(n));
+    while (cubes.length < n) spawnCube();
+    while (cubes.length > n) removeCube();
+    clampSizeScale();
+    for (const cube of cubes) applyScale(cube);
+  }
+  setCubeCount(CONFIG.count);
+  resize();
+  new ResizeObserver(resize).observe(container);
+  window.addEventListener('resize', resize);
+
+  // ── Drag / throw physics ──────────────────────────────────────────────
+  const raycaster = new THREE.Raycaster();
+  const pointerNDC = new THREE.Vector2();
+  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -TRAY_Z);
+  const dragOffset = new THREE.Vector3();
+  const intersection = new THREE.Vector3();
+
+  let draggedCube = null;
+  let lastPointerTime = 0;
+  const sampleVelocity = new THREE.Vector2(0, 0);
+
+  const FRICTION = 0.85;
+  const ANGULAR_FRICTION = 0.9;
+  const RESTITUTION = 0.82;
+  const MIN_SPEED = 0.02;
+
+  function updatePointerNDC(event) {
+    const rect = canvas.getBoundingClientRect();
+    pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+  function getPointOnDragPlane() {
+    raycaster.setFromCamera(pointerNDC, camera);
+    raycaster.ray.intersectPlane(dragPlane, intersection);
+    return intersection;
+  }
+
+  function isJournalActive() {
+    const viewEl = document.getElementById('view-about');
+    return viewEl && viewEl.classList.contains('active');
+  }
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (!isJournalActive()) return;
+    updatePointerNDC(event);
+    raycaster.setFromCamera(pointerNDC, camera);
+    const meshes = cubes.map((c) => c.group.children[0]);
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length === 0) return;
+
+    const hitMesh = hits[0].object;
+    draggedCube = cubes.find((c) => c.group.children[0] === hitMesh);
+    if (!draggedCube) return;
+
+    canvas.style.cursor = 'grabbing';
+    draggedCube.velocity.set(0, 0);
+    draggedCube.angularVelocity = 0;
+
+    const point = getPointOnDragPlane();
+    dragOffset.copy(draggedCube.group.position).sub(point);
+    lastPointerTime = performance.now();
+    sampleVelocity.set(0, 0);
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (!draggedCube) return;
+    updatePointerNDC(event);
+    const point = getPointOnDragPlane();
+    const now = performance.now();
+    const dt = Math.max((now - lastPointerTime) / 1000, 1 / 120);
+    const newPos = point.clone().add(dragOffset);
+    const dx = newPos.x - draggedCube.group.position.x;
+    const dy = newPos.y - draggedCube.group.position.y;
+    draggedCube.group.position.x = newPos.x;
+    draggedCube.group.position.y = newPos.y;
+    sampleVelocity.x = sampleVelocity.x * 0.6 + (dx / dt) * 0.4;
+    sampleVelocity.y = sampleVelocity.y * 0.6 + (dy / dt) * 0.4;
+    draggedCube.angularVelocity = draggedCube.angularVelocity * 0.6 + (-dx / dt) * 0.15 * 0.4;
+    lastPointerTime = now;
+  });
+
+  function endDrag(event) {
+    if (!draggedCube) return;
+    canvas.style.cursor = 'grab';
+    draggedCube.velocity.copy(sampleVelocity);
+    draggedCube = null;
+    if (event && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', (event) => { if (event.buttons === 0) endDrag(event); });
+  canvas.style.cursor = 'grab';
 
   // ── Scroll wheel: quantity/density; shift+scroll resizes ──────────────
   canvas.addEventListener('wheel', (event) => {
