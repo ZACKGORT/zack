@@ -17,6 +17,14 @@
   }
 }
 </script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
+    "jsm/": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/"
+  }
+}
+</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1448,7 +1456,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <button class="nav-tab" data-view="about" onclick="navigate('about')">Journal</button>
   </div>
   <div class="nav-right">
-    <a class="nav-right-link" href="https://linkedin.com/in/zackgort" target="_blank" rel="noopener">LinkedIn</a>
+    <a class="nav-right-link" href="javascript:void(0)" onclick="navigate('contact')">Contact</a>
     <a class="nav-cta" href="https://raw.githubusercontent.com/ZACKGORT/zack/main/Zack%20Gort-%20Staff%20Designer%20-%202026.pdf" target="_blank" rel="noopener" download="Zack Gort- Staff Designer - 2026.pdf">Download CV</a>
   </div>
 </nav>
@@ -3447,6 +3455,26 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
   </div><!-- /page-body -->
 </div><!-- /view-contracts -->
 
+<!-- ══════════════════════════════════════════
+     VIEW: CONTACT (glass ice-tray scene)
+══════════════════════════════════════════ -->
+<div id="view-contact" class="view">
+  <canvas class="contact-webgl" id="contactWebgl"></canvas>
+</div>
+
+<style>
+.contact-webgl{
+  position:fixed;
+  top:calc(var(--nav-h) + var(--bc-h));
+  left:0;right:0;bottom:0;
+  width:100%;
+  height:calc(100vh - var(--nav-h) - var(--bc-h));
+  display:block;
+  background:#000;
+  touch-action:none;
+}
+</style>
+
 <style>
 /* ── CONTRACTS ── */
 /* ── CASE STUDY PAGE SCALE ── */
@@ -4308,6 +4336,7 @@ const VIEWS = {
   generalassembly: { bcLabel:'Balance', navTab:'generalassembly' },
   about:    { bcLabel:'Journal',   navTab:'about' },
   contracts:{ bcLabel:'Contracts',           navTab:'contracts' },
+  contact:  { bcLabel:'Contact',             navTab:null },
 };
 
 const wipe = document.getElementById('wipe');
@@ -6083,6 +6112,386 @@ if (container && canvas) {
       }
 
       pebbleGroup.rotation.z += angularVelocity * dt;
+      renderer.render(scene, camera);
+    }
+
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+</script>
+
+<script type="module">
+// ── CONTACT: glass ice-tray scene, ported as-is (drag/throw physics,
+//    baked-in material/lights, per-facet RectAreaLight rig). The LinkedIn
+//    text is a real mesh in the scene (not DOM overlay), so the cubes
+//    actually distort/refract it; raycasting drives hover (cursor + a
+//    matching 3D underline) and click (opens LinkedIn in a new tab).
+//    Only simulates/renders while the Contact view is actually active.
+import * as THREE from "three";
+import { RoundedBoxGeometry } from "jsm/geometries/RoundedBoxGeometry.js";
+import { RectAreaLightUniformsLib } from "jsm/lights/RectAreaLightUniformsLib.js";
+import { FontLoader } from "jsm/loaders/FontLoader.js";
+import { TextGeometry } from "jsm/geometries/TextGeometry.js";
+
+const canvas = document.getElementById('contactWebgl');
+if (canvas) {
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  camera.position.z = 5;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+
+  function resize() {
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    layoutFacetLights();
+    clampSizeScale();
+    for (const cube of cubes) applyScale(cube);
+  }
+
+  // ── LinkedIn text: real 3D mesh so the cubes distort it ──────────────
+  const LINKEDIN_URL = "https://linkedin.com/in/zackgort";
+  const TEXT_Z = -2;
+  let linkMesh = null;
+  let underlineMesh = null;
+  let linkHovered = false;
+
+  const fontLoader = new FontLoader();
+  fontLoader.load(
+    "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
+    (font) => {
+      const textGeometry = new TextGeometry("linkedin.com/in/zackgort", {
+        font, size: 0.44, depth: 0, curveSegments: 5,
+        bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
+      });
+      textGeometry.computeBoundingBox();
+      textGeometry.center();
+      const bbox = textGeometry.boundingBox;
+      const textWidth = bbox.max.x - bbox.min.x;
+      const textBottom = bbox.min.y;
+
+      const textMaterial = new THREE.MeshBasicMaterial();
+      linkMesh = new THREE.Mesh(textGeometry, textMaterial);
+      linkMesh.position.z = TEXT_Z;
+      scene.add(linkMesh);
+
+      const underlineGeometry = new THREE.PlaneGeometry(textWidth, 0.018);
+      const underlineMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      underlineMesh = new THREE.Mesh(underlineGeometry, underlineMaterial);
+      underlineMesh.position.set(0, textBottom - 0.06, TEXT_Z);
+      underlineMesh.visible = false;
+      scene.add(underlineMesh);
+    }
+  );
+
+  // ── The tray: rounded-glass ice cubes ────────────────────────────────
+  const TRAY_Z = 1;
+  const CONFIG = { count: 33, sizeScale: 1 };
+  const MIN_SIZE_SCALE = 0.5;
+  const MAX_SIZE_SCALE_HARD_CAP = 1.6;
+  const BASE_CUBE_SIZE = 0.9;
+
+  const cubeGeometry = new RoundedBoxGeometry(BASE_CUBE_SIZE, BASE_CUBE_SIZE, BASE_CUBE_SIZE, 6, 0.1);
+  const cubeMaterial = new THREE.MeshPhysicalMaterial();
+  cubeMaterial.metalness = 0;
+  cubeMaterial.roughness = 0;
+  cubeMaterial.iridescence = 1;
+  cubeMaterial.iridescenceIOR = 1.5;
+  cubeMaterial.iridescenceThicknessRange = [100, 217];
+  cubeMaterial.transmission = 1;
+  cubeMaterial.ior = 1.75;
+  cubeMaterial.thickness = 1.325;
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 10);
+  scene.add(ambientLight);
+  [[-1, 2, 0], [-1, -2, 0], [1, -2, 0], [1, 2, 0]].forEach(([x, y, z]) => {
+    const pl = new THREE.PointLight(0xffffff, 10);
+    pl.position.set(x, y, z);
+    scene.add(pl);
+  });
+
+  RectAreaLightUniformsLib.init();
+  const FACET_LIGHT_INTENSITY = 3.1;
+  function makeFacetLight(color) {
+    const light = new THREE.RectAreaLight(color, FACET_LIGHT_INTENSITY, 1, 1);
+    scene.add(light);
+    return light;
+  }
+  const bottomLight = makeFacetLight(0xffffff);
+  const topLight = makeFacetLight(0xffffff);
+  const leftLight = makeFacetLight(0xffffff);
+  const rightLight = makeFacetLight(0xffffff);
+  const facetLights = [bottomLight, topLight, leftLight, rightLight];
+
+  function getBoundsAtDepth(depthZ) {
+    const distance = camera.position.z - depthZ;
+    const vFov = (camera.fov * Math.PI) / 180;
+    const height = 2 * Math.tan(vFov / 2) * distance;
+    const width = height * camera.aspect;
+    return { halfW: width / 2, halfH: height / 2 };
+  }
+
+  function layoutFacetLights() {
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const margin = 0.4;
+    bottomLight.width = halfW * 2; bottomLight.height = 0.6;
+    bottomLight.position.set(0, -halfH - margin, TRAY_Z); bottomLight.lookAt(0, 0, TRAY_Z);
+    topLight.width = halfW * 2; topLight.height = 0.6;
+    topLight.position.set(0, halfH + margin, TRAY_Z); topLight.lookAt(0, 0, TRAY_Z);
+    leftLight.width = 0.6; leftLight.height = halfH * 2;
+    leftLight.position.set(-halfW - margin, 0, TRAY_Z); leftLight.lookAt(0, 0, TRAY_Z);
+    rightLight.width = 0.6; rightLight.height = halfH * 2;
+    rightLight.position.set(halfW + margin, 0, TRAY_Z); rightLight.lookAt(0, 0, TRAY_Z);
+  }
+
+  const cubes = [];
+
+  function radiusForCube(cube) {
+    const effectiveSize = BASE_CUBE_SIZE * cube.jitter * CONFIG.sizeScale;
+    return (effectiveSize / 2) * Math.SQRT2;
+  }
+  function maxSizeScaleForTray() {
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const trayArea = halfW * 2 * (halfH * 2);
+    const n = Math.max(cubes.length, 1);
+    const perCubeAreaAtScale1 = BASE_CUBE_SIZE * BASE_CUBE_SIZE;
+    const packingBudget = trayArea * 0.55;
+    const scaleForBudget = Math.sqrt(packingBudget / (n * perCubeAreaAtScale1));
+    return THREE.MathUtils.clamp(scaleForBudget, MIN_SIZE_SCALE, MAX_SIZE_SCALE_HARD_CAP);
+  }
+  function clampSizeScale() {
+    CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale, MIN_SIZE_SCALE, maxSizeScaleForTray());
+  }
+  function applyScale(cube) {
+    const s = cube.jitter * CONFIG.sizeScale;
+    cube.group.scale.setScalar(s);
+    cube.radius = radiusForCube(cube);
+    cube.mass = Math.pow(s, 3);
+  }
+  function spawnCube() {
+    const group = new THREE.Group();
+    group.position.z = TRAY_Z;
+    const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
+    group.add(mesh);
+    scene.add(group);
+    const cube = { group, jitter: 0.8 + Math.random() * 0.4, velocity: new THREE.Vector2(0, 0), angularVelocity: 0, radius: 0, mass: 1 };
+    applyScale(cube);
+    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+    const limX = Math.max(halfW - cube.radius, 0);
+    const limY = Math.max(halfH - cube.radius, 0);
+    group.position.x = (Math.random() * 2 - 1) * limX;
+    group.position.y = (Math.random() * 2 - 1) * limY;
+    cubes.push(cube);
+  }
+  function removeCube() {
+    const cube = cubes.pop();
+    if (cube) scene.remove(cube.group);
+  }
+  function setCubeCount(n) {
+    n = Math.max(1, Math.round(n));
+    while (cubes.length < n) spawnCube();
+    while (cubes.length > n) removeCube();
+    clampSizeScale();
+    for (const cube of cubes) applyScale(cube);
+  }
+  setCubeCount(CONFIG.count);
+  resize();
+  new ResizeObserver(resize).observe(canvas);
+  window.addEventListener('resize', resize);
+
+  // ── Drag / throw physics ──────────────────────────────────────────────
+  const raycaster = new THREE.Raycaster();
+  const pointerNDC = new THREE.Vector2();
+  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -TRAY_Z);
+  const dragOffset = new THREE.Vector3();
+  const intersection = new THREE.Vector3();
+
+  let draggedCube = null;
+  let lastPointerTime = 0;
+  const sampleVelocity = new THREE.Vector2(0, 0);
+
+  const FRICTION = 0.85;
+  const ANGULAR_FRICTION = 0.9;
+  const RESTITUTION = 0.82;
+  const MIN_SPEED = 0.02;
+
+  function updatePointerNDC(event) {
+    const rect = canvas.getBoundingClientRect();
+    pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+  function getPointOnDragPlane() {
+    raycaster.setFromCamera(pointerNDC, camera);
+    raycaster.ray.intersectPlane(dragPlane, intersection);
+    return intersection;
+  }
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (!document.getElementById('view-contact').classList.contains('active')) return;
+    updatePointerNDC(event);
+    raycaster.setFromCamera(pointerNDC, camera);
+    const meshes = cubes.map((c) => c.group.children[0]);
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length === 0) return;
+
+    const hitMesh = hits[0].object;
+    draggedCube = cubes.find((c) => c.group.children[0] === hitMesh);
+    if (!draggedCube) return;
+
+    canvas.style.cursor = 'grabbing';
+    draggedCube.velocity.set(0, 0);
+    draggedCube.angularVelocity = 0;
+
+    const point = getPointOnDragPlane();
+    dragOffset.copy(draggedCube.group.position).sub(point);
+    lastPointerTime = performance.now();
+    sampleVelocity.set(0, 0);
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (!draggedCube) return;
+    updatePointerNDC(event);
+    const point = getPointOnDragPlane();
+    const now = performance.now();
+    const dt = Math.max((now - lastPointerTime) / 1000, 1 / 120);
+    const newPos = point.clone().add(dragOffset);
+    const dx = newPos.x - draggedCube.group.position.x;
+    const dy = newPos.y - draggedCube.group.position.y;
+    draggedCube.group.position.x = newPos.x;
+    draggedCube.group.position.y = newPos.y;
+    sampleVelocity.x = sampleVelocity.x * 0.6 + (dx / dt) * 0.4;
+    sampleVelocity.y = sampleVelocity.y * 0.6 + (dy / dt) * 0.4;
+    draggedCube.angularVelocity = draggedCube.angularVelocity * 0.6 + (-dx / dt) * 0.15 * 0.4;
+    lastPointerTime = now;
+  });
+
+  function endDrag(event) {
+    if (!draggedCube) return;
+    canvas.style.cursor = 'grab';
+    draggedCube.velocity.copy(sampleVelocity);
+    draggedCube = null;
+    if (event && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', (event) => { if (event.buttons === 0) endDrag(event); });
+  canvas.style.cursor = 'grab';
+
+  // ── LinkedIn text hover/click ──────────────────────────────────────────
+  function updateLinkHover(event) {
+    if (!linkMesh || draggedCube) {
+      if (linkHovered) {
+        linkHovered = false;
+        if (underlineMesh) underlineMesh.visible = false;
+        if (!draggedCube) canvas.style.cursor = 'grab';
+      }
+      return;
+    }
+    updatePointerNDC(event);
+    raycaster.setFromCamera(pointerNDC, camera);
+    const hits = raycaster.intersectObject(linkMesh);
+    const hovered = hits.length > 0;
+    if (hovered !== linkHovered) {
+      linkHovered = hovered;
+      if (underlineMesh) underlineMesh.visible = hovered;
+      canvas.style.cursor = hovered ? 'pointer' : 'grab';
+    }
+  }
+  canvas.addEventListener('pointermove', updateLinkHover);
+  canvas.addEventListener('click', (event) => {
+    if (!linkMesh || draggedCube) return;
+    updatePointerNDC(event);
+    raycaster.setFromCamera(pointerNDC, camera);
+    const hits = raycaster.intersectObject(linkMesh);
+    if (hits.length > 0) window.open(LINKEDIN_URL, '_blank', 'noopener');
+  });
+
+  // ── Scroll wheel: quantity/density; shift+scroll resizes ──────────────
+  canvas.addEventListener('wheel', (event) => {
+    if (!document.getElementById('view-contact').classList.contains('active')) return;
+    event.preventDefault();
+    if (event.shiftKey) {
+      const delta = -event.deltaY * 0.0015;
+      CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale + delta, MIN_SIZE_SCALE, maxSizeScaleForTray());
+      for (const cube of cubes) applyScale(cube);
+    } else {
+      const delta = -event.deltaY * 0.02;
+      CONFIG.count = THREE.MathUtils.clamp(Math.round(CONFIG.count + delta), 1, 40);
+      setCubeCount(CONFIG.count);
+    }
+  }, { passive: false });
+
+  // ── Pairwise collision resolution ──────────────────────────────────────
+  function resolveCollisions() {
+    for (let i = 0; i < cubes.length; i++) {
+      for (let j = i + 1; j < cubes.length; j++) {
+        const a = cubes[i], b = cubes[j];
+        let dx = b.group.position.x - a.group.position.x;
+        let dy = b.group.position.y - a.group.position.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = a.radius + b.radius;
+        if (dist >= minDist) continue;
+        if (dist === 0) {
+          const angle = Math.random() * Math.PI * 2;
+          dx = Math.cos(angle); dy = Math.sin(angle); dist = 0.0001;
+        }
+        const nx = dx / dist, ny = dy / dist;
+        const overlap = minDist - dist;
+        const totalMass = a.mass + b.mass;
+        const pushA = overlap * (b.mass / totalMass);
+        const pushB = overlap * (a.mass / totalMass);
+        if (a !== draggedCube) { a.group.position.x -= nx * pushA; a.group.position.y -= ny * pushA; }
+        if (b !== draggedCube) { b.group.position.x += nx * pushB; b.group.position.y += ny * pushB; }
+        const rvx = b.velocity.x - a.velocity.x, rvy = b.velocity.y - a.velocity.y;
+        const velAlongNormal = rvx * nx + rvy * ny;
+        if (velAlongNormal > 0) continue;
+        const e = RESTITUTION;
+        const jImpulse = (-(1 + e) * velAlongNormal) / (1 / a.mass + 1 / b.mass);
+        const impulseX = jImpulse * nx, impulseY = jImpulse * ny;
+        a.velocity.x -= impulseX / a.mass; a.velocity.y -= impulseY / a.mass;
+        b.velocity.x += impulseX / b.mass; b.velocity.y += impulseY / b.mass;
+        const tangent = -nx * impulseY + ny * impulseX;
+        a.angularVelocity -= tangent * 0.05;
+        b.angularVelocity += tangent * 0.05;
+      }
+    }
+  }
+
+  const clock = new THREE.Clock();
+  function tick() {
+    const dt = Math.min(clock.getDelta(), 1 / 30);
+    const isContactActive = document.getElementById('view-contact').classList.contains('active');
+
+    if (isContactActive) {
+      const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
+      for (const cube of cubes) {
+        if (cube !== draggedCube) {
+          cube.group.position.x += cube.velocity.x * dt;
+          cube.group.position.y += cube.velocity.y * dt;
+          const limX = Math.max(halfW - cube.radius, 0);
+          const limY = Math.max(halfH - cube.radius, 0);
+          if (cube.group.position.x > limX) { cube.group.position.x = limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
+          else if (cube.group.position.x < -limX) { cube.group.position.x = -limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
+          if (cube.group.position.y > limY) { cube.group.position.y = limY; cube.velocity.y *= -RESTITUTION; }
+          else if (cube.group.position.y < -limY) { cube.group.position.y = -limY; cube.velocity.y *= -RESTITUTION; }
+          const linDamp = Math.pow(FRICTION, dt * 60);
+          cube.velocity.multiplyScalar(linDamp);
+          if (cube.velocity.length() < MIN_SPEED) cube.velocity.set(0, 0);
+        }
+        const angDamp = Math.pow(ANGULAR_FRICTION, dt * 60);
+        cube.angularVelocity *= angDamp;
+        if (Math.abs(cube.angularVelocity) < 0.001) cube.angularVelocity = 0;
+        cube.group.rotation.z += cube.angularVelocity * dt;
+      }
+      resolveCollisions();
       renderer.render(scene, camera);
     }
 
