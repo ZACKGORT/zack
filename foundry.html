@@ -328,7 +328,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .index-contact-wrap{
   border-top:1px solid var(--rule);
   display:grid;
-  grid-template-columns:minmax(0,1fr) 10px var(--ic-split, 460px);
+  grid-template-columns:minmax(0,1fr) 10px minmax(0,var(--ic-split, 1fr));
   grid-template-rows:640px;
   --footer-size:11px;
 }
@@ -398,10 +398,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 }
 .ic-hoop-frame{
   display:block;
-  width:100%;
-  height:100%;
+  width:960px;
+  height:720px;
   border:none;
   background:transparent;
+  position:absolute;
+  top:0;left:0;
+  transform-origin:top left;
+  pointer-events:auto;
 }
 .ic-hoop-top{
   position:absolute;bottom:24px;right:24px;z-index:10;
@@ -443,16 +447,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 @media(max-width:640px){
   .index-contact-wrap{
     grid-template-columns:1fr;
-    grid-template-rows:auto calc(100svh - 66px);
+    grid-template-rows:70vh;
   }
   .index-contact{
     border-right:none;
-    border-bottom:1px solid var(--rule);
-    padding:24px 14px;
+    padding:0;
     overflow-y:visible;
   }
-  .ic-hoop-frame{height:100%}
-  #ic-resizer{display:none}
+  .ic-hoop-wrap,#ic-resizer{display:none}
 }
 
 /* ══════════════════════════════════════════
@@ -6430,6 +6432,7 @@ function initAllNarrativeParticles(container) {
 
   function setSplit(px) {
     container.style.setProperty('--ic-split', clamp(px) + 'px');
+    if (window._updateHoopScale) window._updateHoopScale();
   }
 
   let dragging = false;
@@ -6453,13 +6456,41 @@ function initAllNarrativeParticles(container) {
   }
   resizer.addEventListener('pointerup', endDrag);
   resizer.addEventListener('pointercancel', endDrag);
-  resizer.addEventListener('dblclick', () => container.style.removeProperty('--ic-split'));
+  resizer.addEventListener('dblclick', () => {
+    container.style.removeProperty('--ic-split');
+    if (window._updateHoopScale) window._updateHoopScale();
+  });
   resizer.addEventListener('keydown', (e) => {
     const rightEl = document.querySelector('.ic-hoop-wrap');
     const cur = rightEl.getBoundingClientRect().width;
     if (e.key === 'ArrowLeft') { setSplit(cur + 16); e.preventDefault(); }
     if (e.key === 'ArrowRight') { setSplit(cur - 16); e.preventDefault(); }
   });
+})();
+
+// ── HOOP IFRAME SCALE (the embedded page has its own fixed/native layout —
+//    rather than stretching it to 100% and letting its content render tiny
+//    or cropped inside a narrow column, the iframe renders at a fixed
+//    "native" size and this uniformly scales the whole thing down/up to
+//    fill whatever width the column actually has, recalculated on resize
+//    and whenever the draggable divider moves) ──────────────────────────────
+(function initHoopScale() {
+  const wrap = document.querySelector('.ic-hoop-wrap');
+  const frame = document.querySelector('.ic-hoop-frame');
+  if (!wrap || !frame) return;
+  const NATIVE_W = 960;
+  const NATIVE_H = 720;
+
+  function update() {
+    const w = wrap.clientWidth || NATIVE_W;
+    const h = wrap.clientHeight || NATIVE_H;
+    const scale = Math.max(w / NATIVE_W, h / NATIVE_H);
+    frame.style.transform = `scale(${scale})`;
+  }
+  window._updateHoopScale = update;
+  window.addEventListener('resize', update);
+  new ResizeObserver(update).observe(wrap);
+  update();
 })();
 
 // ── GLYPH COLUMN RESIZER (drag to resize word / grid split) ─────────────────
