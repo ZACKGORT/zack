@@ -1653,9 +1653,8 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   border-color:rgba(var(--fg-rgb),.35);
   transform:translateY(-3px);
 }
-.ds-preview-thumb{
+.ds-live-iframe{
   position:absolute;top:0;left:0;
-  width:1440px;height:900px;
   border:none;
   transform-origin:top left;
   pointer-events:none; /* peek only — click the card to open the real, interactive size */
@@ -1663,6 +1662,7 @@ body.light-mode .cs-toolbar{background:var(--bg)}
 }
 .ds-preview-card-scrim{
   position:absolute;inset:0;
+  z-index:2; /* always above the pooled iframe, which gets appended after it in DOM order */
   display:flex;align-items:center;justify-content:center;
   background:rgba(0,0,0,0);
   opacity:0;
@@ -1688,6 +1688,40 @@ body.light-mode .cs-toolbar{background:var(--bg)}
 .ds-preview-card-num{font-family:'DM Mono',monospace;font-size:11px;color:rgba(var(--fg-rgb),.3);flex-shrink:0}
 .ds-preview-card-title{display:block;font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--fg);margin-bottom:4px}
 .ds-preview-card-desc{display:block;font-size:12.5px;line-height:1.55;color:rgba(var(--fg-rgb),.5)}
+
+.ds-cat-row{
+  display:flex;align-items:center;gap:16px;
+  padding:20px 40px;
+  border-bottom:1px solid var(--rule);
+}
+.ds-cat-label{font-size:11px;font-weight:600;letter-spacing:.06em;color:rgba(var(--fg-rgb),.3);text-transform:uppercase}
+
+.ds-micro-grid{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.ds-micro-card{
+  border:1px solid var(--rule);border-radius:3px;
+  padding:26px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.ds-micro-num{font-family:'DM Mono',monospace;font-size:11px;color:rgba(var(--fg-rgb),.3)}
+.ds-micro-title{font-size:18px;font-weight:800;letter-spacing:-.01em;color:var(--fg);margin-top:-8px}
+.ds-micro-demo{
+  min-height:120px;background:#0a0a0a;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.ds-micro-frame{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border-radius:2px;
+  background:#0a0a0a;
+}
+.ds-micro-desc{font-size:12.5px;line-height:1.65;color:rgba(var(--fg-rgb),.5)}
+@media(max-width:640px){
+  .ds-cat-row{padding:16px}
+}
+
 
 /* ── Expand modal: same page, full size, actually interactive ── */
 .ds-preview-modal{
@@ -4121,11 +4155,18 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <p>These aren't screenshots and they aren't descriptions — each card below is the actual page, live, scaled down to fit. Click one to open it full size and use it for real. Nothing on this site got a grid, a toggle, or a piece of physics because it looked cool in isolation; the fastest way to show that is to just hand you the real thing, smaller.</p>
     </div>
 
-    <div class="ds-preview-grid" id="dsPreviewGrid">
+    <div class="ds-cat-row">
+      <span class="ds-cat-label">Depth</span>
+      <div class="wt-layout-group" id="dsCategoryToggle" style="margin-left:auto;margin-right:0">
+        <button class="wt-layout-btn active" data-ds-cat="macro">Macro</button>
+        <button class="wt-layout-btn" data-ds-cat="micro">Micro</button>
+      </div>
+    </div>
+
+    <div class="ds-preview-grid" id="dsPreviewGrid" data-ds-section="macro">
 
       <div class="ds-preview-card" data-page="index">
         <div class="ds-preview-card-frame">
-          <iframe class="ds-preview-thumb" title="Work — live preview" scrolling="no"></iframe>
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
           </div>
@@ -4141,7 +4182,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
       <div class="ds-preview-card" data-page="contracts">
         <div class="ds-preview-card-frame">
-          <iframe class="ds-preview-thumb" title="Life — live preview" scrolling="no"></iframe>
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
           </div>
@@ -4157,7 +4197,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
       <div class="ds-preview-card" data-page="generalassembly">
         <div class="ds-preview-card-frame">
-          <iframe class="ds-preview-thumb" title="Balance — live preview" scrolling="no"></iframe>
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
           </div>
@@ -4173,7 +4212,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
       <div class="ds-preview-card" data-page="about">
         <div class="ds-preview-card-frame">
-          <iframe class="ds-preview-thumb" title="Journal — live preview" scrolling="no"></iframe>
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
           </div>
@@ -4189,7 +4227,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
       <div class="ds-preview-card" data-page="contact">
         <div class="ds-preview-card-frame">
-          <iframe class="ds-preview-thumb" title="Contact — live preview" scrolling="no"></iframe>
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
           </div>
@@ -4201,6 +4238,87 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
             <span class="ds-preview-card-desc">Glass, physics, and a LinkedIn link you can actually throw across the screen.</span>
           </div>
         </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ MICRO: isolated components, one level deeper ═══════════ -->
+    <div class="ds-preview-grid ds-micro-grid" id="dsMicroGrid" data-ds-section="micro" hidden>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">01</span>
+        <span class="ds-micro-title">The Particle Wall</span>
+        <div class="ds-micro-frame" data-page="index" data-crop-x="0" data-crop-y="66" data-crop-w="1440" data-crop-h="620">
+        </div>
+        <p class="ds-micro-desc">A bespoke particle system, front and center, built to put the many brands and companies I've influenced somewhere you'd actually look — not a résumé bullet list, and not braggadocious about it either. It's just there, doing its thing, the same way it would if you weren't reading this sentence.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">02</span>
+        <span class="ds-micro-title">Grid / List / Feed</span>
+        <div class="ds-micro-demo">
+          <div class="wt-layout-group" id="dsMicroLayoutGroup" style="margin:0 auto">
+            <button class="wt-layout-btn" title="List view"><svg viewBox="0 0 14 10" width="14" height="10" fill="currentColor"><rect x="0" y="0" width="14" height="1.4"/><rect x="0" y="4.3" width="14" height="1.4"/><rect x="0" y="8.6" width="14" height="1.4"/></svg></button>
+            <button class="wt-layout-btn active" title="Grid view"><svg viewBox="0 0 12 12" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5"/><rect x="7" y="0" width="5" height="5"/><rect x="0" y="7" width="5" height="5"/><rect x="7" y="7" width="5" height="5"/></svg></button>
+          </div>
+          <div class="work-rows" id="dsMicroRows" style="border:1px solid var(--rule);margin-top:16px">
+            <div class="work-row reveal in">
+              <div class="wr-num">00</div>
+              <div class="wr-left"><div class="wr-client" style="font-size:16px">Reference Row</div><div class="wr-sub">Demo</div></div>
+              <div class="wr-meta"><div class="wr-type">Demo</div><div class="wr-year">2026</div></div>
+              <div class="wr-arrow">→</div>
+            </div>
+          </div>
+        </div>
+        <p class="ds-micro-desc">Three separate surfaces for one list, because the same fifteen years reads differently depending on whether you're skimming, evaluating, or already convinced.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">03</span>
+        <span class="ds-micro-title">Weight Ramp, Hover Thumbnail</span>
+        <div class="ds-micro-frame" data-page="bny" data-crop-x="0" data-crop-y="1450" data-crop-w="1440" data-crop-h="620">
+        </div>
+        <p class="ds-micro-desc">A type-weight ramp that happens to also be a candid, unplanned way of surfacing the actual work — hover a weight, the client project attached to it shows up next to your cursor. Contribution as a side effect of a type specimen, not the headline of it.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">04</span>
+        <span class="ds-micro-title">Word:Glyph Graph</span>
+        <div class="ds-micro-frame" data-page="bny" data-crop-x="0" data-crop-y="2350" data-crop-w="1440" data-crop-h="620">
+        </div>
+        <p class="ds-micro-desc">Granular detail for the person curious enough to actually go looking for it — every letter of a project's key word broken out and cross-referenced, which also happens to hand a page a meaningful amount of real, specific, indexable text instead of decoration for its own sake.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">05</span>
+        <span class="ds-micro-title">The Ice-Cube Tray</span>
+        <div class="ds-micro-frame" data-page="contact" data-crop-x="0" data-crop-y="66" data-crop-w="1440" data-crop-h="700">
+        </div>
+        <p class="ds-micro-desc">Intentional friction doesn't have to mean carpet-burn — it can mean something closer to liquid finding its own shape. Throw a cube, it collides, it settles. Nothing about the resistance is punishing; all of it is just physics being honest.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">06</span>
+        <span class="ds-micro-title">Journal's Prose, In the Wild</span>
+        <div class="ds-micro-demo" style="flex-direction:column;gap:16px;align-items:stretch">
+          <div class="letter-dialogue" style="margin:0">
+            <div class="letter-dialogue-line is-a"><span class="letter-dialogue-quote">Is this actually one of the letters?</span><span class="letter-dialogue-who">You</span></div>
+            <div class="letter-dialogue-line is-b"><span class="letter-dialogue-quote">Same component, borrowed for this card.</span><span class="letter-dialogue-who">This card</span></div>
+          </div>
+          <ul class="letter-checklist" style="margin:0">
+            <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Every instance you've seen across this page is the same real component.</span></label></li>
+          </ul>
+        </div>
+        <p class="ds-micro-desc">Every dialogue, checklist, and accordion sprinkled through this page — not lookalikes, the actual components. Journal's writing kit doubles as this page's writing kit.</p>
+      </div>
+
+      <div class="ds-micro-card">
+        <span class="ds-micro-num">07</span>
+        <span class="ds-micro-title">Canvas &amp; Column Pairing</span>
+        <div class="ds-micro-demo">
+          <button class="ds-swatch" style="cursor:pointer" onclick="navigate('generalassembly')">See it live on Balance →</button>
+        </div>
+        <p class="ds-micro-desc">A draggable photo canvas on one side, a plain-text brief on the other, split by a resizable divider — the same instinct as a two-up spread in print, just one side is alive and the other one holds still.</p>
       </div>
 
     </div>
@@ -6858,52 +6976,183 @@ function initAllNarrativeParticles(container) {
 
 // ── DESIGN SYSTEM: live page-preview cards (lazy-loaded, scaled thumbnails
 //    that expand into a real, full-size, interactive iframe on click) ───────
-(function initDesignSystemPage() {
-  const grid = document.getElementById('dsPreviewGrid');
-  const modal = document.getElementById('dsPreviewModal');
-  if (!grid || !modal) return;
-
-  const THUMB_NATIVE_W = 1440; // matches the iframe's own width/height attrs
+// ── LIVE PREVIEW POOL — shared infrastructure for any "scaled live iframe
+//    of another page" embed anywhere on the site (currently: the Design
+//    System's Macro/Micro grids). Two guarantees this makes, independent
+//    of how many places on the page ask for the same page's preview:
+//      1. Dedup — at most one iframe ever exists per page id. If both a
+//         Macro card and a Micro card want #contact, they share the same
+//         live iframe, physically reparented into whichever container is
+//         currently visible, rather than running two WebGL contexts.
+//      2. Capped — a hard ceiling on how many of these can be alive at
+//         once, LRU-evicted, so this scales safely as more preview cards
+//         get added later instead of growing unbounded.
+window._livePreviewPool = (function () {
+  const MAX_LIVE = 3;
+  const RELEASE_GRACE_MS = 4000; // avoids reload-thrash when quickly toggling Macro/Micro
+  const live = new Map(); // pageId -> { iframe, users:Set<container>, lastUsed, evictTimer }
 
   function pageUrl(id) {
     return location.pathname + '#' + id;
   }
 
-  // Scale each thumbnail iframe to fit its own card's current width —
-  // aspect-ratio is fixed by CSS (16/10) to match the iframe's own native
-  // proportions, so width-only scaling never needs letterboxing.
-  function fitThumb(card) {
-    const frame = card.querySelector('.ds-preview-card-frame');
-    const iframe = card.querySelector('.ds-preview-thumb');
-    if (!frame || !iframe) return;
-    const scale = frame.clientWidth / THUMB_NATIVE_W;
-    iframe.style.transform = `scale(${scale})`;
+  function evict(pageId) {
+    const entry = live.get(pageId);
+    if (!entry) return;
+    if (entry.iframe.parentNode) entry.iframe.parentNode.removeChild(entry.iframe);
+    live.delete(pageId);
   }
 
-  const cards = Array.from(grid.querySelectorAll('.ds-preview-card'));
-
-  // Lazy-load: only point a thumbnail at the real page once its card is
-  // actually visible — five simultaneous full-site iframes loading at once
-  // (some running WebGL) is not a reasonable default.
-  const loadObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      const card = entry.target;
-      const iframe = card.querySelector('.ds-preview-thumb');
-      const page = card.dataset.page;
-      if (iframe && !iframe.src) {
-        iframe.src = pageUrl(page);
-        fitThumb(card);
+  function evictOneLRU() {
+    let oldestId = null, oldestTime = Infinity;
+    live.forEach((entry, id) => {
+      if (entry.users.size === 0 && entry.lastUsed < oldestTime) {
+        oldestTime = entry.lastUsed;
+        oldestId = id;
       }
-      loadObserver.unobserve(card);
     });
-  }, { rootMargin: '200px' });
-  cards.forEach(card => loadObserver.observe(card));
+    if (oldestId) evict(oldestId);
+  }
 
-  const resizeObserver = new ResizeObserver((entries) => {
-    entries.forEach(entry => fitThumb(entry.target.closest('.ds-preview-card')));
+  // container: the DOM element the iframe should live inside right now.
+  // applyFit(iframe): container-specific scale/crop transform callback.
+  function claim(pageId, container, applyFit) {
+    let entry = live.get(pageId);
+    if (!entry) {
+      if (live.size >= MAX_LIVE) evictOneLRU();
+      const iframe = document.createElement('iframe');
+      iframe.className = 'ds-live-iframe';
+      iframe.title = pageId;
+      iframe.setAttribute('scrolling', 'no');
+      iframe.src = pageUrl(pageId);
+      entry = { iframe, users: new Set(), lastUsed: 0 };
+      live.set(pageId, entry);
+    }
+    if (entry.evictTimer) { clearTimeout(entry.evictTimer); entry.evictTimer = null; }
+    entry.users.add(container);
+    entry.lastUsed = performance.now();
+    if (entry.iframe.parentNode !== container) {
+      container.appendChild(entry.iframe); // appendChild moves it — no need to clear container first
+    }
+    applyFit(entry.iframe);
+  }
+
+  function release(pageId, container) {
+    const entry = live.get(pageId);
+    if (!entry) return;
+    entry.users.delete(container);
+    if (entry.users.size === 0) {
+      entry.evictTimer = setTimeout(() => {
+        const stillEntry = live.get(pageId);
+        if (stillEntry && stillEntry.users.size === 0) evict(pageId);
+      }, RELEASE_GRACE_MS);
+    }
+  }
+
+  // Force every claim belonging to a container tree to release immediately
+  // (no grace period) — used when a whole grid gets hidden by the
+  // Macro/Micro toggle, so a hidden section never keeps anything alive.
+  function releaseAllWithin(rootEl) {
+    live.forEach((entry, pageId) => {
+      Array.from(entry.users).forEach(container => {
+        if (rootEl.contains(container)) {
+          entry.users.delete(container);
+        }
+      });
+      if (entry.users.size === 0) evict(pageId);
+    });
+  }
+
+  return { claim, release, releaseAllWithin, MAX_LIVE };
+})();
+
+(function initDesignSystemPage() {
+  const grid = document.getElementById('dsPreviewGrid');
+  const modal = document.getElementById('dsPreviewModal');
+  if (!grid || !modal) return;
+
+  const pool = window._livePreviewPool;
+  const microGrid = document.getElementById('dsMicroGrid');
+
+  // Macro / Micro depth toggle — hiding a grid immediately releases every
+  // live preview it was holding, so an inactive tab holds zero iframes.
+  const catToggle = document.getElementById('dsCategoryToggle');
+  if (catToggle && microGrid) {
+    catToggle.querySelectorAll('[data-ds-cat]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        catToggle.querySelectorAll('[data-ds-cat]').forEach(b => b.classList.toggle('active', b === btn));
+        const isMicro = btn.dataset.dsCat === 'micro';
+        grid.hidden = isMicro;
+        microGrid.hidden = !isMicro;
+        pool.releaseAllWithin(isMicro ? grid : microGrid);
+      });
+    });
+  }
+
+  // Generic wiring shared by both Macro (full-page, 16:10) and Micro
+  // (cropped region) cards — claims a pooled iframe once visible, releases
+  // it once scrolled well out of view, refits on resize.
+  function wireLivePreview(container, pageId, applyFit) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          pool.claim(pageId, container, applyFit);
+        } else {
+          pool.release(pageId, container);
+        }
+      });
+    }, { rootMargin: '150px' });
+    io.observe(container);
+    new ResizeObserver(() => {
+      const iframe = container.querySelector('iframe.ds-live-iframe');
+      if (iframe) applyFit(iframe);
+    }).observe(container);
+  }
+
+  // ── Macro cards: full page, scaled to fit a fixed 16:10 window ──
+  const THUMB_NATIVE_W = 1440;
+  const cards = Array.from(grid.querySelectorAll('.ds-preview-card'));
+  cards.forEach((card) => {
+    const frame = card.querySelector('.ds-preview-card-frame');
+    const page = card.dataset.page;
+    wireLivePreview(frame, page, (iframe) => {
+      iframe.style.width = THUMB_NATIVE_W + 'px';
+      iframe.style.height = (THUMB_NATIVE_W * 10 / 16) + 'px';
+      iframe.style.transformOrigin = 'top left';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.transform = `scale(${frame.clientWidth / THUMB_NATIVE_W})`;
+    });
   });
-  cards.forEach(card => resizeObserver.observe(card.querySelector('.ds-preview-card-frame')));
+
+  // ── Micro cards: cropped/panned region of a page ──
+  const microFrames = Array.from(document.querySelectorAll('.ds-micro-frame'));
+  microFrames.forEach((frame) => {
+    const page = frame.dataset.page;
+    const cropW = parseFloat(frame.dataset.cropW);
+    const cropX = parseFloat(frame.dataset.cropX);
+    const cropY = parseFloat(frame.dataset.cropY);
+    wireLivePreview(frame, page, (iframe) => {
+      iframe.style.width = '1440px';
+      iframe.style.height = '900px';
+      iframe.style.transformOrigin = 'top left';
+      iframe.style.pointerEvents = 'none';
+      const scale = frame.clientWidth / cropW;
+      iframe.style.transform = `scale(${scale}) translate(${-cropX}px, ${-cropY}px)`;
+    });
+  });
+
+  // The Micro grid's own tiny Grid/List toggle demo (illustrating the
+  // Work page's real toggle, at a smaller scale, on its own sample row)
+  const microRows = document.getElementById('dsMicroRows');
+  const microLayoutGroup = document.getElementById('dsMicroLayoutGroup');
+  if (microRows && microLayoutGroup) {
+    microLayoutGroup.querySelectorAll('.wt-layout-btn').forEach((btn, i) => {
+      btn.addEventListener('click', () => {
+        microLayoutGroup.querySelectorAll('.wt-layout-btn').forEach(b => b.classList.toggle('active', b === btn));
+        microRows.classList.toggle('grid-mode', i === 1);
+      });
+    });
+  }
 
   // Expand modal — shows a curated summary of that page's essential parts,
   // not a full live re-render of the page.
