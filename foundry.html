@@ -153,7 +153,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 
 /* Image-text portrait hero */
 #hero{position:relative;width:100%;overflow:hidden;background:var(--bg);display:block}
-#hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block}
+#hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .7s ease}
+#hero-canvas.loaded,#hero-cc.loaded{opacity:1}
 #hero-cc{pointer-events:none;z-index:2}
 #hero-loading{
   position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;
@@ -197,7 +198,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 
 .wr-num{font-size:var(--fs-micro);font-weight:700;letter-spacing:.08em;color:rgba(var(--fg-rgb),.18);font-variant-numeric:tabular-nums;flex-shrink:0;padding-top:4px;align-self:start}
 .wr-left{display:flex;flex-direction:column;gap:12px}
-.wr-client{font-size:var(--work-font-size);font-weight:900;letter-spacing:-.02em;line-height:1.05;color:var(--fg);transition:color .18s;text-align:left}
+.wr-client{font-size:var(--work-font-size);font-weight:900;letter-spacing:-.02em;line-height:1.05;color:var(--fg);transition:color .18s;text-align:var(--work-align,left)}
 .work-row:hover .wr-client{color:var(--fg)}
 .wr-sub{font-size:var(--wr-sub-size,8px);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25)}
 .wr-client-sub{
@@ -207,6 +208,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   letter-spacing:0;
   text-transform:none;
   color:rgba(var(--fg-rgb),.4);
+  text-align:var(--work-align,left);
 }
 
 .wr-sub-wrap{position:relative;display:inline-flex;align-items:center;gap:6px}
@@ -5651,7 +5653,7 @@ function showView(id) {
   initParticleHero(el);
   initAllNarrativeParticles(el);
   if (id === 'index' && typeof window._portraitRebuild === 'function') {
-    setTimeout(window._portraitRebuild, 460);
+    setTimeout(() => window._portraitRebuild(true), 460);
   }
   if (typeof window._placeGlyphMetrics === 'function') {
     requestAnimationFrame(() => requestAnimationFrame(window._placeGlyphMetrics));
@@ -6164,6 +6166,7 @@ function initAllNarrativeParticles(container) {
   canvas.height = cc.height = H;
 
   let allChars = [], loaded = false;
+  const initTime = performance.now();
   let mX = W/2, mY = H/2;
   let bX = W/2, bY = H/2;
   let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
@@ -6180,7 +6183,7 @@ function initAllNarrativeParticles(container) {
 
   function buildGrid()  { return { cols: Math.floor(W / CHAR_W), rows: Math.floor(H / LINE_H) }; }
 
-  function buildChars() {
+  function buildChars(hardReset) {
     const { cols, rows } = buildGrid();
     const rowWidth = cols * CHAR_W;
     const maxChars = cols * rows * 2; // generous ceiling so we never run dry mid-build
@@ -6239,8 +6242,9 @@ function initAllNarrativeParticles(container) {
     }
 
     const prev = allChars;
+    const withinLoadGrace = hardReset || (performance.now() - initTime) < 900;
     return placed.map((s, idx) => {
-      const p = prev[idx];
+      const p = withinLoadGrace ? null : prev[idx];
       return {
         ch: s.ch, font: s.font,
         restX: s.restX, restY: s.restY,
@@ -6253,7 +6257,7 @@ function initAllNarrativeParticles(container) {
     });
   }
 
-  function rebuild() {
+  function rebuild(hardReset) {
     FONT_SIZE = particleSize();
     CHAR_W    = FONT_SIZE * 0.602;
     LINE_H    = FONT_SIZE * 1.38;
@@ -6262,7 +6266,7 @@ function initAllNarrativeParticles(container) {
     heroSection.style.height = H + 'px';
     canvas.width  = cc.width  = W;
     canvas.height = cc.height = H;
-    allChars = buildChars();
+    allChars = buildChars(hardReset);
     loaded   = true;
     heroTop  = heroSection.getBoundingClientRect().top + window.scrollY;
   }
@@ -6374,6 +6378,10 @@ function initAllNarrativeParticles(container) {
 
   rebuild();
   document.getElementById('hero-loading').classList.add('hidden');
+  requestAnimationFrame(() => {
+    canvas.classList.add('loaded');
+    cc.classList.add('loaded');
+  });
   loop();
 })();
 
