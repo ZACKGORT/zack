@@ -2684,7 +2684,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-hardinge" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/4nLTQS02/danaheroa-Zcf-Ia-BQr-Rdkrtxo-THSyhar-T.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Hardinge" data-cs-sub="B2B SAP Hybris E-Commerce">
       <canvas class="cs-hero-canvas"></canvas>
     </section>
@@ -3112,8 +3112,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-wovn" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp
-      " alt="AmericanMuscle.com — Turn5 Inc." loading="lazy"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="AmericanMuscle.com — Turn5 Inc." loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Full Throttle" data-cs-sub="AmericanMuscle.com — Turn5 Inc.">
       <canvas class="cs-hero-canvas"></canvas>
     </section>
@@ -3726,7 +3725,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
               <h3>Wolfgang</h3>
               <figure class="letter-figure">
                 <img src="https://i.ibb.co/RkxhHy9n/curbyourdogbw.webp" alt="Cards Against Bad UX — user story cards" loading="lazy">
-                <figcaption>a very good boy.</figcaption>
+                <figcaption>just being helpful.</figcaption>
               </figure>
             </div>
           </div>
@@ -4326,7 +4325,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         </div>
       </div>
 
-      <div class="ds-preview-card" data-page="index" data-summary-key="grid-toggle">
+      <div class="ds-preview-card" data-page="index" data-summary-key="grid-toggle" data-crop-y="780">
         <div class="ds-preview-card-frame">
           <div class="ds-preview-card-scrim">
             <span class="ds-preview-card-hint">Click to open →</span>
@@ -7302,43 +7301,49 @@ function initAllNarrativeParticles(container) {
 window._livePreviewPool = (function () {
   const MAX_LIVE = 3;
   const RELEASE_GRACE_MS = 4000; // avoids reload-thrash when quickly toggling Macro/Micro
-  const live = new Map(); // pageId -> { iframe, users:Set<container>, lastUsed, evictTimer }
+  const live = new Map(); // key -> { iframe, users:Set<container>, lastUsed, evictTimer }
 
   function pageUrl(id) {
     return location.pathname + '#' + id;
   }
 
-  function evict(pageId) {
-    const entry = live.get(pageId);
+  function evict(key) {
+    const entry = live.get(key);
     if (!entry) return;
     if (entry.iframe.parentNode) entry.iframe.parentNode.removeChild(entry.iframe);
-    live.delete(pageId);
+    live.delete(key);
   }
 
   function evictOneLRU() {
-    let oldestId = null, oldestTime = Infinity;
-    live.forEach((entry, id) => {
+    let oldestKey = null, oldestTime = Infinity;
+    live.forEach((entry, key) => {
       if (entry.users.size === 0 && entry.lastUsed < oldestTime) {
         oldestTime = entry.lastUsed;
-        oldestId = id;
+        oldestKey = key;
       }
     });
-    if (oldestId) evict(oldestId);
+    if (oldestKey) evict(oldestKey);
   }
 
+  // key: a unique identifier for this particular *view* — not just the page.
+  //   Two cards pointed at the same pageId but wanting a different scroll
+  //   position (e.g. "Work" showing the hero, "The Work Grid" showing the
+  //   toggle further down) need different keys, so each gets its own
+  //   independent iframe rather than fighting over a single shared one.
+  // pageId: which page the iframe should actually load.
   // container: the DOM element the iframe should live inside right now.
   // applyFit(iframe): container-specific scale/crop transform callback.
-  function claim(pageId, container, applyFit) {
-    let entry = live.get(pageId);
+  function claim(key, pageId, container, applyFit) {
+    let entry = live.get(key);
     if (!entry) {
       if (live.size >= MAX_LIVE) evictOneLRU();
       const iframe = document.createElement('iframe');
       iframe.className = 'ds-live-iframe';
-      iframe.title = pageId;
+      iframe.title = key;
       iframe.setAttribute('scrolling', 'no');
       iframe.src = pageUrl(pageId);
       entry = { iframe, users: new Set(), lastUsed: 0 };
-      live.set(pageId, entry);
+      live.set(key, entry);
     }
     if (entry.evictTimer) { clearTimeout(entry.evictTimer); entry.evictTimer = null; }
     entry.users.add(container);
@@ -7349,14 +7354,14 @@ window._livePreviewPool = (function () {
     applyFit(entry.iframe);
   }
 
-  function release(pageId, container) {
-    const entry = live.get(pageId);
+  function release(key, container) {
+    const entry = live.get(key);
     if (!entry) return;
     entry.users.delete(container);
     if (entry.users.size === 0) {
       entry.evictTimer = setTimeout(() => {
-        const stillEntry = live.get(pageId);
-        if (stillEntry && stillEntry.users.size === 0) evict(pageId);
+        const stillEntry = live.get(key);
+        if (stillEntry && stillEntry.users.size === 0) evict(key);
       }, RELEASE_GRACE_MS);
     }
   }
@@ -7365,13 +7370,13 @@ window._livePreviewPool = (function () {
   // (no grace period) — used when a whole grid gets hidden by the
   // Macro/Micro toggle, so a hidden section never keeps anything alive.
   function releaseAllWithin(rootEl) {
-    live.forEach((entry, pageId) => {
+    live.forEach((entry, key) => {
       Array.from(entry.users).forEach(container => {
         if (rootEl.contains(container)) {
           entry.users.delete(container);
         }
       });
-      if (entry.users.size === 0) evict(pageId);
+      if (entry.users.size === 0) evict(key);
     });
   }
 
@@ -7402,13 +7407,13 @@ window._livePreviewPool = (function () {
 
   // Claims a pooled iframe once a card is visible, releases it once
   // scrolled well out of view, refits on resize.
-  function wireLivePreview(container, pageId, applyFit) {
+  function wireLivePreview(container, key, pageId, applyFit) {
     const io = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          pool.claim(pageId, container, applyFit);
+          pool.claim(key, pageId, container, applyFit);
         } else {
-          pool.release(pageId, container);
+          pool.release(key, container);
         }
       });
     }, { rootMargin: '150px' });
@@ -7419,18 +7424,27 @@ window._livePreviewPool = (function () {
     }).observe(container);
   }
 
-  // Full page, scaled to fit a fixed 16:10 window
+  // Full page, scaled to fit a fixed 16:10 window. Cards can optionally
+  // specify a vertical crop offset (data-crop-y) to show a specific region
+  // of the page further down rather than always the very top — needed
+  // since "Work" and "The Work Grid" both point at the same page but need
+  // to show two different parts of it simultaneously.
   const THUMB_NATIVE_W = 1440;
   const cards = Array.from(grid.querySelectorAll('.ds-preview-card'));
   cards.forEach((card) => {
     const frame = card.querySelector('.ds-preview-card-frame');
     const page = card.dataset.page;
-    wireLivePreview(frame, page, (iframe) => {
+    const key = card.dataset.summaryKey || page;
+    const cropY = parseFloat(card.dataset.cropY) || 0;
+    wireLivePreview(frame, key, page, (iframe) => {
       iframe.style.width = THUMB_NATIVE_W + 'px';
       iframe.style.height = (THUMB_NATIVE_W * 10 / 16) + 'px';
       iframe.style.transformOrigin = 'top left';
       iframe.style.pointerEvents = 'none';
-      iframe.style.transform = `scale(${frame.clientWidth / THUMB_NATIVE_W})`;
+      const scale = frame.clientWidth / THUMB_NATIVE_W;
+      iframe.style.transform = cropY
+        ? `scale(${scale}) translate(0, ${-cropY}px)`
+        : `scale(${scale})`;
     });
   });
 
