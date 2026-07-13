@@ -916,7 +916,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   position:sticky;top:calc(var(--nav-h) + var(--bc-h));z-index:100;
 }
 .wt-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
-.wt-size-hint{font-size:var(--fs-nano);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);margin-right:14px;white-space:nowrap}
+.wt-size-hint{font-size:var(--fs-nano);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);margin-right:14px;white-space:nowrap;transition:color .25s ease,text-shadow .25s ease}
+.work-toolbar:hover .wt-size-hint,
+.cs-toolbar:hover .wt-size-hint{
+  color:var(--fg);
+  text-shadow:0 0 10px rgba(var(--fg-rgb),.6);
+}
 .wt-chevron{font-size:var(--fs-micro);color:var(--muted);margin-right:8px;cursor:none;user-select:none}
 .wt-slider{-webkit-appearance:none;appearance:none;width:160px;height:1px;background:rgba(var(--fg-rgb),.25);outline:none;cursor:none;margin-right:32px}
 .wt-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
@@ -1612,74 +1617,131 @@ body.light-mode .cs-toolbar{background:var(--bg)}
 }
 
 /* ══════════════════════════════════════════
-   DESIGN SYSTEM PAGE — mondrian-esque grid:
-   thick black rules, asymmetric block spans,
-   one red accent cell per section for emphasis.
+   DESIGN SYSTEM PAGE — a component library made
+   of the actual live pages, scaled to fit. Each
+   card is a real same-origin iframe of this same
+   file, jumped to a specific view via #hash boot.
 ══════════════════════════════════════════ */
 .ds-page{padding-top:calc(var(--nav-h) + var(--bc-h))}
-.ds-intro{
-  padding:56px 24px 40px;
-  border-bottom:3px solid var(--fg);
+.ds-hero{padding:64px 24px 48px;border-bottom:2px solid var(--fg)}
+.ds-hero-kicker{
+  display:block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(var(--fg-rgb),.35);margin-bottom:18px;
 }
-.ds-intro h1{
-  font-size:clamp(32px,5.5vw,68px);font-weight:800;letter-spacing:-.02em;
-  line-height:1;margin-bottom:16px;
+.ds-hero h1{font-size:clamp(34px,6vw,72px);font-weight:800;letter-spacing:-.02em;line-height:1.02;margin-bottom:22px;max-width:17ch}
+.ds-hero p{font-size:15px;line-height:1.75;color:rgba(var(--fg-rgb),.55);max-width:680px}
+
+/* ── Grid: generously spaced, optically balanced, responsive column count ── */
+.ds-preview-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:48px 40px;
+  padding:56px 40px 72px;
 }
-.ds-intro p{font-size:14px;color:rgba(var(--fg-rgb),.5);max-width:640px;line-height:1.65}
-.ds-section{border-bottom:3px solid var(--fg)}
-.ds-section-head{
-  display:flex;align-items:baseline;gap:16px;
-  padding:18px 24px;
-  border-bottom:1px solid var(--rule);
-}
-.ds-section-num{font-family:'DM Mono',monospace;font-size:12px;color:rgba(var(--fg-rgb),.3)}
-.ds-section-title{font-size:20px;font-weight:800;letter-spacing:-.01em}
-.ds-section-desc{font-size:12px;color:rgba(var(--fg-rgb),.35);margin-left:auto;text-align:right;max-width:340px;line-height:1.5}
-.ds-grid{display:grid;grid-template-columns:repeat(12,1fr)}
-.ds-cell{
-  border-right:1px solid var(--rule);
-  border-bottom:1px solid var(--rule);
-  padding:26px 24px;
+.ds-preview-card{cursor:pointer}
+.ds-preview-card-frame{
   position:relative;
-  min-height:200px;
+  width:100%;
+  aspect-ratio:16/10;
+  overflow:hidden;
+  border:1px solid var(--rule);
+  border-radius:3px;
+  background:#0a0a0a;
+  transition:border-color .2s ease,transform .3s cubic-bezier(.16,1,.3,1);
+}
+.ds-preview-card:hover .ds-preview-card-frame{
+  border-color:rgba(var(--fg-rgb),.35);
+  transform:translateY(-3px);
+}
+.ds-preview-thumb{
+  position:absolute;top:0;left:0;
+  width:1440px;height:900px;
+  border:none;
+  transform-origin:top left;
+  pointer-events:none; /* peek only — click the card to open the real, interactive size */
+  background:#0a0a0a;
+}
+.ds-preview-card-scrim{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0);
+  opacity:0;
+  transition:opacity .2s ease,background .2s ease;
+}
+.ds-preview-card:hover .ds-preview-card-scrim{
+  opacity:1;
+  background:rgba(0,0,0,.35);
+}
+.ds-preview-card-hint{
+  font-size:12px;font-weight:700;letter-spacing:.06em;
+  color:#fff;
+  padding:8px 16px;border:1px solid rgba(255,255,255,.4);border-radius:999px;
+  backdrop-filter:blur(6px);
+  transform:translateY(6px);
+  transition:transform .2s ease;
+}
+.ds-preview-card:hover .ds-preview-card-hint{transform:translateY(0)}
+.ds-preview-card-caption{
+  display:flex;align-items:baseline;gap:14px;
+  margin-top:18px;
+}
+.ds-preview-card-num{font-family:'DM Mono',monospace;font-size:11px;color:rgba(var(--fg-rgb),.3);flex-shrink:0}
+.ds-preview-card-title{display:block;font-size:19px;font-weight:800;letter-spacing:-.01em;color:var(--fg);margin-bottom:4px}
+.ds-preview-card-desc{display:block;font-size:12.5px;line-height:1.55;color:rgba(var(--fg-rgb),.5)}
+
+/* ── Expand modal: same page, full size, actually interactive ── */
+.ds-preview-modal{
+  position:fixed;inset:0;z-index:900;
+  display:flex;align-items:center;justify-content:center;
+  padding:40px;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s ease;
+}
+.ds-preview-modal.open{opacity:1;pointer-events:auto}
+.ds-preview-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px)}
+.ds-preview-modal-frame{
+  position:relative;
+  width:100%;max-width:1400px;
+  height:100%;max-height:880px;
+  background:var(--bg);
+  border:1px solid var(--rule);
+  border-radius:4px;
   display:flex;flex-direction:column;
   overflow:hidden;
+  transform:scale(.97);
+  transition:transform .25s cubic-bezier(.16,1,.3,1);
 }
-.ds-cell.accent{background:var(--accent)}
-.ds-cell.accent .ds-cell-label,.ds-cell.accent .ds-cell-desc,.ds-cell.accent .ds-cell-title{color:#fff}
-.ds-cell-label{
-  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:rgba(var(--fg-rgb),.3);margin-bottom:8px;
+.ds-preview-modal.open .ds-preview-modal-frame{transform:scale(1)}
+.ds-preview-modal-bar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--rule);flex-shrink:0;
 }
-.ds-cell-title{font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:-.005em}
-.ds-cell-desc{font-size:12px;color:rgba(var(--fg-rgb),.45);line-height:1.55;margin-bottom:22px;max-width:48ch}
-.ds-cell-demo{margin-top:auto;display:flex;align-items:center;flex-wrap:wrap;gap:12px}
-.ds-cell-demo.stack{flex-direction:column;align-items:stretch;width:100%;margin-top:0}
-.ds-cell.w3{grid-column:span 3}
-.ds-cell.w4{grid-column:span 4}
-.ds-cell.w5{grid-column:span 5}
-.ds-cell.w6{grid-column:span 6}
-.ds-cell.w7{grid-column:span 7}
-.ds-cell.w8{grid-column:span 8}
-.ds-cell.w9{grid-column:span 9}
-.ds-cell.w12{grid-column:span 12}
-.ds-swatch{
-  display:inline-flex;align-items:center;justify-content:center;
-  padding:8px 14px;border:1px solid var(--rule);border-radius:2px;
-  font-size:11px;color:rgba(var(--fg-rgb),.5);
+.ds-preview-modal-label{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.5)}
+.ds-preview-modal-close{
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+  color:rgba(var(--fg-rgb),.5);background:none;border:none;cursor:pointer;
+  padding:6px 12px;border:1px solid var(--rule);border-radius:999px;
+  transition:color .15s,border-color .15s;
 }
-.ds-note{
-  font-size:11px;color:rgba(var(--fg-rgb),.35);font-style:italic;
-  padding-top:14px;margin-top:14px;border-top:1px solid var(--rule);
+.ds-preview-modal-close:hover{color:var(--fg);border-color:rgba(var(--fg-rgb),.4)}
+.ds-preview-modal-body{
+  flex:1;
+  overflow-y:auto;
+  padding:36px 32px 48px;
 }
-.ds-note a{color:rgba(var(--fg-rgb),.6);cursor:pointer;text-decoration:underline}
-.ds-mini-toolbar{transform:scale(1);transform-origin:left center}
+.ds-summary{max-width:820px;margin:0 auto}
+@media(max-width:640px){
+  .ds-preview-modal-body{padding:24px 20px 40px}
+}
+
 @media(max-width:900px){
-  .ds-cell{grid-column:span 6 !important}
-  .ds-section-desc{display:none}
+  .ds-preview-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:40px 28px;padding:48px 24px 56px}
 }
 @media(max-width:640px){
-  .ds-cell{grid-column:span 12 !important;min-height:auto}
+  .ds-hero{padding:40px 16px 32px}
+  .ds-preview-grid{grid-template-columns:1fr;gap:36px;padding:36px 16px 48px}
+  .ds-preview-modal{padding:0}
+  .ds-preview-modal-frame{max-height:none;border-radius:0;border:none}
 }
 
 @media(max-width:640px){
@@ -2536,7 +2598,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-hardinge" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/4nLTQS02/danaheroa-Zcf-Ia-BQr-Rdkrtxo-THSyhar-T.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Hardinge" data-cs-sub="B2B SAP Hybris E-Commerce">
       <canvas class="cs-hero-canvas"></canvas>
     </section>
@@ -4052,365 +4114,191 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 <div id="view-designsystem" class="view">
   <div class="ds-page">
 
-    <div class="ds-intro">
-      <h1>Design System</h1>
-      <p>Every recurring mechanism on this site, in one place, paired with a live working example — not a screenshot. Toggle things. Hover things. Nothing here is a mockup.</p>
+    <!-- ── NARRATIVE INTRO ── -->
+    <div class="ds-hero">
+      <span class="ds-hero-kicker">↓ How this site actually got built</span>
+      <h1>Five Pages, Five Reasons</h1>
+      <p>These aren't screenshots and they aren't descriptions — each card below is the actual page, live, scaled down to fit. Click one to open it full size and use it for real. Nothing on this site got a grid, a toggle, or a piece of physics because it looked cool in isolation; the fastest way to show that is to just hand you the real thing, smaller.</p>
     </div>
 
-    <!-- 01 — NAVIGATION & CHROME -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">01</span>
-        <span class="ds-section-title">Navigation &amp; Chrome</span>
-        <span class="ds-section-desc">Global elements present on every page, regardless of view.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Nav Tabs</span>
-          <span class="ds-cell-title">Primary navigation</span>
-          <span class="ds-cell-desc">Active state is a solid fill, not an underline — matches the CTA button's weight instead of competing with it.</span>
-          <div class="ds-cell-demo">
-            <div style="display:flex;gap:2px;background:var(--bg)">
-              <span class="nav-tab active">Work</span>
-              <span class="nav-tab">Life</span>
-              <span class="nav-tab">Balance</span>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Breadcrumb</span>
-          <span class="ds-cell-title">Location trail</span>
-          <span class="ds-cell-desc">Sits directly under the nav, own hairline border — reads as a second, quieter row of chrome.</span>
-          <div class="ds-cell-demo">
-            <div class="fs-bc" style="position:static;width:100%">
-              <span class="bc-btn">Zack Gort</span><span class="bc-sep">›</span><span class="bc-active">Design System</span>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Nav-right link</span>
-          <span class="ds-cell-title">Contact / Design System</span>
-          <span class="ds-cell-desc">Quiet by default, full opacity on hover — deliberately lower-key than the CTA button beside it.</span>
-          <div class="ds-cell-demo">
-            <a class="nav-right-link" href="javascript:void(0)" style="cursor:pointer">Contact</a>
-          </div>
-        </div>
+    <div class="ds-preview-grid" id="dsPreviewGrid">
 
-        <div class="ds-cell w3">
-          <span class="ds-cell-label">Theme toggle</span>
-          <span class="ds-cell-title">Dark / Light</span>
-          <span class="ds-cell-desc">Two circles, synced globally — this pair is wired to the real site theme.</span>
-          <div class="ds-cell-demo">
-            <div class="wt-theme-group" style="margin-right:0">
-              <button class="wt-theme-btn dark-btn active" title="Dark mode"></button>
-              <button class="wt-theme-btn light-btn" title="Light mode"></button>
-            </div>
+      <div class="ds-preview-card" data-page="index">
+        <div class="ds-preview-card-frame">
+          <iframe class="ds-preview-thumb" title="Work — live preview" scrolling="no"></iframe>
+          <div class="ds-preview-card-scrim">
+            <span class="ds-preview-card-hint">Click to open →</span>
           </div>
         </div>
-        <div class="ds-cell w3">
-          <span class="ds-cell-label">CTA button</span>
-          <span class="ds-cell-title">Download CV</span>
-          <span class="ds-cell-desc">Solid fill, the one button on the site that never goes quiet.</span>
-          <div class="ds-cell-demo">
-            <span class="nav-cta" style="cursor:pointer">Download CV</span>
-          </div>
-        </div>
-        <div class="ds-cell w6 accent">
-          <span class="ds-cell-label">Back to top</span>
-          <span class="ds-cell-title">Bottom-right, appears near page end</span>
-          <span class="ds-cell-desc">Only shows on Journal and Life, only once you're within ~240px of the actual bottom — forced visible here since you're not scrolled there.</span>
-          <div class="ds-cell-demo">
-            <button class="page-back-to-top visible" style="position:relative;bottom:auto;right:auto" aria-label="Back to top">↑ top</button>
+        <div class="ds-preview-card-caption">
+          <span class="ds-preview-card-num">01</span>
+          <div>
+            <span class="ds-preview-card-title">Work</span>
+            <span class="ds-preview-card-desc">Can this person actually ship — answered fast, in List, Grid, or Feed.</span>
           </div>
         </div>
       </div>
+
+      <div class="ds-preview-card" data-page="contracts">
+        <div class="ds-preview-card-frame">
+          <iframe class="ds-preview-thumb" title="Life — live preview" scrolling="no"></iframe>
+          <div class="ds-preview-card-scrim">
+            <span class="ds-preview-card-hint">Click to open →</span>
+          </div>
+        </div>
+        <div class="ds-preview-card-caption">
+          <span class="ds-preview-card-num">02</span>
+          <div>
+            <span class="ds-preview-card-title">Life</span>
+            <span class="ds-preview-card-desc">The unfiltered CV — a sidebar table of contents instead of a wall of scroll.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-preview-card" data-page="generalassembly">
+        <div class="ds-preview-card-frame">
+          <iframe class="ds-preview-thumb" title="Balance — live preview" scrolling="no"></iframe>
+          <div class="ds-preview-card-scrim">
+            <span class="ds-preview-card-hint">Click to open →</span>
+          </div>
+        </div>
+        <div class="ds-preview-card-caption">
+          <span class="ds-preview-card-num">03</span>
+          <div>
+            <span class="ds-preview-card-title">Balance</span>
+            <span class="ds-preview-card-desc">A social wall, eventually — an infinite canvas built to be wandered, not scrolled.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-preview-card" data-page="about">
+        <div class="ds-preview-card-frame">
+          <iframe class="ds-preview-thumb" title="Journal — live preview" scrolling="no"></iframe>
+          <div class="ds-preview-card-scrim">
+            <span class="ds-preview-card-hint">Click to open →</span>
+          </div>
+        </div>
+        <div class="ds-preview-card-caption">
+          <span class="ds-preview-card-num">04</span>
+          <div>
+            <span class="ds-preview-card-title">Journal</span>
+            <span class="ds-preview-card-desc">Five letters, five typefaces, one shared kit of prose components.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ds-preview-card" data-page="contact">
+        <div class="ds-preview-card-frame">
+          <iframe class="ds-preview-thumb" title="Contact — live preview" scrolling="no"></iframe>
+          <div class="ds-preview-card-scrim">
+            <span class="ds-preview-card-hint">Click to open →</span>
+          </div>
+        </div>
+        <div class="ds-preview-card-caption">
+          <span class="ds-preview-card-num">05</span>
+          <div>
+            <span class="ds-preview-card-title">Contact</span>
+            <span class="ds-preview-card-desc">Glass, physics, and a LinkedIn link you can actually throw across the screen.</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- 02 — TOOLBAR CONTROLS -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">02</span>
-        <span class="ds-section-title">Toolbar Controls</span>
-        <span class="ds-section-desc">The size/align/layout/reset row that sits under the breadcrumb on Work, case studies, Life, and Journal.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">Live instance</span>
-          <span class="ds-cell-title">This toolbar is fully wired — drag the slider</span>
-          <span class="ds-cell-desc">Reuses the exact same init function every other toolbar on the site uses, so this one actually changes global type scale, alignment, and theme. Reset All puts everything back.</span>
-          <div class="ds-cell-demo stack">
-            <div class="cs-toolbar cs-toolbar-inst" style="position:static;border:1px solid var(--rule)">
-              <span class="wt-size-label cs-size-label">48px</span>
-              <span class="wt-size-hint">Shift+Scroll</span>
-              <span class="wt-chevron">◀</span>
-              <input type="range" class="wt-slider cs-slider" min="28" max="72" value="48">
-              <div class="wt-spacer"></div>
-              <div class="wt-theme-group">
-                <button class="wt-theme-btn dark-btn active" title="Dark mode"></button>
-                <button class="wt-theme-btn light-btn" title="Light mode"></button>
-              </div>
-              <button class="wt-reset cs-reset-btn">Reset All</button>
-            </div>
-          </div>
+    <!-- ── EXPANDED MODAL: a summary of the page's essential parts, not a
+         full live re-render — written with Journal's own prose kit ── -->
+    <div class="ds-preview-modal" id="dsPreviewModal" aria-hidden="true">
+      <div class="ds-preview-modal-backdrop"></div>
+      <div class="ds-preview-modal-frame">
+        <div class="ds-preview-modal-bar">
+          <span class="ds-preview-modal-label" id="dsPreviewModalLabel"></span>
+          <button class="ds-preview-modal-close" id="dsPreviewModalClose" aria-label="Close">Esc ×</button>
         </div>
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Alignment group</span>
-          <span class="ds-cell-title">Left / Center / Right</span>
-          <span class="ds-cell-desc">Work-index-only control — governs headline alignment across all work-row cards at once.</span>
-          <div class="ds-cell-demo">
-            <div class="wt-align-group" style="margin-right:0">
-              <button class="wt-align-btn active" title="Align left"><svg viewBox="0 0 16 12"><rect x="0" y="0" width="16" height="1.5"/><rect x="0" y="3.5" width="11" height="1.5"/><rect x="0" y="7" width="16" height="1.5"/><rect x="0" y="10.5" width="8" height="1.5"/></svg></button>
-              <button class="wt-align-btn" title="Align center"><svg viewBox="0 0 16 12"><rect x="0" y="0" width="16" height="1.5"/><rect x="2.5" y="3.5" width="11" height="1.5"/><rect x="0" y="7" width="16" height="1.5"/><rect x="4" y="10.5" width="8" height="1.5"/></svg></button>
-              <button class="wt-align-btn" title="Align right"><svg viewBox="0 0 16 12"><rect x="0" y="0" width="16" height="1.5"/><rect x="5" y="3.5" width="11" height="1.5"/><rect x="0" y="7" width="16" height="1.5"/><rect x="8" y="10.5" width="8" height="1.5"/></svg></button>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Layout toggle</span>
-          <span class="ds-cell-title">List / Grid</span>
-          <span class="ds-cell-desc">Grid stays a genuine 2-up card grid all the way to phone widths — it never quietly collapses into List's clothing.</span>
-          <div class="ds-cell-demo">
-            <div class="wt-layout-group" style="margin-right:0">
-              <button class="wt-layout-btn" title="List view"><svg viewBox="0 0 14 10" width="14" height="10" fill="currentColor"><rect x="0" y="0" width="14" height="1.4"/><rect x="0" y="4.3" width="14" height="1.4"/><rect x="0" y="8.6" width="14" height="1.4"/></svg></button>
-              <button class="wt-layout-btn active" title="Grid view"><svg viewBox="0 0 12 12" width="12" height="12" fill="currentColor"><rect x="0" y="0" width="5" height="5"/><rect x="7" y="0" width="5" height="5"/><rect x="0" y="7" width="5" height="5"/><rect x="7" y="7" width="5" height="5"/></svg></button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+        <div class="ds-preview-modal-body">
 
-    <!-- 03 — WORK INDEX -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">03</span>
-        <span class="ds-section-title">Work Index</span>
-        <span class="ds-section-desc">The row/card that represents a single project on the Work page.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">List row — hover for the poster tooltip</span>
-          <span class="ds-cell-title">wr-client · wr-sub · wr-tooltip · wr-bulb</span>
-          <div class="ds-cell-demo stack">
-            <div class="work-row reveal in" style="border-top:1px solid var(--rule);padding:32px 20px">
-              <div class="wr-num">00</div>
-              <div class="wr-left">
-                <div class="wr-client" style="font-size:clamp(20px,3vw,36px)">Sample Client — Example Platform</div>
-                <div class="wr-sub">Design System · Component Demo · Not A Real Client</div>
-              </div>
-              <div class="wr-meta">
-                <div class="wr-type">Demo · Reference</div>
-                <div class="wr-year">2026</div>
-              </div>
-              <div class="wr-arrow">→</div>
-              <div class="wr-bulb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .8 1.6h5.4c0-.6.3-1.2.8-1.6A6 6 0 0 0 12 3z"/></svg></div>
-              <div class="wr-tooltip visible" style="position:absolute;bottom:auto;top:-160px;right:20px">
-                <span class="tip-head">Demo · 2026</span>
-                <span class="tip-title">Sample Client<br>Reference Row</span>
-                <span class="tip-rule"></span>
-                <span class="tip-body">This tooltip is <strong>always visible</strong> here for documentation — normally it only shows on hover.</span>
-                <span class="tip-foot">Same markup as every real work row.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">Grid card — toggled via the layout control above</span>
-          <span class="ds-cell-title">work-rows.grid-mode .work-row</span>
-          <div class="ds-cell-demo">
-            <div class="work-rows grid-mode cols-4" style="width:100%;border:1px solid var(--rule)">
-              <div class="work-row" style="border-top:none">
-                <div class="wr-num">00</div>
-                <div class="wr-left">
-                  <div class="wr-client">Reference Card</div>
-                </div>
-                <div class="wr-sub">Demo · Component Library</div>
-                <div class="wr-meta"><div class="wr-type">Demo</div><div class="wr-year">2026</div></div>
-                <div class="wr-arrow">→</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 04 — CASE STUDY MECHANICS -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">04</span>
-        <span class="ds-section-title">Case Study Mechanics</span>
-        <span class="ds-section-desc">Recurring pieces inside each of the seven client case studies.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Timeline entry — hover the label</span>
-          <span class="ds-cell-title">tl-entry · tl-tooltip</span>
-          <span class="ds-cell-desc">Used on About's career timeline — the tooltip is a pure CSS hover reveal, no JS.</span>
-          <div class="ds-cell-demo">
-            <span class="tl-entry"><span class="tl-label">2026 · Design System — Component Demo</span><span class="tl-tooltip">Hover reveal, positioned above the label, same pattern used on every career-timeline entry.</span></span>
-          </div>
-        </div>
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Masonry gallery item</span>
-          <span class="ds-cell-title">masonry-item · caption-on-hover</span>
-          <span class="ds-cell-desc">Used for process/artifact galleries — caption gradient fades in on hover.</span>
-          <div class="ds-cell-demo" style="width:100%">
-            <div class="masonry-item" style="width:160px;height:120px;background:rgba(var(--fg-rgb),.08)">
-              <span class="masonry-caption" style="opacity:1">Reference Artifact</span>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">Not reproduced live here</span>
-          <span class="ds-cell-title">Resizable glyph specimen &amp; weight-list hover thumbnails</span>
-          <span class="ds-cell-desc">Both are per-instance canvas/JS systems tied to a single case study's fonts and images — duplicating them here would mean running a second, disconnected copy of that engine. See them live on any case study (BNY, GNC, Hardinge, Kent, Dana, Power, or Wovn).</span>
-          <div class="ds-note">The draggable split, the letter-click caption swap, and the drag-to-follow weight thumbnail all live in <em>fs-weight-list</em> and <em>fs-glyphs</em> — same mechanism, sourced from real project typefaces.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 05 — LONG-FORM LETTER COMPONENTS -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">05</span>
-        <span class="ds-section-title">Long-Form Letter Components</span>
-        <span class="ds-section-desc">The Journal's writing system — About, Insight, Outlook, Manifesto, Confessions all draw from this same kit.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Section headers</span>
-          <span class="ds-cell-title">letter-body h2 / h3</span>
-          <div class="ds-cell-demo stack">
+          <div class="ds-summary" data-summary="index">
             <div class="letter-body">
-              <h2 style="margin-top:0">A Kicker-Style H2</h2>
-              <h3>A Slightly Smaller H3</h3>
+              <p>Work exists to answer one question fast: can this person actually ship. Every row is dense on purpose — client, role, outcome, all in the first eight words — because whoever's reading it is skimming, not settling in.</p>
+              <h3>Why List, Grid, and now Feed</h3>
+              <p>List is the honest default: a résumé that admits it's a résumé. Grid reads as a portfolio wall instead of a document. Feed unfolds everything at once, no hovering required — the same reasoning Balance's gallery got a Feed mode.</p>
+              <div class="letter-dialogue">
+                <div class="letter-dialogue-line is-a"><span class="letter-dialogue-quote">Isn't three view modes overkill for a portfolio?</span><span class="letter-dialogue-who">Me, building this</span></div>
+                <div class="letter-dialogue-line is-b"><span class="letter-dialogue-quote">A recruiter skims differently than a designer evaluates.</span><span class="letter-dialogue-who">Also me, five minutes later</span></div>
+              </div>
+              <h3>Essential parts</h3>
+              <ul class="letter-checklist">
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Hover a row for a poster-style tooltip — a bigger preview than the row has room for.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">The size slider drives type scale here, and nowhere else touches it.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Escape always means "go home" — from any page, any open panel, in order.</span></label></li>
+              </ul>
             </div>
           </div>
-        </div>
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">Full-width figure</span>
-          <span class="ds-cell-title">letter-figure — img or video, native aspect ratio</span>
-          <div class="ds-cell-demo stack">
-            <figure class="letter-figure" style="margin:0">
-              <img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="Reference figure" loading="lazy">
-              <figcaption>Breaks out to the full card width, unlike body text (capped at 64ch).</figcaption>
-            </figure>
-          </div>
-        </div>
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">Conversational pull-quote</span>
-          <span class="ds-cell-title">letter-dialogue — no bubble chrome, just scale + alignment + real curly quotes</span>
-          <div class="ds-cell-demo stack">
-            <div class="letter-dialogue" style="margin:0">
-              <div class="letter-dialogue-line is-a">
-                <span class="letter-dialogue-quote">Is this actually live?</span>
-                <span class="letter-dialogue-who">You, reading this</span>
-              </div>
-              <div class="letter-dialogue-line is-b">
-                <span class="letter-dialogue-quote">Yes — same CSS, same markup.</span>
-                <span class="letter-dialogue-who">This page</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="ds-cell w6">
-          <span class="ds-cell-label">List toggle — click Numbered / Bulleted</span>
-          <span class="ds-cell-title">letter-never-list — used on Confessions</span>
-          <div class="ds-cell-demo stack">
-            <div class="letter-never-toggle" data-never-toggle-group>
-              <button type="button" class="active" data-never-mode="numbered">Numbered</button>
-              <button type="button" data-never-mode="bulleted">Bulleted</button>
-            </div>
-            <ul class="letter-never-list is-numbered" data-never-list style="margin-bottom:0">
-              <li class="letter-never-item">
-                <span class="letter-never-marker"></span>
-                <div class="letter-never-body">
-                  <h4 class="letter-never-statement">Never have I ever shipped a portfolio without a component library.</h4>
-                  <p class="letter-never-context">Until now.</p>
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div class="ds-cell w6 accent">
-          <span class="ds-cell-label">Checkbox list — click one</span>
-          <span class="ds-cell-title">letter-checklist — used on Manifesto</span>
-          <div class="ds-cell-demo stack">
-            <ul class="letter-checklist" style="margin-bottom:0">
-              <li class="letter-checklist-item">
-                <label>
-                  <input type="checkbox" class="letter-checklist-box">
-                  <span class="letter-checklist-mark"></span>
-                  <span class="letter-checklist-text">Check this off. It strikes through — pure CSS, no JS.</span>
-                </label>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div class="ds-cell w12">
-          <span class="ds-cell-label">Collapsible accordion — click a header</span>
-          <span class="ds-cell-title">letter-accordion — used on Outlook</span>
-          <div class="ds-cell-demo stack">
-            <div class="letter-accordion" style="margin-bottom:0">
-              <div class="letter-accordion-item is-open">
-                <button class="letter-accordion-trigger" type="button">
-                  <span class="letter-accordion-num">01</span>
-                  <span class="letter-accordion-title">This one starts open</span>
-                  <span class="letter-accordion-icon">+</span>
-                </button>
-                <div class="letter-accordion-panel">
-                  <div class="letter-accordion-panel-inner">
-                    <p>Animated with a CSS grid-rows 0fr→1fr transition rather than a JS-measured max-height, so it stays correct even when the page-scale slider reflows this text.</p>
-                  </div>
-                </div>
-              </div>
-              <div class="letter-accordion-item">
-                <button class="letter-accordion-trigger" type="button">
-                  <span class="letter-accordion-num">02</span>
-                  <span class="letter-accordion-title">This one starts closed</span>
-                  <span class="letter-accordion-icon">+</span>
-                </button>
-                <div class="letter-accordion-panel">
-                  <div class="letter-accordion-panel-inner">
-                    <p>Click either header — multiple chapters can be open at once, nothing forces the others shut.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- 06 — INTERACTIVE OBJECTS (WEBGL) -->
-    <div class="ds-section">
-      <div class="ds-section-head">
-        <span class="ds-section-num">06</span>
-        <span class="ds-section-title">Interactive Objects</span>
-        <span class="ds-section-desc">Three.js scenes — each is its own render loop, gated to only run while its page is active.</span>
-      </div>
-      <div class="ds-grid">
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Glass ice-tray</span>
-          <span class="ds-cell-title">Contact page</span>
-          <span class="ds-cell-desc">~16–33 draggable, collidable rounded-glass cubes with per-facet RectAreaLight rig. The LinkedIn text is a real 3D mesh, raycast for hover/click.</span>
-          <div class="ds-cell-demo"><button class="ds-swatch" style="cursor:pointer" onclick="navigate('contact')">See it live →</button></div>
-        </div>
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Journal hero</span>
-          <span class="ds-cell-title">Journal page, top</span>
-          <span class="ds-cell-desc">Same cube-tray engine, smaller cube count, plain (non-link) statement text baked into the scene.</span>
-          <div class="ds-cell-demo"><button class="ds-swatch" style="cursor:pointer" onclick="navigate('about')">See it live →</button></div>
-        </div>
-        <div class="ds-cell w4">
-          <span class="ds-cell-label">Infinite photo canvas</span>
-          <span class="ds-cell-title">Balance page</span>
-          <span class="ds-cell-desc">90-photo pool, drag/inertia pan, golden-ratio tile assignment so neighboring cells rarely repeat, click-to-open postcard.</span>
-          <div class="ds-cell-demo"><button class="ds-swatch" style="cursor:pointer" onclick="navigate('generalassembly')">See it live →</button></div>
+          <div class="ds-summary" data-summary="contracts" hidden>
+            <div class="letter-body">
+              <p>Life is the unfiltered version — the actual CV, in full, for the reader who wants receipts instead of highlights. Work is the pitch. Life is the paper trail behind it.</p>
+              <h3>Why a sidebar instead of a wall of scroll</h3>
+              <p>Fifteen-plus years doesn't fit in a headline. A table of contents means jumping straight to 2018 without scrolling past 2011 to get there.</p>
+              <h3>Essential parts</h3>
+              <ul class="letter-never-list is-bulleted">
+                <li class="letter-never-item"><span class="letter-never-marker"></span><div class="letter-never-body"><h4 class="letter-never-statement">Scroll-spy, not click-only navigation.</h4><p class="letter-never-context">The active chapter highlights itself as you scroll — the sidebar always tells the truth about where you are.</p></div></li>
+                <li class="letter-never-item"><span class="letter-never-marker"></span><div class="letter-never-body"><h4 class="letter-never-statement">Chapter labels, not just years.</h4><p class="letter-never-context">"Design by Data" tells you more than "2011–14" ever could.</p></div></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="ds-summary" data-summary="generalassembly" hidden>
+            <div class="letter-body">
+              <p>A social wall, eventually — for now, the view from here. Balance is the one page built to be looked at, not read — humanizing the rest of the site without becoming a mood board nobody explores.</p>
+              <h3>Why an infinite canvas instead of a static grid</h3>
+              <p>A grid you scroll past once. A canvas you pan around invites the same aimless wandering an actual photo wall does — drag it, let it coast, bump the edge.</p>
+              <h3>Essential parts</h3>
+              <ul class="letter-checklist">
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Golden-ratio tile assignment, so the same photo almost never lands near itself.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Drag-inertia panning — momentum, not a scrollbar.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Click any photo for a postcard-style close-up.</span></label></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="ds-summary" data-summary="about" hidden>
+            <div class="letter-body">
+              <p>Journal is where the portfolio admits there's a person behind it. Five letters, five typefaces, one shared kit of prose components — the same kit this sentence is using right now.</p>
+              <h3>The kit, demonstrated by using it</h3>
+              <div class="letter-accordion" style="margin-bottom:20px">
+                <div class="letter-accordion-item is-open">
+                  <button class="letter-accordion-trigger" type="button"><span class="letter-accordion-num">01</span><span class="letter-accordion-title">Recursive on purpose</span><span class="letter-accordion-icon">+</span></button>
+                  <div class="letter-accordion-panel"><div class="letter-accordion-panel-inner"><p>An accordion, inside the summary explaining accordions.</p></div></div>
+                </div>
+              </div>
+              <h3>Essential parts</h3>
+              <ul class="letter-checklist">
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Kicker-style h2/h3 for pacing a long letter without shouting.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">Dialogue pull-quotes for anything that was actually a back-and-forth.</span></label></li>
+                <li class="letter-checklist-item"><label><input type="checkbox" class="letter-checklist-box"><span class="letter-checklist-mark"></span><span class="letter-checklist-text">A horizontal, snapping track on desktop — a letter reads like a page, not a feed slab.</span></label></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="ds-summary" data-summary="contact" hidden>
+            <div class="letter-body">
+              <p>Contact is the one page willing to be a little ridiculous — glass, physics, and a link you can actually pick up and throw across the screen instead of just clicking.</p>
+              <h3>Why physical instead of a form</h3>
+              <p>A contact form is a chore. A tray of collidable glass cubes you can fling around is the opposite of a chore — and the LinkedIn link is a real 3D mesh sitting in the scene, not a DOM overlay pasted on top of it.</p>
+              <h3>Essential parts</h3>
+              <ul class="letter-never-list is-bulleted">
+                <li class="letter-never-item"><span class="letter-never-marker"></span><div class="letter-never-body"><h4 class="letter-never-statement">Per-facet RectAreaLight rig.</h4><p class="letter-never-context">Real lighting that responds to each cube's rotation, not a faked glow.</p></div></li>
+                <li class="letter-never-item"><span class="letter-never-marker"></span><div class="letter-never-body"><h4 class="letter-never-statement">Raycast hover + click on the text mesh.</h4><p class="letter-never-context">Cursor and underline respond to the actual 3D geometry, not a hitbox pretending to be one.</p></div></li>
+              </ul>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
 
   </div>
+
 </div>
 
 <style>
@@ -6486,8 +6374,17 @@ function initAllNarrativeParticles(container) {
   function update() {
     const w = wrap.clientWidth || NATIVE_W;
     const h = wrap.clientHeight || NATIVE_H;
-    const scale = Math.max(w / NATIVE_W, h / NATIVE_H);
+    // Math.min ("contain") instead of Math.max ("cover") — cover was cropping
+    // whichever edge didn't match the container's aspect ratio (the bottom,
+    // in a narrow tall column). Contain guarantees nothing is ever clipped,
+    // at the cost of possibly letterboxing empty space on one axis — which
+    // is why the frame is also centered below rather than pinned top-left.
+    const scale = Math.min(w / NATIVE_W, h / NATIVE_H);
+    const scaledW = NATIVE_W * scale;
+    const scaledH = NATIVE_H * scale;
     frame.style.transform = `scale(${scale})`;
+    frame.style.left = Math.round((w - scaledW) / 2) + 'px';
+    frame.style.top = Math.round((h - scaledH) / 2) + 'px';
   }
   window._updateHoopScale = update;
   window.addEventListener('resize', update);
@@ -6959,6 +6856,84 @@ function initAllNarrativeParticles(container) {
   });
 })();
 
+// ── DESIGN SYSTEM: live page-preview cards (lazy-loaded, scaled thumbnails
+//    that expand into a real, full-size, interactive iframe on click) ───────
+(function initDesignSystemPage() {
+  const grid = document.getElementById('dsPreviewGrid');
+  const modal = document.getElementById('dsPreviewModal');
+  if (!grid || !modal) return;
+
+  const THUMB_NATIVE_W = 1440; // matches the iframe's own width/height attrs
+
+  function pageUrl(id) {
+    return location.pathname + '#' + id;
+  }
+
+  // Scale each thumbnail iframe to fit its own card's current width —
+  // aspect-ratio is fixed by CSS (16/10) to match the iframe's own native
+  // proportions, so width-only scaling never needs letterboxing.
+  function fitThumb(card) {
+    const frame = card.querySelector('.ds-preview-card-frame');
+    const iframe = card.querySelector('.ds-preview-thumb');
+    if (!frame || !iframe) return;
+    const scale = frame.clientWidth / THUMB_NATIVE_W;
+    iframe.style.transform = `scale(${scale})`;
+  }
+
+  const cards = Array.from(grid.querySelectorAll('.ds-preview-card'));
+
+  // Lazy-load: only point a thumbnail at the real page once its card is
+  // actually visible — five simultaneous full-site iframes loading at once
+  // (some running WebGL) is not a reasonable default.
+  const loadObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const card = entry.target;
+      const iframe = card.querySelector('.ds-preview-thumb');
+      const page = card.dataset.page;
+      if (iframe && !iframe.src) {
+        iframe.src = pageUrl(page);
+        fitThumb(card);
+      }
+      loadObserver.unobserve(card);
+    });
+  }, { rootMargin: '200px' });
+  cards.forEach(card => loadObserver.observe(card));
+
+  const resizeObserver = new ResizeObserver((entries) => {
+    entries.forEach(entry => fitThumb(entry.target.closest('.ds-preview-card')));
+  });
+  cards.forEach(card => resizeObserver.observe(card.querySelector('.ds-preview-card-frame')));
+
+  // Expand modal — shows a curated summary of that page's essential parts,
+  // not a full live re-render of the page.
+  const modalLabel = document.getElementById('dsPreviewModalLabel');
+  const modalClose = document.getElementById('dsPreviewModalClose');
+  const summaries = modal.querySelectorAll('.ds-summary');
+
+  function openModal(card) {
+    const page = card.dataset.page;
+    const title = card.querySelector('.ds-preview-card-title').textContent;
+    modalLabel.textContent = title;
+    summaries.forEach(s => { s.hidden = s.dataset.summary !== page; });
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  function closeModal() {
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  cards.forEach(card => card.addEventListener('click', () => openModal(card)));
+  modalClose.addEventListener('click', closeModal);
+  modal.querySelector('.ds-preview-modal-backdrop').addEventListener('click', closeModal);
+
+  window._escPanelStack.push({
+    isOpen: () => modal.classList.contains('open'),
+    close: closeModal,
+  });
+})();
+
 // ── ACCORDION (Outlook's collapsible chapter sections) ──────────────────────
 (function initLetterAccordion() {
   document.addEventListener('click', (e) => {
@@ -7032,6 +7007,14 @@ function initAllNarrativeParticles(container) {
   btn.addEventListener('click', () => {
     (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
   });
+})();
+
+// ── HASH BOOT (lets this file be embedded in an iframe and jump straight to
+//    a specific page via foundry.html#work, foundry.html#balance, etc. —
+//    used by the Design System page's live page-preview thumbnails) ────────
+(function bootFromHash() {
+  const id = (location.hash || '').replace('#', '');
+  if (id && VIEWS[id] && id !== 'index') showView(id);
 })();
 </script>
 
