@@ -153,7 +153,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 
 /* Image-text portrait hero */
 #hero{position:relative;width:100%;overflow:hidden;background:var(--bg);display:block}
-#hero-frame{position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:block}
+#hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .7s ease}
+#hero-canvas.loaded,#hero-cc.loaded{opacity:1}
+#hero-cc{pointer-events:none;z-index:2}
+#hero-loading{
+  position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:10;
+  font-family:'DM Mono',monospace;font-size:var(--fs-micro);letter-spacing:.25em;text-transform:uppercase;
+  color:var(--fg);opacity:.4;transition:opacity .6s;
+}
+#hero-loading.hidden{opacity:0;pointer-events:none}
 
 /* Work index grid */
 .testimonials{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:0}
@@ -1817,7 +1826,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-index" class="view active">
     <section id="hero">
-      <iframe id="hero-frame" src="https://zack.cx/hero" title="Work hero" loading="eager" scrolling="no"></iframe>
+      <canvas id="hero-canvas"></canvas>
+      <canvas id="hero-cc"></canvas>
+      <div id="hero-loading">rendering</div>
     </section>
 
   <div class="page-body">
@@ -4341,12 +4352,50 @@ function initAllNarrativeParticles(container) {
 }
 
 // ── PORTRAIT HERO (index) ──────────────────────────────────────────────────
-// ── WORK HERO: now an iframe embed (zack.cx/hero) — this just sizes the
-//    #hero section to match the same proportions the embedded page uses,
-//    so the layout around it doesn't shift once the iframe loads.
-(function initHeroFrameSize() {
+(function initPortraitHero() {
+  // Individual client/employer names — each one is a single "phrase" that
+  // gets its own randomly-assigned font, rather than randomizing per letter.
+  const POEM_PHRASES = [
+    "Comcast", "Charter", "Rachel Roy", "LimeCrime", "Organic Girl", "Goya",
+    "General Nutrition Centers", "Worldwide Stereo", "Simpson Strong-Tie",
+    "Shop Hardinge", "YETI", "Aquasana", "Kent State University",
+    "University of Wisconsin-Madison", "Texas A&M", "Centro.edu.mx",
+    "Power Home Remodeling Group", "TikTok For Business", "BNY Pershing X",
+    "The Dana Foundation", "Daz3D", "Sentral Lifestyle Apartments",
+    "Publicis Sapient", "Code & Theory", "Huge", "Elva Design Group",
+    "LiveArea", "WebLinc", "Workarea", "O3 World", "160OVER90",
+    "Leadnomics", "Turn5 Inc", "Phenom",
+  ];
+  const POEM_TEXT = POEM_PHRASES.join(" ");
+
+  const PT_TETHER = 0.014;
+  const PT_DAMP   = 0.76;
+  const PT_LERP   = 0.11;
+
+  function particleSize() {
+    return window.innerWidth <= 640 ? 13 : 22; // smaller on mobile so the tiled text doesn't dominate the viewport
+  }
+  let FONT_SIZE = particleSize();
+  let CHAR_W    = FONT_SIZE * 0.11;
+  let LINE_H    = FONT_SIZE * 0.33;
+
+  // Pool of fonts already loaded elsewhere on the site — each tiled character
+  // is randomly (but stably) assigned one of these at build time.
+  const PT_FONTS = [
+    '"Inter",sans-serif',
+    '"Playfair Display",serif',
+    '"Syne",sans-serif',
+    '"Bebas Neue",sans-serif',
+    '"Space Grotesk",sans-serif',
+    '"DM Serif Display",serif',
+  ];
+
   const heroSection = document.getElementById('hero');
-  if (!heroSection) return;
+  const canvas = document.getElementById('hero-canvas');
+  const cc     = document.getElementById('hero-cc');
+  const ctx    = canvas.getContext('2d');
+  const cctx   = cc.getContext('2d');
+
   function heroH() {
     const fs1  = Math.round(Math.min(window.innerWidth * 0.145, 195));
     const fs2  = Math.round(fs1 * 0.28);
@@ -4356,13 +4405,249 @@ function initAllNarrativeParticles(container) {
     const base = padT + fs1 + gap + fs2 + padB;
     return window.innerWidth <= 640 ? Math.round(base * 1.35) : base;
   }
-  function apply() { heroSection.style.height = heroH() + 'px'; }
-  apply();
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(apply, 120);
+
+  let W = window.innerWidth;
+  let H = heroH();
+  heroSection.style.height = H + 'px';
+  canvas.width  = cc.width  = W;
+  canvas.height = cc.height = H;
+
+  let allChars = [], loaded = false;
+  const initTime = performance.now();
+  let mX = W/2, mY = H/2;
+  let bX = W/2, bY = H/2;
+  let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
+
+  let _dark = !document.body.classList.contains('light-mode');
+  function isDarkMode() { return _dark; }
+  new MutationObserver(() => {
+    const nowDark = !document.body.classList.contains('light-mode');
+    if (nowDark !== _dark) {
+      _dark = nowDark;
+      if (loaded) { allChars = buildChars(); }
+    }
+  }).observe(document.body, { attributeFilter: ['class'] });
+
+  function buildGrid()  { return { cols: Math.floor(W / CHAR_W), rows: Math.floor(H / LINE_H) }; }
+
+  function buildChars(hardReset) {
+    const { cols, rows } = buildGrid();
+    const rowWidth = cols * CHAR_W;
+    const maxChars = cols * rows * 2; // generous ceiling so we never run dry mid-build
+
+    // Lay out real phrases left-to-right using each font's ACTUAL measured
+    // advance width (via ctx.measureText), wrapping to a new row when a
+    // phrase would overflow. Measuring directly (rather than estimating via
+    // a static ratio) is what guarantees no overlap/gap regardless of font.
+    const widthCache = {}; // `${font}|${weight}|${ch}` -> px, avoids re-measuring repeats
+    const measureWeight = isDarkMode() ? '300' : '500';
+    function charWidth(font, ch) {
+      const key = font + '|' + measureWeight + '|' + ch;
+      let w = widthCache[key];
+      if (w === undefined) {
+        ctx.font = `${measureWeight} ${FONT_SIZE}px ${font}`;
+        w = ctx.measureText(ch).width;
+        widthCache[key] = w;
+      }
+      return w;
+    }
+
+    const placed = [];
+    let x = 0, row = 0;
+    let i = 0, guard = 0;
+    while (row < rows && guard < maxChars) {
+      const phrase = POEM_PHRASES[i % POEM_PHRASES.length];
+      const font   = PT_FONTS[Math.floor(Math.random() * PT_FONTS.length)];
+      const spaceW = charWidth(font, ' ');
+
+      // Lay out this phrase character-by-character, wrapping mid-phrase
+      // (continuing the same font on the next line) whenever a glyph would
+      // overflow the row — this keeps every line filled edge-to-edge
+      // instead of leaving a gap when the whole phrase doesn't fit.
+      for (const ch of phrase) {
+        const cw = charWidth(font, ch);
+        if (x > 0 && x + cw > rowWidth) {
+          row++;
+          x = 0;
+          if (row >= rows) break;
+        }
+        placed.push({ ch, font, restX: x, restY: row * LINE_H });
+        x += cw;
+        guard++;
+      }
+      if (row >= rows) break;
+      if (x > 0 && x + spaceW > rowWidth) {
+        row++;
+        x = 0;
+        if (row >= rows) break;
+      } else {
+        placed.push({ ch: ' ', font, restX: x, restY: row * LINE_H });
+        x += spaceW;
+        guard++;
+      }
+      i++;
+    }
+
+    const prev = allChars;
+    const withinLoadGrace = hardReset || (performance.now() - initTime) < 900;
+    return placed.map((s, idx) => {
+      const p = withinLoadGrace ? null : prev[idx];
+      return {
+        ch: s.ch, font: s.font,
+        restX: s.restX, restY: s.restY,
+        x:  p ? p.x : s.restX,
+        y:  p ? p.y : s.restY,
+        vx: p ? p.vx : 0,
+        vy: p ? p.vy : 0,
+        baseOpacity: 1,
+      };
+    });
+  }
+
+  function rebuild(hardReset) {
+    FONT_SIZE = particleSize();
+    CHAR_W    = FONT_SIZE * 0.602;
+    LINE_H    = FONT_SIZE * 1.38;
+    W = window.innerWidth;
+    H = heroH();
+    heroSection.style.height = H + 'px';
+    canvas.width  = cc.width  = W;
+    canvas.height = cc.height = H;
+    allChars = buildChars(hardReset);
+    loaded   = true;
+    heroTop  = heroSection.getBoundingClientRect().top + window.scrollY;
+  }
+
+  // Whether the hero is actually scrolled into view — this replaces a
+  // check for a ".view.active" ancestor that doesn't exist in this
+  // standalone embed, which meant the loop was silently no-op'ing on
+  // every single frame (the wall would render once, then freeze).
+  let heroInViewport = true;
+  new IntersectionObserver((entries) => {
+    heroInViewport = entries[0].isIntersecting;
+  }, { threshold: 0 }).observe(heroSection);
+
+  // Ambient decoration doesn't need a full 60fps refresh — halving it to
+  // ~30fps roughly halves the CPU cost with no perceptible loss of
+  // smoothness, and matters most while other work (like scrolling) is
+  // competing for the main thread.
+  const FRAME_INTERVAL = 1000 / 30;
+  let lastFrameTime = 0;
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (!heroInViewport) return;
+    if (now - lastFrameTime < FRAME_INTERVAL) return;
+    lastFrameTime = now;
+
+    bX += (mX - bX) * PT_LERP;
+    bY += (mY - bY) * PT_LERP;
+    eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1;
+    eX += (eVX *= 0.68);   eY += (eVY *= 0.68);
+
+    const dark = isDarkMode();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = dark ? '#0a0a0a' : '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    if (loaded) {
+      const ptRepel   = window._ptRepel || 110;
+      const ptRepelSq = ptRepel * ptRepel;
+      ctx.textBaseline = 'top';
+      const rgbStr = dark ? '255,255,255' : '0,0,0';
+      const fontWeight = dark ? '300' : '500';
+      let lastAlphaBucket = -1;
+      let lastFont = '';
+
+      for (const p of allChars) {
+        if (p.x < -CHAR_W || p.x > W + CHAR_W || p.y < -LINE_H || p.y > H + LINE_H) continue;
+        const dx = p.x - bX, dy = p.y - bY;
+        const dSq = dx*dx + dy*dy;
+
+        p.vx += (p.restX - p.x) * PT_TETHER;
+        p.vy += (p.restY - p.y) * PT_TETHER;
+
+        if (dSq < ptRepelSq && dSq > 0.25) {
+          const d     = Math.sqrt(dSq);
+          const f     = 1 - d / ptRepel;
+          const scale = f * f * 16 / d;
+          p.vx += dx * scale;
+          p.vy += dy * scale;
+        }
+
+        p.vx *= PT_DAMP; p.vy *= PT_DAMP;
+        p.x  += p.vx;   p.y  += p.vy;
+
+        const dFade = dSq > 0.25 ? Math.sqrt(dSq) : 0;
+        const alpha = p.baseOpacity * Math.min(1, Math.max(0, (dFade - 18) / 37));
+        if (alpha > 0.008) {
+          const bucket = (alpha * 64 + 0.5) | 0;
+          if (bucket !== lastAlphaBucket) {
+            ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
+            lastAlphaBucket = bucket;
+          }
+          if (p.font !== lastFont) {
+            ctx.font = `${fontWeight} ${FONT_SIZE}px ${p.font}`;
+            lastFont = p.font;
+          }
+          ctx.fillText(p.ch, p.x, p.y);
+        }
+      }
+
+      const bgR = dark ? '10,10,10' : '255,255,255';
+      const vg  = ctx.createLinearGradient(0, H * 0.78, 0, H);
+      vg.addColorStop(0, `rgba(${bgR},0)`);
+      vg.addColorStop(1, `rgba(${bgR},1)`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, H * 0.78, W, H * 0.22);
+    }
+
+    cctx.clearRect(0, 0, W, H);
+    const rgb2 = dark ? '255,255,255' : '0,0,0';
+    cctx.fillStyle = `rgba(${rgb2},0.4)`;
+    cctx.beginPath(); cctx.arc(eX, eY, 4, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = `rgb(${rgb2})`;
+    cctx.beginPath(); cctx.arc(mX, mY, 1.5, 0, Math.PI*2); cctx.fill();
+  }
+
+  window.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.clientX - r.left;
+    mY = e.clientY - r.top;
   });
+  window.addEventListener('touchmove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.touches[0].clientX - r.left;
+    mY = e.touches[0].clientY - r.top;
+  }, { passive: true });
+
+  let _resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => { rebuild(); }, 120);
+  });
+
+  window._portraitRebuild = rebuild;
+
+  // ── SHIFT + SCROLL → font size scaler ──────────────────────────────────────
+  window.addEventListener('wheel', e => {
+    if (!e.shiftKey) return;
+    e.preventDefault();
+    const step   = e.deltaY > 0 ? -2 : 2;
+    const cur    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 28;
+    const next   = Math.min(72, Math.max(28, cur + step));
+    tbApplySize(next);
+    toolbarState.size = next;
+    document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => { sl.value = next; });
+  }, { passive: false });
+
+  rebuild();
+  document.getElementById('hero-loading').classList.add('hidden');
+  requestAnimationFrame(() => {
+    canvas.classList.add('loaded');
+    cc.classList.add('loaded');
+  });
+  loop();
 })();
 
 // ── CUSTOM SCROLL INDICATOR ─────────────────────────────────────────────────
