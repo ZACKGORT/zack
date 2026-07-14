@@ -319,18 +319,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .wrc-arrow{font-size:14px;color:rgba(var(--fg-rgb),.18);transition:color .18s,transform .18s}
 .work-row-career:hover .wrc-arrow{color:var(--fg);transform:translateX(4px)}
 
-/* ── FOOTER TWO-COL ── */
+/* ── FOOTER ── */
 .index-contact-wrap{
   border-top:1px solid var(--rule);
   display:grid;
-  grid-template-columns:minmax(0,1fr) 10px minmax(0,var(--ic-split, 1fr));
   grid-template-rows:640px;
   --footer-size:11px;
 }
 .index-contact{
   padding:0;
   display:flex;flex-direction:column;
-  border-right:1px solid var(--rule);
   overflow:hidden;
 }
 .index-contact-webgl{
@@ -376,48 +374,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .ic-footer-slider{-webkit-appearance:none;appearance:none;width:80px;height:1px;background:rgba(var(--fg-rgb),.2);outline:none;cursor:none}
 .ic-footer-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--fg);cursor:none}
 
-/* ── HOOP IFRAME FOOTER ── */
-.ic-hoop-wrap{
-  position:relative;
-  overflow:hidden;
-  background:var(--bg);
-}
-.ic-hoop-label{
-  position:absolute;top:0;left:0;
-  font-size:var(--fs-nano);font-weight:600;letter-spacing:.1em;text-transform:uppercase;
-  color:rgba(var(--fg-rgb),.18);
-  padding:8px 16px;
-  z-index:2;
-  pointer-events:none;
-  user-select:none;
-}
-.ic-hoop-frame{
-  display:block;
-  width:960px;
-  height:720px;
-  border:none;
-  background:transparent;
-  position:absolute;
-  top:0;left:0;
-  transform-origin:top left;
-  pointer-events:auto;
-}
-.ic-hoop-top{
-  position:absolute;bottom:24px;right:24px;z-index:10;
-  font-family:inherit;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  color:#0a0a0a;background:#ffffff;
-  border:none;border-radius:50%;
-  width:72px;height:72px;
-  display:flex;align-items:center;justify-content:center;
-  cursor:none;
-  opacity:0;pointer-events:none;
-  transition:opacity .35s ease, transform .2s ease;
-  box-shadow:0 4px 24px rgba(0,0,0,.55);
-  white-space:nowrap;
-}
-.ic-hoop-top.visible{opacity:1;pointer-events:auto}
-.ic-hoop-top:hover{transform:scale(1.08)}
-
 /* ── PAGE BACK-TO-TOP (Journal + Life) — shows once you're near the
    bottom of the page, hidden everywhere else ── */
 .page-back-to-top{
@@ -449,7 +405,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
     padding:0;
     overflow-y:visible;
   }
-  .ic-hoop-wrap,#ic-resizer{display:none}
 }
 
 /* ══════════════════════════════════════════
@@ -1045,10 +1000,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wrc-title{font-size:var(--fs-heading)}
   .cs-footer{flex-direction:column;gap:12px}
   .csf-nav{flex-direction:row;gap:16px}
-  .index-contact-wrap{grid-template-columns:1fr}
   .fs-styles-row{flex-wrap:wrap;height:auto;padding:8px 14px;gap:8px}
   .fs-styles-controls{flex-wrap:wrap;gap:10px}
-  .ic-hoop-frame{min-height:240px}
   /* Larger touch targets for slider thumbs on mobile */
   .wt-slider{touch-action:none}
   .wt-slider::-webkit-slider-thumb{width:22px;height:22px}
@@ -2096,22 +2049,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         <div class="index-contact-webgl" id="indexContactWebgl">
           <canvas class="index-contact-canvas" id="indexContactCanvas"></canvas>
         </div>
-      </div>
-
-      <div class="fs-glyph-resizer" id="ic-resizer" role="separator" aria-orientation="vertical" aria-label="Resize footer columns" tabindex="0"></div>
-
-      <div class="ic-hoop-wrap">
-        <div class="ic-hoop-label">↓ Proof of life / zack.cx/hoop</div>
-        <button class="ic-hoop-top" id="ic-hoop-top" aria-label="Back to top">↑ top</button>
-        <iframe
-          src="https://zack.cx/hoop"
-          class="ic-hoop-frame"
-          title="zack.cx/hoop"
-          loading="lazy"
-          scrolling="no"
-          allowtransparency="true"
-          frameborder="0"
-        ></iframe>
       </div>
     </div>
 
@@ -5655,91 +5592,7 @@ function initAllNarrativeParticles(container) {
 })();
 
 // ── INDEX FOOTER COLUMN RESIZER (drag to resize ice-tray / iframe split) ────
-(function indexFooterResizer() {
-  const resizer = document.getElementById('ic-resizer');
-  const container = document.querySelector('.index-contact-wrap');
-  if (!resizer || !container) return;
 
-  const MIN_LEFT = 320;  // ice-tray column never gets crushed below this
-  const MIN_RIGHT = 280; // iframe column never gets crushed below this
-
-  function clamp(px) {
-    const total = container.getBoundingClientRect().width;
-    const max = total - MIN_LEFT - 10;
-    return Math.max(MIN_RIGHT, Math.min(max, px));
-  }
-
-  function setSplit(px) {
-    container.style.setProperty('--ic-split', clamp(px) + 'px');
-    if (window._updateHoopScale) window._updateHoopScale();
-  }
-
-  let dragging = false;
-
-  resizer.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    resizer.classList.add('dragging');
-    resizer.setPointerCapture && resizer.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  resizer.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const rect = container.getBoundingClientRect();
-    setSplit(rect.right - e.clientX); // width measured from the container's right edge
-  });
-  function endDrag(e) {
-    if (!dragging) return;
-    dragging = false;
-    resizer.classList.remove('dragging');
-    resizer.releasePointerCapture && resizer.releasePointerCapture(e.pointerId);
-  }
-  resizer.addEventListener('pointerup', endDrag);
-  resizer.addEventListener('pointercancel', endDrag);
-  resizer.addEventListener('dblclick', () => {
-    container.style.removeProperty('--ic-split');
-    if (window._updateHoopScale) window._updateHoopScale();
-  });
-  resizer.addEventListener('keydown', (e) => {
-    const rightEl = document.querySelector('.ic-hoop-wrap');
-    const cur = rightEl.getBoundingClientRect().width;
-    if (e.key === 'ArrowLeft') { setSplit(cur + 16); e.preventDefault(); }
-    if (e.key === 'ArrowRight') { setSplit(cur - 16); e.preventDefault(); }
-  });
-})();
-
-// ── HOOP IFRAME SCALE (the embedded page has its own fixed/native layout —
-//    rather than stretching it to 100% and letting its content render tiny
-//    or cropped inside a narrow column, the iframe renders at a fixed
-//    "native" size and this uniformly scales the whole thing down/up to
-//    fill whatever width the column actually has, recalculated on resize
-//    and whenever the draggable divider moves) ──────────────────────────────
-(function initHoopScale() {
-  const wrap = document.querySelector('.ic-hoop-wrap');
-  const frame = document.querySelector('.ic-hoop-frame');
-  if (!wrap || !frame) return;
-  const NATIVE_W = 960;
-  const NATIVE_H = 720;
-
-  function update() {
-    const w = wrap.clientWidth || NATIVE_W;
-    const h = wrap.clientHeight || NATIVE_H;
-    // Math.min ("contain") instead of Math.max ("cover") — cover was cropping
-    // whichever edge didn't match the container's aspect ratio (the bottom,
-    // in a narrow tall column). Contain guarantees nothing is ever clipped,
-    // at the cost of possibly letterboxing empty space on one axis — which
-    // is why the frame is also centered below rather than pinned top-left.
-    const scale = Math.min(w / NATIVE_W, h / NATIVE_H);
-    const scaledW = NATIVE_W * scale;
-    const scaledH = NATIVE_H * scale;
-    frame.style.transform = `scale(${scale})`;
-    frame.style.left = Math.round((w - scaledW) / 2) + 'px';
-    frame.style.top = Math.round((h - scaledH) / 2) + 'px';
-  }
-  window._updateHoopScale = update;
-  window.addEventListener('resize', update);
-  new ResizeObserver(update).observe(wrap);
-  update();
-})();
 
 // ── GLYPH COLUMN RESIZER (drag to resize word / grid split) ─────────────────
 (function glyphColumnResizer() {
@@ -6303,20 +6156,6 @@ function initAllNarrativeParticles(container) {
 })();
 
 // ── HOOP BACK-TO-TOP OVERLAY ─────────────────────────────────────────────────
-(function hoopTopBtn() {
-  const wrap = document.querySelector('.ic-hoop-wrap');
-  const btn  = document.getElementById('ic-hoop-top');
-  if (!wrap || !btn) return;
-
-  const obs = new IntersectionObserver(entries => {
-    btn.classList.toggle('visible', entries[0].isIntersecting);
-  }, { threshold: 0.1 });
-  obs.observe(wrap);
-
-  btn.addEventListener('click', () => {
-    (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
-  });
-})();
 
 // ── HASH BOOT (lets this file be embedded in an iframe and jump straight to
 //    a specific page via foundry.html#work, foundry.html#balance, etc. —
