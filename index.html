@@ -153,7 +153,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 
 /* Image-text portrait hero */
 #hero{position:relative;width:100%;overflow:hidden;background:var(--bg);display:block}
-#hero-frame{position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:block}
+#hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .7s ease}
+#hero-canvas.loaded,#hero-cc.loaded{opacity:1}
+#hero-cc{pointer-events:none;z-index:2}
+#hero-loading{
+  position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:10;
+  font-family:'DM Mono',monospace;font-size:var(--fs-micro);letter-spacing:.25em;text-transform:uppercase;
+  color:var(--fg);opacity:.4;transition:opacity .6s;
+}
+#hero-loading.hidden{opacity:0;pointer-events:none}
 
 /* Work index grid */
 .testimonials{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:0}
@@ -319,16 +328,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .wrc-arrow{font-size:14px;color:rgba(var(--fg-rgb),.18);transition:color .18s,transform .18s}
 .work-row-career:hover .wrc-arrow{color:var(--fg);transform:translateX(4px)}
 
-/* ── FOOTER ── */
+/* ── FOOTER TWO-COL ── */
 .index-contact-wrap{
   border-top:1px solid var(--rule);
   display:grid;
+  grid-template-columns:minmax(0,1fr) 10px minmax(0,var(--ic-split, 1fr));
   grid-template-rows:640px;
   --footer-size:11px;
 }
 .index-contact{
   padding:0;
   display:flex;flex-direction:column;
+  border-right:1px solid var(--rule);
   overflow:hidden;
 }
 .index-contact-webgl{
@@ -374,6 +385,48 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .ic-footer-slider{-webkit-appearance:none;appearance:none;width:80px;height:1px;background:rgba(var(--fg-rgb),.2);outline:none;cursor:none}
 .ic-footer-slider::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;border-radius:50%;background:var(--fg);cursor:none}
 
+/* ── HOOP IFRAME FOOTER ── */
+.ic-hoop-wrap{
+  position:relative;
+  overflow:hidden;
+  background:var(--bg);
+}
+.ic-hoop-label{
+  position:absolute;top:0;left:0;
+  font-size:var(--fs-nano);font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(var(--fg-rgb),.18);
+  padding:8px 16px;
+  z-index:2;
+  pointer-events:none;
+  user-select:none;
+}
+.ic-hoop-frame{
+  display:block;
+  width:960px;
+  height:720px;
+  border:none;
+  background:transparent;
+  position:absolute;
+  top:0;left:0;
+  transform-origin:top left;
+  pointer-events:auto;
+}
+.ic-hoop-top{
+  position:absolute;bottom:24px;right:24px;z-index:10;
+  font-family:inherit;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  color:#0a0a0a;background:#ffffff;
+  border:none;border-radius:50%;
+  width:72px;height:72px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:none;
+  opacity:0;pointer-events:none;
+  transition:opacity .35s ease, transform .2s ease;
+  box-shadow:0 4px 24px rgba(0,0,0,.55);
+  white-space:nowrap;
+}
+.ic-hoop-top.visible{opacity:1;pointer-events:auto}
+.ic-hoop-top:hover{transform:scale(1.08)}
+
 /* ── PAGE BACK-TO-TOP (Journal + Life) — shows once you're near the
    bottom of the page, hidden everywhere else ── */
 .page-back-to-top{
@@ -405,26 +458,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
     padding:0;
     overflow-y:visible;
   }
+  .ic-hoop-wrap,#ic-resizer{display:none}
 }
 
 /* ══════════════════════════════════════════
    CASE STUDY TEMPLATE
 ══════════════════════════════════════════ */
-.cs-particle-hero{
-  position:relative;width:100%;background:var(--bg);
-  padding:calc(48px * .55) 16px calc(48px * 1.6);
-  box-sizing:border-box;
-}
-.cs-hero-line1{
-  font:900 48px var(--cs-font,'Inter','Helvetica Neue',Helvetica,Arial,sans-serif);
-  color:var(--fg);
-  letter-spacing:-.01em;
-  margin-bottom:calc(48px * .18);
-}
-.cs-hero-line2{
-  font:300 calc(48px * .32) 'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
-  color:var(--fg);
-}
+.cs-particle-hero{position:relative;width:100%;background:var(--bg)}
 .cs-hero-canvas{display:block;width:100%}
 .cs-hero-image{
   position:relative;
@@ -1000,8 +1040,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wrc-title{font-size:var(--fs-heading)}
   .cs-footer{flex-direction:column;gap:12px}
   .csf-nav{flex-direction:row;gap:16px}
+  .index-contact-wrap{grid-template-columns:1fr}
   .fs-styles-row{flex-wrap:wrap;height:auto;padding:8px 14px;gap:8px}
   .fs-styles-controls{flex-wrap:wrap;gap:10px}
+  .ic-hoop-frame{min-height:240px}
   /* Larger touch targets for slider thumbs on mobile */
   .wt-slider{touch-action:none}
   .wt-slider::-webkit-slider-thumb{width:22px;height:22px}
@@ -1817,7 +1859,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-index" class="view active">
     <section id="hero">
-      <iframe id="hero-frame" src="https://zack.cx/hero" title="Work hero" loading="eager" scrolling="no"></iframe>
+      <canvas id="hero-canvas"></canvas>
+      <canvas id="hero-cc"></canvas>
+      <div id="hero-loading">rendering</div>
     </section>
 
   <div class="page-body">
@@ -2050,6 +2094,22 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <canvas class="index-contact-canvas" id="indexContactCanvas"></canvas>
         </div>
       </div>
+
+      <div class="fs-glyph-resizer" id="ic-resizer" role="separator" aria-orientation="vertical" aria-label="Resize footer columns" tabindex="0"></div>
+
+      <div class="ic-hoop-wrap">
+        <div class="ic-hoop-label">↓ Proof of life / zack.cx/hoop</div>
+        <button class="ic-hoop-top" id="ic-hoop-top" aria-label="Back to top">↑ top</button>
+        <iframe
+          src="https://zack.cx/hoop"
+          class="ic-hoop-frame"
+          title="zack.cx/hoop"
+          loading="lazy"
+          scrolling="no"
+          allowtransparency="true"
+          frameborder="0"
+        ></iframe>
+      </div>
     </div>
 
     <!-- Career scroll — now the very last thing on the page -->
@@ -2069,10 +2129,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 <div id="view-bny" class="view">
   <div class="page-body">
 
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="BNY Mellon — Pershing X" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="BNY Mellon — Pershing X" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="#seizethespace" data-cs-sub="BNY Mellon — Pershing X">
-      <div class="cs-hero-line1">#seizethespace</div>
-      <div class="cs-hero-line2">BNY Mellon — Pershing X</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
 
     <div class="cs-toolbar cs-toolbar-inst">
@@ -2109,12 +2168,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div>← Principal UX Lead</div>
     </div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300">product knowledge; socialized for success</div></div><div class="fs-weight-add">+ Org Structure</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">a dashboard inspired by the rear hatch of my Jeep</div></div><div class="fs-weight-add">+ Discovery Audit</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Facilitation</div><div class="fs-weight-name" style="font-weight:500">zero-to-one whiteboard workshopping</div></div><div class="fs-weight-add">+ Client Workshops</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Facilitation</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">post-COVID / remote employ / in-office work</div></div><div class="fs-weight-add">+ Stakeholder Alignment</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:700">SHIPPED: storybook, tailwind, react, figma, dev-docs, etc.</div></div><div class="fs-weight-add">+ Component Library</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/4w89MmLc/wove-advisory-landing-main.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Leadership</div><div class="fs-weight-name" style="font-weight:900">WOVE, an integrated platform for advisors</div></div><div class="fs-weight-add">+ Junior + Associate</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300">product knowledge; socialized for success</div></div><div class="fs-weight-add">+ Org Structure</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">a dashboard inspired by the rear hatch of my Jeep</div></div><div class="fs-weight-add">+ Discovery Audit</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Facilitation</div><div class="fs-weight-name" style="font-weight:500">zero-to-one whiteboard workshopping</div></div><div class="fs-weight-add">+ Client Workshops</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Facilitation</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">post-COVID / remote employ / in-office work</div></div><div class="fs-weight-add">+ Stakeholder Alignment</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:700">SHIPPED: storybook, tailwind, react, figma, dev-docs, etc.</div></div><div class="fs-weight-add">+ Component Library</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/4w89MmLc/wove-advisory-landing-main.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Leadership</div><div class="fs-weight-name" style="font-weight:900">WOVE, an integrated platform for advisors</div></div><div class="fs-weight-add">+ Junior + Associate</div></div>
     </div>
 
     <div class="fs-section-label reveal">504 Artifacts</div>
@@ -2177,26 +2236,26 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
 
     <div class="masonry reveal" id="bny-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="Org Structure" loading="lazy" decoding="async"><div class="masonry-caption">Org Structure</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="Data Re-Org; Dashboard Design" loading="lazy" decoding="async"><div class="masonry-caption">Data Re-Org; Dashboard Design</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="Heuristic Analysis" loading="lazy" decoding="async"><div class="masonry-caption">Heuristic Analysis</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="Research & Support" loading="lazy" decoding="async"><div class="masonry-caption">Research &amp; Support</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="Use Case Flows" loading="lazy" decoding="async"><div class="masonry-caption">Use Case Flows</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/dwxhNntF/wove-advisory-landing-main.webp" alt="Terminology" loading="lazy" decoding="async"><div class="masonry-caption">Terminology</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/0pXM90tz/bny4.webp" alt="Holistic POC" loading="lazy" decoding="async"><div class="masonry-caption">Holistic POC</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/4w2FbqCw/bny3.webp" alt="User Data Flows" loading="lazy" decoding="async"><div class="masonry-caption">User Data Flows</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/xqz6QDPj/bny2.webp" alt="Design System" loading="lazy" decoding="async"><div class="masonry-caption">Design System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/k2n12jJP/bny1.webp" alt="Systems Design" loading="lazy" decoding="async"><div class="masonry-caption">Systems Design</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/CqjFGQV/17.webp" alt="BNY — 17" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 17</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Kz2psprN/16.webp" alt="BNY — 16" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 16</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/d0nbVjtx/13.webp" alt="BNY — 13" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 13</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Z1tjz0t9/14.webp" alt="BNY — 14" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 14</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/KckgFw70/9.webp" alt="BNY — 09" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 09</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/0y21698L/8.webp" alt="BNY — 08" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 08</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/1fMNf4nW/7.webp" alt="BNY — 07" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 07</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/5H2bRyT/3.webp" alt="BNY — 03" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 03</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/6JWn14jj/4.webp" alt="BNY — 04" loading="lazy" decoding="async"><div class="masonry-caption">BNY — 04</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/PZ86fHv8/Frame-427322623.png" alt="Discovery Audit" loading="lazy" decoding="async"><div class="masonry-caption">Discovery Audit</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="Org Structure" loading="lazy"><div class="masonry-caption">Org Structure</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="Data Re-Org; Dashboard Design" loading="lazy"><div class="masonry-caption">Data Re-Org; Dashboard Design</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="Heuristic Analysis" loading="lazy"><div class="masonry-caption">Heuristic Analysis</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="Research & Support" loading="lazy"><div class="masonry-caption">Research &amp; Support</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="Use Case Flows" loading="lazy"><div class="masonry-caption">Use Case Flows</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/dwxhNntF/wove-advisory-landing-main.webp" alt="Terminology" loading="lazy"><div class="masonry-caption">Terminology</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/0pXM90tz/bny4.webp" alt="Holistic POC" loading="lazy"><div class="masonry-caption">Holistic POC</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/4w2FbqCw/bny3.webp" alt="User Data Flows" loading="lazy"><div class="masonry-caption">User Data Flows</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/xqz6QDPj/bny2.webp" alt="Design System" loading="lazy"><div class="masonry-caption">Design System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/k2n12jJP/bny1.webp" alt="Systems Design" loading="lazy"><div class="masonry-caption">Systems Design</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/CqjFGQV/17.webp" alt="BNY — 17" loading="lazy"><div class="masonry-caption">BNY — 17</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Kz2psprN/16.webp" alt="BNY — 16" loading="lazy"><div class="masonry-caption">BNY — 16</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/d0nbVjtx/13.webp" alt="BNY — 13" loading="lazy"><div class="masonry-caption">BNY — 13</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Z1tjz0t9/14.webp" alt="BNY — 14" loading="lazy"><div class="masonry-caption">BNY — 14</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/KckgFw70/9.webp" alt="BNY — 09" loading="lazy"><div class="masonry-caption">BNY — 09</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/0y21698L/8.webp" alt="BNY — 08" loading="lazy"><div class="masonry-caption">BNY — 08</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/1fMNf4nW/7.webp" alt="BNY — 07" loading="lazy"><div class="masonry-caption">BNY — 07</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/5H2bRyT/3.webp" alt="BNY — 03" loading="lazy"><div class="masonry-caption">BNY — 03</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/6JWn14jj/4.webp" alt="BNY — 04" loading="lazy"><div class="masonry-caption">BNY — 04</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/PZ86fHv8/Frame-427322623.png" alt="Discovery Audit" loading="lazy"><div class="masonry-caption">Discovery Audit</div></div>
     </div>
 
     <div class="fs-figma reveal">
@@ -2309,10 +2368,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-gnc" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/7N2rDqrN/8.webp" alt="GNC — Shopify Plus Redesign" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/7N2rDqrN/8.webp" alt="GNC — Shopify Plus Redesign" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="GNC" data-cs-sub="Shopify Plus Redesign">
-      <div class="cs-hero-line1">GNC</div>
-      <div class="cs-hero-line2">Shopify Plus Redesign</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2338,13 +2396,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · <a href="#">Wolfgang &amp; Co.</a> · Elva Design Group · 2021</div><div>← Lead UX Designer</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300">Zero-to-One Shopify Plus Redesign</div></div><div class="fs-weight-add">+ Navigation System</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Modern Navigation Schema</div></div><div class="fs-weight-add">+ Conventional Fallbacks</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Discovery</div><div class="fs-weight-name" style="font-weight:500">Information Architecture & Taxonomy</div></div><div class="fs-weight-add">+ Stakeholder Alignment</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Discovery</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Wireframe & Hi-Fi Prototypes</div></div><div class="fs-weight-add">+ Discovery Gathering</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ E-Commerce</div><div class="fs-weight-name" style="font-weight:700">First-Principles & Foundational UX</div></div><div class="fs-weight-add">+ PDP + Category</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Platform</div><div class="fs-weight-name" style="font-weight:900">Shipped in Twelve Weeks.</div></div><div class="fs-weight-add">+ Theme System</div></div>
-    </div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300">Zero-to-One Shopify Plus Redesign</div></div><div class="fs-weight-add">+ Navigation System</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Primary Deliverable</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Modern Navigation Schema</div></div><div class="fs-weight-add">+ Conventional Fallbacks</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Discovery</div><div class="fs-weight-name" style="font-weight:500">Information Architecture & Taxonomy</div></div><div class="fs-weight-add">+ Stakeholder Alignment</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Discovery</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Wireframe & Hi-Fi Prototypes</div></div><div class="fs-weight-add">+ Discovery Gathering</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ E-Commerce</div><div class="fs-weight-name" style="font-weight:700">First-Principles & Foundational UX</div></div><div class="fs-weight-add">+ PDP + Category</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Platform</div><div class="fs-weight-name" style="font-weight:900">Shipped in Twelve Weeks.</div></div><div class="fs-weight-add">+ Theme System</div></div>
     </div>
     <div class="fs-section-label reveal">E-Commerce Artifacts</div>
     <div aria-hidden="true" class="seo-text">GNC's post-bankruptcy Shopify Plus redesign was a zero-to-launch engagement with total creative freedom, extreme timeline pressure, and a direct line to $500M/year in recovered revenue. Navigation architecture was the core problem: I designed a mobile-first global nav system that served as the structural backbone of GNC's entire e-commerce rebrand through Elva Design Group. Checkout-through-category UX, conversion funnel optimization, and a Shopify Plus architecture that scaled across GNC's full product spectrum — all designed and delivered under a post-bankruptcy clock.</div>
@@ -2395,26 +2452,26 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="gnc-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt="GNC Mobile Navigation" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First Navigation — Global Nav System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt="GNC E-Commerce UX" loading="lazy" decoding="async"><div class="masonry-caption">E-Commerce UX — Homepage Through Checkout</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt="GNC Shopify Plus Architecture" loading="lazy" decoding="async"><div class="masonry-caption">Shopify Plus Architecture — Category &amp; Product Pages</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt="GNC Navigation Schema" loading="lazy" decoding="async"><div class="masonry-caption">Navigation Schema — Mobile &amp; Desktop Fallbacks</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt="GNC Discovery" loading="lazy" decoding="async"><div class="masonry-caption">Discovery &amp; Requirements Gathering</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt="GNC UX Optimization" loading="lazy" decoding="async"><div class="masonry-caption">UX Optimization — Conversion Funnel</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/r295QDbM/gnc-case-A3.jpg" alt="GNC Mobile UX Flows" loading="lazy" decoding="async"><div class="masonry-caption">Mobile UX Flows — Post-Bankruptcy Rebrand</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/xqNy0qPJ/gnc-case-4.png" alt="GNC Full System View" loading="lazy" decoding="async"><div class="masonry-caption">Shopify Plus Redesign — Full System View</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/BH6q1n7z/gnc-case-A4.jpg" alt="GNC Final Deliverables" loading="lazy" decoding="async"><div class="masonry-caption">Final Deliverables — Navigation &amp; E-Commerce System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/spHgPH6N/1.webp" alt="GNC — 01" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 01</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/ynjWYqv8/2.webp" alt="GNC — 02" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 02</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/cXg5Phdc/3.webp" alt="GNC — 03" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 03</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/gZ58PKyk/4.webp" alt="GNC — 04" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 04</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Y7pGqJ69/5.webp" alt="GNC — 05" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 05</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/99h2bQMh/6.webp" alt="GNC — 06" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 06</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/yB4RwkTf/7.webp" alt="GNC — 07" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 07</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/7N2rDqrN/8.webp" alt="GNC — 08" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 08</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/rft2bf0T/9.webp" alt="GNC — 09" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 09</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/vx76zjgf/10.webp" alt="GNC — 10" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 10</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/x8Jy9P1f/11.webp" alt="GNC — 11" loading="lazy" decoding="async"><div class="masonry-caption">GNC — 11</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt="GNC Mobile Navigation" loading="lazy"><div class="masonry-caption">Mobile-First Navigation — Global Nav System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt="GNC E-Commerce UX" loading="lazy"><div class="masonry-caption">E-Commerce UX — Homepage Through Checkout</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt="GNC Shopify Plus Architecture" loading="lazy"><div class="masonry-caption">Shopify Plus Architecture — Category &amp; Product Pages</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt="GNC Navigation Schema" loading="lazy"><div class="masonry-caption">Navigation Schema — Mobile &amp; Desktop Fallbacks</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt="GNC Discovery" loading="lazy"><div class="masonry-caption">Discovery &amp; Requirements Gathering</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt="GNC UX Optimization" loading="lazy"><div class="masonry-caption">UX Optimization — Conversion Funnel</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/r295QDbM/gnc-case-A3.jpg" alt="GNC Mobile UX Flows" loading="lazy"><div class="masonry-caption">Mobile UX Flows — Post-Bankruptcy Rebrand</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/xqNy0qPJ/gnc-case-4.png" alt="GNC Full System View" loading="lazy"><div class="masonry-caption">Shopify Plus Redesign — Full System View</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/BH6q1n7z/gnc-case-A4.jpg" alt="GNC Final Deliverables" loading="lazy"><div class="masonry-caption">Final Deliverables — Navigation &amp; E-Commerce System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/spHgPH6N/1.webp" alt="GNC — 01" loading="lazy"><div class="masonry-caption">GNC — 01</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/ynjWYqv8/2.webp" alt="GNC — 02" loading="lazy"><div class="masonry-caption">GNC — 02</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/cXg5Phdc/3.webp" alt="GNC — 03" loading="lazy"><div class="masonry-caption">GNC — 03</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/gZ58PKyk/4.webp" alt="GNC — 04" loading="lazy"><div class="masonry-caption">GNC — 04</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Y7pGqJ69/5.webp" alt="GNC — 05" loading="lazy"><div class="masonry-caption">GNC — 05</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/99h2bQMh/6.webp" alt="GNC — 06" loading="lazy"><div class="masonry-caption">GNC — 06</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/yB4RwkTf/7.webp" alt="GNC — 07" loading="lazy"><div class="masonry-caption">GNC — 07</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/7N2rDqrN/8.webp" alt="GNC — 08" loading="lazy"><div class="masonry-caption">GNC — 08</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/rft2bf0T/9.webp" alt="GNC — 09" loading="lazy"><div class="masonry-caption">GNC — 09</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/vx76zjgf/10.webp" alt="GNC — 10" loading="lazy"><div class="masonry-caption">GNC — 10</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/x8Jy9P1f/11.webp" alt="GNC — 11" loading="lazy"><div class="masonry-caption">GNC — 11</div></div>
     </div>
     <div class="fs-figma reveal">
       <div class="fs-figma-label">↓ Live Figma — GNC Project Summary · E-Commerce</div>
@@ -2442,10 +2499,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-hardinge" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/4nLTQS02/danaheroa-Zcf-Ia-BQr-Rdkrtxo-THSyhar-T.webp" alt="Hardinge — B2B SAP Hybris E-Commerce" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Hardinge" data-cs-sub="B2B SAP Hybris E-Commerce">
-      <div class="cs-hero-line1">Hardinge</div>
-      <div class="cs-hero-line2">B2B SAP Hybris E-Commerce</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2471,12 +2527,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · LiveArea · 2020–2021</div><div>← UX Manager</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:300">information architecture (sitemaps, navigation systems) </div></div><div class="fs-weight-add">+ Header · Search</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">B2C+B2B product &amp; content taxonomy</div></div><div class="fs-weight-add">+ Mega Menu</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product Detail</div><div class="fs-weight-name" style="font-weight:500">home, browse, PDP, search, account, retention &amp; engagement</div></div><div class="fs-weight-add">+ Single · Variable · Kit</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product Detail</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">client workshopping &amp; creative coworking</div></div><div class="fs-weight-add">+ Mobile PDP</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ System</div><div class="fs-weight-name" style="font-weight:700">Accessible, bespoke B2C &amp; B2B commerce solutions built for sustainability & scale</div></div><div class="fs-weight-add">+ Components</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Invention</div><div class="fs-weight-name" style="font-weight:900">Cards Against Bad UX™</div></div><div class="fs-weight-add">+ Stakeholder Empathy</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:300">information architecture (sitemaps, navigation systems) </div></div><div class="fs-weight-add">+ Header · Search</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">B2C+B2B product &amp; content taxonomy</div></div><div class="fs-weight-add">+ Mega Menu</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product Detail</div><div class="fs-weight-name" style="font-weight:500">home, browse, PDP, search, account, retention &amp; engagement</div></div><div class="fs-weight-add">+ Single · Variable · Kit</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product Detail</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">client workshopping &amp; creative coworking</div></div><div class="fs-weight-add">+ Mobile PDP</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ System</div><div class="fs-weight-name" style="font-weight:700">Accessible, bespoke B2C &amp; B2B commerce solutions built for sustainability & scale</div></div><div class="fs-weight-add">+ Components</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Invention</div><div class="fs-weight-name" style="font-weight:900">Cards Against Bad UX™</div></div><div class="fs-weight-add">+ Stakeholder Empathy</div></div>
     </div>
     <div class="fs-section-label reveal">B2B Artifacts</div>
     <div aria-hidden="true" class="seo-text">PFSweb and LiveArea brought me in as a Figma-native UX lead to design B2B Salesforce Commerce Cloud experiences for industrial titans at the exact moment COVID-19 was reshaping supply chains. Filtering was kind of the point: I designed navigation schemas that translated complex B2B product tables into intuitive tray-based interfaces for Hardinge, Aquasana, and Simpson Strong-Tie. Serving as a multiplier to the Solutions Architects team, I operated at the intersection of design and systems thinking — zero-to-one, outsourced dev, shipped under pressure.</div>
@@ -2524,16 +2580,16 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="hardinge-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="Hardinge Hero" loading="lazy" decoding="async"><div class="masonry-caption">Hardinge — SAP Hybris Platform</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt="PDP Desktop" loading="lazy" decoding="async"><div class="masonry-caption">PDP — Desktop, Single Purchase Item</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt="PDP Mobile" loading="lazy" decoding="async"><div class="masonry-caption">PDP — Mobile, Variable &amp; Kit Items</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt="Navigation IA" loading="lazy" decoding="async"><div class="masonry-caption">Drop 1 — Navigation, Header &amp; Search</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt="Final Nav" loading="lazy" decoding="async"><div class="masonry-caption">ShopHardinge.com — High-Fidelity UI</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="User Stories" loading="lazy" decoding="async"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/PZZ4K84X/stories-LLTzcdn-TOb-Jw-PYKdl-GSVx-YZWb.webp" alt="User Stories 2" loading="lazy" decoding="async"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/zhwZr9pZ/Tm-Bi-ALaojf-TNSBf-Df-Qmk-Qsy-RZPTk-Qq-NR.webp" alt="User Stories 3" loading="lazy" decoding="async"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Rp4zfwWx/dropcontinuedplusvisualguide-SHo-W.webp" alt="Drop Continued — Visual Guide" loading="lazy" decoding="async"><div class="masonry-caption">Drop Continued — Visual Guide</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/cSdN1V0v/g-ZQm-IJGXkgk-Sgkyf-Xhlx-AJYEj-PMvq-HTg.webp" alt="User Stories 4" loading="lazy" decoding="async"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="Hardinge Hero" loading="lazy"><div class="masonry-caption">Hardinge — SAP Hybris Platform</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt="PDP Desktop" loading="lazy"><div class="masonry-caption">PDP — Desktop, Single Purchase Item</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt="PDP Mobile" loading="lazy"><div class="masonry-caption">PDP — Mobile, Variable &amp; Kit Items</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt="Navigation IA" loading="lazy"><div class="masonry-caption">Drop 1 — Navigation, Header &amp; Search</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt="Final Nav" loading="lazy"><div class="masonry-caption">ShopHardinge.com — High-Fidelity UI</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="User Stories" loading="lazy"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/PZZ4K84X/stories-LLTzcdn-TOb-Jw-PYKdl-GSVx-YZWb.webp" alt="User Stories 2" loading="lazy"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/zhwZr9pZ/Tm-Bi-ALaojf-TNSBf-Df-Qmk-Qsy-RZPTk-Qq-NR.webp" alt="User Stories 3" loading="lazy"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Rp4zfwWx/dropcontinuedplusvisualguide-SHo-W.webp" alt="Drop Continued — Visual Guide" loading="lazy"><div class="masonry-caption">Drop Continued — Visual Guide</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/cSdN1V0v/g-ZQm-IJGXkgk-Sgkyf-Xhlx-AJYEj-PMvq-HTg.webp" alt="User Stories 4" loading="lazy"><div class="masonry-caption">User Stories — Cards Against Bad UX™</div></div>
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026</div>
@@ -2547,10 +2603,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-kent" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="Kent State — .EDU Complete Overhaul" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="Kent State — .EDU Complete Overhaul" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Kent State" data-cs-sub=".EDU Complete Overhaul">
-      <div class="cs-hero-line1">Kent State</div>
-      <div class="cs-hero-line2">.EDU Complete Overhaul</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2576,12 +2631,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · 160over90 · 2016</div><div>← Interaction Designer</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Architecture</div><div class="fs-weight-name" style="font-weight:300">IA Refactoring</div></div><div class="fs-weight-add">+ 8 Regional Campuses</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Architecture</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">IA Italic</div></div><div class="fs-weight-add">+ International Locations</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:500">Proprietary Nav</div></div><div class="fs-weight-add">+ Ground-Up System</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Nav Italic</div></div><div class="fs-weight-add">+ Mega Menu Options</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Prototypes</div><div class="fs-weight-name" style="font-weight:700">Wireframe + Design</div></div><div class="fs-weight-add">+ Prototypes</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ User Flows</div><div class="fs-weight-name" style="font-weight:900">Flow Walkthroughs</div></div><div class="fs-weight-add">+ Client Walkthroughs</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Architecture</div><div class="fs-weight-name" style="font-weight:300">IA Refactoring</div></div><div class="fs-weight-add">+ 8 Regional Campuses</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Architecture</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">IA Italic</div></div><div class="fs-weight-add">+ International Locations</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:500">Proprietary Nav</div></div><div class="fs-weight-add">+ Ground-Up System</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Nav Italic</div></div><div class="fs-weight-add">+ Mega Menu Options</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Prototypes</div><div class="fs-weight-name" style="font-weight:700">Wireframe + Design</div></div><div class="fs-weight-add">+ Prototypes</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ User Flows</div><div class="fs-weight-name" style="font-weight:900">Flow Walkthroughs</div></div><div class="fs-weight-add">+ Client Walkthroughs</div></div>
     </div>
     <div class="fs-section-label reveal">.EDU Artifacts</div>
     <div aria-hidden="true" class="seo-text">Kent State University's .EDU overhaul was institutional-scale UX: eight regional campuses, dozens of international locations, and multiple internal entities with competing priorities, all requiring a unified digital presence. Structural IA refactoring, wireframe and design prototypes, and a proprietary navigation system engineered from scratch — built specifically for Kent State's atypical infrastructure at 160over90 in Philadelphia. UX at agency scale meant being embedded across every branch of 160over90's operation, delivering accessible, WCAG 2.0-compliant interactive design for clients including UW-Madison and Comcast.</div>
@@ -2627,18 +2682,18 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="kent-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="Kent State Hero" loading="lazy" decoding="async"><div class="masonry-caption">Kent State .EDU — Homepage</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="Proprietary Nav System" loading="lazy" decoding="async"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt="Homepage Desktop" loading="lazy" decoding="async"><div class="masonry-caption">Homepage — Desktop</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt="Kent Nav Detail" loading="lazy" decoding="async"><div class="masonry-caption">Navigation Detail</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/pBYP6wt8/1-HXIU3nxu-ZGq-Ne-Ef3-Wv-Lf-MQ.webp" alt="Kent State Navigation System" loading="lazy" decoding="async"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/VYS1xRzh/work2.webp" alt="Kent State Navigation System" loading="lazy" decoding="async"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/MrFyzRt/work3.webp" alt="Kent State Mobile" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/DPCMqM15/wiscwirelofi-Hyu-LQUf-JZe-Lj-Hxhx-Nd-Xj.webp" alt="Kent State Wireframe" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Q5DBrWJ/wiscstyledyh-Uw-Lz-Ci-GJb-Av-Oj-Iipa-VUF.webp" alt="Kent State Styled" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/h1KtxvB7/wiscmobiledcqqjkb-Gjo-Dg-Qi-AGk-Dt-DLi.webp" alt="Kent State Mobile Detail" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/Nn95Jbm3/dsxrh-YLBtn-Lf-Zvtpx-HLVHKSd-Lxw-FLEGF.webp" alt="Kent State Detail" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/wFVd0CWJ/wiscfullge-Rkig-CAEDv-IJQOqn-RLTy-Yw-A.webp" alt="Kent State Full View" loading="lazy" decoding="async"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="Kent State Hero" loading="lazy"><div class="masonry-caption">Kent State .EDU — Homepage</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt="Proprietary Nav System" loading="lazy"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt="Homepage Desktop" loading="lazy"><div class="masonry-caption">Homepage — Desktop</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt="Kent Nav Detail" loading="lazy"><div class="masonry-caption">Navigation Detail</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/pBYP6wt8/1-HXIU3nxu-ZGq-Ne-Ef3-Wv-Lf-MQ.webp" alt="Kent State Navigation System" loading="lazy"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/VYS1xRzh/work2.webp" alt="Kent State Navigation System" loading="lazy"><div class="masonry-caption">Proprietary Nav System — Concept Exploration</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/MrFyzRt/work3.webp" alt="Kent State Mobile" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/DPCMqM15/wiscwirelofi-Hyu-LQUf-JZe-Lj-Hxhx-Nd-Xj.webp" alt="Kent State Wireframe" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Q5DBrWJ/wiscstyledyh-Uw-Lz-Ci-GJb-Av-Oj-Iipa-VUF.webp" alt="Kent State Styled" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/h1KtxvB7/wiscmobiledcqqjkb-Gjo-Dg-Qi-AGk-Dt-DLi.webp" alt="Kent State Mobile Detail" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/Nn95Jbm3/dsxrh-YLBtn-Lf-Zvtpx-HLVHKSd-Lxw-FLEGF.webp" alt="Kent State Detail" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/wFVd0CWJ/wiscfullge-Rkig-CAEDv-IJQOqn-RLTy-Yw-A.webp" alt="Kent State Full View" loading="lazy"><div class="masonry-caption">Mobile-First — 8 Campuses, One System</div></div>
     </div>
     <div class="fs-narrative reveal">
       <div class="fs-narrative-label">↓ Navigation<br>is my forté.</div>
@@ -2659,10 +2714,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-dana" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt="Dana Foundation — Mobile-First Redesign" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt="Dana Foundation — Mobile-First Redesign" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Dana Foundation" data-cs-sub="Mobile-First Redesign">
-      <div class="cs-hero-line1">Dana Foundation</div>
-      <div class="cs-hero-line2">Mobile-First Redesign</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2688,12 +2742,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · FlightPath NYC · 2018</div><div>← Senior UX Designer</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300">$20K project; 2 week deadline.</div></div><div class="fs-weight-add">+ Full spectrum redesign</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Information architecture & content strategy</div></div><div class="fs-weight-add">+ Decade Overdue</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/jk49XvQS/braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500">Cross-domain content ard system</div></div><div class="fs-weight-add">+ Two Brands, One System</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/20Ss0wSL/danalogol-MHEu-Swyrfu-BMYu-BPDs-SSPk-X.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Fully responsive; mobile-first.</div></div><div class="fs-weight-add">+ Brain Awareness Week</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:700">Brand identity & design systems</div></div><div class="fs-weight-add">+ No Hamburger Required</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Identity</div><div class="fs-weight-name" style="font-weight:900">Design delivered in 2 weeks; 2 weeks to ship.</div></div><div class="fs-weight-add">+ Geometric Typeface</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300">Mobile-First</div></div><div class="fs-weight-add">+ Full Spectrum Redesign</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Redesign Italic</div></div><div class="fs-weight-add">+ Decade Overdue</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/jk49XvQS/braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500">Card System</div></div><div class="fs-weight-add">+ Two Brands, One System</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/20Ss0wSL/danalogol-MHEu-Swyrfu-BMYu-BPDs-SSPk-X.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Card Italic</div></div><div class="fs-weight-add">+ Brain Awareness Week</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:700">Taxonomy Nav</div></div><div class="fs-weight-add">+ No Hamburger Required</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Identity</div><div class="fs-weight-name" style="font-weight:900">Bespoke Logo</div></div><div class="fs-weight-add">+ Geometric Typeface</div></div>
     </div>
     <div class="fs-section-label reveal">Non-profit Artifacts</div>
     <div aria-hidden="true" class="seo-text">Dana Foundation's digital presence was a good-faith $20K engagement with complete creative autonomy, a two-week timeline, and a shipped product — one of the cleanest start-to-finish deliveries of my career. A bespoke geometric typeface system, Brain Awareness Week campaign assets, and a logo that still represents the foundation — all produced under a PHI-to-NYC commute with no wifi and no margin for error. FlightPath NYC was the agency; the work spanned pharma and philanthropic digital including Merck and Vetsulin, bringing rigorous design thinking to categories where clarity genuinely matters.</div>
@@ -2739,21 +2793,21 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="dana-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="BAW Hero" loading="lazy" decoding="async"><div class="masonry-caption">Brain Awareness Week — Hero</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="Dana Image Asset" loading="lazy" decoding="async"><div class="masonry-caption">Image Asset System</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp" alt="Dana.org Mobile Mockup" loading="lazy" decoding="async"><div class="masonry-caption">Dana.org — Mobile Mockup</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/gFbDRSzz/dana-Dana-Mobile-Navt-Mvcc-Di-YYKxz-QYj.webp" alt="Dana.org Mobile Navigation" loading="lazy" decoding="async"><div class="masonry-caption">Dana.org — Mobile Navigation</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/GGnPBGN/bawmobilemockupg-OENk-Us-NFq-Ck-JLl-TQ.webp" alt="Brain Awareness Week Mobile Mockup" loading="lazy" decoding="async"><div class="masonry-caption">Brain Awareness Week — Mobile Mockup</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt="Dana Foundation Sitemap and IA" loading="lazy" decoding="async"><div class="masonry-caption">Sitemap &amp; IA — Navigation Schema</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/nMzjH9GD/ezgifcomoptimize-MRx-Gsfs-Wjr-Ymc-Pl-Z.gif" alt="Dana Foundation Bespoke Logo Concept" loading="lazy" decoding="async"><div class="masonry-caption">Bespoke Logo Concept</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/39Z3CCmg/dana-primitives.png" alt="Typeface Primitives" loading="lazy" decoding="async"><div class="masonry-caption">Typeface Primitives — Core Shapes &amp; Stems</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/XxsVsPRp/dana-geometry.png" alt="Construction Grid" loading="lazy" decoding="async"><div class="masonry-caption">Construction Grid — Letterforms &amp; Circle Primitives</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/twFgPzmY/dana-ratios.png" alt="Construction Grid Ratios" loading="lazy" decoding="async"><div class="masonry-caption">Construction Grid — Color Overlay &amp; Ratios</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/6921yLq/dana-brain-ratios.png" alt="Brain Awareness Week Geometric Construction" loading="lazy" decoding="async"><div class="masonry-caption">Brain Awareness Week — Geometric Construction</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/840nYbvR/dana-optical-align.png" alt="Brain Awareness Week Optical Alignment Grid" loading="lazy" decoding="async"><div class="masonry-caption">Brain Awareness Week — Optical Alignment Grid</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/XT67Rx9/dana-foundation.png" alt="Dana Foundation Final Lockup" loading="lazy" decoding="async"><div class="masonry-caption">Dana Foundation — Final Lockup</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/GrLbKv0/dana-alliance.png" alt="The Dana Alliance Final Lockup" loading="lazy" decoding="async"><div class="masonry-caption">The Dana Alliance — Final Lockup</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/DgKxFrjz/dana-brain-awareness-week.png" alt="Brain Awareness Week Final Lockup" loading="lazy" decoding="async"><div class="masonry-caption">Brain Awareness Week — Final Lockup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="BAW Hero" loading="lazy"><div class="masonry-caption">Brain Awareness Week — Hero</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="Dana Image Asset" loading="lazy"><div class="masonry-caption">Image Asset System</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp" alt="Dana.org Mobile Mockup" loading="lazy"><div class="masonry-caption">Dana.org — Mobile Mockup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/gFbDRSzz/dana-Dana-Mobile-Navt-Mvcc-Di-YYKxz-QYj.webp" alt="Dana.org Mobile Navigation" loading="lazy"><div class="masonry-caption">Dana.org — Mobile Navigation</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/GGnPBGN/bawmobilemockupg-OENk-Us-NFq-Ck-JLl-TQ.webp" alt="Brain Awareness Week Mobile Mockup" loading="lazy"><div class="masonry-caption">Brain Awareness Week — Mobile Mockup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt="Dana Foundation Sitemap and IA" loading="lazy"><div class="masonry-caption">Sitemap &amp; IA — Navigation Schema</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/nMzjH9GD/ezgifcomoptimize-MRx-Gsfs-Wjr-Ymc-Pl-Z.gif" alt="Dana Foundation Bespoke Logo Concept" loading="lazy"><div class="masonry-caption">Bespoke Logo Concept</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/39Z3CCmg/dana-primitives.png" alt="Typeface Primitives" loading="lazy"><div class="masonry-caption">Typeface Primitives — Core Shapes &amp; Stems</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/XxsVsPRp/dana-geometry.png" alt="Construction Grid" loading="lazy"><div class="masonry-caption">Construction Grid — Letterforms &amp; Circle Primitives</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/twFgPzmY/dana-ratios.png" alt="Construction Grid Ratios" loading="lazy"><div class="masonry-caption">Construction Grid — Color Overlay &amp; Ratios</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/6921yLq/dana-brain-ratios.png" alt="Brain Awareness Week Geometric Construction" loading="lazy"><div class="masonry-caption">Brain Awareness Week — Geometric Construction</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/840nYbvR/dana-optical-align.png" alt="Brain Awareness Week Optical Alignment Grid" loading="lazy"><div class="masonry-caption">Brain Awareness Week — Optical Alignment Grid</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/XT67Rx9/dana-foundation.png" alt="Dana Foundation Final Lockup" loading="lazy"><div class="masonry-caption">Dana Foundation — Final Lockup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/GrLbKv0/dana-alliance.png" alt="The Dana Alliance Final Lockup" loading="lazy"><div class="masonry-caption">The Dana Alliance — Final Lockup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/DgKxFrjz/dana-brain-awareness-week.png" alt="Brain Awareness Week Final Lockup" loading="lazy"><div class="masonry-caption">Brain Awareness Week — Final Lockup</div></div>
     </div>
     <div class="fs-narrative reveal">
       <div class="fs-narrative-label">↓ Two Brands.<br>One System.</div>
@@ -2774,10 +2828,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-power" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="Power Home Remodeling — Campaign & Digital Experience" loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="Power Home Remodeling — Campaign & Digital Experience" loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Power Is A" data-cs-sub="Campaign &amp; Digital Experience">
-      <div class="cs-hero-line1">Power Is A</div>
-      <div class="cs-hero-line2">Campaign &amp; Digital Experience</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2803,11 +2856,11 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · 160over90 · 2015</div><div>← Designer</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Strategy</div><div class="fs-weight-name" style="font-weight:300">Campaign Strategy</div></div><div class="fs-weight-add">+ Brand Voice</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Strategy</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Lifestyle, Not Inventory</div></div><div class="fs-weight-add">+ Messaging Framework</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Motion</div><div class="fs-weight-name" style="font-weight:500">Animation &amp; Video Integration</div></div><div class="fs-weight-add">+ Digital Experience</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Motion</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Far More Than a Remodeling Co.</div></div><div class="fs-weight-add">+ Lifestyle Photography</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Coordination</div><div class="fs-weight-name" style="font-weight:900">Cross-Department Coordination</div></div><div class="fs-weight-add">+ Brand · Photo · Motion · Video</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Strategy</div><div class="fs-weight-name" style="font-weight:300">Campaign Strategy</div></div><div class="fs-weight-add">+ Brand Voice</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Strategy</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Lifestyle, Not Inventory</div></div><div class="fs-weight-add">+ Messaging Framework</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Motion</div><div class="fs-weight-name" style="font-weight:500">Animation &amp; Video Integration</div></div><div class="fs-weight-add">+ Digital Experience</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Motion</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Far More Than a Remodeling Co.</div></div><div class="fs-weight-add">+ Lifestyle Photography</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Coordination</div><div class="fs-weight-name" style="font-weight:900">Cross-Department Coordination</div></div><div class="fs-weight-add">+ Brand · Photo · Motion · Video</div></div>
     </div>
     <div class="fs-section-label reveal">Campaign Artifacts</div>
     <div aria-hidden="true" class="seo-text">Power Home Remodeling Group's cofounders wanted a campaign unlike anything else in home remodeling — not an inventory of services, but the lifestyle benefits of achieving a dream home. At 160over90, I helped develop "Power is a _____ company," a loaded-sentence brand framework where the blank becomes a canvas filled differently with every visit. The campaign spanned video, animation, lifestyle photography, and a fully coordinated digital experience, requiring tremendous cross-department coordination between brand designers, on-site photographers, motion designers, and the video team.</div>
@@ -2853,11 +2906,11 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="power-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="Power Home Remodeling — Campaign Digital Experience" loading="lazy" decoding="async"><div class="masonry-caption">Campaign &amp; Digital Experience — Hero</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt="Power HRG Campaign Hero Page" loading="lazy" decoding="async"><div class="masonry-caption">Campaign Hero Page</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt="Power HRG Dream Realization" loading="lazy" decoding="async"><div class="masonry-caption">Dream-Realization</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt="Power HRG Far More Than Just a Home Remodeling Company" loading="lazy" decoding="async"><div class="masonry-caption">Far More Than Just a Home Remodeling Company</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt="Power HRG Animation and Video Integration" loading="lazy" decoding="async"><div class="masonry-caption">Animation &amp; Video Integration</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="Power Home Remodeling — Campaign Digital Experience" loading="lazy"><div class="masonry-caption">Campaign &amp; Digital Experience — Hero</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt="Power HRG Campaign Hero Page" loading="lazy"><div class="masonry-caption">Campaign Hero Page</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt="Power HRG Dream Realization" loading="lazy"><div class="masonry-caption">Dream-Realization</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt="Power HRG Far More Than Just a Home Remodeling Company" loading="lazy"><div class="masonry-caption">Far More Than Just a Home Remodeling Company</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt="Power HRG Animation and Video Integration" loading="lazy"><div class="masonry-caption">Animation &amp; Video Integration</div></div>
     </div>
     <div class="fs-narrative reveal">
       <div class="fs-narrative-label">↓ Tremendous<br>Coordination.</div>
@@ -2878,10 +2931,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 ══════════════════════════════════════════ -->
 <div id="view-wovn" class="view">
   <div class="page-body">
-    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="AmericanMuscle.com — Turn5 Inc." loading="lazy" decoding="async"></div>
+    <div class="cs-hero-image reveal"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="AmericanMuscle.com — Turn5 Inc." loading="lazy"></div>
     <section class="cs-particle-hero" data-cs="Full Throttle" data-cs-sub="AmericanMuscle.com — Turn5 Inc.">
-      <div class="cs-hero-line1">Full Throttle</div>
-      <div class="cs-hero-line2">AmericanMuscle.com — Turn5 Inc.</div>
+      <canvas class="cs-hero-canvas"></canvas>
     </section>
     <div class="cs-toolbar cs-toolbar-inst">
       <span class="wt-size-label cs-size-label">48px</span>
@@ -2907,11 +2959,11 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · Turn5 Inc. · 2007–2011</div><div>← Web Designer · UX</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Funnel</div><div class="fs-weight-name" style="font-weight:300">Full-Funnel E-Commerce UX</div></div><div class="fs-weight-add">+ Homepage Through Checkout</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Funnel</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Iterative A/B Testing</div></div><div class="fs-weight-add">+ Wireframes</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product</div><div class="fs-weight-name" style="font-weight:500">Product Detail &amp; Configuration</div></div><div class="fs-weight-add">+ AM Z Pro</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Photography</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Product Photography</div></div><div class="fs-weight-add">+ Holistic Ownership</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="" loading="lazy" decoding="async"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Brand</div><div class="fs-weight-name" style="font-weight:900">Brand &amp; Identity across all channels</div></div><div class="fs-weight-add">+ Custom Checkout Flow</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Funnel</div><div class="fs-weight-name" style="font-weight:300">Full-Funnel E-Commerce UX</div></div><div class="fs-weight-add">+ Homepage Through Checkout</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Funnel</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Iterative A/B Testing</div></div><div class="fs-weight-add">+ Wireframes</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product</div><div class="fs-weight-name" style="font-weight:500">Product Detail &amp; Configuration</div></div><div class="fs-weight-add">+ AM Z Pro</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Photography</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Product Photography</div></div><div class="fs-weight-add">+ Holistic Ownership</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Brand</div><div class="fs-weight-name" style="font-weight:900">Raxiom Brand &amp; Identity</div></div><div class="fs-weight-add">+ Custom Checkout Flow</div></div>
     </div>
     <div class="fs-section-label reveal">E-Commerce Artifacts</div>
     <div aria-hidden="true" class="seo-text">AmericanMuscle.com is the e-commerce platform at the heart of Turn5 Inc., shipping millions of dollars of Mustang and muscle-car merchandise to a fanatical fanbase. I designed custom UI+UX solutions through iterative testing across the full funnel — homepage through checkout — for a system that accommodated thousands of uniquely complex online orders spanning a bevy of product categories. Beyond UX, I functioned as the product photographer, giving me holistic ownership over photography, the website, and branding — including the Raxiom logo. The site has changed since 2011, but the fundamental building blocks are still largely intact.</div>
@@ -2957,25 +3009,25 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
     </div>
     <div class="masonry reveal" id="wovn-gallery">
-      <div class="masonry-item"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="AmericanMuscle.com Mustang Hero" loading="lazy" decoding="async"><div class="masonry-caption">Full Throttle — Homepage Hero, Mustang Lineup</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="AmericanMuscle.com AM Z Pro Product Page" loading="lazy" decoding="async"><div class="masonry-caption">AM Z Pro — Product Detail &amp; Configuration</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="AmericanMuscle.com UX Wireframes" loading="lazy" decoding="async"><div class="masonry-caption">Iterative Wireframes — Homepage Through Checkout</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="AmericanMuscle.com Mustang Product Photography" loading="lazy" decoding="async"><div class="masonry-caption">Holistic Ownership — UX, Photography &amp; Raxiom Brand</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="AmericanMuscle.com Product Photography" loading="lazy" decoding="async"><div class="masonry-caption">Product Photography</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/KJsXgPv/1-dy-MNhi-XFPWPe9og0-dbv-Q.webp" alt="AmericanMuscle.com — 01" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 01</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/C38FHDx9/1-FYt-Vic-HKj-LDPLW2rcn-J1u-A.webp" alt="AmericanMuscle.com — 02" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 02</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/5WSx4J20/1-GFvd-yw-Ap-PELXmtr-Fbx-Vug.webp" alt="AmericanMuscle.com — 03" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 03</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/w581TnW/1-ktn-HKT8-Zg-IADpbe-Byv2bqg.webp" alt="AmericanMuscle.com — 04" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 04</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/RTWtsfgm/1-6-P6nlo-Usx-Jqv-WHG67-JAJv-A.webp" alt="AmericanMuscle.com — 05" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 05</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/YBC7JqBg/1-v-Vm5zfz2gh5g-PHlee-Wv-Kv-A.webp" alt="AmericanMuscle.com — 06" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 06</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/4w5mmGRp/1-a-NLx-Fbj-VHKc-GD9-Zcks-Rpx-Q.webp" alt="AmericanMuscle.com — 07" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 07</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/sv8nw0Dp/1-rqzz-Cscn-OIL96-Vm-Ln0v7d-A.webp" alt="AmericanMuscle.com — 08" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 08</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/NdwrPWfV/1-Na-ZV6rc-Ew-RT55p-R12-BY0jg.webp" alt="AmericanMuscle.com — 09" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 09</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/MxKZJ0hS/1-ljwaiez95-NFrl-Y-ua8-J5-LA.webp" alt="AmericanMuscle.com — 10" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 10</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/TMGkqSFt/1-0-Iydqh-Ls-CVQ-4-Kwv-Oovh-YA.webp" alt="AmericanMuscle.com — 11" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 11</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/xqVR22qF/1-6y6ra001c08hq-Iqwoauv9-Q.webp" alt="AmericanMuscle.com — 12" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 12</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/vCs4XwwY/1-H0-Ud-Exb-y-BPW1z-Fyi-C3bi-A.webp" alt="AmericanMuscle.com — 13" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 13</div></div>
-      <div class="masonry-item"><img src="https://i.ibb.co/fG0dXSr0/1-m7-Hfhu-QO4-Ugr1-Vte-Zf6it-A.webp" alt="AmericanMuscle.com — 14" loading="lazy" decoding="async"><div class="masonry-caption">AmericanMuscle.com — 14</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="AmericanMuscle.com Mustang Hero" loading="lazy"><div class="masonry-caption">Full Throttle — Homepage Hero, Mustang Lineup</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="AmericanMuscle.com AM Z Pro Product Page" loading="lazy"><div class="masonry-caption">AM Z Pro — Product Detail &amp; Configuration</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="AmericanMuscle.com UX Wireframes" loading="lazy"><div class="masonry-caption">Iterative Wireframes — Homepage Through Checkout</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="AmericanMuscle.com Mustang Product Photography" loading="lazy"><div class="masonry-caption">Holistic Ownership — UX, Photography &amp; Raxiom Brand</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="AmericanMuscle.com Product Photography" loading="lazy"><div class="masonry-caption">Product Photography</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/KJsXgPv/1-dy-MNhi-XFPWPe9og0-dbv-Q.webp" alt="AmericanMuscle.com — 01" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 01</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/C38FHDx9/1-FYt-Vic-HKj-LDPLW2rcn-J1u-A.webp" alt="AmericanMuscle.com — 02" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 02</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/5WSx4J20/1-GFvd-yw-Ap-PELXmtr-Fbx-Vug.webp" alt="AmericanMuscle.com — 03" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 03</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/w581TnW/1-ktn-HKT8-Zg-IADpbe-Byv2bqg.webp" alt="AmericanMuscle.com — 04" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 04</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/RTWtsfgm/1-6-P6nlo-Usx-Jqv-WHG67-JAJv-A.webp" alt="AmericanMuscle.com — 05" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 05</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/YBC7JqBg/1-v-Vm5zfz2gh5g-PHlee-Wv-Kv-A.webp" alt="AmericanMuscle.com — 06" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 06</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/4w5mmGRp/1-a-NLx-Fbj-VHKc-GD9-Zcks-Rpx-Q.webp" alt="AmericanMuscle.com — 07" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 07</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/sv8nw0Dp/1-rqzz-Cscn-OIL96-Vm-Ln0v7d-A.webp" alt="AmericanMuscle.com — 08" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 08</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/NdwrPWfV/1-Na-ZV6rc-Ew-RT55p-R12-BY0jg.webp" alt="AmericanMuscle.com — 09" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 09</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/MxKZJ0hS/1-ljwaiez95-NFrl-Y-ua8-J5-LA.webp" alt="AmericanMuscle.com — 10" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 10</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/TMGkqSFt/1-0-Iydqh-Ls-CVQ-4-Kwv-Oovh-YA.webp" alt="AmericanMuscle.com — 11" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 11</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/xqVR22qF/1-6y6ra001c08hq-Iqwoauv9-Q.webp" alt="AmericanMuscle.com — 12" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 12</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/vCs4XwwY/1-H0-Ud-Exb-y-BPW1z-Fyi-C3bi-A.webp" alt="AmericanMuscle.com — 13" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 13</div></div>
+      <div class="masonry-item"><img src="https://i.ibb.co/fG0dXSr0/1-m7-Hfhu-QO4-Ugr1-Vte-Zf6it-A.webp" alt="AmericanMuscle.com — 14" loading="lazy"><div class="masonry-caption">AmericanMuscle.com — 14</div></div>
     </div>
     <div class="fs-narrative reveal">
       <div class="fs-narrative-label">↓ Holistic<br>Ownership.</div>
@@ -3369,7 +3421,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
         <h3>Cards Against Bad UX</h3>
         <figure class="letter-figure">
-          <img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="Cards Against Bad UX — user story cards" loading="lazy" decoding="async">
+          <img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="Cards Against Bad UX — user story cards" loading="lazy">
           <figcaption>Cards Against Bad UX™ — user stories, reformatted as a game the client could actually play with their camera off.</figcaption>
         </figure>
         <p>I give you "Cards Against Bad UX"<br>a not-novel idea that humanized requirements gathering<br>resulting in a renewed interest toward truly capturing the client's business req's.<br>&amp; the format enabled me to engage the client with their cameras off and muted mics.</p>
@@ -3445,7 +3497,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
             <div class="letter-accordion-panel-inner">
 
               <figure class="letter-figure">
-                <img src="https://i.ibb.co/9HBx3bB5/tabletoppoodle.webp" alt="Cards Against Bad UX — user story cards" loading="lazy" decoding="async">
+                <img src="https://i.ibb.co/9HBx3bB5/tabletoppoodle.webp" alt="Cards Against Bad UX — user story cards" loading="lazy">
                 <figcaption>just being helpful.</figcaption>
               </figure>
 
@@ -3462,7 +3514,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
               <h3>Wolfgang</h3>
               <figure class="letter-figure">
-                <img src="https://i.ibb.co/RkxhHy9n/curbyourdogbw.webp" alt="Cards Against Bad UX — user story cards" loading="lazy" decoding="async">
+                <img src="https://i.ibb.co/RkxhHy9n/curbyourdogbw.webp" alt="Cards Against Bad UX — user story cards" loading="lazy">
                 <figcaption>just being helpful.</figcaption>
               </figure>
             </div>
@@ -3707,7 +3759,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         <section class="ct-section" data-label="Hi, I'm Zack">
           <h2 class="ct-heading">Chapter 1</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Hi, I'm Zack</h1>
-          <br><img src="https://i.ibb.co/XLRJ0yL/IMG-20160930-105946.jpg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/XLRJ0yL/IMG-20160930-105946.jpg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">This article is not written with any assistance of AI, but rather instead with genuine earnest — daresay, "from the heart"[?]</p>
           <blockquote style="border-left:2px solid var(--rule);padding-left:20px;margin:24px 0;font-style:italic;opacity:.7">"I think. I make. Will work for work."</blockquote>
         </section>
@@ -3717,10 +3769,10 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 2</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">The Impetus</h1>
           <p class="ct-body" style="opacity:.5">Circa, 2007–2008</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*sqUSg_c1xGQxZdQS4L7fSw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*sqUSg_c1xGQxZdQS4L7fSw.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">How it started.</h3>
           <p class="ct-body">Bootstrap start with a bootstrap startup.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*6ftVCi9PiL1q47VskwMbWA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*6ftVCi9PiL1q47VskwMbWA.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">How it's going:</h3>
           <p class="ct-body">...to working with some well-to-do agencies working with a diverse client array.</p>
         </section>
@@ -3730,9 +3782,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 3</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Art School "Stop Out"</h1>
           <p class="ct-body" style="opacity:.5">Pratt Institute of Art, Brooklyn | Circa, 2002–03; 2004–05</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4466/format:webp/1*kY6yg0chz7Puu-WgrlYNMA.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4466/format:webp/1*kY6yg0chz7Puu-WgrlYNMA.jpeg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I didn't graduate from college. I couldn't afford it. Pratt Institute of Art was expensive, and loans or financial aid were simply out of reach {though not as simple as it may seem}. At nineteen years old, there wasn't much that I could afford, so I worked in construction and demolition, at the bowling alley, the hardware store, the grocery store, and at the gas station. At this point, I was already in my twenties, without a degree and with zero applicable skills beyond what I could ["bull"-expletive] with my so-called 'talent'.</p>
-          <img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*b7R1BbD3knTIbl_LyMZdXg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px">
+          <img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*b7R1BbD3knTIbl_LyMZdXg.png" style="width:100%;border-radius:4px">
           <p class="ct-body" style="opacity:.5">{Attended Pratt: 2002–03; 2004–2005}</p>
         </section>
 
@@ -3741,13 +3793,13 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 4</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Doings of an Autodidact</h1>
           <p class="ct-body" style="opacity:.5">Pennsylvania suburbia | Circa, 2002–03; 2004–05</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4096/format:webp/1*ZpyOMlmzMa0rPlNY--3KXA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4096/format:webp/1*ZpyOMlmzMa0rPlNY--3KXA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I built my first computer {circa 2005–'06}. I immediately installed pirated copies of Adobe Photoshop and Illustrator. While I didn't study at university, I studied what I saw. Whatever piqued my interest, I looked at, intensely.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*h9ljVOzzRT-IrakgaDSWvQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*h9ljVOzzRT-IrakgaDSWvQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">So, without a college degree, or any equivalent experience, I started from absolute scratch. I studied typography {reading books, examining magazines, and generally observing what I saw wherever I were}. I studied color theory and sought online tutorials that taught me how to master the tools I had at my disposal {my clandestinely acquired Adobe products}.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*puHZ09ELFPd-AaMK0HAxqQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*puHZ09ELFPd-AaMK0HAxqQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I began to create faux website concepts to gain an understanding of designing for that medium — as the screenshot above may suggest, I had lots to learn.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*lm5BUxr0dDq73bWoi3vy4w.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*lm5BUxr0dDq73bWoi3vy4w.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">All this culminated with an interview and subsequent job offer from Xoxide Incorporated {later turned Turn5 Inc.} which was the parent company to a number of niche e-commerce businesses operating in a variety of verticals {Beauty, Automotive, Tech}. I found their company through a Craigslist post in the web / design category. I can still pull up my original cover letter {which I just looked at and am considering reusing in my current job search endeavors}.</p>
         </section>
 
@@ -3756,19 +3808,19 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 5</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Found On Road Designing</h1>
           <p class="ct-body" style="opacity:.5">Omni-channel, Multi-vertical E-commerce Startup | Circa, 2008–11</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4000/format:webp/1*dtGgrSm7amTRi_5jQMVeIw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4000/format:webp/1*dtGgrSm7amTRi_5jQMVeIw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Alright. Now, where to begin? {circa 2007 through 2011}</p>
           <br>
           <p class="ct-body">Okay, so I've just been brought into the fold with a budding home-grown startup. The company had set up its new HQ at a warehouse office facility in Great Valley, PA {~20 miles outside of Philly}, and was owned and operated by two brothers; one of which wasn't even old enough to drink at the company holiday party. I had been provided a brand new PC replete with a dual-screen monitor setup and a Canon Rebel DSLR with a kit lens. I think it's easier to list all my roles and functions via bulleted list:</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*FYtVicHKjLDPLW2rcnJ1uA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*FYtVicHKjLDPLW2rcnJ1uA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Graphic designer for all print related initiatives; including package design, catalogue design, and large-format printing needs.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*GFvd_ywApPELXmtrFbxVug.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*GFvd_ywApPELXmtrFbxVug.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Product Photographer &amp; Image Manipulation specialist; covering all manner of product photography; specializing in lighting, establishing systematic product photography protocols {for visual uniformity at scale}, photo-retouching, as well as requiring technical product knowledge and scrutinizing attention to detail.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*ktnHKT8ZgIADpbeByv2bqg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*ktnHKT8ZgIADpbeByv2bqg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Graphic designer for all web properties; including 'reskin' efforts, banner and display ads, and email marketing.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*NaZV6rcEwRT55pR12BY0jg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*NaZV6rcEwRT55pR12BY0jg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Graphic Designer turned Web Designer; responsible for feature development with a specific focus on user experience through wireframe prototyping, user testing, and data-backed solutioning [sic].</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*m7HfhuQO4Ugr1VteZf6itA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*m7HfhuQO4Ugr1VteZf6itA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body"><strong>In many respects, Turn5 Inc. served as my formal education.</strong><br><br>I learned first and foremost how to work within a team environment, where everyone's role was crucial towards the company's success. There, I learned the ins-and-outs and nuance to graphic design, product photography and related production processes, email and display ad marketing, printed packaging and catalogs, and in the latter half of my nearly four years there, served as a web designer focused on user experience — by the books — as applied to a {then} forty-million per year ecommerce giant born from a garage somewhere in the suburbs of southeastern Pennsylvania.</p>
         </section>
 
@@ -3777,12 +3829,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 6</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Design by Data</h1>
           <p class="ct-body" style="opacity:.5">Lead Generation Startup | Circa, 2011–14</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4800/format:webp/1*6CxwkYwhhn5Z-FHINfdpWA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4800/format:webp/1*6CxwkYwhhn5Z-FHINfdpWA.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">Okay, so Leadnomics was shifty. 👀 Paradigm shifty, we'll say.</h3>
           <p class="ct-body">It was a great place to work though. I have lasting friendships with folks I worked with there {heck, two of them now work at Google}. But our work fed upon the uneducated and disenfranchised, in some respects. As the name may suggest, our focus was in lead generation. Our cash cow was in facilitating easy access to high-interest short-term loans {otherwise known as payday loans}.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*HI1bKbZmFYVgs3My-H3wvg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*HI1bKbZmFYVgs3My-H3wvg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">But, we had free lunches, regular bonuses, company outings, free snacks, and solid benefits; each with our own super thin Apple laptops and the ability to WFH occasionally {circa 2011, fyi}.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1200/format:webp/1*BNs_Ch8k1bcljKMu1KN_-g.gif" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1200/format:webp/1*BNs_Ch8k1bcljKMu1KN_-g.gif" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">In short, my job was to make it intuitive and stress free {daresay pleasant} for one {user} to make catastrophic financial decisions {under clandestine duress} at a scale in tens of thousands per month.</p>
         </section>
 
@@ -3791,19 +3843,19 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 7</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Enter #AgencyLife</h1>
           <p class="ct-body" style="opacity:.5">One Sixty Over Ninety, an Advertising &amp; Branding Agency | Circa, 2014–2016</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4096/format:webp/1*mnDJgS7abSiPjlzk2BxkTA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4096/format:webp/1*mnDJgS7abSiPjlzk2BxkTA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">One Sixty Over Ninety — my heart rate when I was offered a full-time gig as an "Interaction Designer" {circa 2014} working at a leading design agency at the literal epicenter of Center City, Philadelphia.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*aQOvTWfvAwf6m7-oyZyGyA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*aQOvTWfvAwf6m7-oyZyGyA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Granted, I accepted the job at approximately $12K less than I was at my previous start-up, but I was one of two interactive designers hired to fulfill the needs of the newly minted Interactive Department at the 160/90 HQ.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*pch6xhEpFoXxliAGbNnr7Q.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*pch6xhEpFoXxliAGbNnr7Q.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I was there to learn. Day. Night. Lots of nights.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*oP6krDDqPpSgF4AgFrWClw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*oP6krDDqPpSgF4AgFrWClw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">....weekends too.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*CQ_4uTkD6MUBWABKwJIZgA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*CQ_4uTkD6MUBWABKwJIZgA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">We made high-fidelity wireframes. We completely bypassed any user research, data, or analytics.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*HXIU3nxuZGok-HeOsK0qtrw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*HXIU3nxuZGok-HeOsK0qtrw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">We were charged with being edgy and innovative {within budget, and within WordPress' capabilities}</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*vkU8lZmqnOHgheOsK0qtrw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*vkU8lZmqnOHgheOsK0qtrw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Responsibly 'Responsive', of course.</p>
         </section>
 
@@ -3812,14 +3864,14 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 8</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Gaining XP in UX</h1>
           <p class="ct-body" style="opacity:.5">O3 World, a digital product shop in Fishtown, Philly | Circa, 2017–18</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:3962/format:webp/1*TutCePQB0bSCoMfMTWJb-Q.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px">
+          <br><img src="https://miro.medium.com/v2/resize:fit:3962/format:webp/1*TutCePQB0bSCoMfMTWJb-Q.png" style="width:100%;border-radius:4px">
           <h3 style="margin:16px 0 8px;font-weight:600">An elevating experience with O3 World, a digital product shop based in Fishtown, Philadelphia</h3>
           <p class="ct-body">Wireframes at 160over90 fit the workflow at 160over90. Wireframing at O3 World was a different beast, which required throwing everything I thought I knew out of the window, and reverting to the basics. Here, it was less about impressing our clients. Here, it was all about working with our clients. Without the pizazz of beautiful grayscale renders of your soon-to-be colored in homepage, we focused on asking the right questions and getting the right 'feel' with our clients. We were agile in nature and scrum led; we had daily scrums and weekly sprint schedules. We dealt with client feedback organically, and responsively, as opposed to reactively.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:882/format:webp/1*7wEKA8duSccOZwImA_6jSQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:882/format:webp/1*7wEKA8duSccOZwImA_6jSQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">#team vibes</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1120/format:webp/1*I_nHQKs7BIXoY0onfNxnOg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1120/format:webp/1*I_nHQKs7BIXoY0onfNxnOg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">In it to win it.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:828/format:webp/1*KE8gFA6w4wud1uDArA4YvQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:828/format:webp/1*KE8gFA6w4wud1uDArA4YvQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">"Office-friendly"</p>
         </section>
 
@@ -3828,7 +3880,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 9</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Life at Workarea</h1>
           <p class="ct-body" style="opacity:.5">SaaS E-commerce Platform based in Olde City, PHI | Circa, 2017–18</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:3044/format:webp/1*lEJetjUt85CTbb24dBTFkA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:3044/format:webp/1*lEJetjUt85CTbb24dBTFkA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I had mentioned Agile and Scrum. Well, say hello to Gidget, our adjunct project manager and scrum master at Workarea {a proprietary SaaS e-commerce platform}.<br><br>Here, I served as a Senior Visual and UX Designer. Here, we did wireframes differently. Here, we worked in direct partnership with our ever-ready-to-help developers. Napkin sketches, low-fi mockups, or just a few messages on Slack were all that was needed.<br><br>The work was building out our proprietary SaaS E-commerce Platform which we marketed out in typical agency-style to a number of A-list brands, using all insights and analytics towards optimizing our platform and expanding functionality to meet demand.<br><br>I don't have any work to show from here. I didn't save any of my napkins.</p>
         </section>
 
@@ -3837,12 +3889,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 10</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">PHI &gt; NYC; Rinse and Repeat</h1>
           <p class="ct-body" style="opacity:.5">Foot-in-the-door to the NYC agency scene | Circa 2018–2019</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4800/format:webp/1*XT2eaL5pv1yb49r_oJqAoA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4800/format:webp/1*XT2eaL5pv1yb49r_oJqAoA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">FlightPath presented an intriguing opportunity. Recently emerging from the brink of bankruptcy, the agency had drastically downsized from a bustling office to a sparse handful of core employees. It wasn't a lucrative endeavor; the pay was passable at best. But for me, the allure lay in the chance to immerse myself in the New York agency scene and gather invaluable experience to propel my career forward.<br><br>Despite its tumultuous journey, FlightPath managed to preserve vital relationships with long-standing clients, specifically in the pharmaceutical sector {Merck, Zoetis, Charter, and Goya}. Operating in regulated industries, these clients demanded design solutions that not only adhered to WCAG 2.0 AA {or even AAA} compliance standards but also underwent rigorous scrutiny and approval from legal and regulatory marketing authorities.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*9EZTgvxttDXOacHzI9axeQ.gif" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
-          <br><img src="https://i.ibb.co/NtWgd7T/dana-mobile-mockup.jpg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
-          <br><img src="https://i.ibb.co/p4K0rCJ/baw-mobile-mockup.jpg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
-          <br><img src="https://i.ibb.co/FJczkpC/dana-Dana-Mobile-Nav.jpg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*9EZTgvxttDXOacHzI9axeQ.gif" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/NtWgd7T/dana-mobile-mockup.jpg" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/p4K0rCJ/baw-mobile-mockup.jpg" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/FJczkpC/dana-Dana-Mobile-Nav.jpg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">This non-profit client only had a $20K budget. Look at what I gave them for $20K. I can't show any of my Merck work due to NDA.</p>
         </section>
 
@@ -3851,12 +3903,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 11</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Cards Against Bad UX</h1>
           <p class="ct-body" style="opacity:.5">PFSweb, LiveArea {Pre Merkle Acquisition} | Circa, 2020–21</p>
-          <img src="https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px">
+          <img src="https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png" style="width:100%;border-radius:4px">
           <h3 style="margin:16px 0 8px;font-weight:600">Cards against bad UX? What?</h3>
           <p class="ct-body">What do you do when you're working with a sophisticated client, who has a tremendously complex product line and deep inventory, who are accustomed to B2B and B2E operations and dealings, and whom while fluent with their industry acumen, were completely unfamiliar with "the design process"[?]</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a9toSr99x6NtE5YC7bGnzw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a9toSr99x6NtE5YC7bGnzw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">What do you do when jargon-laden spreadsheets and single-sided meetings net nothing but frustration with the client to the point where they're considering abandoning the contract?</p>
-          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*pXU6SpY7MxMKiyfVI-976g.gif" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*pXU6SpY7MxMKiyfVI-976g.gif" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">Enter "Cards Against Bad UX"</h3>
           <p class="ct-body">All I did was 'simplify what we asked'; to shift the conversation away from technical jargon and towards user-centric thinking. By providing different perspectives such as "As a shopper" "As a content manager" or "As a guest user", and pairing it with a simple visual {a card}, I was able to help our stakeholders empathize with their end-users and focus on their needs and experiences.<br><br>This approach not only catalyzed communication but also encouraged collaboration and problem-solving from both sides of the table. It allowed our client to see the project from various angles and find common ground, ultimately leading to more effective solutions and preventing frustration or contract abandonment.</p>
         </section>
@@ -3866,9 +3918,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 12</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Small cog, HUGE Wheel</h1>
           <p class="ct-body" style="opacity:.5">Freelance with HUGE Inc. | Circa, 2021</p>
-          <br><img src="https://i.ibb.co/4RksMzw/Browse-Location-List.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/4RksMzw/Browse-Location-List.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">At LiveArea, I was the UX Manager assigned to contracts exceeding $1m in value {$1.2m, actually}. My hourly billable rate to the client was something like $235/hr. Everything I did had a direct impact on the final deliverable.<br><br>I managed multiple projects and pitches as well as junior designers while being the primary client-facing resource. I presented findings. I course-corrected when needed. I moved the machine forward.</p>
-          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*UATKEet6VtcLkA8rYspjFQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*UATKEet6VtcLkA8rYspjFQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">At Huge, I couldn't tell you what my billable rate was, but I could say this was the first time I had seen a project with at least 20 different people involved {on just the agency side}.<br><br>At Huge, I was responsible for exploring a single user flow. There were other designers responsible for exploring other individual user flows. At no point during my time with Huge did I even know there were other designers on that project. To say we were siloed would be a gross understatement.<br><br>Being completely candid, I get it. This was a mere contract position. Huge hired numerous UX contractors to sign on few weeks or months. It was simply about a little bit of work done without any long-term commitments.<br><br>I would be thrilled to take on a more robust contract, but hopefully with a different {and more vested manager this time around}. Or, may I be the manager? ;)</p>
         </section>
 
@@ -3877,28 +3929,28 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 13</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">This is the Whey</h1>
           <p class="ct-body" style="opacity:.5">Boutique West Coast Design Agency specializing in Shopify builds | Circa, 2021</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2400/format:webp/1*ijfhJkgMsBKeSl3rIzi0XQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2400/format:webp/1*ijfhJkgMsBKeSl3rIzi0XQ.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">Heavy Lift. Big Gains. This is the Whey.</h3>
           <p class="ct-body">Enter, Elva Design Group {now just "Elva"}; a boutique design agency based in San Francisco specializing in Shopify e-commerce builds, and I was just resourced to their newest client, General Nutrition Centers {GNC}.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*ExXeZpPzCwC4QKjx3FpJ-Q.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*ExXeZpPzCwC4QKjx3FpJ-Q.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Notes. Lots of notes.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*HRsgXZNL-WJf4XjJ-O75Bg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*HRsgXZNL-WJf4XjJ-O75Bg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Hypothesis</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*8mPDVHlSO_dLbJVIi5VkFg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*8mPDVHlSO_dLbJVIi5VkFg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Setting up for success</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*7e7U6ZN5HC_zdQzm1tSbGg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*7e7U6ZN5HC_zdQzm1tSbGg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Roadmap to success</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*LCDrFFlmX0F1RasveRsrvA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*LCDrFFlmX0F1RasveRsrvA.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Iteration</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*5gMvv7027-cm7r0vmIDy1A.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*5gMvv7027-cm7r0vmIDy1A.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">"Innovation"</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*asoTmZ5cV3ZkodrMcuYjig.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*asoTmZ5cV3ZkodrMcuYjig.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Optimization</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*Iy-nWY_5dNzLniq7vHVgIw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*Iy-nWY_5dNzLniq7vHVgIw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Refinement</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*fTX_dBN7l7ofM3nfKU7p8g.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*fTX_dBN7l7ofM3nfKU7p8g.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Gains</p>
-          <br><img src="https://i.ibb.co/pbchQFh/dash-gnc-screen.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/pbchQFh/dash-gnc-screen.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Reward</p>
         </section>
 
@@ -3907,14 +3959,14 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 14</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Long Way to the Top</h1>
           <p class="ct-body" style="opacity:.5">62nd Floor of the World One Trade Center Tower | Circa, 2021</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*RTEI5aCcw31fjFzqjBgFEg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*RTEI5aCcw31fjFzqjBgFEg.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">It's a long way to the top, if you want to rock and roll</h3>
           <p class="ct-body">In this chapter, I won't delve into the specifics of the project at Code &amp; Theory, but rather focus on the broader context and my experiences during my time there.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:4000/format:webp/1*xQoqrV021PFk0sxts5AWAg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:4000/format:webp/1*xQoqrV021PFk0sxts5AWAg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I interviewed for an 'ACD, Interactive' position and was immediately hired on a freelance basis as a Senior Designer, with the intention of fulfilling the ACD responsibilities. As part of the team working on a project for a top social media brand, I quickly proved my worth and was transitioned to full-time employment.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*1gjrEffBioJYoEAvMWHfKQ.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1100/format:webp/1*1gjrEffBioJYoEAvMWHfKQ.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">The project was led by a Directly Responsible Individual (DRI), but whom accepted a Director-level position {elsewhere} three months into the project. There were also the departure of several key team members {including senior strategists and technologists}, which placed additional responsibilities on my shoulders, requiring me to provide guidance in UX, Strategy, and Development, while also serving as a people manager myself with a junior-level associate under my purview.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Besides resourcing hurdles, there were issues spanning practicality and pragmatism, suffice to say.<br><br>Despite offering to improve internal education initiatives and providing proactive feedback {submitting a 'post mortem', as requested}, I was let go from Code &amp; Theory without explanation. It was a challenging experience, but one that taught me valuable lessons about the realities of working in a large agency environment.</p>
         </section>
 
@@ -3923,18 +3975,18 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 15</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">#SeizeTheSpace #BonCourage</h1>
           <p class="ct-body" style="opacity:.5">375 Hudson Street, along "Agency Row" | Circa, 2022–2023</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2560/format:webp/1*OenHCQmGa10wpCzR8o9PtA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2560/format:webp/1*OenHCQmGa10wpCzR8o9PtA.png" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">Enter Publicis Sapient, "a Digital Transformation Company".</h3>
           <p class="ct-body">I can tell you that I spent a full year here working in the Financial Services sector serving BNY Mellon — Pershing X Advisory Experience Platform.<br><br>Publicis Sapient wasn't without its imperfections either. Suffice to say there were some organizational and operational aspects that could be improved upon, dialogue and communication not withstanding.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:428/format:webp/1*bQ-sX24bQkUtx50Q5jMZNg.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:428/format:webp/1*bQ-sX24bQkUtx50Q5jMZNg.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I became the de facto Team Lead and Product Owner. I led research and discovery efforts. I led client workshops; I led design and prototype development and testing; I collaborated across multiple concurrent tracks, while providing mentorship and guidance to junior and associate designers; also serving as team lead amongst peers at the senior level.<br><br>{I successfully negotiated on numerous occasion company paid lunches for my in-office workshops}</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*BlRk8mWPsIvsfbZkdzSI1A.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*BlRk8mWPsIvsfbZkdzSI1A.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I set my team up for success daily, conducting exhaustive research and socializing of knowledge.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*PGkVR2sOAfcKk5kkTrnQdw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:750/format:webp/1*PGkVR2sOAfcKk5kkTrnQdw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">My contract stated I was a full-time remote employee, yet I still opted to be a consistent presence in the office.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*3gnCq0a4KbY8MGJyVKyP-A.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*3gnCq0a4KbY8MGJyVKyP-A.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">I listened and learned from leadership.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*-sJ-pN8tBwwsHq1XcDSLLw.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:2000/format:webp/1*-sJ-pN8tBwwsHq1XcDSLLw.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Also, lots of design systems work and data refactorization for a suite of Financial Advisor applications.</p>
         </section>
 
@@ -3943,16 +3995,16 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 16</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Do the Twist!</h1>
           <p class="ct-body" style="opacity:.5">"Independent Contractor" | Circa, 2023–Present</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*KF8S3mjG-LyygktGkM10Kg.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*KF8S3mjG-LyygktGkM10Kg.jpeg" style="width:100%;border-radius:4px"><br>
           <h3 style="margin:16px 0 8px;font-weight:600">"Come on, baby. Let's do the twist!"</h3>
           <p class="ct-body">In case the headline doesn't make sense, in the world of Low Voltage Data Installation, some terminations require a very specific twist parity, lest you run risk of signal impedance/interference. Got it? Good.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*iP-y0X1WqN9WLw_Y-w-evQ.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*iP-y0X1WqN9WLw_Y-w-evQ.jpeg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Suffice to say, I've been networking {pun intended}. I've taken on sub-contractor gigs and learned new hands-on skills. I can now terminate an RJ45 in 30–45 seconds per. I can run cables and install security systems and setup indoor/outdoor digital displays. No problem.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*fQX6x7lVSHT4XJxpApkBfg.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*fQX6x7lVSHT4XJxpApkBfg.jpeg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">My passion for creative output is unrelenting, though I'm using different parts of my brain to make due. I still have my eyes set on elevating my career in a paradigm changing way.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*Fpw92LFkhtWU0eFuRAKqVg.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*Fpw92LFkhtWU0eFuRAKqVg.jpeg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Maybe someone out there sees potential.</p>
-          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*O3ydblRDwhoq24nxcOKolw.jpeg" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://miro.medium.com/v2/resize:fit:720/format:webp/1*O3ydblRDwhoq24nxcOKolw.jpeg" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">Meanwhile, got mouths to feed.</p>
           <br>
           <p class="ct-body">As an aside, I've been keeping up with the latest happenings in the world of "Artificial Intelligence". I am absolutely unequivocally NOT worried about the 'thinking machines' taking over jobs, or the world for that matter. AI will never have the patience required (nor physical dexterity) to run and terminate physical ethernet cables or fiber optic lines. Never. {If it isn't clear, this is written in jest}</p>
@@ -3963,14 +4015,14 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <h2 class="ct-heading">Chapter 17</h2>
           <h1 style="font-size:calc(28px * var(--page-scale, 1));font-weight:700;margin:8px 0 16px;text-align:var(--work-align, left)">Reason &amp; Resolution</h1>
           <p class="ct-body" style="opacity:.5">Setting up for success today | Changing paradigms tomorrow</p>
-          <br><img src="https://i.ibb.co/Ct9DZd9/image-442-min.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px"><br>
+          <br><img src="https://i.ibb.co/Ct9DZd9/image-442-min.png" style="width:100%;border-radius:4px"><br>
           <p class="ct-body">TL;DR:<br><span class="span">I have my reasons. I have my resolution.</span></p>
           <br>
           <blockquote style="border-left:2px solid var(--rule);padding-left:20px;margin:24px 0;font-style:italic;opacity:.7">"Zack has a deep connection to emotions, imagination, and sensitivity—the quintessential idealist. His greatest strength is his depth of sensitivity and empathy, which allows him to give voice to human connections in a way that works with people on a profound level. Zack brings fresh perspective to things when I felt in a rut—a great person to work with."<br><br>— Christopher Bayle | ACD UX, Publicis Sapient</blockquote>
           <br>
           <blockquote style="border-left:2px solid var(--rule);padding-left:20px;margin:24px 0;font-style:italic;opacity:.7">"Zack is one of the most talented, hard-working, and knowledgeable individuals I have had the pleasure of working with. He fosters communication not only between us but also with the whole team, setting them up for success. He always gives his best and more. I really enjoy working with him, and I feel he should be recognized for his tremendous effort and for being such a great team player."<br><br>— Andrés Moros, MPS | Sr. UX Designer, Publicis Sapient</blockquote>
           <br>
-          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*R9yBt9fSyEoa56p77NcpqA.png" loading="lazy" decoding="async" style="width:100%;border-radius:4px">
+          <img src="https://miro.medium.com/v2/resize:fit:1400/format:webp/1*R9yBt9fSyEoa56p77NcpqA.png" style="width:100%;border-radius:4px">
         </section>
 
       </div><!-- /contracts-body -->
@@ -3989,7 +4041,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
      VIEW: DESIGN SYSTEM
 ══════════════════════════════════════════ -->
 <div id="view-designsystem" class="view">
-  <iframe class="external-page-frame" src="https://zack.cx/design" title="Design System" loading="lazy"></iframe>
+  <iframe class="external-page-frame" src="https://zack.cx/designsystem" title="Design System" loading="lazy"></iframe>
 </div>
 
 <style>
@@ -4951,6 +5003,7 @@ function showView(id) {
   document.querySelectorAll('.nav-tab[data-view]').forEach(t => {
     t.classList.toggle('active', t.dataset.view === (VIEWS[id]?.navTab || id));
   });
+  initParticleHero(el);
   initAllNarrativeParticles(el);
   if (id === 'index' && typeof window._portraitRebuild === 'function') {
     setTimeout(() => window._portraitRebuild(true), 460);
@@ -4992,6 +5045,161 @@ const FLOAT_AY_CS  = 3;
 const activeInstances = new Map();
 window._activeInstances = activeInstances;
 
+function initParticleHero(viewEl) {
+  const viewId = viewEl.id;
+  if (activeInstances.has(viewId)) {
+    activeInstances.get(viewId).dead = true;
+    activeInstances.delete(viewId);
+  }
+  if (viewId === 'view-index') return;
+
+  const section = viewEl.querySelector('.cs-particle-hero');
+  if (!section) return;
+  const canvas = section.querySelector('.cs-hero-canvas');
+  const line1  = section.dataset.cs    || '';
+  const line2  = section.dataset.csSub || '';
+  const ctx    = canvas.getContext('2d');
+
+  let W, H, DPR;
+  let mx = -400, my = -400;
+  let bX = -400, bY = -400;
+  let floatT = Math.random() * Math.PI * 2;
+  let particles = [];
+  const inst = { dead: false };
+  activeInstances.set(viewId, inst);
+  inst.resize = () => resize();
+
+  function heroFontSize1() {
+    return 48; // fixed — not coupled to the size scaler
+  }
+  function heroFontSize2(fs1) { return Math.round(fs1 * 0.32); }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W   = window.innerWidth;
+    const fs1  = heroFontSize1();
+    const fs2  = heroFontSize2(fs1);
+    const padT = Math.round(fs1 * 0.55);
+    const padB = Math.round(fs1 * 1.6);
+    const gap  = Math.round(fs1 * 0.18);
+    H = padT + fs1 + gap + fs2 + padB;
+    canvas.width        = W * DPR;
+    canvas.height       = H * DPR;
+    canvas.style.width  = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build(fs1, fs2, padT, gap);
+  }
+
+  function build(fs1, fs2, padT, gap) {
+    const csFont = getComputedStyle(viewEl).getPropertyValue('--cs-font').trim() || "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif";
+    const font1  = `900 ${fs1}px ${csFont}`;
+    const font2  = `300 ${fs2}px 'Inter','Helvetica Neue',Helvetica,Arial,sans-serif`;
+    const PAD_L  = 16;
+    const prev   = particles;
+    particles    = [];
+
+    function pushLine(text, font, baseY, baseOp) {
+      ctx.font = font;
+      let cx = PAD_L;
+      for (const ch of text) {
+        const w = ctx.measureText(ch).width;
+        const p = prev.find(p => p.ch === ch && Math.abs(p.restX - cx) < 6);
+        particles.push({
+          ch, font,
+          restX: cx, restY: baseY,
+          x:  p ? p.x  : cx + (Math.random() - .5) * W * 0.65,
+          y:  p ? p.y  : baseY + (Math.random() - .5) * H * 1.1,
+          vx: p ? p.vx : 0,
+          vy: p ? p.vy : 0,
+          baseOp,
+        });
+        cx += w;
+      }
+    }
+
+    const y1 = padT + fs1;
+    const y2 = y1 + gap + fs2;
+    pushLine(line1, font1, y1, 1);
+    pushLine(line2, font2, y2, 1);
+  }
+
+  function loop() {
+    if (inst.dead) return;
+    requestAnimationFrame(loop);
+    if (!viewEl.classList.contains('active')) return;
+
+    bX += (mx - bX) * BLOB_LERP_CS;
+    bY += (my - bY) * BLOB_LERP_CS;
+    floatT += FLOAT_SPD_CS;
+
+    const fdx = Math.sin(floatT) * FLOAT_AX_CS + Math.sin(floatT * 1.7) * FLOAT_AX_CS * 0.28;
+    const fdy = Math.sin(floatT * 0.8 + 1) * FLOAT_AY_CS + Math.sin(floatT * 1.3 + 2) * FLOAT_AY_CS * 0.3;
+
+    ctx.clearRect(0, 0, W, H);
+    const bgColor = window._heroBg || '#0a0a0a';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, W, H);
+    ctx.textBaseline = 'alphabetic';
+
+    const repelR = window._repelR || 155;
+
+    for (const p of particles) {
+      p.vx += (p.restX + fdx - p.x) * TETHER_K_CS;
+      p.vy += (p.restY + fdy - p.y) * TETHER_K_CS;
+
+      const dx = p.x - bX, dy = p.y - bY;
+      const d  = Math.sqrt(dx * dx + dy * dy);
+      if (d < repelR && d > 0.5) {
+        const f = 1 - d / repelR;
+        p.vx += (dx / d) * f * f * 20;
+        p.vy += (dy / d) * f * f * 20;
+      }
+
+      p.vx *= DAMP_CS; p.vy *= DAMP_CS;
+      p.x  += p.vx;   p.y  += p.vy;
+
+      const prox  = d < 20 ? 0 : Math.min(1, (d - 16) / 72);
+      const alpha = p.baseOp * prox;
+      if (alpha > 0.006) {
+        ctx.font = p.font;
+        const isDark = (window._heroBg || '#0a0a0a') === '#0a0a0a';
+        const pColor = isDark ? '255,255,255' : '10,10,10';
+        ctx.fillStyle = `rgba(${pColor},${alpha.toFixed(3)})`;
+        ctx.fillText(p.ch, p.x, p.y);
+      }
+    }
+
+    const bgR = bgColor === '#0a0a0a' ? '10,10,10' : '255,255,255';
+    const vg  = ctx.createLinearGradient(0, H * 0.75, 0, H);
+    vg.addColorStop(0, `rgba(${bgR},0)`);
+    vg.addColorStop(1, `rgba(${bgR},1)`);
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, H * 0.75, W, H * 0.25);
+    const tg = ctx.createLinearGradient(0, 0, 0, 52);
+    tg.addColorStop(0, `rgba(${bgR},1)`);
+    tg.addColorStop(1, `rgba(${bgR},0)`);
+    ctx.fillStyle = tg;
+    ctx.fillRect(0, 0, W, 52);
+  }
+
+  window.addEventListener('mousemove', e => {
+    if (inst.dead) return;
+    const r = canvas.getBoundingClientRect();
+    mx = e.clientX - r.left;
+    my = e.clientY - r.top;
+  });
+
+  window.addEventListener('resize', () => { if (!inst.dead) resize(); });
+
+  document.fonts.ready.then(() => {
+    const csFont      = getComputedStyle(viewEl).getPropertyValue('--cs-font').trim();
+    const loadPromise = csFont
+      ? document.fonts.load(`900 ${heroFontSize1()}px ${csFont}`).catch(() => {})
+      : Promise.resolve();
+    loadPromise.then(() => { resize(); loop(); });
+  });
+}
 
 // ── NARRATIVE PARTICLE TEXT (fs-narrative blocks) ───────────────────────────
 // Mirrors the index portrait hero: a tiled character grid scaled by the
@@ -5251,12 +5459,50 @@ function initAllNarrativeParticles(container) {
 }
 
 // ── PORTRAIT HERO (index) ──────────────────────────────────────────────────
-// ── WORK HERO: now an iframe embed (zack.cx/hero) — this just sizes the
-//    #hero section to match the same proportions the embedded page uses,
-//    so the layout around it doesn't shift once the iframe loads.
-(function initHeroFrameSize() {
+(function initPortraitHero() {
+  // Individual client/employer names — each one is a single "phrase" that
+  // gets its own randomly-assigned font, rather than randomizing per letter.
+  const POEM_PHRASES = [
+    "Comcast", "Charter", "Rachel Roy", "LimeCrime", "Organic Girl", "Goya",
+    "General Nutrition Centers", "Worldwide Stereo", "Simpson Strong-Tie",
+    "Shop Hardinge", "YETI", "Aquasana", "Kent State University",
+    "University of Wisconsin-Madison", "Texas A&M", "Centro.edu.mx",
+    "Power Home Remodeling Group", "TikTok For Business", "BNY Pershing X",
+    "The Dana Foundation", "Daz3D", "Sentral Lifestyle Apartments",
+    "Publicis Sapient", "Code & Theory", "Huge", "Elva Design Group",
+    "LiveArea", "WebLinc", "Workarea", "O3 World", "160OVER90",
+    "Leadnomics", "Turn5 Inc", "Phenom",
+  ];
+  const POEM_TEXT = POEM_PHRASES.join(" ");
+
+  const PT_TETHER = 0.014;
+  const PT_DAMP   = 0.76;
+  const PT_LERP   = 0.11;
+
+  function particleSize() {
+    return window.innerWidth <= 640 ? 13 : 22; // smaller on mobile so the tiled text doesn't dominate the viewport
+  }
+  let FONT_SIZE = particleSize();
+  let CHAR_W    = FONT_SIZE * 0.11;
+  let LINE_H    = FONT_SIZE * 0.33;
+
+  // Pool of fonts already loaded elsewhere on the site — each tiled character
+  // is randomly (but stably) assigned one of these at build time.
+  const PT_FONTS = [
+    '"Inter",sans-serif',
+    '"Playfair Display",serif',
+    '"Syne",sans-serif',
+    '"Bebas Neue",sans-serif',
+    '"Space Grotesk",sans-serif',
+    '"DM Serif Display",serif',
+  ];
+
   const heroSection = document.getElementById('hero');
-  if (!heroSection) return;
+  const canvas = document.getElementById('hero-canvas');
+  const cc     = document.getElementById('hero-cc');
+  const ctx    = canvas.getContext('2d');
+  const cctx   = cc.getContext('2d');
+
   function heroH() {
     const fs1  = Math.round(Math.min(window.innerWidth * 0.145, 195));
     const fs2  = Math.round(fs1 * 0.28);
@@ -5266,13 +5512,231 @@ function initAllNarrativeParticles(container) {
     const base = padT + fs1 + gap + fs2 + padB;
     return window.innerWidth <= 640 ? Math.round(base * 1.35) : base;
   }
-  function apply() { heroSection.style.height = heroH() + 'px'; }
-  apply();
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(apply, 120);
+
+  let W = window.innerWidth;
+  let H = heroH();
+  heroSection.style.height = H + 'px';
+  canvas.width  = cc.width  = W;
+  canvas.height = cc.height = H;
+
+  let allChars = [], loaded = false;
+  const initTime = performance.now();
+  let mX = W/2, mY = H/2;
+  let bX = W/2, bY = H/2;
+  let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
+
+  let _dark = !document.body.classList.contains('light-mode');
+  function isDarkMode() { return _dark; }
+  new MutationObserver(() => {
+    const nowDark = !document.body.classList.contains('light-mode');
+    if (nowDark !== _dark) {
+      _dark = nowDark;
+      if (loaded) { allChars = buildChars(); }
+    }
+  }).observe(document.body, { attributeFilter: ['class'] });
+
+  function buildGrid()  { return { cols: Math.floor(W / CHAR_W), rows: Math.floor(H / LINE_H) }; }
+
+  function buildChars(hardReset) {
+    const { cols, rows } = buildGrid();
+    const rowWidth = cols * CHAR_W;
+    const maxChars = cols * rows * 2; // generous ceiling so we never run dry mid-build
+
+    // Lay out real phrases left-to-right using each font's ACTUAL measured
+    // advance width (via ctx.measureText), wrapping to a new row when a
+    // phrase would overflow. Measuring directly (rather than estimating via
+    // a static ratio) is what guarantees no overlap/gap regardless of font.
+    const widthCache = {}; // `${font}|${weight}|${ch}` -> px, avoids re-measuring repeats
+    const measureWeight = isDarkMode() ? '300' : '500';
+    function charWidth(font, ch) {
+      const key = font + '|' + measureWeight + '|' + ch;
+      let w = widthCache[key];
+      if (w === undefined) {
+        ctx.font = `${measureWeight} ${FONT_SIZE}px ${font}`;
+        w = ctx.measureText(ch).width;
+        widthCache[key] = w;
+      }
+      return w;
+    }
+
+    const placed = [];
+    let x = 0, row = 0;
+    let i = 0, guard = 0;
+    while (row < rows && guard < maxChars) {
+      const phrase = POEM_PHRASES[i % POEM_PHRASES.length];
+      const font   = PT_FONTS[Math.floor(Math.random() * PT_FONTS.length)];
+      const spaceW = charWidth(font, ' ');
+
+      // Lay out this phrase character-by-character, wrapping mid-phrase
+      // (continuing the same font on the next line) whenever a glyph would
+      // overflow the row — this keeps every line filled edge-to-edge
+      // instead of leaving a gap when the whole phrase doesn't fit.
+      for (const ch of phrase) {
+        const cw = charWidth(font, ch);
+        if (x > 0 && x + cw > rowWidth) {
+          row++;
+          x = 0;
+          if (row >= rows) break;
+        }
+        placed.push({ ch, font, restX: x, restY: row * LINE_H });
+        x += cw;
+        guard++;
+      }
+      if (row >= rows) break;
+      if (x > 0 && x + spaceW > rowWidth) {
+        row++;
+        x = 0;
+        if (row >= rows) break;
+      } else {
+        placed.push({ ch: ' ', font, restX: x, restY: row * LINE_H });
+        x += spaceW;
+        guard++;
+      }
+      i++;
+    }
+
+    const prev = allChars;
+    const withinLoadGrace = hardReset || (performance.now() - initTime) < 900;
+    return placed.map((s, idx) => {
+      const p = withinLoadGrace ? null : prev[idx];
+      return {
+        ch: s.ch, font: s.font,
+        restX: s.restX, restY: s.restY,
+        x:  p ? p.x : s.restX,
+        y:  p ? p.y : s.restY,
+        vx: p ? p.vx : 0,
+        vy: p ? p.vy : 0,
+        baseOpacity: 1,
+      };
+    });
+  }
+
+  function rebuild(hardReset) {
+    FONT_SIZE = particleSize();
+    CHAR_W    = FONT_SIZE * 0.602;
+    LINE_H    = FONT_SIZE * 1.38;
+    W = window.innerWidth;
+    H = heroH();
+    heroSection.style.height = H + 'px';
+    canvas.width  = cc.width  = W;
+    canvas.height = cc.height = H;
+    allChars = buildChars(hardReset);
+    loaded   = true;
+    heroTop  = heroSection.getBoundingClientRect().top + window.scrollY;
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+    if (!heroSection.closest('.view.active')) return;
+
+    bX += (mX - bX) * PT_LERP;
+    bY += (mY - bY) * PT_LERP;
+    eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1;
+    eX += (eVX *= 0.68);   eY += (eVY *= 0.68);
+
+    const dark = isDarkMode();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = dark ? '#0a0a0a' : '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    if (loaded) {
+      const ptRepel   = window._ptRepel || 110;
+      const ptRepelSq = ptRepel * ptRepel;
+      ctx.textBaseline = 'top';
+      const rgbStr = dark ? '255,255,255' : '0,0,0';
+      const fontWeight = dark ? '300' : '500';
+      let lastAlphaBucket = -1;
+      let lastFont = '';
+
+      for (const p of allChars) {
+        if (p.x < -CHAR_W || p.x > W + CHAR_W || p.y < -LINE_H || p.y > H + LINE_H) continue;
+        const dx = p.x - bX, dy = p.y - bY;
+        const dSq = dx*dx + dy*dy;
+
+        p.vx += (p.restX - p.x) * PT_TETHER;
+        p.vy += (p.restY - p.y) * PT_TETHER;
+
+        if (dSq < ptRepelSq && dSq > 0.25) {
+          const d     = Math.sqrt(dSq);
+          const f     = 1 - d / ptRepel;
+          const scale = f * f * 16 / d;
+          p.vx += dx * scale;
+          p.vy += dy * scale;
+        }
+
+        p.vx *= PT_DAMP; p.vy *= PT_DAMP;
+        p.x  += p.vx;   p.y  += p.vy;
+
+        const dFade = dSq > 0.25 ? Math.sqrt(dSq) : 0;
+        const alpha = p.baseOpacity * Math.min(1, Math.max(0, (dFade - 18) / 37));
+        if (alpha > 0.008) {
+          const bucket = (alpha * 64 + 0.5) | 0;
+          if (bucket !== lastAlphaBucket) {
+            ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
+            lastAlphaBucket = bucket;
+          }
+          if (p.font !== lastFont) {
+            ctx.font = `${fontWeight} ${FONT_SIZE}px ${p.font}`;
+            lastFont = p.font;
+          }
+          ctx.fillText(p.ch, p.x, p.y);
+        }
+      }
+
+      const bgR = dark ? '10,10,10' : '255,255,255';
+      const vg  = ctx.createLinearGradient(0, H * 0.78, 0, H);
+      vg.addColorStop(0, `rgba(${bgR},0)`);
+      vg.addColorStop(1, `rgba(${bgR},1)`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, H * 0.78, W, H * 0.22);
+    }
+
+    cctx.clearRect(0, 0, W, H);
+    const rgb2 = dark ? '255,255,255' : '0,0,0';
+    cctx.fillStyle = `rgba(${rgb2},0.4)`;
+    cctx.beginPath(); cctx.arc(eX, eY, 4, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = `rgb(${rgb2})`;
+    cctx.beginPath(); cctx.arc(mX, mY, 1.5, 0, Math.PI*2); cctx.fill();
+  }
+
+  window.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.clientX - r.left;
+    mY = e.clientY - r.top;
   });
+  window.addEventListener('touchmove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.touches[0].clientX - r.left;
+    mY = e.touches[0].clientY - r.top;
+  }, { passive: true });
+
+  let _resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => { rebuild(); }, 120);
+  });
+
+  window._portraitRebuild = rebuild;
+
+  // ── SHIFT + SCROLL → font size scaler ──────────────────────────────────────
+  window.addEventListener('wheel', e => {
+    if (!e.shiftKey) return;
+    e.preventDefault();
+    const step   = e.deltaY > 0 ? -2 : 2;
+    const cur    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 28;
+    const next   = Math.min(72, Math.max(28, cur + step));
+    tbApplySize(next);
+    toolbarState.size = next;
+    document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => { sl.value = next; });
+  }, { passive: false });
+
+  rebuild();
+  document.getElementById('hero-loading').classList.add('hidden');
+  requestAnimationFrame(() => {
+    canvas.classList.add('loaded');
+    cc.classList.add('loaded');
+  });
+  loop();
 })();
 
 // ── CUSTOM SCROLL INDICATOR ─────────────────────────────────────────────────
@@ -5592,7 +6056,91 @@ function initAllNarrativeParticles(container) {
 })();
 
 // ── INDEX FOOTER COLUMN RESIZER (drag to resize ice-tray / iframe split) ────
+(function indexFooterResizer() {
+  const resizer = document.getElementById('ic-resizer');
+  const container = document.querySelector('.index-contact-wrap');
+  if (!resizer || !container) return;
 
+  const MIN_LEFT = 320;  // ice-tray column never gets crushed below this
+  const MIN_RIGHT = 280; // iframe column never gets crushed below this
+
+  function clamp(px) {
+    const total = container.getBoundingClientRect().width;
+    const max = total - MIN_LEFT - 10;
+    return Math.max(MIN_RIGHT, Math.min(max, px));
+  }
+
+  function setSplit(px) {
+    container.style.setProperty('--ic-split', clamp(px) + 'px');
+    if (window._updateHoopScale) window._updateHoopScale();
+  }
+
+  let dragging = false;
+
+  resizer.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    resizer.classList.add('dragging');
+    resizer.setPointerCapture && resizer.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  resizer.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rect = container.getBoundingClientRect();
+    setSplit(rect.right - e.clientX); // width measured from the container's right edge
+  });
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    resizer.releasePointerCapture && resizer.releasePointerCapture(e.pointerId);
+  }
+  resizer.addEventListener('pointerup', endDrag);
+  resizer.addEventListener('pointercancel', endDrag);
+  resizer.addEventListener('dblclick', () => {
+    container.style.removeProperty('--ic-split');
+    if (window._updateHoopScale) window._updateHoopScale();
+  });
+  resizer.addEventListener('keydown', (e) => {
+    const rightEl = document.querySelector('.ic-hoop-wrap');
+    const cur = rightEl.getBoundingClientRect().width;
+    if (e.key === 'ArrowLeft') { setSplit(cur + 16); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { setSplit(cur - 16); e.preventDefault(); }
+  });
+})();
+
+// ── HOOP IFRAME SCALE (the embedded page has its own fixed/native layout —
+//    rather than stretching it to 100% and letting its content render tiny
+//    or cropped inside a narrow column, the iframe renders at a fixed
+//    "native" size and this uniformly scales the whole thing down/up to
+//    fill whatever width the column actually has, recalculated on resize
+//    and whenever the draggable divider moves) ──────────────────────────────
+(function initHoopScale() {
+  const wrap = document.querySelector('.ic-hoop-wrap');
+  const frame = document.querySelector('.ic-hoop-frame');
+  if (!wrap || !frame) return;
+  const NATIVE_W = 960;
+  const NATIVE_H = 720;
+
+  function update() {
+    const w = wrap.clientWidth || NATIVE_W;
+    const h = wrap.clientHeight || NATIVE_H;
+    // Math.min ("contain") instead of Math.max ("cover") — cover was cropping
+    // whichever edge didn't match the container's aspect ratio (the bottom,
+    // in a narrow tall column). Contain guarantees nothing is ever clipped,
+    // at the cost of possibly letterboxing empty space on one axis — which
+    // is why the frame is also centered below rather than pinned top-left.
+    const scale = Math.min(w / NATIVE_W, h / NATIVE_H);
+    const scaledW = NATIVE_W * scale;
+    const scaledH = NATIVE_H * scale;
+    frame.style.transform = `scale(${scale})`;
+    frame.style.left = Math.round((w - scaledW) / 2) + 'px';
+    frame.style.top = Math.round((h - scaledH) / 2) + 'px';
+  }
+  window._updateHoopScale = update;
+  window.addEventListener('resize', update);
+  new ResizeObserver(update).observe(wrap);
+  update();
+})();
 
 // ── GLYPH COLUMN RESIZER (drag to resize word / grid split) ─────────────────
 (function glyphColumnResizer() {
@@ -5785,21 +6333,11 @@ function initAllNarrativeParticles(container) {
     return arr;
   }
 
-  let buildToken = 0; // invalidates any in-progress chunked build if a new one starts (e.g. rapid resize)
   function buildTiles() {
     track.innerHTML = '';
-    const myToken = ++buildToken;
+    const frag = document.createDocumentFragment();
     const N = GA_POOL.length || 1;
     const cellsPerTile = COLS * ROWS;
-
-    // Collect the full list of tile jobs first (cheap — just numbers),
-    // then create and append the actual DOM nodes in small batches spread
-    // across several animation frames. Building ~900 tiles in one
-    // synchronous burst (the previous approach) blocks the main thread
-    // for a visible, uncomfortable freeze on weaker hardware — chunking it
-    // keeps every individual frame cheap, so the page stays responsive
-    // and tiles simply populate in over the first few frames instead.
-    const jobs = [];
     for (let dxi = -copiesX; dxi <= copiesX; dxi++) {
       for (let dyi = -copiesY; dyi <= copiesY; dyi++) {
         const order = shuffledOrderForTile(dxi, dyi, Math.min(N, cellsPerTile));
@@ -5807,37 +6345,23 @@ function initAllNarrativeParticles(container) {
           for (let col = 0; col < COLS; col++) {
             const cellIndex = row * COLS + col;
             const idx = order[cellIndex % order.length] % N;
-            jobs.push({ dxi, dyi, row, col, idx });
+            const c = GA_POOL[idx];
+            const left = dxi * setW + col * (TW + GAP);
+            const top = dyi * setH + row * (TH + GAP);
+            const tile = document.createElement('div');
+            tile.className = 'ga-photo-tile';
+            tile.style.left = left + 'px'; tile.style.top = top + 'px';
+            tile.style.width = TW + 'px'; tile.style.height = TH + 'px';
+            tile.dataset.tag = c.tag;
+            tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
+            tile.dataset.img = c.img;
+            tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
+            frag.appendChild(tile);
           }
         }
       }
     }
-
-    const BATCH_SIZE = 60;
-    let cursor = 0;
-    function processBatch() {
-      if (myToken !== buildToken) return; // a newer build superseded this one — stop
-      const frag = document.createDocumentFragment();
-      const end = Math.min(cursor + BATCH_SIZE, jobs.length);
-      for (; cursor < end; cursor++) {
-        const { dxi, dyi, row, col, idx } = jobs[cursor];
-        const c = GA_POOL[idx];
-        const left = dxi * setW + col * (TW + GAP);
-        const top = dyi * setH + row * (TH + GAP);
-        const tile = document.createElement('div');
-        tile.className = 'ga-photo-tile';
-        tile.style.left = left + 'px'; tile.style.top = top + 'px';
-        tile.style.width = TW + 'px'; tile.style.height = TH + 'px';
-        tile.dataset.tag = c.tag;
-        tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
-        tile.dataset.img = c.img;
-        tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
-        frag.appendChild(tile);
-      }
-      track.appendChild(frag);
-      if (cursor < jobs.length) requestAnimationFrame(processBatch);
-    }
-    processBatch();
+    track.appendChild(frag);
   }
 
   let panX = 0, panY = 0, velX = 0, velY = 0;
@@ -6156,6 +6680,20 @@ function initAllNarrativeParticles(container) {
 })();
 
 // ── HOOP BACK-TO-TOP OVERLAY ─────────────────────────────────────────────────
+(function hoopTopBtn() {
+  const wrap = document.querySelector('.ic-hoop-wrap');
+  const btn  = document.getElementById('ic-hoop-top');
+  if (!wrap || !btn) return;
+
+  const obs = new IntersectionObserver(entries => {
+    btn.classList.toggle('visible', entries[0].isIntersecting);
+  }, { threshold: 0.1 });
+  obs.observe(wrap);
+
+  btn.addEventListener('click', () => {
+    (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
 
 // ── HASH BOOT (lets this file be embedded in an iframe and jump straight to
 //    a specific page via foundry.html#work, foundry.html#balance, etc. —
