@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hero Particle Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&family=Playfair+Display:wght@300;500&family=Syne:wght@300;500&family=Bebas+Neue&family=Space+Grotesk:wght@300;500&family=DM+Serif+Display&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a;
+    --fg:#f5f5f5;
+    --fs-micro:11px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);cursor:none}
+
+  #hero{position:relative;width:100%;overflow:hidden;background:var(--bg);display:block}
+  #hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .7s ease}
+  #hero-canvas.loaded,#hero-cc.loaded{opacity:1}
+  #hero-cc{pointer-events:none;z-index:2}
+  #hero-loading{
+    position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;
+    background:var(--bg);z-index:10;
+    font-family:'DM Mono',monospace;font-size:var(--fs-micro);letter-spacing:.25em;text-transform:uppercase;
+    color:var(--fg);opacity:.4;transition:opacity .6s;
+  }
+  #hero-loading.hidden{opacity:0;pointer-events:none}
+</style>
+</head>
+<body>
+
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <canvas id="hero-cc"></canvas>
+  <div id="hero-loading">rendering</div>
+</section>
+
+<script>
+// ── PORTRAIT HERO (work-page tiled character wall) ─────────────────────────
+(function initPortraitHero() {
+  // Individual client/employer names — each one is a single "phrase" that
+  // gets its own randomly-assigned font, rather than randomizing per letter.
+  const POEM_PHRASES = [
+    "Comcast", "Charter", "Rachel Roy", "LimeCrime", "Organic Girl", "Goya",
+    "General Nutrition Centers", "Worldwide Stereo", "Simpson Strong-Tie",
+    "Shop Hardinge", "YETI", "Aquasana", "Kent State University",
+    "University of Wisconsin-Madison", "Texas A&M", "Centro.edu.mx",
+    "Power Home Remodeling Group", "TikTok For Business", "BNY Pershing X",
+    "The Dana Foundation", "Daz3D", "Sentral Lifestyle Apartments",
+    "Publicis Sapient", "Code & Theory", "Huge", "Elva Design Group",
+    "LiveArea", "WebLinc", "Workarea", "O3 World", "160OVER90",
+    "Leadnomics", "Turn5 Inc", "Phenom",
+  ];
+
+  const PT_TETHER = 0.014;
+  const PT_DAMP   = 0.76;
+  const PT_LERP   = 0.11;
+
+  function particleSize() {
+    return window.innerWidth <= 640 ? 13 : 22; // smaller on mobile so the tiled text doesn't dominate the viewport
+  }
+  let FONT_SIZE = particleSize();
+  let CHAR_W    = FONT_SIZE * 0.11;
+  let LINE_H    = FONT_SIZE * 0.33;
+
+  // Pool of fonts — each tiled character is randomly (but stably) assigned one at build time.
+  const PT_FONTS = [
+    '"Inter",sans-serif',
+    '"Playfair Display",serif',
+    '"Syne",sans-serif',
+    '"Bebas Neue",sans-serif',
+    '"Space Grotesk",sans-serif',
+    '"DM Serif Display",serif',
+  ];
+
+  const heroSection = document.getElementById('hero');
+  const canvas = document.getElementById('hero-canvas');
+  const cc     = document.getElementById('hero-cc');
+  const ctx    = canvas.getContext('2d');
+  const cctx   = cc.getContext('2d');
+
+  function heroH() {
+    const fs1  = Math.round(Math.min(window.innerWidth * 0.145, 195));
+    const fs2  = Math.round(fs1 * 0.28);
+    const padT = Math.round(fs1 * 0.55);
+    const padB = Math.round(fs1 * 1.6);
+    const gap  = Math.round(fs1 * 0.18);
+    const base = padT + fs1 + gap + fs2 + padB;
+    return window.innerWidth <= 640 ? Math.round(base * 1.35) : base;
+  }
+
+  let W = window.innerWidth;
+  let H = heroH();
+  heroSection.style.height = H + 'px';
+  canvas.width  = cc.width  = W;
+  canvas.height = cc.height = H;
+
+  let allChars = [], loaded = false;
+  const initTime = performance.now();
+  let mX = W/2, mY = H/2;
+  let bX = W/2, bY = H/2;
+  let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
+
+  function isDarkMode() { return true; }
+
+  function buildGrid()  { return { cols: Math.floor(W / CHAR_W), rows: Math.floor(H / LINE_H) }; }
+
+  function buildChars(hardReset) {
+    const { cols, rows } = buildGrid();
+    const rowWidth = cols * CHAR_W;
+    const maxChars = cols * rows * 2; // generous ceiling so we never run dry mid-build
+
+    // Lay out real phrases left-to-right using each font's ACTUAL measured
+    // advance width (via ctx.measureText), wrapping to a new row when a
+    // phrase would overflow. Measuring directly (rather than estimating via
+    // a static ratio) is what guarantees no overlap/gap regardless of font.
+    const widthCache = {}; // `${font}|${weight}|${ch}` -> px, avoids re-measuring repeats
+    const measureWeight = isDarkMode() ? '300' : '500';
+    function charWidth(font, ch) {
+      const key = font + '|' + measureWeight + '|' + ch;
+      let w = widthCache[key];
+      if (w === undefined) {
+        ctx.font = `${measureWeight} ${FONT_SIZE}px ${font}`;
+        w = ctx.measureText(ch).width;
+        widthCache[key] = w;
+      }
+      return w;
+    }
+
+    const placed = [];
+    let x = 0, row = 0;
+    let i = 0, guard = 0;
+    while (row < rows && guard < maxChars) {
+      const phrase = POEM_PHRASES[i % POEM_PHRASES.length];
+      const font   = PT_FONTS[Math.floor(Math.random() * PT_FONTS.length)];
+      const spaceW = charWidth(font, ' ');
+
+      // Lay out this phrase character-by-character, wrapping mid-phrase
+      // (continuing the same font on the next line) whenever a glyph would
+      // overflow the row — this keeps every line filled edge-to-edge
+      // instead of leaving a gap when the whole phrase doesn't fit.
+      for (const ch of phrase) {
+        const cw = charWidth(font, ch);
+        if (x > 0 && x + cw > rowWidth) {
+          row++;
+          x = 0;
+          if (row >= rows) break;
+        }
+        placed.push({ ch, font, restX: x, restY: row * LINE_H });
+        x += cw;
+        guard++;
+      }
+      if (row >= rows) break;
+      if (x > 0 && x + spaceW > rowWidth) {
+        row++;
+        x = 0;
+        if (row >= rows) break;
+      } else {
+        placed.push({ ch: ' ', font, restX: x, restY: row * LINE_H });
+        x += spaceW;
+        guard++;
+      }
+      i++;
+    }
+
+    const prev = allChars;
+    const withinLoadGrace = hardReset || (performance.now() - initTime) < 900;
+    return placed.map((s, idx) => {
+      const p = withinLoadGrace ? null : prev[idx];
+      return {
+        ch: s.ch, font: s.font,
+        restX: s.restX, restY: s.restY,
+        x:  p ? p.x : s.restX,
+        y:  p ? p.y : s.restY,
+        vx: p ? p.vx : 0,
+        vy: p ? p.vy : 0,
+        baseOpacity: 1,
+      };
+    });
+  }
+
+  function rebuild(hardReset) {
+    FONT_SIZE = particleSize();
+    CHAR_W    = FONT_SIZE * 0.602;
+    LINE_H    = FONT_SIZE * 1.38;
+    W = window.innerWidth;
+    H = heroH();
+    heroSection.style.height = H + 'px';
+    canvas.width  = cc.width  = W;
+    canvas.height = cc.height = H;
+    allChars = buildChars(hardReset);
+    loaded   = true;
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+
+    bX += (mX - bX) * PT_LERP;
+    bY += (mY - bY) * PT_LERP;
+    eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1;
+    eX += (eVX *= 0.68);   eY += (eVY *= 0.68);
+
+    const dark = isDarkMode();
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = dark ? '#0a0a0a' : '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    if (loaded) {
+      const ptRepel   = window._ptRepel || 110;
+      const ptRepelSq = ptRepel * ptRepel;
+      ctx.textBaseline = 'top';
+      const rgbStr = dark ? '255,255,255' : '0,0,0';
+      const fontWeight = dark ? '300' : '500';
+      let lastAlphaBucket = -1;
+      let lastFont = '';
+
+      for (const p of allChars) {
+        if (p.x < -CHAR_W || p.x > W + CHAR_W || p.y < -LINE_H || p.y > H + LINE_H) continue;
+        const dx = p.x - bX, dy = p.y - bY;
+        const dSq = dx*dx + dy*dy;
+
+        p.vx += (p.restX - p.x) * PT_TETHER;
+        p.vy += (p.restY - p.y) * PT_TETHER;
+
+        if (dSq < ptRepelSq && dSq > 0.25) {
+          const d     = Math.sqrt(dSq);
+          const f     = 1 - d / ptRepel;
+          const scale = f * f * 16 / d;
+          p.vx += dx * scale;
+          p.vy += dy * scale;
+        }
+
+        p.vx *= PT_DAMP; p.vy *= PT_DAMP;
+        p.x  += p.vx;   p.y  += p.vy;
+
+        const dFade = dSq > 0.25 ? Math.sqrt(dSq) : 0;
+        const alpha = p.baseOpacity * Math.min(1, Math.max(0, (dFade - 18) / 37));
+        if (alpha > 0.008) {
+          const bucket = (alpha * 64 + 0.5) | 0;
+          if (bucket !== lastAlphaBucket) {
+            ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
+            lastAlphaBucket = bucket;
+          }
+          if (p.font !== lastFont) {
+            ctx.font = `${fontWeight} ${FONT_SIZE}px ${p.font}`;
+            lastFont = p.font;
+          }
+          ctx.fillText(p.ch, p.x, p.y);
+        }
+      }
+
+      const bgR = dark ? '10,10,10' : '255,255,255';
+      const vg  = ctx.createLinearGradient(0, H * 0.78, 0, H);
+      vg.addColorStop(0, `rgba(${bgR},0)`);
+      vg.addColorStop(1, `rgba(${bgR},1)`);
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, H * 0.78, W, H * 0.22);
+    }
+
+    cctx.clearRect(0, 0, W, H);
+    const rgb2 = dark ? '255,255,255' : '0,0,0';
+    cctx.fillStyle = `rgba(${rgb2},0.4)`;
+    cctx.beginPath(); cctx.arc(eX, eY, 4, 0, Math.PI*2); cctx.fill();
+    cctx.fillStyle = `rgb(${rgb2})`;
+    cctx.beginPath(); cctx.arc(mX, mY, 1.5, 0, Math.PI*2); cctx.fill();
+  }
+
+  window.addEventListener('mousemove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.clientX - r.left;
+    mY = e.clientY - r.top;
+  });
+  window.addEventListener('touchmove', e => {
+    const r = canvas.getBoundingClientRect();
+    mX = e.touches[0].clientX - r.left;
+    mY = e.touches[0].clientY - r.top;
+  }, { passive: true });
+
+  let _resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeTimer);
+    _resizeTimer = setTimeout(() => { rebuild(); }, 120);
+  });
+
+  rebuild();
+  document.getElementById('hero-loading').classList.add('hidden');
+  requestAnimationFrame(() => {
+    canvas.classList.add('loaded');
+    cc.classList.add('loaded');
+  });
+  loop();
+})();
+</script>
+
+</body>
+</html>
