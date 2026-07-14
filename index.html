@@ -1583,6 +1583,7 @@ body.light-mode .cs-toolbar{background:var(--bg)}
 }
 .letters-grid-mobile{display:none}
 .letter-modal-overlay{display:none}
+.cs-modal-overlay{display:none}
 
 @media(max-width:640px){
   .letters-viewport{display:none}
@@ -1659,6 +1660,45 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   .letter-modal-slot .letter-panel{min-height:0}
   .letter-modal-slot .letter-panel-inner{padding:8px 20px 32px}
   body.letters-modal-locked{overflow:hidden}
+
+  /* ── CASE STUDIES: mobile modal / bottom-sheet ──
+     Same mechanic as the Letters overlay above — tapping a work-row
+     reparents that case study's actual page-body node into this sheet
+     instead of triggering the full-page navigate() transition. Desktop
+     is untouched; .cs-modal-overlay is display:none above 640px. */
+  .cs-modal-overlay{
+    display:block;
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.5);
+    z-index:900;
+    opacity:0;pointer-events:none;
+    transition:opacity .25s ease;
+  }
+  .cs-modal-overlay.open{opacity:1;pointer-events:auto}
+  .cs-modal-sheet{
+    position:absolute;left:0;right:0;bottom:0;
+    max-height:90vh;
+    background:var(--bg);
+    border-top:1px solid var(--rule);
+    border-radius:16px 16px 0 0;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.16,1,.3,1);
+    padding-bottom:40px;
+  }
+  .cs-modal-overlay.open .cs-modal-sheet{transform:translateY(0)}
+  .cs-modal-close{
+    position:sticky;top:12px;left:calc(100% - 48px);
+    width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px;color:rgba(var(--fg-rgb),.5);
+    background:rgba(var(--fg-rgb),.06);border:none;border-radius:50%;
+    z-index:2;cursor:pointer;
+  }
+  .cs-modal-slot .view{display:block;min-height:0}
+  .cs-modal-slot .page-body{padding-top:0}
+  body.cs-modal-locked{overflow:hidden}
 }
 @media(max-width:512px){
   /* Below 512px: fall back to a single-column list — the 2-up grid holds
@@ -1857,7 +1897,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
            and meta tags below (repeated .work-row blocks) ══ -->
       <div class="work-rows" id="work-rows">
       <!-- BNY -->
-      <div class="work-row wr-font-bny reveal" onclick="navigate('bny')">
+      <div class="work-row wr-font-bny reveal" onclick="handleWorkRowOpen('bny')">
         <div class="wr-num">01</div>
         <div class="wr-left">
           <div class="wr-client">BNY Mellon — Pershing X | Financial Advisor Platform vis-a-vis Publicis Sapient</div>
@@ -1880,7 +1920,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- GNC -->
-      <div class="work-row wr-font-gnc reveal" onclick="navigate('gnc')">
+      <div class="work-row wr-font-gnc reveal" onclick="handleWorkRowOpen('gnc')">
         <div class="wr-num">02</div>
         <div class="wr-left">
           <div class="wr-client">"if the bar ain't bending, you just pretending"</div>
@@ -1903,7 +1943,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- Hardinge -->
-      <div class="work-row wr-font-hard reveal" onclick="navigate('hardinge')">
+      <div class="work-row wr-font-hard reveal" onclick="handleWorkRowOpen('hardinge')">
         <div class="wr-num">03</div>
         <div class="wr-left">
           <div class="wr-client">Designed a navigation system where we didn't throw everything but the kitchen sink, just what you found underneath it {Aquasana}; also bespoke zero-to-one B2B Salesforce-powered purchasing platforms built for titans in their respective industries {Simpson Strong-Tie}; all while innovating as a Solution  Architect's force-multiplier at the impetus of COVID and a mission-critical client engagement.</div>
@@ -1928,7 +1968,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- Kent State -->
-      <div class="work-row wr-font-kent reveal" onclick="navigate('kent')">
+      <div class="work-row wr-font-kent reveal" onclick="handleWorkRowOpen('kent')">
         <div class="wr-num">04</div>
         <div class="wr-left">
           <div class="wr-client">1 S BROAD, FLOOR 9 — a premiere full-service agency.</div>
@@ -1951,7 +1991,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- Dana -->
-      <div class="work-row wr-font-dana reveal" onclick="navigate('dana')">
+      <div class="work-row wr-font-dana reveal" onclick="handleWorkRowOpen('dana')">
         <div class="wr-num">05</div>
         <div class="wr-left">
           <div class="wr-client">PHI ↔ NYC; Pharma, Philanthropic, E-commerce; Midtown, Ramen</div>
@@ -1973,7 +2013,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- Power HRG -->
-      <div class="work-row wr-font-power reveal" onclick="navigate('power')">
+      <div class="work-row wr-font-power reveal" onclick="handleWorkRowOpen('power')">
         <div class="wr-num">06</div>
         <div class="wr-left">
           <div class="wr-client">"Power is a _____ company." Fill in the blank. We gave them a whole bunch of sentences.</div>
@@ -1995,7 +2035,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- AmericanMuscle / Turn5 -->
-      <div class="work-row wr-font-wovn reveal" onclick="navigate('wovn')">
+      <div class="work-row wr-font-wovn reveal" onclick="handleWorkRowOpen('wovn')">
         <div class="wr-num">07</div>
         <div class="wr-left">
           <div class="wr-client">Millions of dollars of merchandise, shipped to a fanatical fanbase — derr, userbase.</div>
@@ -2059,6 +2099,14 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
       <div class="wrc-arrow">→</div>
     </a>
+
+    <!-- Mobile: modal / bottom-sheet overlay for a tapped case study -->
+    <div class="cs-modal-overlay" id="csModalOverlay">
+      <div class="cs-modal-sheet">
+        <button class="cs-modal-close" aria-label="Close">×</button>
+        <div class="cs-modal-slot" id="csModalSlot"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2295,8 +2343,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026 · NDA-safe content only.</div>
       <div class="csf-nav">
-        <button onclick="navigate('index')">← All Work</button>
-        <button onclick="navigate('gnc')">Next: GNC →</button>
+        <button onclick="csNavigate('index')">← All Work</button>
+        <button onclick="csNavigate('gnc')">Next: GNC →</button>
       </div>
     </div>
   </div>
@@ -2426,8 +2474,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026</div>
       <div class="csf-nav">
-        <button onclick="navigate('bny')">← BNY Mellon</button>
-        <button onclick="navigate('hardinge')">Next: Hardinge →</button>
+        <button onclick="csNavigate('bny')">← BNY Mellon</button>
+        <button onclick="csNavigate('hardinge')">Next: Hardinge →</button>
       </div>
     </div>
   </div>
@@ -2532,7 +2580,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026</div>
-      <div class="csf-nav"><button onclick="navigate('gnc')">← GNC</button><button onclick="navigate('kent')">Next: Kent State →</button></div>
+      <div class="csf-nav"><button onclick="csNavigate('gnc')">← GNC</button><button onclick="csNavigate('kent')">Next: Kent State →</button></div>
     </div>
   </div>
 </div>
@@ -2643,7 +2691,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026</div>
-      <div class="csf-nav"><button onclick="navigate('hardinge')">← Hardinge</button><button onclick="navigate('dana')">Next: Dana →</button></div>
+      <div class="csf-nav"><button onclick="csNavigate('hardinge')">← Hardinge</button><button onclick="csNavigate('dana')">Next: Dana →</button></div>
     </div>
   </div>
 </div>
@@ -2757,7 +2805,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Wolfgang &amp; Co. · © 2026</div>
-      <div class="csf-nav"><button onclick="navigate('kent')">← Kent State</button><button onclick="navigate('power')">Next: Power HRG →</button></div>
+      <div class="csf-nav"><button onclick="csNavigate('kent')">← Kent State</button><button onclick="csNavigate('power')">Next: Power HRG →</button></div>
     </div>
   </div>
 </div>
@@ -2860,7 +2908,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · 160over90 · © 2026</div>
-      <div class="csf-nav"><button onclick="navigate('dana')">← Dana</button><button onclick="navigate('wovn')">Next: AmericanMuscle →</button></div>
+      <div class="csf-nav"><button onclick="csNavigate('dana')">← Dana</button><button onclick="csNavigate('wovn')">Next: AmericanMuscle →</button></div>
     </div>
   </div>
 </div>
@@ -2977,7 +3025,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="cs-footer">
       <div class="csf-left">Zack Gort · Turn5 Inc. · © 2026</div>
-      <div class="csf-nav"><button onclick="navigate('power')">← Power HRG</button><button onclick="navigate('index')">← All Work</button></div>
+      <div class="csf-nav"><button onclick="csNavigate('power')">← Power HRG</button><button onclick="csNavigate('index')">← All Work</button></div>
     </div>
   </div>
 </div>
@@ -4601,6 +4649,91 @@ document.querySelectorAll('.cs-toolbar-inst').forEach(t => initLayoutToggle(t));
   });
 })();
 
+// ── CASE STUDIES: mobile bottom-sheet overlay ───────────────────────────────
+//    Mirrors the Letters mechanic above. On mobile, tapping a work-row moves
+//    that case study's real #view-{id} node into the sheet instead of firing
+//    the full-page navigate() wipe transition. Desktop is untouched — the
+//    overlay itself is display:none above 640px, and handleWorkRowOpen()
+//    below falls back to plain navigate() at wider widths. The in-page
+//    "← Prev / Next →" buttons at the bottom of each case study call
+//    csNavigate() rather than navigate() directly, so that while the sheet
+//    is open they swap its contents instead of navigating out from under it.
+(function initCaseStudyModal() {
+  const overlay  = document.getElementById('csModalOverlay');
+  const slot     = document.getElementById('csModalSlot');
+  if (!overlay || !slot) return;
+  const closeBtn = overlay.querySelector('.cs-modal-close');
+
+  let homeView = null;         // the #view-{id} node currently borrowed
+  let homeNextSibling = null;  // where it goes back to, inside #view-index
+
+  function placeInSlot(id) {
+    const view = document.getElementById('view-' + id);
+    if (!view) return false;
+    homeView = view;
+    homeNextSibling = view.nextElementSibling;
+    slot.appendChild(view);
+    initParticleHero(view);
+    initAllNarrativeParticles(view);
+    setupReveal(view);
+    slot.scrollTop = 0;
+    return true;
+  }
+
+  function restoreHome() {
+    if (!homeView) return;
+    if (homeNextSibling) {
+      document.body.insertBefore(homeView, homeNextSibling);
+    } else {
+      document.body.appendChild(homeView);
+    }
+    homeView = null;
+    homeNextSibling = null;
+  }
+
+  window.openCaseStudy = function (id) {
+    if (!placeInSlot(id)) return;
+    overlay.classList.add('open');
+    document.body.classList.add('cs-modal-locked');
+  };
+
+  window.swapCaseStudy = function (id) {
+    restoreHome();
+    placeInSlot(id);
+  };
+
+  window.closeCaseStudy = function () {
+    overlay.classList.remove('open');
+    document.body.classList.remove('cs-modal-locked');
+    restoreHome();
+  };
+
+  window.handleWorkRowOpen = function (id) {
+    if (window.innerWidth <= 640) window.openCaseStudy(id);
+    else navigate(id);
+  };
+
+  // Used by each case study's own footer "← Prev / Next →" buttons.
+  window.csNavigate = function (id) {
+    if (overlay.classList.contains('open')) {
+      if (id === 'index') { window.closeCaseStudy(); return; }
+      window.swapCaseStudy(id);
+      return;
+    }
+    navigate(id);
+  };
+
+  closeBtn.addEventListener('click', window.closeCaseStudy);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) window.closeCaseStudy();
+  });
+
+  window._escPanelStack.push({
+    isOpen: () => overlay.classList.contains('open'),
+    close: window.closeCaseStudy,
+  });
+})();
+
 function tbResetWithLayout() {
   const sz = defaultSizeForView();
   toolbarState = { ...TOOLBAR_DEFAULTS, size: sz };
@@ -4914,6 +5047,7 @@ document.addEventListener('keydown', e => {
 
 function navigate(id) {
   if (id === currentView) return;
+  if (typeof window.closeCaseStudy === 'function') window.closeCaseStudy();
   wipe.className = 'in';
   setTimeout(() => {
     showView(id);
