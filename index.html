@@ -5100,12 +5100,14 @@ function showView(id) {
 
 // ── SCROLL REVEAL ─────────────────────────────────────────────────────────
 function setupReveal(container) {
+  if (container._revealObs) container._revealObs.disconnect();
   const els = container.querySelectorAll('.reveal');
   els.forEach(e => e.classList.remove('in'));
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
   }, { threshold: 0.04 });
   els.forEach(e => obs.observe(e));
+  container._revealObs = obs;
 }
 setupReveal(document.getElementById('view-index'));
 
@@ -5126,6 +5128,8 @@ function initParticleHero(viewEl) {
     const old = activeInstances.get(viewId);
     old.dead = true;
     if (old.observer) old.observer.disconnect();
+    if (old.onMove) window.removeEventListener('mousemove', old.onMove);
+    if (old.onResize) window.removeEventListener('resize', old.onResize);
     activeInstances.delete(viewId);
   }
   if (viewId === 'view-index') return;
@@ -5271,14 +5275,17 @@ function initParticleHero(viewEl) {
     ctx.fillRect(0, 0, W, 52);
   }
 
-  window.addEventListener('mousemove', e => {
+  function onMove(e) {
     if (inst.dead || !heroVisible) return;
     const r = canvas.getBoundingClientRect();
     mx = e.clientX - r.left;
     my = e.clientY - r.top;
-  });
-
-  window.addEventListener('resize', () => { if (!inst.dead) resize(); });
+  }
+  function onResize() { if (!inst.dead) resize(); }
+  inst.onMove = onMove;
+  inst.onResize = onResize;
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('resize', onResize);
 
   document.fonts.ready.then(() => {
     const csFont      = getComputedStyle(viewEl).getPropertyValue('--cs-font').trim();
@@ -5314,6 +5321,20 @@ function initNarrativeParticles(wrap) {
   const canvas = wrap.querySelector('canvas');
   const srText = wrap.querySelector('.fs-narrative-sr');
   if (!canvas || !srText) return;
+
+  // Revisiting a page (navigate away and back) called this again on the same
+  // wrap with no cleanup — each visit stacked a brand-new rAF loop plus its
+  // own mousemove/resize listeners and IntersectionObserver on top of every
+  // previous one, none of which ever stopped. Tear the old one all the way
+  // down before building the new one.
+  if (wrap._narrInst) {
+    const old = wrap._narrInst;
+    old.dead = true;
+    if (old.observer) old.observer.disconnect();
+    if (old.onMove) window.removeEventListener('mousemove', old.onMove);
+    if (old.onResize) window.removeEventListener('resize', old.onResize);
+  }
+
   // Split on <br> markers so paragraph breaks survive into the tiled grid —
   // read as an author's note, not one flattened run-on string.
   const paragraphs = srText.innerHTML
@@ -5519,8 +5540,11 @@ function initNarrativeParticles(wrap) {
     mX = e.clientX - r.left;
     mY = e.clientY - r.top;
   }
+  function onResize() { if (!inst.dead) rebuild(); }
+  inst.onMove = onMove;
+  inst.onResize = onResize;
   window.addEventListener('mousemove', onMove);
-  window.addEventListener('resize', () => { if (!inst.dead) rebuild(); });
+  window.addEventListener('resize', onResize);
 
   function start() {
     if (inst.started) return;
@@ -5541,6 +5565,7 @@ function initNarrativeParticles(wrap) {
     });
   }, { threshold: 0.05, rootMargin: '200px 0px' });
   obs.observe(wrap);
+  inst.observer = obs;
 
   wrap._narrInst = inst;
 }
