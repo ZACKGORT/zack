@@ -6426,6 +6426,7 @@ function initAllNarrativeParticles(container) {
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
   let colMin = parseFloat(scaleSlider?.value) || 220;
+  let userAdjustedGrid = false;
   function setColMin(px) {
     colMin = Math.min(2400, Math.max(140, px));
     if (scaleSlider) scaleSlider.value = String(colMin);
@@ -6433,14 +6434,32 @@ function initAllNarrativeParticles(container) {
     viewport.style.setProperty('--ga-col-min', colMin + 'px');
   }
   setColMin(colMin);
-  if (scaleSlider) scaleSlider.addEventListener('input', () => setColMin(parseFloat(scaleSlider.value)));
+  if (scaleSlider) scaleSlider.addEventListener('input', () => { userAdjustedGrid = true; setColMin(parseFloat(scaleSlider.value)); });
   const gaView = document.getElementById('view-generalassembly');
   (gaView || viewport).addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
+    userAdjustedGrid = true;
     setColMin(colMin + (e.deltaY < 0 ? 48 : -48));
   }, { passive: false });
+
+  // ── Default to 2-up, on any screen size ──────────────────────────────
+  // A fixed px default can't hold "2 columns" across both a wide desktop
+  // window and a narrow phone — so instead of a static number, size the
+  // column minimum directly off the gallery pane's actual live width
+  // (the largest width two columns can share without letting a third
+  // one sneak in). Runs once per fresh visit to the page; backs off the
+  // moment the person touches the slider or Shift+Scrolls, so it never
+  // fights a deliberate choice.
+  function applyTwoUpDefault() {
+    const w = viewport.clientWidth;
+    if (!w) return; // view not laid out yet — bail rather than compute garbage
+    const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--ga-gap')) || 6;
+    const usable = w - gap * 2; // grid padding = one gap on each edge
+    const twoUp = Math.floor((usable - gap) / 2) - 2; // -2px safety margin against rounding
+    setColMin(twoUp);
+  }
 
   // ── Image gap ──────────────────────────────────────────────────────────
   const marginSlider = document.getElementById('gaMarginSlider');
@@ -6484,10 +6503,16 @@ function initAllNarrativeParticles(container) {
 
   buildGrid();
 
-  // Kept for compatibility with showView()'s call site — the grid is a
-  // static, real DOM layout now, so there's nothing left to lazily build
-  // or rebuild on first show/resize.
-  window._gaOnShow = function () {};
+  // Recompute the 2-up default on resize too (e.g. rotating a phone, or
+  // resizing a desktop window) — but only until the person has actually
+  // touched the grid controls themselves.
+  window.addEventListener('resize', () => {
+    if (!userAdjustedGrid && currentView === 'generalassembly') applyTwoUpDefault();
+  });
+
+  window._gaOnShow = function () {
+    if (!userAdjustedGrid) applyTwoUpDefault();
+  };
 })();
 
 // ── SPECIMEN WIDTH SLIDER (was completely unwired — now controls the
@@ -6591,3 +6616,4 @@ function initAllNarrativeParticles(container) {
 
 </body>
 </html>
+                                                                                                                                                                                                                 
