@@ -828,7 +828,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .wt-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
 .wt-size-hint{font-size:var(--fs-nano);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);margin-right:14px;white-space:nowrap;transition:color .25s ease,text-shadow .25s ease}
 .work-toolbar:hover .wt-size-hint,
-.cs-toolbar:hover .wt-size-hint{
+.cs-toolbar:hover .wt-size-hint,
+.ga-toolbar:hover .wt-size-hint{
   color:var(--fg);
   text-shadow:0 0 10px rgba(var(--fg-rgb),.6);
 }
@@ -921,6 +922,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wr-arrow{display:none}
   .work-toolbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px;top:calc(var(--nav-h) + var(--bc-h))}
   .wt-slider{width:120px}
+  .ga-slider{width:120px}
   .wt-align-group{margin-left:0}
   .wt-spacer{display:none}
   .fs-glyphs{grid-template-columns:1fr}
@@ -953,6 +955,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wt-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
   .cs-slider::-webkit-slider-thumb{width:22px;height:22px}
   .cs-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
+  .ga-slider{touch-action:none}
+  .ga-slider::-webkit-slider-thumb{width:22px;height:22px}
+  .ga-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
   .fs-range::-webkit-slider-thumb{width:18px;height:18px}
   .fs-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--fg);border:none}
 }
@@ -1520,10 +1525,8 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   transition:color .2s,opacity .2s;
 }
 .letter-checklist-box:checked ~ .letter-checklist-text{
-  color:rgba(var(--fg-rgb),.35);
-  text-decoration:line-through;
-  text-decoration-color:rgba(var(--fg-rgb),.3);
-  opacity:.8;
+  font-weight:700;
+  color:var(--fg);
 }
 
 @media(max-width:640px){
@@ -3078,6 +3081,18 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
      VIEW: GENERAL ASSEMBLY (infinite canvas photo wall)
 ══════════════════════════════════════════ -->
 <div id="view-generalassembly" class="view">
+  <div class="ga-toolbar" id="ga-toolbar">
+    <span class="ga-size-label" id="gaScaleLabel">220px</span>
+    <span class="wt-size-hint">Shift+Scroll</span>
+    <span class="wt-chevron">◀</span>
+    <input type="range" class="ga-slider" id="gaScaleSlider" min="140" max="2400" step="20" value="220">
+    <div class="ga-toolbar-gap">
+      <span class="wt-size-hint ga-toolbar-gap-hint">Gap</span>
+      <input type="range" class="ga-slider ga-gap-slider" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
+    </div>
+    <div class="wt-spacer"></div>
+  </div>
+
   <div class="ga-header">
     <div class="ga-header-title">Balance</div>
     <div class="ga-header-sub">A social wall, eventually — for now, the view from here</div>
@@ -3125,29 +3140,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
   </div>
 
-  <div class="ga-hud" id="gaHud">
-    <button class="ga-hud-handle" id="gaHudHandle">
-      <span>Grid controls</span>
-      <span class="ga-hud-chev">&#9652;</span>
-    </button>
-    <div class="ga-hud-drawer" id="gaHudDrawer">
-      <div class="ga-hud-controls">
-        <div class="ga-hud-control">
-          <div class="ga-hud-label">Grid size</div>
-          <div class="ga-hud-scaler">
-            <span id="gaScaleLabel">220px</span>
-            <input type="range" id="gaScaleSlider" min="140" max="2400" step="20" value="220">
-            <span class="ga-hud-scaler-hint">SHIFT+SCROLL</span>
-          </div>
-        </div>
-        <div class="ga-hud-control">
-          <div class="ga-hud-label">Image gap</div>
-          <input type="range" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="ga-postcard-overlay" id="gaPostcardOverlay"></div>
   <div class="ga-postcard" id="gaPostcard">
     <button class="ga-postcard-close" id="gaPostcardClose">Close ×</button>
@@ -3164,8 +3156,27 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
 <style>
 /* ── GENERAL ASSEMBLY — responsive DOM grid photo gallery ── */
+/* ── BALANCE PAGE TOOLBAR — cloned from .work-toolbar / wt-slider,
+   now living in the subheader mast (sticky, directly under the
+   breadcrumb) instead of the old bottom drawer ── */
+.ga-toolbar{
+  display:flex;align-items:center;gap:0;
+  padding:0 16px;height:32px;
+  margin-top:calc(var(--nav-h) + var(--bc-h));
+  border-bottom:1px solid var(--rule);
+  background:var(--bg);
+  position:sticky;top:calc(var(--nav-h) + var(--bc-h));z-index:100;
+}
+.ga-toolbar-gap{display:flex;align-items:center;margin-left:8px}
+.ga-toolbar-gap-hint{margin-right:14px}
+.ga-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
+.ga-slider{-webkit-appearance:none;appearance:none;width:160px;height:1px;background:rgba(var(--fg-rgb),.25);outline:none;cursor:none;margin-right:32px}
+.ga-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
+.ga-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
+.ga-gap-slider{width:90px}
+
 .ga-header{
-  padding:calc(var(--nav-h) + var(--bc-h) + 28px) clamp(16px,3vw,32px) 20px;
+  padding:28px clamp(16px,3vw,32px) 20px;
   border-bottom:1px solid var(--rule);
   display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
 }
@@ -3174,7 +3185,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
 .ga-split{
   display:flex;
-  height:calc(100vh - var(--nav-h) - var(--bc-h) - 64px - 56px);
+  height:calc(100vh - var(--nav-h) - var(--bc-h) - 32px - 64px);
   min-height:420px;
 }
 .ga-gallery-viewport{
@@ -3242,25 +3253,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-brief-slabel{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:rgba(var(--fg-rgb),.4);margin-bottom:4px}
 .ga-brief-scell li{font-size:12.5px;line-height:1.6;color:rgba(var(--fg-rgb),.5);margin-bottom:6px}
 
-.ga-hud{position:relative;z-index:400;background:var(--bg);border-top:1px solid var(--rule)}
-.ga-hud-handle{
-  width:100%;display:flex;justify-content:space-between;align-items:center;
-  padding:14px 24px;background:none;border:none;cursor:pointer;
-  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fg);
-}
-.ga-hud-chev{transition:transform .25s;color:rgba(var(--fg-rgb),.4)}
-.ga-hud.open .ga-hud-chev{transform:rotate(180deg)}
-.ga-hud-drawer{max-height:0;overflow:hidden;transition:max-height .3s ease}
-.ga-hud.open .ga-hud-drawer{max-height:160px}
-.ga-hud-controls{display:flex;flex-wrap:wrap;gap:36px;padding:4px 24px 24px;align-items:flex-end}
-.ga-hud-control{display:flex;flex-direction:column;gap:8px}
-.ga-hud-label{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.4)}
-.ga-hud-scaler{display:flex;align-items:center;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:rgba(var(--fg-rgb),.5)}
-.ga-hud-scaler-hint{color:rgba(var(--fg-rgb),.25)}
-.ga-hud-control input[type="range"]{width:160px;-webkit-appearance:none;height:1px;background:var(--rule);outline:none}
-.ga-hud-control input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--fg);cursor:pointer}
-.ga-hud-control input[type="range"]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--fg);border:none;cursor:pointer}
-
 /* Postcard — deliberately renders light regardless of site theme, matching
    the source's "handed a physical thing" postcard feel. */
 .ga-postcard-overlay{position:fixed;inset:0;z-index:9750;background:rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .3s}
@@ -3296,8 +3288,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
   .ga-postcard{width:92vw}
   .ga-postcard-media{height:220px}
   .ga-postcard-type{padding:24px 22px 22px}
-  .ga-hud-controls{gap:20px;padding:4px 20px 20px}
-  .ga-hud-control input[type="range"]{width:120px}
+  .ga-toolbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px;top:calc(var(--nav-h) + var(--bc-h))}
+  .ga-toolbar-gap{margin-left:0}
 }
 </style>
 
@@ -4542,7 +4534,7 @@ document.querySelectorAll('.cs-toolbar-inst').forEach(t => initLayoutToggle(t));
 
   track.addEventListener('pointerdown', (e) => {
     if (e.button !== undefined && e.button !== 0) return; // left click / touch only
-    if (e.target.closest('button, a')) return; // let interactive controls (arrows, etc.) handle their own clicks
+    if (e.target.closest('button, a, label, input, select, textarea')) return; // let interactive controls (arrows, checkboxes, etc.) handle their own clicks
     isDragging = true;
     dragMoved = false;
     dragStartX = e.clientX;
@@ -6442,9 +6434,11 @@ function initAllNarrativeParticles(container) {
   }
   setColMin(colMin);
   if (scaleSlider) scaleSlider.addEventListener('input', () => setColMin(parseFloat(scaleSlider.value)));
-  viewport.addEventListener('wheel', e => {
+  const gaView = document.getElementById('view-generalassembly');
+  (gaView || viewport).addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
+    e.stopPropagation();
     setColMin(colMin + (e.deltaY < 0 ? 48 : -48));
   }, { passive: false });
 
@@ -6457,10 +6451,6 @@ function initAllNarrativeParticles(container) {
     setGap(parseFloat(marginSlider.value));
     marginSlider.addEventListener('input', () => setGap(parseFloat(marginSlider.value)));
   }
-
-  const hud = document.getElementById('gaHud');
-  const hudHandle = document.getElementById('gaHudHandle');
-  if (hudHandle && hud) hudHandle.addEventListener('click', () => hud.classList.toggle('open'));
 
   // Resizable split between the gallery and the brief panel (same drag
   // pattern used by the type-specimen glyph resizer elsewhere on the site).
