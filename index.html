@@ -2931,7 +2931,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
   <div class="ga-split" id="gaSplit">
     <div class="ga-canvas-viewport" id="gaCanvasViewport">
-      <div class="ga-canvas-track" id="gaCanvasTrack"></div>
+      <div class="ga-photo-grid" id="gaPhotoGrid"></div>
     </div>
     <div class="ga-resize-handle" id="gaResizeHandle"></div>
     <!-- ══ CONTENT: BALANCE — right-column write-up ══ -->
@@ -2979,14 +2979,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     <div class="ga-hud-drawer" id="gaHudDrawer">
       <div class="ga-hud-controls">
         <div class="ga-hud-control">
-          <div class="ga-hud-label">Grid size</div>
-          <div class="ga-hud-scaler">
-            <span id="gaScaleLabel">20px</span>
-            <input type="range" id="gaScaleSlider" min="11" max="24" step="1" value="20">
-            <span class="ga-hud-scaler-hint">SHIFT+SCROLL</span>
-          </div>
-        </div>
-        <div class="ga-hud-control">
           <div class="ga-hud-label">Image gap</div>
           <input type="range" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
         </div>
@@ -3026,36 +3018,49 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-canvas-viewport{
   position:relative;
   flex:1 1 var(--ga-split,68%);
-  overflow:hidden;
+  overflow-y:auto;
+  overflow-x:hidden;
   background:var(--bg);
-  cursor:grab;
-  user-select:none;
-  -webkit-user-select:none;
-  -webkit-touch-callout:none;
-  touch-action:none;
+  container-type:inline-size;
 }
-.ga-canvas-viewport.panning{cursor:grabbing}
-.ga-canvas-track{user-select:none;-webkit-user-select:none}
-.ga-canvas-viewport::after{
-  content:'';position:absolute;inset:0;pointer-events:none;z-index:4;
-  background:radial-gradient(ellipse at center, transparent 45%, var(--bg) 105%);
+
+/* Responsive photo grid — 2-up by default, scaling up to 3-up and 4-up
+   (max) as the pane widens, dropping to a single full-width column as
+   the pane narrows. Driven by container queries (not viewport media
+   queries) so dragging the ga-resize-handle divider changes the column
+   count live, same as an actual viewport resize would. */
+.ga-photo-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:var(--ga-gap,14px);
+  padding:20px;
 }
-.ga-canvas-track{position:absolute;top:0;left:0;will-change:transform}
+@container (min-width:640px){
+  .ga-photo-grid{grid-template-columns:repeat(3,1fr)}
+}
+@container (min-width:960px){
+  .ga-photo-grid{grid-template-columns:repeat(4,1fr)}
+}
+@container (max-width:480px){
+  .ga-photo-grid{grid-template-columns:1fr}
+}
+
 .ga-photo-tile{
-  position:absolute;padding:0;overflow:hidden;border-radius:2px;
+  position:relative;
+  aspect-ratio:4/3;
+  overflow:hidden;
+  border-radius:2px;
   background:rgba(var(--fg-rgb),.06);
-  transition:transform .35s cubic-bezier(.16,1,.3,1);
+  transition:transform .3s cubic-bezier(.16,1,.3,1);
   cursor:pointer;
-  contain:layout style paint;
 }
-.ga-canvas-viewport:not(.panning) .ga-photo-tile:hover{will-change:transform}
 .ga-photo-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .ga-photo-idx{
   position:absolute;top:10px;left:12px;
   font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.05em;color:#fff;
   text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:2;
 }
-.ga-canvas-viewport:not(.panning) .ga-photo-tile:hover{transform:translateY(-4px);z-index:5}
+.ga-photo-tile:hover{transform:translateY(-4px);z-index:5}
 
 .ga-resize-handle{
   flex:0 0 1px;background:var(--rule);cursor:col-resize;position:relative;
@@ -6118,8 +6123,9 @@ function initAllNarrativeParticles(container) {
 })();
 
 
-// ── GENERAL ASSEMBLY — infinite canvas photo wall (ported, trimmed to just
-//    what this page needs: no tabs, no multiSelect, no feed-card machinery) ──
+// ── GENERAL ASSEMBLY — responsive photo grid (was an infinite pan/drag
+//    canvas; now a straightforward container-query grid: 2-up by default,
+//    3-up / 4-up as the pane widens, 1-up full-width as it narrows) ──
 (function initGeneralAssembly() {
   const GA_PHOTOS = [
   "https://i.ibb.co/yc6ppFdj/ZAX01304.webp",
@@ -6179,175 +6185,28 @@ function initAllNarrativeParticles(container) {
     img: url,
   }));
 
-  // Consecutive integers are always coprime, so stepping by (length-1) each
-  // lap guarantees every rotation is distinct until all of them are used —
-  // no fixed pool size can cause two laps to realign and repeat a row.
   const viewport = document.getElementById('gaCanvasViewport');
-  const track = document.getElementById('gaCanvasTrack');
-  if (!viewport || !track) return;
+  const grid = document.getElementById('gaPhotoGrid');
+  if (!viewport || !grid) return;
 
-  let COLS = 8;
-  const ROWS = 6;
-  let baseFontPx = 20;
-  let marginMult = 0.2;
-  let TW = 220, TH = 170, GAP = 6, setW = COLS * (TW + GAP), setH = ROWS * (TH + GAP);
-  let copiesX = 1, copiesY = 1;
-
-  function computeCols() {
-    // Fixed at 8 to match ROWS=6 for exactly 48 cells = the full photo pool,
-    // so a single tile can show every photo once with zero repeats.
-    return 8;
-  }
-
-  function recomputeDims() {
-    COLS = computeCols();
-    const scale = baseFontPx / 16;
-    TW = Math.round(300 * scale); TH = Math.round(236 * scale); GAP = Math.round(16 * scale * marginMult);
-    setW = COLS * (TW + GAP); setH = ROWS * (TH + GAP);
-    const vw = viewport.clientWidth || window.innerWidth;
-    const vh = viewport.clientHeight || window.innerHeight;
-    // +1 ring of buffer copies is enough given the modulo-wrapped transform;
-    // +2 (the previous value) was rendering roughly double the DOM/image
-    // nodes for no visible benefit, which was the main source of jank.
-    copiesX = Math.max(1, Math.ceil(vw / setW)) + 1;
-    copiesY = Math.max(1, Math.ceil(vh / setH)) + 1;
-  }
-
-  // Deterministic per-tile shuffle: each tile copy (dxi, dyi) gets its own
-  // seeded, fully-shuffled permutation of the whole pool. Since COLS*ROWS
-  // equals the pool size exactly, every single tile is guaranteed to show
-  // every photo exactly once — no repeats anywhere within one screen —
-  // while neighboring tiles get a different shuffle from each other.
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return function () {
-      t += 0x6D2B79F5;
-      let x = Math.imul(t ^ (t >>> 15), 1 | t);
-      x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function shuffledOrderForTile(dxi, dyi, n) {
-    const seed = (((dxi * 374761393 + dyi * 668265263) % 4294967296) + 4294967296) % 4294967296;
-    const rand = mulberry32(seed);
-    const arr = Array.from({ length: n }, (_, i) => i);
-    for (let i = n - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  function buildTiles() {
-    track.innerHTML = '';
+  // Build every tile once into a normal (non-repeating) grid. Column count
+  // is handled entirely by the container-query CSS on .ga-photo-grid, so
+  // no rebuild is needed on resize, split-drag, or gap changes.
+  function buildGrid() {
+    grid.innerHTML = '';
     const frag = document.createDocumentFragment();
-    const N = GA_POOL.length || 1;
-    const cellsPerTile = COLS * ROWS;
-    for (let dxi = -copiesX; dxi <= copiesX; dxi++) {
-      for (let dyi = -copiesY; dyi <= copiesY; dyi++) {
-        const order = shuffledOrderForTile(dxi, dyi, Math.min(N, cellsPerTile));
-        for (let row = 0; row < ROWS; row++) {
-          for (let col = 0; col < COLS; col++) {
-            const cellIndex = row * COLS + col;
-            const idx = order[cellIndex % order.length] % N;
-            const c = GA_POOL[idx];
-            const left = dxi * setW + col * (TW + GAP);
-            const top = dyi * setH + row * (TH + GAP);
-            const tile = document.createElement('div');
-            tile.className = 'ga-photo-tile';
-            tile.style.left = left + 'px'; tile.style.top = top + 'px';
-            tile.style.width = TW + 'px'; tile.style.height = TH + 'px';
-            tile.dataset.tag = c.tag;
-            tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
-            tile.dataset.img = c.img;
-            tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
-            frag.appendChild(tile);
-          }
-        }
-      }
-    }
-    track.appendChild(frag);
+    GA_POOL.forEach((c, idx) => {
+      const tile = document.createElement('div');
+      tile.className = 'ga-photo-tile';
+      tile.dataset.tag = c.tag;
+      tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
+      tile.dataset.img = c.img;
+      tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
+      tile.addEventListener('click', () => openGaPostcard(tile));
+      frag.appendChild(tile);
+    });
+    grid.appendChild(frag);
   }
-
-  let panX = 0, panY = 0, velX = 0, velY = 0;
-  let ambTargetX = 0, ambTargetY = 0, ambX = 0, ambY = 0;
-  let dragging = false, moved = false, startX = 0, startY = 0, lastX = 0, lastY = 0, pid = null;
-  let loopRunning = false;
-
-  function mod(n, m) { return ((n % m) + m) % m; }
-  function applyTransform() {
-    const rx = mod(panX, setW) - setW;
-    const ry = mod(panY, setH) - setH;
-    track.style.transform = 'translate3d(' + (rx + ambX).toFixed(2) + 'px,' + (ry + ambY).toFixed(2) + 'px,0)';
-  }
-  function centerPan() {
-    const vw = viewport.clientWidth || window.innerWidth;
-    const vh = viewport.clientHeight || window.innerHeight;
-    panX = vw / 2 - setW / 2;
-    panY = vh / 2 - setH / 2;
-    velX = 0; velY = 0;
-  }
-  function rebuildAndCenter() {
-    recomputeDims();
-    buildTiles();
-    centerPan();
-    applyTransform();
-  }
-
-  const AMB_LERP = 0.07;
-  const INERTIA_FRICTION = 0.935;
-  const INERTIA_THRESHOLD = 0.08;
-
-  function startLoop() {
-    if (loopRunning) return;
-    loopRunning = true;
-    (function tick() {
-      let needsMore = false;
-      if (!dragging && (Math.abs(velX) > INERTIA_THRESHOLD || Math.abs(velY) > INERTIA_THRESHOLD)) {
-        velX *= INERTIA_FRICTION;
-        velY *= INERTIA_FRICTION;
-        panX += velX;
-        panY += velY;
-        needsMore = true;
-      }
-      const dAmbX = ambTargetX - ambX, dAmbY = ambTargetY - ambY;
-      if (Math.abs(dAmbX) > 0.02 || Math.abs(dAmbY) > 0.02) {
-        ambX += dAmbX * AMB_LERP;
-        ambY += dAmbY * AMB_LERP;
-        needsMore = true;
-      } else {
-        ambX = ambTargetX; ambY = ambTargetY;
-      }
-      applyTransform();
-      if (needsMore || dragging) { requestAnimationFrame(tick); }
-      else { loopRunning = false; }
-    })();
-  }
-  function stopInertia() { velX = 0; velY = 0; }
-
-  viewport.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    e.preventDefault();
-    stopInertia();
-    dragging = true; moved = false;
-    startX = lastX = e.clientX; startY = lastY = e.clientY;
-    pid = e.pointerId;
-    try { viewport.setPointerCapture(pid); } catch (err) {}
-    viewport.classList.add('panning');
-    velX = 0; velY = 0;
-    startLoop();
-  });
-  viewport.addEventListener('pointermove', e => {
-    if (!dragging || e.pointerId !== pid) return;
-    const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) moved = true;
-    panX += dx; panY += dy;
-    velX = velX * 0.72 + dx * 0.28; velY = velY * 0.72 + dy * 0.28;
-    lastX = e.clientX; lastY = e.clientY;
-    // No applyTransform() here — the tick loop (already running while
-    // dragging) renders once per animation frame instead of once per raw
-    // pointermove, which can fire far more often than the screen repaints.
-  });
 
   const gaPostcardOverlay = document.getElementById('gaPostcardOverlay');
   const gaPostcard = document.getElementById('gaPostcard');
@@ -6371,89 +6230,24 @@ function initAllNarrativeParticles(container) {
   document.getElementById('gaPostcardClose')?.addEventListener('click', closeGaPostcard);
   gaPostcardOverlay?.addEventListener('click', closeGaPostcard);
 
-  function endDrag(e) {
-    if (!dragging) return;
-    dragging = false;
-    viewport.classList.remove('panning');
-    try { if (pid != null) viewport.releasePointerCapture(pid); } catch (err) {}
-    if (moved) {
-      startLoop();
-    } else if (e) {
-      const hit = document.elementFromPoint(e.clientX, e.clientY);
-      const card = hit && hit.closest('.ga-photo-tile');
-      if (card) openGaPostcard(card);
-    }
-    pid = null;
-  }
-  viewport.addEventListener('pointerup', endDrag);
-  viewport.addEventListener('pointercancel', endDrag);
-
-  viewport.addEventListener('mousemove', e => {
-    if (dragging) return;
-    const r = viewport.getBoundingClientRect();
-    const nx = (e.clientX - r.left) / r.width - 0.5;
-    const ny = (e.clientY - r.top) / r.height - 0.5;
-    ambTargetX = -nx * 26; ambTargetY = -ny * 26;
-    startLoop();
-  });
-  viewport.addEventListener('mouseleave', () => { ambTargetX = 0; ambTargetY = 0; startLoop(); });
-
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    if (currentView !== 'generalassembly') return;
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(rebuildAndCenter, 150);
-  });
-
-  const scaleSlider = document.getElementById('gaScaleSlider');
-  const scaleLabel = document.getElementById('gaScaleLabel');
-  let scaleRebuildQueued = false;
-  function setBaseFont(px) {
-    baseFontPx = Math.min(24, Math.max(11, px));
-    if (scaleSlider) scaleSlider.value = String(baseFontPx);
-    if (scaleLabel) scaleLabel.textContent = Math.round(baseFontPx) + 'px';
-    stopInertia();
-    // A slider drag can fire many 'input' events between animation frames;
-    // rebuilding the whole tile grid (hundreds of DOM/image nodes) on every
-    // single one of them was the main source of stutter while adjusting it.
-    // Coalesce to at most one rebuild per frame instead.
-    if (!scaleRebuildQueued) {
-      scaleRebuildQueued = true;
-      requestAnimationFrame(() => {
-        scaleRebuildQueued = false;
-        rebuildAndCenter();
-      });
-    }
-  }
-  if (scaleSlider) scaleSlider.addEventListener('input', () => setBaseFont(parseFloat(scaleSlider.value)));
-  viewport.addEventListener('wheel', e => {
-    if (!e.shiftKey) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setBaseFont(baseFontPx + (e.deltaY < 0 ? 1 : -1));
-  }, { passive: false });
-
   const marginSlider = document.getElementById('gaMarginSlider');
-  let marginRebuildQueued = false;
   if (marginSlider) {
-    marginSlider.addEventListener('input', () => {
-      marginMult = parseFloat(marginSlider.value);
-      if (!marginRebuildQueued) {
-        marginRebuildQueued = true;
-        requestAnimationFrame(() => {
-          marginRebuildQueued = false;
-          recomputeDims(); buildTiles(); centerPan(); applyTransform();
-        });
-      }
-    });
+    const applyGap = () => {
+      const px = Math.round(8 + parseFloat(marginSlider.value) * 8); // 8–32px
+      viewport.style.setProperty('--ga-gap', px + 'px');
+    };
+    marginSlider.addEventListener('input', applyGap);
+    applyGap();
   }
 
   const hud = document.getElementById('gaHud');
   const hudHandle = document.getElementById('gaHudHandle');
   if (hudHandle && hud) hudHandle.addEventListener('click', () => hud.classList.toggle('open'));
 
-  // Resizable split between the canvas and the brief panel (same drag pattern
-  // used by the type-specimen glyph resizer elsewhere on the site).
+  // Resizable split between the gallery and the brief panel (same drag
+  // pattern used by the type-specimen glyph resizer elsewhere on the
+  // site). The gallery's container queries pick up the new width on
+  // their own — no rebuild needed here, just the width itself.
   const resizeHandle = document.getElementById('gaResizeHandle');
   const splitEl = document.getElementById('gaSplit');
   if (resizeHandle && splitEl) {
@@ -6469,26 +6263,22 @@ function initAllNarrativeParticles(container) {
       let pct = ((e.clientX - rect.left) / rect.width) * 100;
       pct = Math.max(35, Math.min(82, pct));
       splitEl.style.setProperty('--ga-split', pct + '%');
-      recomputeDims(); applyTransform();
     });
     function endSplitDrag(e) {
       if (!splitDragging) return;
       splitDragging = false;
       resizeHandle.classList.remove('dragging');
       try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
-      rebuildAndCenter();
     }
     resizeHandle.addEventListener('pointerup', endSplitDrag);
     resizeHandle.addEventListener('pointercancel', endSplitDrag);
   }
 
-  let hasInitialized = false;
+  let hasBuilt = false;
   window._gaOnShow = function () {
-    if (!hasInitialized) {
-      hasInitialized = true;
-      requestAnimationFrame(() => requestAnimationFrame(rebuildAndCenter));
-    } else {
-      requestAnimationFrame(rebuildAndCenter);
+    if (!hasBuilt) {
+      hasBuilt = true;
+      buildGrid();
     }
   };
 })();
