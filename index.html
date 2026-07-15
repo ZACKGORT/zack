@@ -3136,7 +3136,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <div class="ga-hud-label">Grid size</div>
           <div class="ga-hud-scaler">
             <span id="gaScaleLabel">220px</span>
-            <input type="range" id="gaScaleSlider" min="140" max="420" step="10" value="220">
+            <input type="range" id="gaScaleSlider" min="140" max="2400" step="20" value="220">
             <span class="ga-hud-scaler-hint">SHIFT+SCROLL</span>
           </div>
         </div>
@@ -3188,7 +3188,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 }
 .ga-gallery-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(var(--ga-col-min),1fr));
+  grid-template-columns:repeat(auto-fill,minmax(min(var(--ga-col-min),100%),1fr));
   gap:var(--ga-gap);
   padding:var(--ga-gap);
   align-content:start;
@@ -3620,6 +3620,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         </div>
         </div>
       </section>
+
 
       <!-- ══ CONTENT: JOURNAL — "Confessions" letter ══ -->
       <section class="letter-panel" data-letter="confessions" id="letter-confessions" role="tabpanel" aria-label="Confessions">
@@ -6426,13 +6427,15 @@ function initAllNarrativeParticles(container) {
   // ── Grid size (minimum column width) — slider + Shift+Scroll, same
   //    pattern as the font-size scaler used elsewhere on the site. A
   //    smaller minimum lets more columns fit (denser, more "zoomed out");
-  //    a larger minimum pushes toward fewer, bigger columns, collapsing
-  //    all the way down to a single full-width column on a narrow pane.
+  //    a larger minimum pushes toward fewer, bigger columns. The CSS wraps
+  //    this in min(var(--ga-col-min),100%), so once the value exceeds the
+  //    pane's actual width, it clamps to a single full-width column (1-up)
+  //    no matter how wide the pane itself happens to be.
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
   let colMin = parseFloat(scaleSlider?.value) || 220;
   function setColMin(px) {
-    colMin = Math.min(420, Math.max(140, px));
+    colMin = Math.min(2400, Math.max(140, px));
     if (scaleSlider) scaleSlider.value = String(colMin);
     if (scaleLabel) scaleLabel.textContent = Math.round(colMin) + 'px';
     viewport.style.setProperty('--ga-col-min', colMin + 'px');
@@ -6442,7 +6445,7 @@ function initAllNarrativeParticles(container) {
   viewport.addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
-    setColMin(colMin + (e.deltaY < 0 ? 8 : -8));
+    setColMin(colMin + (e.deltaY < 0 ? 48 : -48));
   }, { passive: false });
 
   // ── Image gap ──────────────────────────────────────────────────────────
