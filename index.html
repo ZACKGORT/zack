@@ -4174,6 +4174,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     const toc = document.getElementById('toc-list');
     const body = document.getElementById('contracts-body');
     if(!toc||!body) return;
+    if (toc._tocObs) toc._tocObs.disconnect();
     toc.innerHTML='';
     const sections = body.querySelectorAll('.ct-section');
     sections.forEach((sec,i)=>{
@@ -4206,6 +4207,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       });
     },{rootMargin:'-30% 0px -60% 0px'});
     sections.forEach(s=>obs.observe(s));
+    toc._tocObs = obs;
   }
   // run on navigate to contracts
   const _origShowView = window.showView;
@@ -6938,6 +6940,17 @@ function initJournalFooterScene() {
     return viewEl && viewEl.classList.contains('active');
   }
 
+  // This scene sits at the bottom of a long page — once the journal view
+  // is active, isJournalActive() alone stays true the whole time you're
+  // reading, even after the canvas scrolls off the top of the screen. That
+  // left full cube physics + a WebGL render running every frame in the
+  // background for as long as you stayed on the page. Track real on-screen
+  // visibility too and use both together to gate the expensive work.
+  let sceneVisible = false;
+  new IntersectionObserver(entries => {
+    sceneVisible = entries[0].isIntersecting;
+  }, { threshold: 0 }).observe(container);
+
   canvas.addEventListener('pointerdown', (event) => {
     if (!isJournalActive()) return;
     updatePointerNDC(event);
@@ -7047,7 +7060,7 @@ function initJournalFooterScene() {
   function tick() {
     const dt = Math.min(clock.getDelta(), 1 / 30);
 
-    if (isJournalActive()) {
+    if (isJournalActive() && sceneVisible) {
       const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
       for (const cube of cubes) {
         if (cube !== draggedCube) {
@@ -7306,6 +7319,15 @@ function initIndexFooterScene() {
     return viewEl && viewEl.classList.contains('active');
   }
 
+  // Same gap as the journal footer scene: isIndexActive() alone stays true
+  // for the entire time you're on the index page, long after this scene has
+  // scrolled off the bottom past the work list. Track real on-screen
+  // visibility and require both before doing the expensive work.
+  let sceneVisible = false;
+  new IntersectionObserver(entries => {
+    sceneVisible = entries[0].isIntersecting;
+  }, { threshold: 0 }).observe(container);
+
   canvas.addEventListener('pointerdown', (event) => {
     if (!isIndexActive()) return;
     updatePointerNDC(event);
@@ -7444,7 +7466,7 @@ function initIndexFooterScene() {
   function tick() {
     const dt = Math.min(clock.getDelta(), 1 / 30);
 
-    if (isIndexActive()) {
+    if (isIndexActive() && sceneVisible) {
       const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
       for (const cube of cubes) {
         if (cube !== draggedCube) {
