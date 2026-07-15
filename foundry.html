@@ -9,14 +9,6 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Space+Grotesk:wght@300;400;500;700&family=Syne:wght@400;600;700;800&family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=Outfit:wght@900&family=Anton&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,600&display=swap" rel="stylesheet">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.182.0/build/three.module.js",
-    "jsm/": "https://cdn.jsdelivr.net/npm/three@0.182.0/examples/jsm/"
-  }
-}
-</script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -323,30 +315,35 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .wrc-arrow{font-size:14px;color:rgba(var(--fg-rgb),.18);transition:color .18s,transform .18s}
 .work-row-career:hover .wrc-arrow{color:var(--fg);transform:translateX(4px)}
 
-/* ── FOOTER TWO-COL ── */
-.index-contact-wrap{
-  border-top:1px solid var(--rule);
-  display:grid;
-  grid-template-columns:1fr;
-  grid-template-rows:640px;
-  --footer-size:11px;
+/* ── WORK ARCHIVE (below case study rows, above testimonials) — each case
+   study's own gallery images surfaced as an inline thumbnail strip. Hover
+   mechanic is a direct copy of the case-study font-ramp preview
+   (.fs-weight-thumb / initWeightThumbFollow): a floating enlarged image
+   that tracks the cursor, clamped to the viewport edges. ── */
+.work-archive{border-top:1px solid var(--rule);padding:40px 16px 8px}
+.wa-section-label{font-size:var(--fs-micro);font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);margin-bottom:28px}
+.wa-row{margin-bottom:36px}
+.wa-row-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:14px;cursor:none}
+.wa-row-title{font-size:clamp(16px,2vw,22px);font-weight:700;letter-spacing:-.01em;color:rgba(var(--fg-rgb),.7);transition:color .18s}
+.wa-row-head:hover .wa-row-title{color:var(--fg)}
+.wa-row-tags{font-size:var(--fs-nano);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(var(--fg-rgb),.3);white-space:nowrap;flex-shrink:0}
+.wa-strip{display:flex;flex-wrap:wrap;gap:8px}
+.wa-thumb{position:relative;width:120px;height:86px;border-radius:3px;overflow:hidden;background:rgba(var(--fg-rgb),.06);cursor:none;flex-shrink:0}
+.wa-thumb-img{width:100%;height:100%;object-fit:cover;display:block;transition:opacity .18s ease}
+.wa-thumb:hover .wa-thumb-img{opacity:.65}
+.wa-thumb-preview{
+  position:absolute;top:0;left:0;width:340px;height:220px;
+  border-radius:5px;overflow:hidden;background:rgba(var(--fg-rgb),.05);
+  pointer-events:none;opacity:0;z-index:150;
+  transform:translate(-50%,-50%) scale(.94);
+  transition:opacity .25s ease,transform .35s cubic-bezier(.16,1,.3,1);
+  box-shadow:0 20px 50px rgba(0,0,0,.22);will-change:transform,opacity,left,top;
 }
-.index-contact{
-  padding:0;
-  display:flex;flex-direction:column;
-  overflow:hidden;
-}
-.index-contact-webgl{
-  position:relative;
-  width:100%;height:100%;
-  background:#000;
-  overflow:hidden;
-}
-.index-contact-canvas{
-  position:absolute;top:0;left:0;
-  width:100%;height:100%;
-  display:block;
-  touch-action:none;
+.wa-thumb:hover .wa-thumb-preview{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.wa-thumb-preview img{width:100%;height:100%;object-fit:cover;display:block}
+@media(max-width:640px){
+  .wa-thumb-preview{display:none}
+  .wa-thumb{width:92px;height:66px}
 }
 
 /* ── PAGE BACK-TO-TOP (Journal + Life) — shows once you're near the
@@ -368,17 +365,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .page-back-to-top:hover{transform:translateY(0) scale(1.08)}
 @media(max-width:640px){
   .page-back-to-top{width:52px;height:52px;font-size:9px;bottom:16px;right:16px}
-}
-
-@media(max-width:640px){
-  .index-contact-wrap{
-    grid-template-columns:1fr;
-    grid-template-rows:70vh;
-  }
-  .index-contact{
-    padding:0;
-    overflow-y:visible;
-  }
 }
 
 /* ══════════════════════════════════════════
@@ -842,7 +828,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .wt-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
 .wt-size-hint{font-size:var(--fs-nano);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.25);margin-right:14px;white-space:nowrap;transition:color .25s ease,text-shadow .25s ease}
 .work-toolbar:hover .wt-size-hint,
-.cs-toolbar:hover .wt-size-hint{
+.cs-toolbar:hover .wt-size-hint,
+.ga-toolbar:hover .wt-size-hint{
   color:var(--fg);
   text-shadow:0 0 10px rgba(var(--fg-rgb),.6);
 }
@@ -935,6 +922,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wr-arrow{display:none}
   .work-toolbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px;top:calc(var(--nav-h) + var(--bc-h))}
   .wt-slider{width:120px}
+  .ga-slider{width:120px}
   .wt-align-group{margin-left:0}
   .wt-spacer{display:none}
   .fs-glyphs{grid-template-columns:1fr}
@@ -959,7 +947,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wrc-title{font-size:var(--fs-heading)}
   .cs-footer{flex-direction:column;gap:12px}
   .csf-nav{flex-direction:row;gap:16px}
-  .index-contact-wrap{grid-template-columns:1fr}
   .fs-styles-row{flex-wrap:wrap;height:auto;padding:8px 14px;gap:8px}
   .fs-styles-controls{flex-wrap:wrap;gap:10px}
   /* Larger touch targets for slider thumbs on mobile */
@@ -968,6 +955,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   .wt-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
   .cs-slider::-webkit-slider-thumb{width:22px;height:22px}
   .cs-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
+  .ga-slider{touch-action:none}
+  .ga-slider::-webkit-slider-thumb{width:22px;height:22px}
+  .ga-slider::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--fg);border:none}
   .fs-range::-webkit-slider-thumb{width:18px;height:18px}
   .fs-range::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--fg);border:none}
 }
@@ -1535,10 +1525,8 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   transition:color .2s,opacity .2s;
 }
 .letter-checklist-box:checked ~ .letter-checklist-text{
-  color:rgba(var(--fg-rgb),.35);
-  text-decoration:line-through;
-  text-decoration-color:rgba(var(--fg-rgb),.3);
-  opacity:.8;
+  font-weight:700;
+  color:var(--fg);
 }
 
 @media(max-width:640px){
@@ -1685,31 +1673,6 @@ body.light-mode .cs-toolbar{background:var(--bg)}
   .letter-card-name{font-size:28px;flex:1}
   .letter-card-arrow-icon{align-self:center}
   .letter-card:last-child{border-bottom:none}
-}
-
-/* ── JOURNAL FOOTER: glass ice-tray scene, statement text (not a link) ── */
-.journal-footer-webgl{
-  position:relative;
-  width:100%;
-  height:480px;
-  background:#000;
-  overflow:hidden;
-}
-.journal-footer-webgl::after{
-  content:'';
-  position:absolute;
-  inset:0;
-  background:linear-gradient(0deg, rgba(0,0,0,0) 45%, var(--bg) 100%);
-  pointer-events:none;
-}
-.journal-footer-canvas{
-  position:absolute;top:0;left:0;
-  width:100%;height:100%;
-  display:block;
-  touch-action:none;
-}
-@media(max-width:640px){
-  .journal-footer-webgl{height:340px}
 }
 
 ::-webkit-scrollbar{width:3px;height:3px}
@@ -2028,6 +1991,129 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
       </div><!-- /work-rows -->
 
+      <!-- Work Archive: same case studies, surfaced as thumbnail strips pulled
+           from each project's own gallery. Hover = same floating-preview
+           mechanic as the font ramp inside each case study. -->
+      <div class="work-archive">
+        <div class="wa-section-label">↓ Visual Archive</div>
+
+        <div class="wa-row reveal" data-case="bny">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('bny')">
+            <div class="wa-row-title">BNY Mellon — Pershing X</div>
+            <div class="wa-row-tags">Enterprise UX · Design Systems</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/xqz6QDPj/bny2.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/xqz6QDPj/bny2.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/k2n12jJP/bny1.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/k2n12jJP/bny1.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('bny')"><img class="wa-thumb-img" src="https://i.ibb.co/CqjFGQV/17.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/CqjFGQV/17.webp" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="gnc">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('gnc')">
+            <div class="wa-row-title">GNC — Shopify Plus Redesign</div>
+            <div class="wa-row-tags">E-Commerce UX</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/xKpVn59d/gnc-case-B4.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/r295QDbM/gnc-case-A3.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/r295QDbM/gnc-case-A3.jpg" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('gnc')"><img class="wa-thumb-img" src="https://i.ibb.co/BH6q1n7z/gnc-case-A4.jpg" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/BH6q1n7z/gnc-case-A4.jpg" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="hardinge">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('hardinge')">
+            <div class="wa-row-title">Hardinge — B2B SAP Hybris</div>
+            <div class="wa-row-tags">B2B E-Commerce</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/PZZ4K84X/stories-LLTzcdn-TOb-Jw-PYKdl-GSVx-YZWb.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/PZZ4K84X/stories-LLTzcdn-TOb-Jw-PYKdl-GSVx-YZWb.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('hardinge')"><img class="wa-thumb-img" src="https://i.ibb.co/Rp4zfwWx/dropcontinuedplusvisualguide-SHo-W.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/Rp4zfwWx/dropcontinuedplusvisualguide-SHo-W.webp" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="kent">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('kent')">
+            <div class="wa-row-title">Kent State — .EDU Overhaul</div>
+            <div class="wa-row-tags">IA + Navigation</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/0VmJ708g/work3.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/0VmJ708g/work3.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/pBYP6wt8/1-HXIU3nxu-ZGq-Ne-Ef3-Wv-Lf-MQ.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/pBYP6wt8/1-HXIU3nxu-ZGq-Ne-Ef3-Wv-Lf-MQ.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/VYS1xRzh/work2.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/VYS1xRzh/work2.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/MrFyzRt/work3.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/MrFyzRt/work3.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('kent')"><img class="wa-thumb-img" src="https://i.ibb.co/DPCMqM15/wiscwirelofi-Hyu-LQUf-JZe-Lj-Hxhx-Nd-Xj.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/DPCMqM15/wiscwirelofi-Hyu-LQUf-JZe-Lj-Hxhx-Nd-Xj.webp" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="dana">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('dana')">
+            <div class="wa-row-title">The Dana Foundation</div>
+            <div class="wa-row-tags">Non-profit Digital</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/gFbDRSzz/dana-Dana-Mobile-Navt-Mvcc-Di-YYKxz-QYj.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/gFbDRSzz/dana-Dana-Mobile-Navt-Mvcc-Di-YYKxz-QYj.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/GGnPBGN/bawmobilemockupg-OENk-Us-NFq-Ck-JLl-TQ.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/GGnPBGN/bawmobilemockupg-OENk-Us-NFq-Ck-JLl-TQ.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/39Z3CCmg/dana-primitives.png" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/39Z3CCmg/dana-primitives.png" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('dana')"><img class="wa-thumb-img" src="https://i.ibb.co/XT67Rx9/dana-foundation.png" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/XT67Rx9/dana-foundation.png" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="power">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('power')">
+            <div class="wa-row-title">Power Home Remodeling</div>
+            <div class="wa-row-tags">Brand Campaign</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('power')"><img class="wa-thumb-img" src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('power')"><img class="wa-thumb-img" src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('power')"><img class="wa-thumb-img" src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('power')"><img class="wa-thumb-img" src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('power')"><img class="wa-thumb-img" src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif" alt=""></div></div>
+          </div>
+        </div>
+
+        <div class="wa-row reveal" data-case="wovn">
+          <div class="wa-row-head" onclick="handleWorkRowOpen('wovn')">
+            <div class="wa-row-title">AmericanMuscle.com</div>
+            <div class="wa-row-tags">E-Commerce</div>
+          </div>
+          <div class="wa-strip">
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/KJsXgPv/1-dy-MNhi-XFPWPe9og0-dbv-Q.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/KJsXgPv/1-dy-MNhi-XFPWPe9og0-dbv-Q.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/C38FHDx9/1-FYt-Vic-HKj-LDPLW2rcn-J1u-A.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/C38FHDx9/1-FYt-Vic-HKj-LDPLW2rcn-J1u-A.webp" alt=""></div></div>
+            <div class="wa-thumb" onclick="handleWorkRowOpen('wovn')"><img class="wa-thumb-img" src="https://i.ibb.co/5WSx4J20/1-GFvd-yw-Ap-PELXmtr-Fbx-Vug.webp" alt="" loading="lazy"><div class="wa-thumb-preview"><img src="https://i.ibb.co/5WSx4J20/1-GFvd-yw-Ap-PELXmtr-Fbx-Vug.webp" alt=""></div></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Testimonials -->
       <div class="testimonials reveal">
         <div class="testimonial">
@@ -2049,15 +2135,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       </div>
 
       <!-- Career scroll moved to the very bottom of the page, after the footer -->
-
-    </div>
-
-    <div class="index-contact-wrap">
-      <div class="index-contact">
-        <div class="index-contact-webgl" id="indexContactWebgl">
-          <canvas class="index-contact-canvas" id="indexContactCanvas"></canvas>
-        </div>
-      </div>
 
     </div>
 
@@ -2699,12 +2776,12 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
     <div class="fs-designer-row reveal"><div>Designed by <a href="https://linkedin.com/in/zackgort" target="_blank">Zack Gort</a> · FlightPath NYC · 2018</div><div>← Senior UX Designer</div></div>
     <div class="fs-weight-list">
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300">Mobile-First</div></div><div class="fs-weight-add">+ Full Spectrum Redesign</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Redesign Italic</div></div><div class="fs-weight-add">+ Decade Overdue</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/jk49XvQS/braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500">Card System</div></div><div class="fs-weight-add">+ Two Brands, One System</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/20Ss0wSL/danalogol-MHEu-Swyrfu-BMYu-BPDs-SSPk-X.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Card Italic</div></div><div class="fs-weight-add">+ Brain Awareness Week</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:700">Taxonomy Nav</div></div><div class="fs-weight-add">+ No Hamburger Required</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Identity</div><div class="fs-weight-name" style="font-weight:900">Bespoke Logo</div></div><div class="fs-weight-add">+ Geometric Typeface</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300">$20K project; 2 week deadline.</div></div><div class="fs-weight-add">+ Full spectrum redesign</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Redesign</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Information architecture & content strategy</div></div><div class="fs-weight-add">+ Decade Overdue</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/jk49XvQS/braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500">Cross-domain content ard system</div></div><div class="fs-weight-add">+ Two Brands, One System</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/20Ss0wSL/danalogol-MHEu-Swyrfu-BMYu-BPDs-SSPk-X.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Systems</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Fully responsive; mobile-first.</div></div><div class="fs-weight-add">+ Brain Awareness Week</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Navigation</div><div class="fs-weight-name" style="font-weight:700">Brand identity & design systems</div></div><div class="fs-weight-add">+ No Hamburger Required</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Identity</div><div class="fs-weight-name" style="font-weight:900">Design delivered in 2 weeks; 2 weeks to ship.</div></div><div class="fs-weight-add">+ Geometric Typeface</div></div>
     </div>
     <div class="fs-section-label reveal">Non-profit Artifacts</div>
     <div aria-hidden="true" class="seo-text">Dana Foundation's digital presence was a good-faith $20K engagement with complete creative autonomy, a two-week timeline, and a shipped product — one of the cleanest start-to-finish deliveries of my career. A bespoke geometric typeface system, Brain Awareness Week campaign assets, and a logo that still represents the foundation — all produced under a PHI-to-NYC commute with no wifi and no margin for error. FlightPath NYC was the agency; the work spanned pharma and philanthropic digital including Merck and Vetsulin, bringing rigorous design thinking to categories where clarity genuinely matters.</div>
@@ -2920,7 +2997,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Funnel</div><div class="fs-weight-name" style="font-weight:300;font-style:italic">Iterative A/B Testing</div></div><div class="fs-weight-add">+ Wireframes</div></div>
       <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Product</div><div class="fs-weight-name" style="font-weight:500">Product Detail &amp; Configuration</div></div><div class="fs-weight-add">+ AM Z Pro</div></div>
       <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Photography</div><div class="fs-weight-name" style="font-weight:500;font-style:italic">Product Photography</div></div><div class="fs-weight-add">+ Holistic Ownership</div></div>
-      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Brand</div><div class="fs-weight-name" style="font-weight:900">Raxiom Brand &amp; Identity</div></div><div class="fs-weight-add">+ Custom Checkout Flow</div></div>
+      <div class="fs-weight-row reveal"><div class="fs-weight-thumb"><img src="https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp" alt="" loading="lazy"></div><div class="fs-weight-row-inner"><div class="fs-weight-label">↓ Brand</div><div class="fs-weight-name" style="font-weight:900">Brand &amp; Identity across all channels</div></div><div class="fs-weight-add">+ Custom Checkout Flow</div></div>
     </div>
     <div class="fs-section-label reveal">E-Commerce Artifacts</div>
     <div aria-hidden="true" class="seo-text">AmericanMuscle.com is the e-commerce platform at the heart of Turn5 Inc., shipping millions of dollars of Mustang and muscle-car merchandise to a fanatical fanbase. I designed custom UI+UX solutions through iterative testing across the full funnel — homepage through checkout — for a system that accommodated thousands of uniquely complex online orders spanning a bevy of product categories. Beyond UX, I functioned as the product photographer, giving me holistic ownership over photography, the website, and branding — including the Raxiom logo. The site has changed since 2011, but the fundamental building blocks are still largely intact.</div>
@@ -3004,14 +3081,26 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
      VIEW: GENERAL ASSEMBLY (infinite canvas photo wall)
 ══════════════════════════════════════════ -->
 <div id="view-generalassembly" class="view">
+  <div class="ga-toolbar" id="ga-toolbar">
+    <span class="ga-size-label" id="gaScaleLabel">220px</span>
+    <span class="wt-size-hint">Shift+Scroll</span>
+    <span class="wt-chevron">◀</span>
+    <input type="range" class="ga-slider" id="gaScaleSlider" min="140" max="2400" step="20" value="220">
+    <div class="ga-toolbar-gap">
+      <span class="wt-size-hint ga-toolbar-gap-hint">Gap</span>
+      <input type="range" class="ga-slider ga-gap-slider" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
+    </div>
+    <div class="wt-spacer"></div>
+  </div>
+
   <div class="ga-header">
     <div class="ga-header-title">Balance</div>
     <div class="ga-header-sub">A social wall, eventually — for now, the view from here</div>
   </div>
 
   <div class="ga-split" id="gaSplit">
-    <div class="ga-canvas-viewport" id="gaCanvasViewport">
-      <div class="ga-canvas-track" id="gaCanvasTrack"></div>
+    <div class="ga-gallery-viewport" id="gaGalleryViewport">
+      <div class="ga-gallery-grid" id="gaGalleryGrid"></div>
     </div>
     <div class="ga-resize-handle" id="gaResizeHandle"></div>
     <!-- ══ CONTENT: BALANCE — right-column write-up ══ -->
@@ -3051,29 +3140,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
     </div>
   </div>
 
-  <div class="ga-hud" id="gaHud">
-    <button class="ga-hud-handle" id="gaHudHandle">
-      <span>Grid controls</span>
-      <span class="ga-hud-chev">&#9652;</span>
-    </button>
-    <div class="ga-hud-drawer" id="gaHudDrawer">
-      <div class="ga-hud-controls">
-        <div class="ga-hud-control">
-          <div class="ga-hud-label">Grid size</div>
-          <div class="ga-hud-scaler">
-            <span id="gaScaleLabel">13px</span>
-            <input type="range" id="gaScaleSlider" min="11" max="24" step="1" value="13">
-            <span class="ga-hud-scaler-hint">SHIFT+SCROLL</span>
-          </div>
-        </div>
-        <div class="ga-hud-control">
-          <div class="ga-hud-label">Image gap</div>
-          <input type="range" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
-        </div>
-      </div>
-    </div>
-  </div>
-
   <div class="ga-postcard-overlay" id="gaPostcardOverlay"></div>
   <div class="ga-postcard" id="gaPostcard">
     <button class="ga-postcard-close" id="gaPostcardClose">Close ×</button>
@@ -3089,9 +3155,28 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 </div>
 
 <style>
-/* ── GENERAL ASSEMBLY — infinite canvas photo wall ── */
+/* ── GENERAL ASSEMBLY — responsive DOM grid photo gallery ── */
+/* ── BALANCE PAGE TOOLBAR — cloned from .work-toolbar / wt-slider,
+   now living in the subheader mast (sticky, directly under the
+   breadcrumb) instead of the old bottom drawer ── */
+.ga-toolbar{
+  display:flex;align-items:center;gap:0;
+  padding:0 16px;height:32px;
+  margin-top:calc(var(--nav-h) + var(--bc-h));
+  border-bottom:1px solid var(--rule);
+  background:var(--bg);
+  position:sticky;top:calc(var(--nav-h) + var(--bc-h));z-index:100;
+}
+.ga-toolbar-gap{display:flex;align-items:center;margin-left:8px}
+.ga-toolbar-gap-hint{margin-right:14px}
+.ga-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
+.ga-slider{-webkit-appearance:none;appearance:none;width:160px;height:1px;background:rgba(var(--fg-rgb),.25);outline:none;cursor:none;margin-right:32px}
+.ga-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
+.ga-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
+.ga-gap-slider{width:90px}
+
 .ga-header{
-  padding:calc(var(--nav-h) + var(--bc-h) + 28px) clamp(16px,3vw,32px) 20px;
+  padding:28px clamp(16px,3vw,32px) 20px;
   border-bottom:1px solid var(--rule);
   display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
 }
@@ -3100,41 +3185,41 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
 .ga-split{
   display:flex;
-  height:calc(100vh - var(--nav-h) - var(--bc-h) - 64px - 56px);
+  height:calc(100vh - var(--nav-h) - var(--bc-h) - 32px - 64px);
   min-height:420px;
 }
-.ga-canvas-viewport{
+.ga-gallery-viewport{
   position:relative;
   flex:1 1 var(--ga-split,68%);
-  overflow:hidden;
+  overflow-y:auto;
+  overflow-x:hidden;
   background:var(--bg);
-  cursor:grab;
-  user-select:none;
-  -webkit-user-select:none;
-  -webkit-touch-callout:none;
-  touch-action:none;
+  --ga-col-min:220px;
+  --ga-gap:6px;
 }
-.ga-canvas-viewport.panning{cursor:grabbing}
-.ga-canvas-track{user-select:none;-webkit-user-select:none}
-.ga-canvas-viewport::after{
-  content:'';position:absolute;inset:0;pointer-events:none;z-index:4;
-  background:radial-gradient(ellipse at center, transparent 45%, var(--bg) 105%);
+.ga-gallery-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(min(var(--ga-col-min),100%),1fr));
+  gap:var(--ga-gap);
+  padding:var(--ga-gap);
+  align-content:start;
 }
-.ga-canvas-track{position:absolute;top:0;left:0;will-change:transform}
-.ga-photo-tile{
-  position:absolute;padding:0;overflow:hidden;border-radius:2px;
+.ga-g-item{
+  position:relative;
+  overflow:hidden;
+  border-radius:2px;
   background:rgba(var(--fg-rgb),.06);
-  transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s cubic-bezier(.16,1,.3,1);
   cursor:pointer;
+  aspect-ratio:4/3;
+  contain:layout style paint;
 }
-.ga-photo-tile:hover{will-change:transform,box-shadow}
-.ga-photo-tile img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
-.ga-photo-idx{
-  position:absolute;top:10px;left:12px;
-  font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.05em;color:#fff;
-  text-shadow:0 1px 3px rgba(0,0,0,.6);z-index:2;
+.ga-g-item img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  opacity:0;
+  transition:opacity .5s ease,transform .35s cubic-bezier(.16,1,.3,1);
 }
-.ga-photo-tile:hover{transform:translateY(-4px);box-shadow:0 46px 80px -24px rgba(0,0,0,.55),0 10px 24px -10px rgba(0,0,0,.4);z-index:5}
+.ga-g-item img.loaded{opacity:1}
+.ga-g-item:hover img{transform:scale(1.045)}
 
 .ga-resize-handle{
   flex:0 0 1px;background:var(--rule);cursor:col-resize;position:relative;
@@ -3168,25 +3253,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-brief-slabel{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:rgba(var(--fg-rgb),.4);margin-bottom:4px}
 .ga-brief-scell li{font-size:12.5px;line-height:1.6;color:rgba(var(--fg-rgb),.5);margin-bottom:6px}
 
-.ga-hud{position:relative;z-index:400;background:var(--bg);border-top:1px solid var(--rule)}
-.ga-hud-handle{
-  width:100%;display:flex;justify-content:space-between;align-items:center;
-  padding:14px 24px;background:none;border:none;cursor:pointer;
-  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fg);
-}
-.ga-hud-chev{transition:transform .25s;color:rgba(var(--fg-rgb),.4)}
-.ga-hud.open .ga-hud-chev{transform:rotate(180deg)}
-.ga-hud-drawer{max-height:0;overflow:hidden;transition:max-height .3s ease}
-.ga-hud.open .ga-hud-drawer{max-height:160px}
-.ga-hud-controls{display:flex;flex-wrap:wrap;gap:36px;padding:4px 24px 24px;align-items:flex-end}
-.ga-hud-control{display:flex;flex-direction:column;gap:8px}
-.ga-hud-label{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:rgba(var(--fg-rgb),.4)}
-.ga-hud-scaler{display:flex;align-items:center;gap:10px;font-family:'DM Mono',monospace;font-size:10px;color:rgba(var(--fg-rgb),.5)}
-.ga-hud-scaler-hint{color:rgba(var(--fg-rgb),.25)}
-.ga-hud-control input[type="range"]{width:160px;-webkit-appearance:none;height:1px;background:var(--rule);outline:none}
-.ga-hud-control input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--fg);cursor:pointer}
-.ga-hud-control input[type="range"]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:var(--fg);border:none;cursor:pointer}
-
 /* Postcard — deliberately renders light regardless of site theme, matching
    the source's "handed a physical thing" postcard feel. */
 .ga-postcard-overlay{position:fixed;inset:0;z-index:9750;background:rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .3s}
@@ -3214,7 +3280,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
 @media(max-width:900px){
   .ga-split{flex-direction:column;height:auto}
-  .ga-canvas-viewport{height:60vh;flex:none}
+  .ga-gallery-viewport{height:60vh;flex:none}
   .ga-resize-handle{display:none}
   .ga-brief-panel{max-width:none;border-left:none;border-top:1px solid var(--rule)}
 }
@@ -3222,8 +3288,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
   .ga-postcard{width:92vw}
   .ga-postcard-media{height:220px}
   .ga-postcard-type{padding:24px 22px 22px}
-  .ga-hud-controls{gap:20px;padding:4px 20px 20px}
-  .ga-hud-control input[type="range"]{width:120px}
+  .ga-toolbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px;top:calc(var(--nav-h) + var(--bc-h))}
+  .ga-toolbar-gap{margin-left:0}
 }
 </style>
 
@@ -3506,35 +3572,35 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
           <label>
             <input type="checkbox" class="letter-checklist-box">
             <span class="letter-checklist-mark"></span>
-            <span class="letter-checklist-text">Ship the boring version first. Delight is a second draft.</span>
+            <span class="letter-checklist-text">Don't be an asshole.</span>
           </label>
         </li>
         <li class="letter-checklist-item">
           <label>
             <input type="checkbox" class="letter-checklist-box">
             <span class="letter-checklist-mark"></span>
-            <span class="letter-checklist-text">If it needs a tooltip to explain itself, it's not done &mdash; it's confused.</span>
+            <span class="letter-checklist-text">Defend the user.</span>
           </label>
         </li>
         <li class="letter-checklist-item">
           <label>
             <input type="checkbox" class="letter-checklist-box">
             <span class="letter-checklist-mark"></span>
-            <span class="letter-checklist-text">Constraints aren't the enemy of good work. Boredom is.</span>
+            <span class="letter-checklist-text">Design for intent, not outcomes.</span>
           </label>
         </li>
         <li class="letter-checklist-item">
           <label>
             <input type="checkbox" class="letter-checklist-box">
             <span class="letter-checklist-mark"></span>
-            <span class="letter-checklist-text">The client is not always right, but they're always the client. Design the argument, not just the artifact.</span>
+            <span class="letter-checklist-text">Only offer three anecdotes in a single serving</span>
           </label>
         </li>
         <li class="letter-checklist-item">
           <label>
             <input type="checkbox" class="letter-checklist-box">
             <span class="letter-checklist-mark"></span>
-            <span class="letter-checklist-text">If a.i. can do it in one prompt, that was never the interesting part of my job.</span>
+            <span class="letter-checklist-text">Stand in. Step up. Step forward. </span>
           </label>
         </li>
       </ul>
@@ -3546,6 +3612,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
         </div>
         </div>
       </section>
+
 
       <!-- ══ CONTENT: JOURNAL — "Confessions" letter ══ -->
       <section class="letter-panel" data-letter="confessions" id="letter-confessions" role="tabpanel" aria-label="Confessions">
@@ -3636,11 +3703,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <button class="letter-modal-close" aria-label="Close">×</button>
       <div class="letter-modal-slot" id="letterModalSlot"></div>
     </div>
-  </div>
-
-  <!-- Footer: glass ice-tray scene, non-link statement -->
-  <div class="journal-footer-webgl" id="journalFooterWebgl">
-    <canvas class="journal-footer-canvas" id="journalFooterCanvas"></canvas>
   </div>
 
 </div>
@@ -4472,7 +4534,7 @@ document.querySelectorAll('.cs-toolbar-inst').forEach(t => initLayoutToggle(t));
 
   track.addEventListener('pointerdown', (e) => {
     if (e.button !== undefined && e.button !== 0) return; // left click / touch only
-    if (e.target.closest('button, a')) return; // let interactive controls (arrows, etc.) handle their own clicks
+    if (e.target.closest('button, a, label, input, select, textarea')) return; // let interactive controls (arrows, checkboxes, etc.) handle their own clicks
     isDragging = true;
     dragMoved = false;
     dragStartX = e.clientX;
@@ -4747,6 +4809,35 @@ document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(e
 
       thumb.style.left = (cx - rect.left) + 'px';
       thumb.style.top  = (cy - rect.top) + 'px';
+    });
+  });
+})();
+
+// ── WORK ARCHIVE THUMBNAIL PREVIEW — identical mechanic to the font-ramp
+//    hover above, scoped to the .wa-thumb strip instead of .fs-weight-row ──
+(function initWorkArchiveThumbFollow() {
+  const EDGE_MARGIN = 12;
+  document.querySelectorAll('.wa-thumb').forEach(t => {
+    const preview = t.querySelector('.wa-thumb-preview');
+    if (!preview) return;
+    t.addEventListener('mousemove', (e) => {
+      const rect = t.getBoundingClientRect();
+      const halfW = (preview.offsetWidth  || 340) / 2;
+      const halfH = (preview.offsetHeight || 220) / 2;
+
+      let cx = e.clientX;
+      let cy = e.clientY;
+
+      const minX = halfW + EDGE_MARGIN;
+      const maxX = window.innerWidth - halfW - EDGE_MARGIN;
+      const minY = halfH + EDGE_MARGIN;
+      const maxY = window.innerHeight - halfH - EDGE_MARGIN;
+
+      cx = Math.max(minX, Math.min(maxX, cx));
+      cy = Math.max(minY, Math.min(maxY, cy));
+
+      preview.style.left = (cx - rect.left) + 'px';
+      preview.style.top  = (cy - rect.top) + 'px';
     });
   });
 })();
@@ -6202,8 +6293,8 @@ function initAllNarrativeParticles(container) {
 })();
 
 
-// ── GENERAL ASSEMBLY — infinite canvas photo wall (ported, trimmed to just
-//    what this page needs: no tabs, no multiSelect, no feed-card machinery) ──
+// ── GENERAL ASSEMBLY — responsive DOM grid photo gallery (real <img>
+//    elements in a CSS Grid, auto-fill/minmax reflow; no canvas, no pan) ──
 (function initGeneralAssembly() {
   const GA_PHOTOS = [
   "https://i.ibb.co/yc6ppFdj/ZAX01304.webp",
@@ -6263,175 +6354,45 @@ function initAllNarrativeParticles(container) {
     img: url,
   }));
 
-  // Consecutive integers are always coprime, so stepping by (length-1) each
-  // lap guarantees every rotation is distinct until all of them are used —
-  // no fixed pool size can cause two laps to realign and repeat a row.
-  const viewport = document.getElementById('gaCanvasViewport');
-  const track = document.getElementById('gaCanvasTrack');
-  if (!viewport || !track) return;
+  const viewport = document.getElementById('gaGalleryViewport');
+  const grid = document.getElementById('gaGalleryGrid');
+  if (!viewport || !grid) return;
 
-  let COLS = 8;
-  const ROWS = 6;
-  let baseFontPx = 13;
-  let marginMult = 0.2;
-  let TW = 220, TH = 170, GAP = 6, setW = COLS * (TW + GAP), setH = ROWS * (TH + GAP);
-  let copiesX = 1, copiesY = 1;
-
-  function computeCols() {
-    // Fixed at 8 to match ROWS=6 for exactly 48 cells = the full photo pool,
-    // so a single tile can show every photo once with zero repeats.
-    return 8;
-  }
-
-  function recomputeDims() {
-    COLS = computeCols();
-    const scale = baseFontPx / 16;
-    TW = Math.round(300 * scale); TH = Math.round(236 * scale); GAP = Math.round(16 * scale * marginMult);
-    setW = COLS * (TW + GAP); setH = ROWS * (TH + GAP);
-    const vw = viewport.clientWidth || window.innerWidth;
-    const vh = viewport.clientHeight || window.innerHeight;
-    // +1 ring of buffer copies is enough given the modulo-wrapped transform;
-    // +2 (the previous value) was rendering roughly double the DOM/image
-    // nodes for no visible benefit, which was the main source of jank.
-    copiesX = Math.max(1, Math.ceil(vw / setW)) + 1;
-    copiesY = Math.max(1, Math.ceil(vh / setH)) + 1;
-  }
-
-  // Deterministic per-tile shuffle: each tile copy (dxi, dyi) gets its own
-  // seeded, fully-shuffled permutation of the whole pool. Since COLS*ROWS
-  // equals the pool size exactly, every single tile is guaranteed to show
-  // every photo exactly once — no repeats anywhere within one screen —
-  // while neighboring tiles get a different shuffle from each other.
-  function mulberry32(seed) {
-    let t = seed >>> 0;
-    return function () {
-      t += 0x6D2B79F5;
-      let x = Math.imul(t ^ (t >>> 15), 1 | t);
-      x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  function shuffledOrderForTile(dxi, dyi, n) {
-    const seed = (((dxi * 374761393 + dyi * 668265263) % 4294967296) + 4294967296) % 4294967296;
-    const rand = mulberry32(seed);
-    const arr = Array.from({ length: n }, (_, i) => i);
-    for (let i = n - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  function buildTiles() {
-    track.innerHTML = '';
+  // A real, static grid — no wraparound tiling, no pan/inertia physics, no
+  // per-frame transform loop. The browser's own grid layout handles the
+  // 1-up → 2-up → 3-up → 4-up reflow entirely via auto-fill/minmax below;
+  // there's nothing left for JS to rebuild when the container resizes.
+  function buildGrid() {
+    grid.innerHTML = '';
     const frag = document.createDocumentFragment();
-    const N = GA_POOL.length || 1;
-    const cellsPerTile = COLS * ROWS;
-    for (let dxi = -copiesX; dxi <= copiesX; dxi++) {
-      for (let dyi = -copiesY; dyi <= copiesY; dyi++) {
-        const order = shuffledOrderForTile(dxi, dyi, Math.min(N, cellsPerTile));
-        for (let row = 0; row < ROWS; row++) {
-          for (let col = 0; col < COLS; col++) {
-            const cellIndex = row * COLS + col;
-            const idx = order[cellIndex % order.length] % N;
-            const c = GA_POOL[idx];
-            const left = dxi * setW + col * (TW + GAP);
-            const top = dyi * setH + row * (TH + GAP);
-            const tile = document.createElement('div');
-            tile.className = 'ga-photo-tile';
-            tile.style.left = left + 'px'; tile.style.top = top + 'px';
-            tile.style.width = TW + 'px'; tile.style.height = TH + 'px';
-            tile.dataset.tag = c.tag;
-            tile.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
-            tile.dataset.img = c.img;
-            tile.innerHTML = '<img src="' + c.img + '" alt="" loading="lazy" decoding="async" draggable="false"><span class="ga-photo-idx">' + String(idx + 1).padStart(2, '0') + '</span>';
-            frag.appendChild(tile);
-          }
-        }
-      }
-    }
-    track.appendChild(frag);
-  }
+    GA_POOL.forEach(c => {
+      const item = document.createElement('div');
+      item.className = 'ga-g-item';
+      item.dataset.tag = c.tag;
+      item.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
+      item.dataset.img = c.img;
 
-  let panX = 0, panY = 0, velX = 0, velY = 0;
-  let ambTargetX = 0, ambTargetY = 0, ambX = 0, ambY = 0;
-  let dragging = false, moved = false, startX = 0, startY = 0, lastX = 0, lastY = 0, pid = null;
-  let loopRunning = false;
-
-  function mod(n, m) { return ((n % m) + m) % m; }
-  function applyTransform() {
-    const rx = mod(panX, setW) - setW;
-    const ry = mod(panY, setH) - setH;
-    track.style.transform = 'translate3d(' + (rx + ambX).toFixed(2) + 'px,' + (ry + ambY).toFixed(2) + 'px,0)';
-  }
-  function centerPan() {
-    const vw = viewport.clientWidth || window.innerWidth;
-    const vh = viewport.clientHeight || window.innerHeight;
-    panX = vw / 2 - setW / 2;
-    panY = vh / 2 - setH / 2;
-    velX = 0; velY = 0;
-  }
-  function rebuildAndCenter() {
-    recomputeDims();
-    buildTiles();
-    centerPan();
-    applyTransform();
-  }
-
-  const AMB_LERP = 0.07;
-  const INERTIA_FRICTION = 0.935;
-  const INERTIA_THRESHOLD = 0.08;
-
-  function startLoop() {
-    if (loopRunning) return;
-    loopRunning = true;
-    (function tick() {
-      let needsMore = false;
-      if (!dragging && (Math.abs(velX) > INERTIA_THRESHOLD || Math.abs(velY) > INERTIA_THRESHOLD)) {
-        velX *= INERTIA_FRICTION;
-        velY *= INERTIA_FRICTION;
-        panX += velX;
-        panY += velY;
-        needsMore = true;
-      }
-      const dAmbX = ambTargetX - ambX, dAmbY = ambTargetY - ambY;
-      if (Math.abs(dAmbX) > 0.02 || Math.abs(dAmbY) > 0.02) {
-        ambX += dAmbX * AMB_LERP;
-        ambY += dAmbY * AMB_LERP;
-        needsMore = true;
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      img.alt = '';
+      // Fade in from zero only once the image has actually finished
+      // loading (covers both a fresh network fetch and an instant cache
+      // hit — .complete is already true in the latter case, so there's
+      // no load event left to wait for).
+      if (img.complete) {
+        img.classList.add('loaded');
       } else {
-        ambX = ambTargetX; ambY = ambTargetY;
+        img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
       }
-      applyTransform();
-      if (needsMore || dragging) { requestAnimationFrame(tick); }
-      else { loopRunning = false; }
-    })();
-  }
-  function stopInertia() { velX = 0; velY = 0; }
+      img.src = c.img;
 
-  viewport.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    e.preventDefault();
-    stopInertia();
-    dragging = true; moved = false;
-    startX = lastX = e.clientX; startY = lastY = e.clientY;
-    pid = e.pointerId;
-    try { viewport.setPointerCapture(pid); } catch (err) {}
-    viewport.classList.add('panning');
-    velX = 0; velY = 0;
-    startLoop();
-  });
-  viewport.addEventListener('pointermove', e => {
-    if (!dragging || e.pointerId !== pid) return;
-    const dx = e.clientX - lastX, dy = e.clientY - lastY;
-    if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) moved = true;
-    panX += dx; panY += dy;
-    velX = velX * 0.72 + dx * 0.28; velY = velY * 0.72 + dy * 0.28;
-    lastX = e.clientX; lastY = e.clientY;
-    // No applyTransform() here — the tick loop (already running while
-    // dragging) renders once per animation frame instead of once per raw
-    // pointermove, which can fire far more often than the screen repaints.
-  });
+      item.appendChild(img);
+      item.addEventListener('click', () => openGaPostcard(item));
+      frag.appendChild(item);
+    });
+    grid.appendChild(frag);
+  }
 
   const gaPostcardOverlay = document.getElementById('gaPostcardOverlay');
   const gaPostcard = document.getElementById('gaPostcard');
@@ -6455,89 +6416,65 @@ function initAllNarrativeParticles(container) {
   document.getElementById('gaPostcardClose')?.addEventListener('click', closeGaPostcard);
   gaPostcardOverlay?.addEventListener('click', closeGaPostcard);
 
-  function endDrag(e) {
-    if (!dragging) return;
-    dragging = false;
-    viewport.classList.remove('panning');
-    try { if (pid != null) viewport.releasePointerCapture(pid); } catch (err) {}
-    if (moved) {
-      startLoop();
-    } else if (e) {
-      const hit = document.elementFromPoint(e.clientX, e.clientY);
-      const card = hit && hit.closest('.ga-photo-tile');
-      if (card) openGaPostcard(card);
-    }
-    pid = null;
-  }
-  viewport.addEventListener('pointerup', endDrag);
-  viewport.addEventListener('pointercancel', endDrag);
-
-  viewport.addEventListener('mousemove', e => {
-    if (dragging) return;
-    const r = viewport.getBoundingClientRect();
-    const nx = (e.clientX - r.left) / r.width - 0.5;
-    const ny = (e.clientY - r.top) / r.height - 0.5;
-    ambTargetX = -nx * 26; ambTargetY = -ny * 26;
-    startLoop();
-  });
-  viewport.addEventListener('mouseleave', () => { ambTargetX = 0; ambTargetY = 0; startLoop(); });
-
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    if (currentView !== 'generalassembly') return;
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(rebuildAndCenter, 150);
-  });
-
+  // ── Grid size (minimum column width) — slider + Shift+Scroll, same
+  //    pattern as the font-size scaler used elsewhere on the site. A
+  //    smaller minimum lets more columns fit (denser, more "zoomed out");
+  //    a larger minimum pushes toward fewer, bigger columns. The CSS wraps
+  //    this in min(var(--ga-col-min),100%), so once the value exceeds the
+  //    pane's actual width, it clamps to a single full-width column (1-up)
+  //    no matter how wide the pane itself happens to be.
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
-  let scaleRebuildQueued = false;
-  function setBaseFont(px) {
-    baseFontPx = Math.min(24, Math.max(11, px));
-    if (scaleSlider) scaleSlider.value = String(baseFontPx);
-    if (scaleLabel) scaleLabel.textContent = Math.round(baseFontPx) + 'px';
-    stopInertia();
-    // A slider drag can fire many 'input' events between animation frames;
-    // rebuilding the whole tile grid (hundreds of DOM/image nodes) on every
-    // single one of them was the main source of stutter while adjusting it.
-    // Coalesce to at most one rebuild per frame instead.
-    if (!scaleRebuildQueued) {
-      scaleRebuildQueued = true;
-      requestAnimationFrame(() => {
-        scaleRebuildQueued = false;
-        rebuildAndCenter();
-      });
-    }
+  let colMin = parseFloat(scaleSlider?.value) || 220;
+  let userAdjustedGrid = false;
+  function setColMin(px) {
+    colMin = Math.min(2400, Math.max(140, px));
+    if (scaleSlider) scaleSlider.value = String(colMin);
+    if (scaleLabel) scaleLabel.textContent = Math.round(colMin) + 'px';
+    viewport.style.setProperty('--ga-col-min', colMin + 'px');
   }
-  if (scaleSlider) scaleSlider.addEventListener('input', () => setBaseFont(parseFloat(scaleSlider.value)));
-  viewport.addEventListener('wheel', e => {
+  setColMin(colMin);
+  if (scaleSlider) scaleSlider.addEventListener('input', () => { userAdjustedGrid = true; setColMin(parseFloat(scaleSlider.value)); });
+  const gaView = document.getElementById('view-generalassembly');
+  (gaView || viewport).addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
-    setBaseFont(baseFontPx + (e.deltaY < 0 ? 1 : -1));
+    userAdjustedGrid = true;
+    setColMin(colMin + (e.deltaY < 0 ? 48 : -48));
   }, { passive: false });
 
-  const marginSlider = document.getElementById('gaMarginSlider');
-  let marginRebuildQueued = false;
-  if (marginSlider) {
-    marginSlider.addEventListener('input', () => {
-      marginMult = parseFloat(marginSlider.value);
-      if (!marginRebuildQueued) {
-        marginRebuildQueued = true;
-        requestAnimationFrame(() => {
-          marginRebuildQueued = false;
-          recomputeDims(); buildTiles(); centerPan(); applyTransform();
-        });
-      }
-    });
+  // ── Default to 2-up, on any screen size ──────────────────────────────
+  // A fixed px default can't hold "2 columns" across both a wide desktop
+  // window and a narrow phone — so instead of a static number, size the
+  // column minimum directly off the gallery pane's actual live width
+  // (the largest width two columns can share without letting a third
+  // one sneak in). Runs once per fresh visit to the page; backs off the
+  // moment the person touches the slider or Shift+Scrolls, so it never
+  // fights a deliberate choice.
+  function applyTwoUpDefault() {
+    const w = viewport.clientWidth;
+    if (!w) return; // view not laid out yet — bail rather than compute garbage
+    const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--ga-gap')) || 6;
+    const usable = w - gap * 2; // grid padding = one gap on each edge
+    const twoUp = Math.floor((usable - gap) / 2) - 2; // -2px safety margin against rounding
+    setColMin(twoUp);
   }
 
-  const hud = document.getElementById('gaHud');
-  const hudHandle = document.getElementById('gaHudHandle');
-  if (hudHandle && hud) hudHandle.addEventListener('click', () => hud.classList.toggle('open'));
+  // ── Image gap ──────────────────────────────────────────────────────────
+  const marginSlider = document.getElementById('gaMarginSlider');
+  function setGap(mult) {
+    viewport.style.setProperty('--ga-gap', Math.round(mult * 8) + 'px');
+  }
+  if (marginSlider) {
+    setGap(parseFloat(marginSlider.value));
+    marginSlider.addEventListener('input', () => setGap(parseFloat(marginSlider.value)));
+  }
 
-  // Resizable split between the canvas and the brief panel (same drag pattern
-  // used by the type-specimen glyph resizer elsewhere on the site).
+  // Resizable split between the gallery and the brief panel (same drag
+  // pattern used by the type-specimen glyph resizer elsewhere on the site).
+  // Purely CSS now — the grid reflows on its own via auto-fill as the pane
+  // width changes, so there's nothing to recompute on drag.
   const resizeHandle = document.getElementById('gaResizeHandle');
   const splitEl = document.getElementById('gaSplit');
   if (resizeHandle && splitEl) {
@@ -6553,27 +6490,28 @@ function initAllNarrativeParticles(container) {
       let pct = ((e.clientX - rect.left) / rect.width) * 100;
       pct = Math.max(35, Math.min(82, pct));
       splitEl.style.setProperty('--ga-split', pct + '%');
-      recomputeDims(); applyTransform();
     });
     function endSplitDrag(e) {
       if (!splitDragging) return;
       splitDragging = false;
       resizeHandle.classList.remove('dragging');
       try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
-      rebuildAndCenter();
     }
     resizeHandle.addEventListener('pointerup', endSplitDrag);
     resizeHandle.addEventListener('pointercancel', endSplitDrag);
   }
 
-  let hasInitialized = false;
+  buildGrid();
+
+  // Recompute the 2-up default on resize too (e.g. rotating a phone, or
+  // resizing a desktop window) — but only until the person has actually
+  // touched the grid controls themselves.
+  window.addEventListener('resize', () => {
+    if (!userAdjustedGrid && currentView === 'generalassembly') applyTwoUpDefault();
+  });
+
   window._gaOnShow = function () {
-    if (!hasInitialized) {
-      hasInitialized = true;
-      requestAnimationFrame(() => requestAnimationFrame(rebuildAndCenter));
-    } else {
-      requestAnimationFrame(rebuildAndCenter);
-    }
+    if (!userAdjustedGrid) applyTwoUpDefault();
   };
 })();
 
@@ -6674,774 +6612,6 @@ function initAllNarrativeParticles(container) {
   const id = (location.hash || '').replace('#', '');
   if (id && VIEWS[id] && id !== 'index') showView(id);
 })();
-</script>
-
-<script type="module">
-// ── JOURNAL FOOTER: ice-tray scene, placed at the bottom of the Journal
-//    page (below the letters content). Same baked-in material, lighting
-//    rig, and drag/throw/collision physics as Contact's version. The text
-//    here is a plain statement, not a link — no hover/underline/click
-//    behavior.
-import * as THREE from "three";
-import { FontLoader } from "jsm/loaders/FontLoader.js";
-import { TextGeometry } from "jsm/geometries/TextGeometry.js";
-import { RoundedBoxGeometry } from "jsm/geometries/RoundedBoxGeometry.js";
-import { RectAreaLightUniformsLib } from "jsm/lights/RectAreaLightUniformsLib.js";
-
-const container = document.getElementById('journalFooterWebgl');
-const canvas = document.getElementById('journalFooterCanvas');
-
-function initJournalFooterScene() {
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  camera.position.z = 5;
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-
-  function resize() {
-    const w = container.clientWidth || 1;
-    const h = container.clientHeight || 1;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(w, h, false);
-    layoutFacetLights();
-    clampSizeScale();
-    for (const cube of cubes) applyScale(cube);
-  }
-
-  // ── Statement text: real 3D mesh (so the cubes distort it), plain —
-  //    no link, no hover state, no underline. ──────────────────────────
-  const TEXT_Z = -2;
-
-  const fontLoader = new FontLoader();
-  fontLoader.load(
-    "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
-    (font) => {
-      const textGeometry = new TextGeometry("transparency as character currency", {
-        font, size: 0.4, depth: 0, curveSegments: 5,
-        bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
-      });
-      textGeometry.computeBoundingBox();
-      textGeometry.center();
-      const textMaterial = new THREE.MeshBasicMaterial();
-      const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-      textMesh.position.z = TEXT_Z;
-      scene.add(textMesh);
-    }
-  );
-
-  // ── The tray: rounded-glass ice cubes ──────────────────────────────────
-  const TRAY_Z = 1;
-  const CONFIG = { count: 38, sizeScale: 1.6 };
-  const MIN_SIZE_SCALE = 0.5;
-  const MAX_SIZE_SCALE_HARD_CAP = 1.6;
-  const BASE_CUBE_SIZE = 0.9;
-
-  const cubeGeometry = new RoundedBoxGeometry(BASE_CUBE_SIZE, BASE_CUBE_SIZE, BASE_CUBE_SIZE, 6, 0.1);
-  const cubeMaterial = new THREE.MeshPhysicalMaterial();
-  cubeMaterial.metalness = 0;
-  cubeMaterial.roughness = 0;
-  cubeMaterial.iridescence = 1;
-  cubeMaterial.iridescenceIOR = 1.5;
-  cubeMaterial.iridescenceThicknessRange = [100, 217];
-  cubeMaterial.transmission = 1;
-  cubeMaterial.ior = 1.75;
-  cubeMaterial.thickness = 1.325;
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 10);
-  scene.add(ambientLight);
-  [[-1, 2, 0], [-1, -2, 0], [1, -2, 0], [1, 2, 0]].forEach(([x, y, z]) => {
-    const pl = new THREE.PointLight(0xffffff, 10);
-    pl.position.set(x, y, z);
-    scene.add(pl);
-  });
-
-  RectAreaLightUniformsLib.init();
-  const FACET_LIGHT_INTENSITY = 3.1;
-  function makeFacetLight(color) {
-    const light = new THREE.RectAreaLight(color, FACET_LIGHT_INTENSITY, 1, 1);
-    scene.add(light);
-    return light;
-  }
-  const bottomLight = makeFacetLight(0xffffff);
-  const topLight = makeFacetLight(0xffffff);
-  const leftLight = makeFacetLight(0xffffff);
-  const rightLight = makeFacetLight(0xffffff);
-  const facetLights = [bottomLight, topLight, leftLight, rightLight];
-
-  function getBoundsAtDepth(depthZ) {
-    const distance = camera.position.z - depthZ;
-    const vFov = (camera.fov * Math.PI) / 180;
-    const height = 2 * Math.tan(vFov / 2) * distance;
-    const width = height * camera.aspect;
-    return { halfW: width / 2, halfH: height / 2 };
-  }
-
-  function layoutFacetLights() {
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const margin = 0.4;
-    bottomLight.width = halfW * 2; bottomLight.height = 0.6;
-    bottomLight.position.set(0, -halfH - margin, TRAY_Z); bottomLight.lookAt(0, 0, TRAY_Z);
-    topLight.width = halfW * 2; topLight.height = 0.6;
-    topLight.position.set(0, halfH + margin, TRAY_Z); topLight.lookAt(0, 0, TRAY_Z);
-    leftLight.width = 0.6; leftLight.height = halfH * 2;
-    leftLight.position.set(-halfW - margin, 0, TRAY_Z); leftLight.lookAt(0, 0, TRAY_Z);
-    rightLight.width = 0.6; rightLight.height = halfH * 2;
-    rightLight.position.set(halfW + margin, 0, TRAY_Z); rightLight.lookAt(0, 0, TRAY_Z);
-  }
-
-  const cubes = [];
-
-  function radiusForCube(cube) {
-    const effectiveSize = BASE_CUBE_SIZE * cube.jitter * CONFIG.sizeScale;
-    return (effectiveSize / 2) * Math.SQRT2;
-  }
-  function maxSizeScaleForTray() {
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const trayArea = halfW * 2 * (halfH * 2);
-    const n = Math.max(cubes.length, 1);
-    const perCubeAreaAtScale1 = BASE_CUBE_SIZE * BASE_CUBE_SIZE;
-    const packingBudget = trayArea * 0.55;
-    const scaleForBudget = Math.sqrt(packingBudget / (n * perCubeAreaAtScale1));
-    return THREE.MathUtils.clamp(scaleForBudget, MIN_SIZE_SCALE, MAX_SIZE_SCALE_HARD_CAP);
-  }
-  function clampSizeScale() {
-    CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale, MIN_SIZE_SCALE, maxSizeScaleForTray());
-  }
-  function applyScale(cube) {
-    const s = cube.jitter * CONFIG.sizeScale;
-    cube.group.scale.setScalar(s);
-    cube.radius = radiusForCube(cube);
-    cube.mass = Math.pow(s, 3);
-  }
-  function spawnCube() {
-    const group = new THREE.Group();
-    group.position.z = TRAY_Z;
-    const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    group.add(mesh);
-    scene.add(group);
-    const cube = { group, jitter: 0.8 + Math.random() * 0.4, velocity: new THREE.Vector2(0, 0), angularVelocity: 0, radius: 0, mass: 1 };
-    applyScale(cube);
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const limX = Math.max(halfW - cube.radius, 0);
-    const limY = Math.max(halfH - cube.radius, 0);
-    group.position.x = (Math.random() * 2 - 1) * limX;
-    group.position.y = (Math.random() * 2 - 1) * limY;
-    cubes.push(cube);
-  }
-  function removeCube() {
-    const cube = cubes.pop();
-    if (cube) scene.remove(cube.group);
-  }
-  function setCubeCount(n) {
-    n = Math.max(1, Math.round(n));
-    while (cubes.length < n) spawnCube();
-    while (cubes.length > n) removeCube();
-    clampSizeScale();
-    for (const cube of cubes) applyScale(cube);
-  }
-  setCubeCount(CONFIG.count);
-  resize();
-  new ResizeObserver(resize).observe(container);
-  window.addEventListener('resize', resize);
-
-  // ── Drag / throw physics ──────────────────────────────────────────────
-  const raycaster = new THREE.Raycaster();
-  const pointerNDC = new THREE.Vector2();
-  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -TRAY_Z);
-  const dragOffset = new THREE.Vector3();
-  const intersection = new THREE.Vector3();
-
-  let draggedCube = null;
-  let lastPointerTime = 0;
-  const sampleVelocity = new THREE.Vector2(0, 0);
-
-  const FRICTION = 0.85;
-  const ANGULAR_FRICTION = 0.9;
-  const RESTITUTION = 0.82;
-  const MIN_SPEED = 0.02;
-
-  function updatePointerNDC(event) {
-    const rect = canvas.getBoundingClientRect();
-    pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  }
-  function getPointOnDragPlane() {
-    raycaster.setFromCamera(pointerNDC, camera);
-    raycaster.ray.intersectPlane(dragPlane, intersection);
-    return intersection;
-  }
-
-  function isJournalActive() {
-    const viewEl = document.getElementById('view-about');
-    return viewEl && viewEl.classList.contains('active');
-  }
-
-  // This scene sits at the bottom of a long page — once the journal view
-  // is active, isJournalActive() alone stays true the whole time you're
-  // reading, even after the canvas scrolls off the top of the screen. Track
-  // real on-screen visibility too and use both together to gate the
-  // expensive per-frame physics/render work.
-  let sceneVisible = false;
-  new IntersectionObserver(entries => {
-    sceneVisible = entries[0].isIntersecting;
-  }, { threshold: 0 }).observe(container);
-
-  canvas.addEventListener('pointerdown', (event) => {
-    if (!isJournalActive()) return;
-    updatePointerNDC(event);
-    raycaster.setFromCamera(pointerNDC, camera);
-    const meshes = cubes.map((c) => c.group.children[0]);
-    const hits = raycaster.intersectObjects(meshes);
-    if (hits.length === 0) return;
-
-    const hitMesh = hits[0].object;
-    draggedCube = cubes.find((c) => c.group.children[0] === hitMesh);
-    if (!draggedCube) return;
-
-    canvas.style.cursor = 'grabbing';
-    draggedCube.velocity.set(0, 0);
-    draggedCube.angularVelocity = 0;
-
-    const point = getPointOnDragPlane();
-    dragOffset.copy(draggedCube.group.position).sub(point);
-    lastPointerTime = performance.now();
-    sampleVelocity.set(0, 0);
-    canvas.setPointerCapture(event.pointerId);
-  });
-
-  canvas.addEventListener('pointermove', (event) => {
-    if (!draggedCube) return;
-    updatePointerNDC(event);
-    const point = getPointOnDragPlane();
-    const now = performance.now();
-    const dt = Math.max((now - lastPointerTime) / 1000, 1 / 120);
-    const newPos = point.clone().add(dragOffset);
-    const dx = newPos.x - draggedCube.group.position.x;
-    const dy = newPos.y - draggedCube.group.position.y;
-    draggedCube.group.position.x = newPos.x;
-    draggedCube.group.position.y = newPos.y;
-    sampleVelocity.x = sampleVelocity.x * 0.6 + (dx / dt) * 0.4;
-    sampleVelocity.y = sampleVelocity.y * 0.6 + (dy / dt) * 0.4;
-    draggedCube.angularVelocity = draggedCube.angularVelocity * 0.6 + (-dx / dt) * 0.15 * 0.4;
-    lastPointerTime = now;
-  });
-
-  function endDrag(event) {
-    if (!draggedCube) return;
-    canvas.style.cursor = 'grab';
-    draggedCube.velocity.copy(sampleVelocity);
-    draggedCube = null;
-    if (event && canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
-  }
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
-  canvas.addEventListener('pointerleave', (event) => { if (event.buttons === 0) endDrag(event); });
-  canvas.style.cursor = 'grab';
-
-  // ── Scroll wheel: quantity/density; shift+scroll resizes ──────────────
-  canvas.addEventListener('wheel', (event) => {
-    if (!isJournalActive()) return;
-    event.preventDefault();
-    if (event.shiftKey) {
-      const delta = -event.deltaY * 0.0015;
-      CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale + delta, MIN_SIZE_SCALE, maxSizeScaleForTray());
-      for (const cube of cubes) applyScale(cube);
-    } else {
-      const delta = -event.deltaY * 0.02;
-      CONFIG.count = THREE.MathUtils.clamp(Math.round(CONFIG.count + delta), 1, 40);
-      setCubeCount(CONFIG.count);
-    }
-  }, { passive: false });
-
-  // ── Pairwise collision resolution ──────────────────────────────────────
-  function resolveCollisions() {
-    for (let i = 0; i < cubes.length; i++) {
-      for (let j = i + 1; j < cubes.length; j++) {
-        const a = cubes[i], b = cubes[j];
-        let dx = b.group.position.x - a.group.position.x;
-        let dy = b.group.position.y - a.group.position.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = a.radius + b.radius;
-        if (dist >= minDist) continue;
-        if (dist === 0) {
-          const angle = Math.random() * Math.PI * 2;
-          dx = Math.cos(angle); dy = Math.sin(angle); dist = 0.0001;
-        }
-        const nx = dx / dist, ny = dy / dist;
-        const overlap = minDist - dist;
-        const totalMass = a.mass + b.mass;
-        const pushA = overlap * (b.mass / totalMass);
-        const pushB = overlap * (a.mass / totalMass);
-        if (a !== draggedCube) { a.group.position.x -= nx * pushA; a.group.position.y -= ny * pushA; }
-        if (b !== draggedCube) { b.group.position.x += nx * pushB; b.group.position.y += ny * pushB; }
-        const rvx = b.velocity.x - a.velocity.x, rvy = b.velocity.y - a.velocity.y;
-        const velAlongNormal = rvx * nx + rvy * ny;
-        if (velAlongNormal > 0) continue;
-        const e = RESTITUTION;
-        const jImpulse = (-(1 + e) * velAlongNormal) / (1 / a.mass + 1 / b.mass);
-        const impulseX = jImpulse * nx, impulseY = jImpulse * ny;
-        a.velocity.x -= impulseX / a.mass; a.velocity.y -= impulseY / a.mass;
-        b.velocity.x += impulseX / b.mass; b.velocity.y += impulseY / b.mass;
-        const tangent = -nx * impulseY + ny * impulseX;
-        a.angularVelocity -= tangent * 0.05;
-        b.angularVelocity += tangent * 0.05;
-      }
-    }
-  }
-
-  const clock = new THREE.Clock();
-  function tick() {
-    const dt = Math.min(clock.getDelta(), 1 / 30);
-
-    if (isJournalActive() && sceneVisible) {
-      const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-      for (const cube of cubes) {
-        if (cube !== draggedCube) {
-          cube.group.position.x += cube.velocity.x * dt;
-          cube.group.position.y += cube.velocity.y * dt;
-          const limX = Math.max(halfW - cube.radius, 0);
-          const limY = Math.max(halfH - cube.radius, 0);
-          if (cube.group.position.x > limX) { cube.group.position.x = limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
-          else if (cube.group.position.x < -limX) { cube.group.position.x = -limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
-          if (cube.group.position.y > limY) { cube.group.position.y = limY; cube.velocity.y *= -RESTITUTION; }
-          else if (cube.group.position.y < -limY) { cube.group.position.y = -limY; cube.velocity.y *= -RESTITUTION; }
-          const linDamp = Math.pow(FRICTION, dt * 60);
-          cube.velocity.multiplyScalar(linDamp);
-          if (cube.velocity.length() < MIN_SPEED) cube.velocity.set(0, 0);
-        }
-        const angDamp = Math.pow(ANGULAR_FRICTION, dt * 60);
-        cube.angularVelocity *= angDamp;
-        if (Math.abs(cube.angularVelocity) < 0.001) cube.angularVelocity = 0;
-        cube.group.rotation.z += cube.angularVelocity * dt;
-      }
-      resolveCollisions();
-      renderer.render(scene, camera);
-    }
-
-    requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-if (container && canvas) {
-  const io = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-      io.disconnect();
-      initJournalFooterScene();
-    }
-  }, { rootMargin: '400px' }); // starts building just before it scrolls into view, not the instant the page loads
-  io.observe(container);
-}
-</script>
-
-<script type="module">
-// ── INDEX FOOTER (left column): ice-tray scene replacing the old plain-text
-//    contact block. Same baked-in material, lighting rig, and
-//    drag/throw/collision physics as Contact's version. The LinkedIn text
-//    is a real 3D mesh (so the cubes distort it), raycast for hover
-//    (cursor + a matching 3D underline) and click (opens LinkedIn in a
-//    new tab) — same interactive pattern as the Contact page.
-import * as THREE from "three";
-import { FontLoader } from "jsm/loaders/FontLoader.js";
-import { TextGeometry } from "jsm/geometries/TextGeometry.js";
-import { RoundedBoxGeometry } from "jsm/geometries/RoundedBoxGeometry.js";
-import { RectAreaLightUniformsLib } from "jsm/lights/RectAreaLightUniformsLib.js";
-
-const container = document.getElementById('indexContactWebgl');
-const canvas = document.getElementById('indexContactCanvas');
-
-function initIndexFooterScene() {
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
-  camera.position.z = 5;
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-
-  function resize() {
-    const w = container.clientWidth || 1;
-    const h = container.clientHeight || 1;
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(w, h, false);
-    layoutFacetLights();
-    clampSizeScale();
-    for (const cube of cubes) applyScale(cube);
-  }
-
-  // ── LinkedIn text: real 3D mesh (so the cubes distort it), a real link —
-  //    raycast hover shows a 3D underline + pointer cursor, click opens. ──
-  const LINKEDIN_URL = "https://linkedin.com/in/zackgort";
-  const TEXT_Z = -2;
-  let linkMesh = null;
-  let underlineMesh = null;
-  let linkHovered = false;
-
-  const fontLoader = new FontLoader();
-  fontLoader.load(
-    "https://raw.githubusercontent.com/danielyl123/person/refs/heads/main/fonts/helvetiker_regular.typeface.json",
-    (font) => {
-      const textGeometry = new TextGeometry("in/zackgort", {
-        font, size: 0.44, depth: 0, curveSegments: 5,
-        bevelEnabled: true, bevelThickness: 0, bevelSize: 0, bevelOffset: 0, bevelSegments: 4,
-      });
-      textGeometry.computeBoundingBox();
-      textGeometry.center();
-      const bbox = textGeometry.boundingBox;
-      const textWidth = bbox.max.x - bbox.min.x;
-      const textBottom = bbox.min.y;
-
-      const textMaterial = new THREE.MeshBasicMaterial();
-      linkMesh = new THREE.Mesh(textGeometry, textMaterial);
-      linkMesh.position.z = TEXT_Z;
-      scene.add(linkMesh);
-
-      const underlineGeometry = new THREE.PlaneGeometry(textWidth, 0.018);
-      const underlineMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      underlineMesh = new THREE.Mesh(underlineGeometry, underlineMaterial);
-      underlineMesh.position.set(0, textBottom - 0.06, TEXT_Z);
-      underlineMesh.visible = false;
-      scene.add(underlineMesh);
-    }
-  );
-
-  // ── The tray: rounded-glass ice cubes ──────────────────────────────────
-  const TRAY_Z = 1;
-  const CONFIG = { count: 38, sizeScale: 1.6 };
-  const MIN_SIZE_SCALE = 0.5;
-  const MAX_SIZE_SCALE_HARD_CAP = 1.6;
-  const BASE_CUBE_SIZE = 0.9;
-
-  const cubeGeometry = new RoundedBoxGeometry(BASE_CUBE_SIZE, BASE_CUBE_SIZE, BASE_CUBE_SIZE, 6, 0.1);
-  const cubeMaterial = new THREE.MeshPhysicalMaterial();
-  cubeMaterial.metalness = 0;
-  cubeMaterial.roughness = 0;
-  cubeMaterial.iridescence = 1;
-  cubeMaterial.iridescenceIOR = 1.5;
-  cubeMaterial.iridescenceThicknessRange = [100, 217];
-  cubeMaterial.transmission = 1;
-  cubeMaterial.ior = 1.75;
-  cubeMaterial.thickness = 1.325;
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 10);
-  scene.add(ambientLight);
-  [[-1, 2, 0], [-1, -2, 0], [1, -2, 0], [1, 2, 0]].forEach(([x, y, z]) => {
-    const pl = new THREE.PointLight(0xffffff, 10);
-    pl.position.set(x, y, z);
-    scene.add(pl);
-  });
-
-  RectAreaLightUniformsLib.init();
-  const FACET_LIGHT_INTENSITY = 3.1;
-  function makeFacetLight(color) {
-    const light = new THREE.RectAreaLight(color, FACET_LIGHT_INTENSITY, 1, 1);
-    scene.add(light);
-    return light;
-  }
-  const bottomLight = makeFacetLight(0xffffff);
-  const topLight = makeFacetLight(0xffffff);
-  const leftLight = makeFacetLight(0xffffff);
-  const rightLight = makeFacetLight(0xffffff);
-  const facetLights = [bottomLight, topLight, leftLight, rightLight];
-
-  function getBoundsAtDepth(depthZ) {
-    const distance = camera.position.z - depthZ;
-    const vFov = (camera.fov * Math.PI) / 180;
-    const height = 2 * Math.tan(vFov / 2) * distance;
-    const width = height * camera.aspect;
-    return { halfW: width / 2, halfH: height / 2 };
-  }
-
-  function layoutFacetLights() {
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const margin = 0.4;
-    bottomLight.width = halfW * 2; bottomLight.height = 0.6;
-    bottomLight.position.set(0, -halfH - margin, TRAY_Z); bottomLight.lookAt(0, 0, TRAY_Z);
-    topLight.width = halfW * 2; topLight.height = 0.6;
-    topLight.position.set(0, halfH + margin, TRAY_Z); topLight.lookAt(0, 0, TRAY_Z);
-    leftLight.width = 0.6; leftLight.height = halfH * 2;
-    leftLight.position.set(-halfW - margin, 0, TRAY_Z); leftLight.lookAt(0, 0, TRAY_Z);
-    rightLight.width = 0.6; rightLight.height = halfH * 2;
-    rightLight.position.set(halfW + margin, 0, TRAY_Z); rightLight.lookAt(0, 0, TRAY_Z);
-  }
-
-  const cubes = [];
-
-  function radiusForCube(cube) {
-    const effectiveSize = BASE_CUBE_SIZE * cube.jitter * CONFIG.sizeScale;
-    return (effectiveSize / 2) * Math.SQRT2;
-  }
-  function maxSizeScaleForTray() {
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const trayArea = halfW * 2 * (halfH * 2);
-    const n = Math.max(cubes.length, 1);
-    const perCubeAreaAtScale1 = BASE_CUBE_SIZE * BASE_CUBE_SIZE;
-    const packingBudget = trayArea * 0.55;
-    const scaleForBudget = Math.sqrt(packingBudget / (n * perCubeAreaAtScale1));
-    return THREE.MathUtils.clamp(scaleForBudget, MIN_SIZE_SCALE, MAX_SIZE_SCALE_HARD_CAP);
-  }
-  function clampSizeScale() {
-    CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale, MIN_SIZE_SCALE, maxSizeScaleForTray());
-  }
-  function applyScale(cube) {
-    const s = cube.jitter * CONFIG.sizeScale;
-    cube.group.scale.setScalar(s);
-    cube.radius = radiusForCube(cube);
-    cube.mass = Math.pow(s, 3);
-  }
-  function spawnCube() {
-    const group = new THREE.Group();
-    group.position.z = TRAY_Z;
-    const mesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
-    group.add(mesh);
-    scene.add(group);
-    const cube = { group, jitter: 0.8 + Math.random() * 0.4, velocity: new THREE.Vector2(0, 0), angularVelocity: 0, radius: 0, mass: 1 };
-    applyScale(cube);
-    const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-    const limX = Math.max(halfW - cube.radius, 0);
-    const limY = Math.max(halfH - cube.radius, 0);
-    group.position.x = (Math.random() * 2 - 1) * limX;
-    group.position.y = (Math.random() * 2 - 1) * limY;
-    cubes.push(cube);
-  }
-  function removeCube() {
-    const cube = cubes.pop();
-    if (cube) scene.remove(cube.group);
-  }
-  function setCubeCount(n) {
-    n = Math.max(1, Math.round(n));
-    while (cubes.length < n) spawnCube();
-    while (cubes.length > n) removeCube();
-    clampSizeScale();
-    for (const cube of cubes) applyScale(cube);
-  }
-  setCubeCount(CONFIG.count);
-  resize();
-  new ResizeObserver(resize).observe(container);
-  window.addEventListener('resize', resize);
-
-  // ── Drag / throw physics ──────────────────────────────────────────────
-  const raycaster = new THREE.Raycaster();
-  const pointerNDC = new THREE.Vector2();
-  const dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -TRAY_Z);
-  const dragOffset = new THREE.Vector3();
-  const intersection = new THREE.Vector3();
-
-  let draggedCube = null;
-  let lastPointerTime = 0;
-  const sampleVelocity = new THREE.Vector2(0, 0);
-
-  const FRICTION = 0.85;
-  const ANGULAR_FRICTION = 0.9;
-  const RESTITUTION = 0.82;
-  const MIN_SPEED = 0.02;
-
-  function updatePointerNDC(event) {
-    const rect = canvas.getBoundingClientRect();
-    pointerNDC.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    pointerNDC.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  }
-  function getPointOnDragPlane() {
-    raycaster.setFromCamera(pointerNDC, camera);
-    raycaster.ray.intersectPlane(dragPlane, intersection);
-    return intersection;
-  }
-
-  function isIndexActive() {
-    const viewEl = document.getElementById('view-index');
-    return viewEl && viewEl.classList.contains('active');
-  }
-
-  // Same gap as the journal footer scene: isIndexActive() alone stays true
-  // for the entire time you're on the index page, long after this scene has
-  // scrolled off the bottom past the work list. Track real on-screen
-  // visibility and require both before doing the expensive work.
-  let sceneVisible = false;
-  new IntersectionObserver(entries => {
-    sceneVisible = entries[0].isIntersecting;
-  }, { threshold: 0 }).observe(container);
-
-  canvas.addEventListener('pointerdown', (event) => {
-    if (!isIndexActive()) return;
-    updatePointerNDC(event);
-    raycaster.setFromCamera(pointerNDC, camera);
-    const meshes = cubes.map((c) => c.group.children[0]);
-    const hits = raycaster.intersectObjects(meshes);
-    if (hits.length === 0) return;
-
-    const hitMesh = hits[0].object;
-    draggedCube = cubes.find((c) => c.group.children[0] === hitMesh);
-    if (!draggedCube) return;
-
-    canvas.style.cursor = 'grabbing';
-    draggedCube.velocity.set(0, 0);
-    draggedCube.angularVelocity = 0;
-
-    const point = getPointOnDragPlane();
-    dragOffset.copy(draggedCube.group.position).sub(point);
-    lastPointerTime = performance.now();
-    sampleVelocity.set(0, 0);
-    canvas.setPointerCapture(event.pointerId);
-  });
-
-  canvas.addEventListener('pointermove', (event) => {
-    if (!draggedCube) return;
-    updatePointerNDC(event);
-    const point = getPointOnDragPlane();
-    const now = performance.now();
-    const dt = Math.max((now - lastPointerTime) / 1000, 1 / 120);
-    const newPos = point.clone().add(dragOffset);
-    const dx = newPos.x - draggedCube.group.position.x;
-    const dy = newPos.y - draggedCube.group.position.y;
-    draggedCube.group.position.x = newPos.x;
-    draggedCube.group.position.y = newPos.y;
-    sampleVelocity.x = sampleVelocity.x * 0.6 + (dx / dt) * 0.4;
-    sampleVelocity.y = sampleVelocity.y * 0.6 + (dy / dt) * 0.4;
-    draggedCube.angularVelocity = draggedCube.angularVelocity * 0.6 + (-dx / dt) * 0.15 * 0.4;
-    lastPointerTime = now;
-  });
-
-  function endDrag(event) {
-    if (!draggedCube) return;
-    canvas.style.cursor = 'grab';
-    draggedCube.velocity.copy(sampleVelocity);
-    draggedCube = null;
-    if (event && canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
-  }
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
-  canvas.addEventListener('pointerleave', (event) => { if (event.buttons === 0) endDrag(event); });
-  canvas.style.cursor = 'grab';
-
-  // ── LinkedIn text hover/click ───────────────────────────────────────────
-  function updateLinkHover(event) {
-    if (!linkMesh || draggedCube) {
-      if (linkHovered) {
-        linkHovered = false;
-        if (underlineMesh) underlineMesh.visible = false;
-        if (!draggedCube) canvas.style.cursor = 'grab';
-      }
-      return;
-    }
-    updatePointerNDC(event);
-    raycaster.setFromCamera(pointerNDC, camera);
-    const hits = raycaster.intersectObject(linkMesh);
-    const hovered = hits.length > 0;
-    if (hovered !== linkHovered) {
-      linkHovered = hovered;
-      if (underlineMesh) underlineMesh.visible = hovered;
-      canvas.style.cursor = hovered ? 'pointer' : 'grab';
-    }
-  }
-  canvas.addEventListener('pointermove', updateLinkHover);
-  canvas.addEventListener('click', (event) => {
-    if (!linkMesh || draggedCube) return;
-    updatePointerNDC(event);
-    raycaster.setFromCamera(pointerNDC, camera);
-    const hits = raycaster.intersectObject(linkMesh);
-    if (hits.length > 0) window.open(LINKEDIN_URL, '_blank', 'noopener');
-  });
-
-  // ── Scroll wheel: quantity/density; shift+scroll resizes ──────────────
-  canvas.addEventListener('wheel', (event) => {
-    if (!isIndexActive()) return;
-    event.preventDefault();
-    if (event.shiftKey) {
-      const delta = -event.deltaY * 0.0015;
-      CONFIG.sizeScale = THREE.MathUtils.clamp(CONFIG.sizeScale + delta, MIN_SIZE_SCALE, maxSizeScaleForTray());
-      for (const cube of cubes) applyScale(cube);
-    } else {
-      const delta = -event.deltaY * 0.02;
-      CONFIG.count = THREE.MathUtils.clamp(Math.round(CONFIG.count + delta), 1, 40);
-      setCubeCount(CONFIG.count);
-    }
-  }, { passive: false });
-
-  // ── Pairwise collision resolution ──────────────────────────────────────
-  function resolveCollisions() {
-    for (let i = 0; i < cubes.length; i++) {
-      for (let j = i + 1; j < cubes.length; j++) {
-        const a = cubes[i], b = cubes[j];
-        let dx = b.group.position.x - a.group.position.x;
-        let dy = b.group.position.y - a.group.position.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        const minDist = a.radius + b.radius;
-        if (dist >= minDist) continue;
-        if (dist === 0) {
-          const angle = Math.random() * Math.PI * 2;
-          dx = Math.cos(angle); dy = Math.sin(angle); dist = 0.0001;
-        }
-        const nx = dx / dist, ny = dy / dist;
-        const overlap = minDist - dist;
-        const totalMass = a.mass + b.mass;
-        const pushA = overlap * (b.mass / totalMass);
-        const pushB = overlap * (a.mass / totalMass);
-        if (a !== draggedCube) { a.group.position.x -= nx * pushA; a.group.position.y -= ny * pushA; }
-        if (b !== draggedCube) { b.group.position.x += nx * pushB; b.group.position.y += ny * pushB; }
-        const rvx = b.velocity.x - a.velocity.x, rvy = b.velocity.y - a.velocity.y;
-        const velAlongNormal = rvx * nx + rvy * ny;
-        if (velAlongNormal > 0) continue;
-        const e = RESTITUTION;
-        const jImpulse = (-(1 + e) * velAlongNormal) / (1 / a.mass + 1 / b.mass);
-        const impulseX = jImpulse * nx, impulseY = jImpulse * ny;
-        a.velocity.x -= impulseX / a.mass; a.velocity.y -= impulseY / a.mass;
-        b.velocity.x += impulseX / b.mass; b.velocity.y += impulseY / b.mass;
-        const tangent = -nx * impulseY + ny * impulseX;
-        a.angularVelocity -= tangent * 0.05;
-        b.angularVelocity += tangent * 0.05;
-      }
-    }
-  }
-
-  const clock = new THREE.Clock();
-  function tick() {
-    const dt = Math.min(clock.getDelta(), 1 / 30);
-
-    if (isIndexActive() && sceneVisible) {
-      const { halfW, halfH } = getBoundsAtDepth(TRAY_Z);
-      for (const cube of cubes) {
-        if (cube !== draggedCube) {
-          cube.group.position.x += cube.velocity.x * dt;
-          cube.group.position.y += cube.velocity.y * dt;
-          const limX = Math.max(halfW - cube.radius, 0);
-          const limY = Math.max(halfH - cube.radius, 0);
-          if (cube.group.position.x > limX) { cube.group.position.x = limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
-          else if (cube.group.position.x < -limX) { cube.group.position.x = -limX; cube.velocity.x *= -RESTITUTION; cube.angularVelocity += cube.velocity.x * 0.2; }
-          if (cube.group.position.y > limY) { cube.group.position.y = limY; cube.velocity.y *= -RESTITUTION; }
-          else if (cube.group.position.y < -limY) { cube.group.position.y = -limY; cube.velocity.y *= -RESTITUTION; }
-          const linDamp = Math.pow(FRICTION, dt * 60);
-          cube.velocity.multiplyScalar(linDamp);
-          if (cube.velocity.length() < MIN_SPEED) cube.velocity.set(0, 0);
-        }
-        const angDamp = Math.pow(ANGULAR_FRICTION, dt * 60);
-        cube.angularVelocity *= angDamp;
-        if (Math.abs(cube.angularVelocity) < 0.001) cube.angularVelocity = 0;
-        cube.group.rotation.z += cube.angularVelocity * dt;
-      }
-      resolveCollisions();
-      renderer.render(scene, camera);
-    }
-
-    requestAnimationFrame(tick);
-  }
-  tick();
-}
-
-if (container && canvas) {
-  const io = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting) {
-      io.disconnect();
-      initIndexFooterScene();
-    }
-  }, { rootMargin: '400px' });
-  io.observe(container);
-}
 </script>
 
 </body>
