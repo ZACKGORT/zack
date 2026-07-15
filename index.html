@@ -5123,7 +5123,9 @@ window._activeInstances = activeInstances;
 function initParticleHero(viewEl) {
   const viewId = viewEl.id;
   if (activeInstances.has(viewId)) {
-    activeInstances.get(viewId).dead = true;
+    const old = activeInstances.get(viewId);
+    old.dead = true;
+    if (old.observer) old.observer.disconnect();
     activeInstances.delete(viewId);
   }
   if (viewId === 'view-index') return;
@@ -5143,6 +5145,16 @@ function initParticleHero(viewEl) {
   const inst = { dead: false };
   activeInstances.set(viewId, inst);
   inst.resize = () => resize();
+
+  // Case studies are long pages — this hero scrolls out of view early and
+  // stays offscreen for most of the read. Pause the per-frame physics/draw
+  // work while it's not visible instead of running it forever in the
+  // background (see the matching fix on the index hero wall).
+  let heroVisible = true;
+  inst.observer = new IntersectionObserver(entries => {
+    heroVisible = entries[0].isIntersecting;
+  }, { threshold: 0 });
+  inst.observer.observe(section);
 
   function heroFontSize1() {
     return 48; // fixed — not coupled to the size scaler
@@ -5203,6 +5215,7 @@ function initParticleHero(viewEl) {
     if (inst.dead) return;
     requestAnimationFrame(loop);
     if (!viewEl.classList.contains('active')) return;
+    if (!heroVisible) return;
 
     bX += (mx - bX) * BLOB_LERP_CS;
     bY += (my - bY) * BLOB_LERP_CS;
@@ -5259,7 +5272,7 @@ function initParticleHero(viewEl) {
   }
 
   window.addEventListener('mousemove', e => {
-    if (inst.dead) return;
+    if (inst.dead || !heroVisible) return;
     const r = canvas.getBoundingClientRect();
     mx = e.clientX - r.left;
     my = e.clientY - r.top;
@@ -5440,10 +5453,13 @@ function initNarrativeParticles(wrap) {
     loaded = true;
   }
 
+  let visible = false;
+
   function loop() {
     if (inst.dead) return;
     requestAnimationFrame(loop);
     if (!wrap.closest('.view.active')) return;
+    if (!visible) return;
 
     bX += (mX - bX) * NARR_LERP;
     bY += (mY - bY) * NARR_LERP;
@@ -5498,7 +5514,7 @@ function initNarrativeParticles(wrap) {
   }
 
   function onMove(e) {
-    if (inst.dead) return;
+    if (inst.dead || !visible) return;
     const r = canvas.getBoundingClientRect();
     mX = e.clientX - r.left;
     mY = e.clientY - r.top;
@@ -5519,7 +5535,10 @@ function initNarrativeParticles(wrap) {
   }
 
   const obs = new IntersectionObserver(entries => {
-    entries.forEach(en => { if (en.isIntersecting) { start(); obs.disconnect(); } });
+    entries.forEach(en => {
+      visible = en.isIntersecting;
+      if (en.isIntersecting) start();
+    });
   }, { threshold: 0.05, rootMargin: '200px 0px' });
   obs.observe(wrap);
 
@@ -5598,6 +5617,18 @@ function initAllNarrativeParticles(container) {
   const initTime = performance.now();
   let mX = W/2, mY = H/2;
   let bX = W/2, bY = H/2;
+
+  // The hero sits at the very top of the index page and scrolls out of view
+  // almost immediately once you start reading the work list below it — but
+  // its render loop has no way to know that on its own. Without this, it
+  // keeps running full character-physics + fillText every frame forever
+  // (gated only on "is the index view active", not "is it on screen"),
+  // competing with scroll compositing/painting for main-thread time and
+  // making scrolling feel sludgy. Pause the expensive work while offscreen.
+  let heroVisible = true;
+  new IntersectionObserver(entries => {
+    heroVisible = entries[0].isIntersecting;
+  }, { threshold: 0 }).observe(heroSection);
   let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
 
   let _dark = !document.body.classList.contains('light-mode');
@@ -5703,6 +5734,7 @@ function initAllNarrativeParticles(container) {
   function loop() {
     requestAnimationFrame(loop);
     if (!heroSection.closest('.view.active')) return;
+    if (!heroVisible) return;
 
     bX += (mX - bX) * PT_LERP;
     bY += (mY - bY) * PT_LERP;
@@ -5775,11 +5807,13 @@ function initAllNarrativeParticles(container) {
   }
 
   window.addEventListener('mousemove', e => {
+    if (!heroVisible) return;
     const r = canvas.getBoundingClientRect();
     mX = e.clientX - r.left;
     mY = e.clientY - r.top;
   });
   window.addEventListener('touchmove', e => {
+    if (!heroVisible) return;
     const r = canvas.getBoundingClientRect();
     mX = e.touches[0].clientX - r.left;
     mY = e.touches[0].clientY - r.top;
