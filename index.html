@@ -154,8 +154,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   line-height:1;display:inline-flex;align-items:center;gap:0;
 }
 .nav-wordmark sup{font-size:6px;font-weight:500;vertical-align:super;opacity:.5}
-.nav-logo{display:flex;align-items:center;margin-right:16px;flex-shrink:0;cursor:none}
+.nav-logo{display:flex;align-items:center;margin-right:16px;flex-shrink:0;cursor:none;position:relative}
 .nav-logo img{height:24px;width:auto;display:block;object-fit:contain}
+.nav-logo[data-tip]::after{
+  content:attr(data-tip);
+  position:absolute;
+  top:calc(100% + 10px);
+  left:0;
+  background:var(--fg);color:var(--bg);
+  font-family:var(--font);font-size:11px;font-weight:700;letter-spacing:.02em;
+  white-space:nowrap;
+  padding:6px 12px;
+  border-radius:999px;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);
+  opacity:0;pointer-events:none;
+  transform:translateY(-4px);
+  transition:opacity .15s ease,transform .18s cubic-bezier(.16,1,.3,1);
+  z-index:600;
+}
+.nav-logo[data-tip]:hover::after{opacity:1;transform:translateY(0)}
 .nav-wordmark img{height:32px;width:auto;display:block;object-fit:contain}
 .nav-tabs{display:flex;align-items:center;gap:2px;flex:1}
 .nav-tab{height:24px;padding:0 12px;font-size:var(--fs-micro);font-weight:600;letter-spacing:.04em;color:rgba(var(--fg-rgb),.4);border-radius:3px;display:flex;align-items:center;cursor:none;transition:color .15s,background .15s;white-space:nowrap;text-decoration:none;border:none;background:none}
@@ -447,6 +464,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .page-back-to-top:hover{transform:translateY(0) scale(1.08)}
 @media(max-width:640px){
   .page-back-to-top{width:52px;height:52px;font-size:9px;bottom:16px;right:16px}
+}
+
+/* ── LOGO EASTER-EGG TOAST ── shown briefly after the clipboard copy so the
+   click has *some* acknowledgment, without being a loud/interrupting modal. */
+.logo-toast{
+  position:fixed;top:24px;left:50%;z-index:600;
+  transform:translate(-50%,-16px);
+  padding:10px 20px;
+  background:var(--fg);color:var(--bg);
+  font-family:var(--font);font-size:12px;font-weight:700;letter-spacing:.02em;
+  border-radius:999px;
+  box-shadow:0 4px 24px rgba(0,0,0,.35);
+  opacity:0;pointer-events:none;
+  transition:opacity .35s ease,transform .35s ease;
+  white-space:nowrap;
+}
+.logo-toast.visible{opacity:1;transform:translate(-50%,0)}
+@media(max-width:640px){
+  .logo-toast{top:16px;font-size:11px;padding:8px 16px}
 }
 
 /* ══════════════════════════════════════════
@@ -1843,9 +1879,10 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 <div id="cursor"></div>
 <div id="wipe"></div>
 <button class="page-back-to-top" id="pageBackToTop" aria-label="Back to top">↑ top</button>
+<div class="logo-toast" id="logoToast" role="status" aria-live="polite">say hello @ your leisure</div>
 
 <nav class="fs-nav" id="site-nav">
-  <a class="nav-logo" href="javascript:void(0)" onclick="navigate('index')" aria-label="Home">
+  <a class="nav-logo" href="javascript:void(0)" onclick="navigate('index'); copyLogoEasterEgg(event);" aria-label="Home" data-tip="click to connect">
     <img src="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" alt="…">
   </a>
   <div class="nav-tabs" id="nav-tabs">
@@ -5339,6 +5376,43 @@ document.addEventListener('keydown', e => {
   (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: window._reduceMotion ? 'auto' : 'smooth' });
 });
 
+// Quiet-but-polite logo easter egg: puts the contact email on the clipboard
+// and surfaces a brief top toast so the click has some acknowledgment,
+// rather than a copy happening with zero feedback.
+//
+// Two things keep this from being a free giveaway to crawlers/scrapers:
+//  1. The address is never a literal string anywhere in this file — it's a
+//     rotated char-code array, decoded only inside the handler at call time.
+//     A source scrape gets numbers, not an email.
+//  2. e.isTrusted gates it: real mouse/keyboard clicks are isTrusted, but a
+//     script calling .click() or dispatching a synthetic MouseEvent is not.
+//     A headless bot that renders the DOM and even simulates the click still
+//     comes away with nothing.
+//
+// Wrapped defensively since navigator.clipboard requires a secure context
+// and can be unavailable/blocked in some embeds — fails silently (no toast,
+// no error) rather than throwing or falling back to a visible prompt.
+const _lek = [139,116,124,120,131,133,81,120,126,114,122,125,63,116,128,126];
+const _lsh = 17;
+function _decodeLogoEmail() {
+  return _lek.map(n => String.fromCharCode(n - _lsh)).join('');
+}
+let logoToastTimer = null;
+function showLogoToast() {
+  const toast = document.getElementById('logoToast');
+  if (!toast) return;
+  clearTimeout(logoToastTimer);
+  toast.classList.add('visible');
+  logoToastTimer = setTimeout(() => toast.classList.remove('visible'), 2200);
+}
+function copyLogoEasterEgg(e) {
+  if (!e || !e.isTrusted) return;
+  try {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(_decodeLogoEmail()).then(showLogoToast).catch(() => {});
+  } catch (err) {}
+}
+
 function navigate(id) {
   if (id === currentView) return;
   if (typeof window.closeCaseStudy === 'function') window.closeCaseStudy();
@@ -6305,13 +6379,30 @@ function initAllNarrativeParticles(container) {
     }
   }
 
+  // Releases the repel target back off-canvas so the tether can pull every
+  // character home to its legible rest position. Without this, a cursor that
+  // comes to rest near the sentence and then goes idle (stops moving, tabs
+  // away) leaves mX/mY pointed at that last spot forever — the nearby glyphs
+  // stay shoved outward and frozen there indefinitely instead of settling.
+  function releaseRepel() { mX = -999; mY = -999; }
+
+  let idleTimer = null;
   function onMove(e) {
     if (window._heroMode !== 'specializations') return;
     const r = canvas.getBoundingClientRect();
     mX = e.clientX - r.left;
     mY = e.clientY - r.top;
+    clearTimeout(idleTimer);
+    // Cursor can rest motionless *inside* the canvas without ever firing
+    // mouseleave — treat prolonged no-movement the same as leaving so the
+    // text always recovers on its own.
+    idleTimer = setTimeout(releaseRepel, 1200);
   }
   window.addEventListener('mousemove', onMove);
+  wrap.addEventListener('mouseleave', () => {
+    clearTimeout(idleTimer);
+    releaseRepel();
+  });
 
   let resizeTimer;
   window.addEventListener('resize', () => {
