@@ -3143,8 +3143,13 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
   <div class="ga-toolbar" id="ga-toolbar">
     <span class="ga-size-label" id="gaScaleLabel">220px</span>
     <span class="wt-size-hint">Shift+Scroll</span>
-    <span class="wt-chevron">◀</span>
-    <input type="range" class="ga-slider" id="gaScaleSlider" min="140" max="2400" step="20" value="220">
+    <span class="ga-size-icon ga-size-icon-grid" aria-hidden="true" title="More, smaller tiles">
+      <svg viewBox="0 0 12 12" width="11" height="11" fill="currentColor"><rect x="0" y="0" width="3" height="3"/><rect x="4.5" y="0" width="3" height="3"/><rect x="9" y="0" width="3" height="3"/><rect x="0" y="4.5" width="3" height="3"/><rect x="4.5" y="4.5" width="3" height="3"/><rect x="9" y="4.5" width="3" height="3"/><rect x="0" y="9" width="3" height="3"/><rect x="4.5" y="9" width="3" height="3"/><rect x="9" y="9" width="3" height="3"/></svg>
+    </span>
+    <input type="range" class="ga-slider" id="gaScaleSlider" min="0" max="1000" step="1" value="0">
+    <span class="ga-size-icon ga-size-icon-block" aria-hidden="true" title="Fewer, larger tiles">
+      <svg viewBox="0 0 12 12" width="11" height="11" fill="currentColor"><rect x="0" y="0" width="12" height="12"/></svg>
+    </span>
     <div class="ga-toolbar-gap">
       <span class="wt-size-hint ga-toolbar-gap-hint">Gap</span>
       <input type="range" class="ga-slider ga-gap-slider" id="gaMarginSlider" min="0" max="3" step="0.1" value="0.2">
@@ -3229,6 +3234,10 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-toolbar-gap{display:flex;align-items:center;margin-left:8px}
 .ga-toolbar-gap-hint{margin-right:14px}
 .ga-size-label{font-size:var(--fs-micro);font-weight:700;letter-spacing:.02em;color:var(--fg);min-width:44px;font-variant-numeric:tabular-nums}
+.ga-size-icon{display:inline-flex;align-items:center;justify-content:center;color:rgba(var(--fg-rgb),.32);flex-shrink:0;cursor:default}
+.ga-size-icon-grid{margin-right:10px}
+.ga-size-icon-block{margin-right:32px}
+#gaScaleSlider.ga-slider{margin-right:10px}
 .ga-slider{-webkit-appearance:none;appearance:none;width:160px;height:1px;background:rgba(var(--fg-rgb),.25);outline:none;cursor:none;margin-right:32px}
 .ga-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
 .ga-slider::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--fg);cursor:none;border:none}
@@ -6519,23 +6528,72 @@ function initAllNarrativeParticles(container) {
   //    no matter how wide the pane itself happens to be.
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
-  let colMin = parseFloat(scaleSlider?.value) || 220;
   let userAdjustedGrid = false;
-  function setColMin(px) {
-    colMin = Math.min(2400, Math.max(140, px));
-    if (scaleSlider) scaleSlider.value = String(colMin);
+
+  // ── Non-linear curve ──────────────────────────────────────────────────
+  // Column count is roughly paneWidth / colMin — so a *linear* slider from
+  // 140px up to the pane's width reaches the 1-up threshold by the halfway
+  // mark (e.g. at 50% of a 580px ceiling, colMin≈360, and 580/360 already
+  // rounds down to 1 column). A power curve fixes this: colMin barely
+  // rises across the first stretch of the track (many columns, spread
+  // generously across low/mid slider positions) and only ramps steeply in
+  // the final stretch — so 2-up/3-up land around the middle and 1-up only
+  // shows up near the very end, matching how the track visually reads.
+  const COL_FLOOR = 140;
+  const CURVE_POWER = 4;
+  let colCeil = 2400; // dynamic, tracks the pane's live width — see updateSliderMax()
+  let pos = 0;         // 0–1, the slider's own linear position; colMin is derived from this
+  let colMin = COL_FLOOR;
+
+  function posToColMin(p) {
+    p = Math.max(0, Math.min(1, p));
+    return COL_FLOOR + (colCeil - COL_FLOOR) * Math.pow(p, CURVE_POWER);
+  }
+  function colMinToPos(px) {
+    const t = (px - COL_FLOOR) / (colCeil - COL_FLOOR);
+    return Math.pow(Math.max(0, Math.min(1, t)), 1 / CURVE_POWER);
+  }
+  function applyPos(p) {
+    pos = Math.max(0, Math.min(1, p));
+    colMin = posToColMin(pos);
+    if (scaleSlider) scaleSlider.value = String(Math.round(pos * 1000));
     if (scaleLabel) scaleLabel.textContent = Math.round(colMin) + 'px';
     viewport.style.setProperty('--ga-col-min', colMin + 'px');
   }
-  setColMin(colMin);
-  if (scaleSlider) scaleSlider.addEventListener('input', () => { userAdjustedGrid = true; setColMin(parseFloat(scaleSlider.value)); });
+  // Public-facing setter (used by the 2-up default below) — takes a target
+  // pixel value and converts it through the curve to the matching position.
+  function setColMin(px) {
+    applyPos(colMinToPos(px));
+  }
+
+  // The slider's ceiling in real pixels always tracks the pane's live
+  // width, recalculated on resize — but the *position* stays put when it
+  // changes, rather than clamping colMin against the new ceiling. That
+  // way resizing the window preserves "roughly how zoomed in you were,"
+  // instead of yanking the thumb to the end the moment the ceiling shrinks
+  // past the old pixel value.
+  function updateSliderMax() {
+    const w = viewport.clientWidth;
+    if (!w) return;
+    const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--ga-gap')) || 6;
+    const usable = Math.round(w - gap * 2);
+    colCeil = Math.max(COL_FLOOR + 160, usable + 4); // +4 so the very end reliably collapses to 1 column, not just barely 2
+    applyPos(pos);
+  }
+
+  updateSliderMax();
+  applyPos(0);
+  if (scaleSlider) scaleSlider.addEventListener('input', () => {
+    userAdjustedGrid = true;
+    applyPos(parseFloat(scaleSlider.value) / 1000);
+  });
   const gaView = document.getElementById('view-generalassembly');
   (gaView || viewport).addEventListener('wheel', e => {
     if (!e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
     userAdjustedGrid = true;
-    setColMin(colMin + (e.deltaY < 0 ? 48 : -48));
+    applyPos(pos + (e.deltaY < 0 ? 0.03 : -0.03));
   }, { passive: false });
 
   // ── Default to 2-up, on any screen size ──────────────────────────────
@@ -6584,6 +6642,7 @@ function initAllNarrativeParticles(container) {
       let pct = ((e.clientX - rect.left) / rect.width) * 100;
       pct = Math.max(35, Math.min(82, pct));
       splitEl.style.setProperty('--ga-split', pct + '%');
+      updateSliderMax();
     });
     function endSplitDrag(e) {
       if (!splitDragging) return;
@@ -6599,12 +6658,16 @@ function initAllNarrativeParticles(container) {
 
   // Recompute the 2-up default on resize too (e.g. rotating a phone, or
   // resizing a desktop window) — but only until the person has actually
-  // touched the grid controls themselves.
+  // touched the grid controls themselves. The slider's ceiling, on the
+  // other hand, always tracks the pane's live width regardless of that —
+  // it's the track's own geometry, not a content default being overridden.
   window.addEventListener('resize', () => {
+    updateSliderMax();
     if (!userAdjustedGrid && currentView === 'generalassembly') applyTwoUpDefault();
   });
 
   window._gaOnShow = function () {
+    updateSliderMax();
     if (!userAdjustedGrid) applyTwoUpDefault();
   };
 })();
