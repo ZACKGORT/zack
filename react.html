@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>a single-prompt react prototype</title>
+<meta name="description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Zack Gort — Wolfgang &amp; Co." />
+<meta property="og:description" content="Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+<meta property="og:url" content="https://zack.cx/" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Zack Gort — Wolfgang &amp; Co." />
+<meta name="twitter:description" content="Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,wght@0,400..900;1,400..900&family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;1,500&family=Space+Grotesk:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0b0b0a;
+    --bg-alt:#141412;
+    --paper:#f3f1ea;
+    --fg:#f3f1ea;
+    --fg-dim:#9c9a90;
+    --fg-dimmer:#6b6a62;
+    --line:rgba(243,241,234,0.14);
+    --line-strong:rgba(243,241,234,0.34);
+    --signal:#b7402c;
+    --f-display:'Anton',sans-serif;
+    --f-bebas:'Bebas Neue',sans-serif;
+    --f-serif:'DM Serif Display',serif;
+    --f-fraunces:'Fraunces',serif;
+    --f-playfair:'Playfair Display',serif;
+    --f-syne:'Syne',sans-serif;
+    --f-ui:'Space Grotesk',sans-serif;
+    --f-sub:'Outfit',sans-serif;
+    --f-mono:'DM Mono',monospace;
+    --f-body:'Inter',sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  html{background:var(--bg);}
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family:var(--f-body);
+    font-size:15px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    cursor:none;
+    overflow-x:hidden;
+  }
+  img{max-width:100%;display:block;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;background:none;border:none;color:inherit;cursor:none;padding:0;}
+  ul{list-style:none;margin:0;padding:0;}
+  input[type=range]{cursor:none;}
+  h1,h2,h3,h4,p{margin:0;}
+  :focus-visible{outline:1px solid var(--fg);outline-offset:3px;}
+  ::selection{background:var(--fg);color:var(--bg);}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important;transition-duration:0.001ms !important;}
+  }
+
+  /* ---------- custom cursor ---------- */
+  .cursor-dot{
+    position:fixed;top:0;left:0;width:8px;height:8px;background:var(--fg);
+    pointer-events:none;z-index:10000;transform:translate(-50%,-50%);
+    transition:width .15s ease,height .15s ease,background .15s ease,border .15s ease;
+    mix-blend-mode:difference;
+  }
+  .cursor-dot.is-big{width:34px;height:34px;background:transparent;border:1px solid var(--fg);}
+
+  /* ---------- layout shell ---------- */
+  .app{min-height:100vh;display:flex;flex-direction:column;}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 32px;}
+  @media (max-width:760px){.wrap{padding:0 18px;}}
+
+  .eyebrow{
+    font-family:var(--f-syne);font-weight:700;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--fg-dim);
+  }
+
+  /* ---------- top nav ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:400;background:rgba(11,11,10,0.86);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  }
+  .topbar-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 0;gap:24px;
+  }
+  .logo-mark{
+    font-family:var(--f-bebas);font-size:22px;letter-spacing:.06em;
+    border:1px solid var(--line-strong);padding:4px 10px;line-height:1;
+  }
+  .nav-right{display:flex;align-items:center;gap:20px;}
+  .nav-linkedin{font-family:var(--f-mono);font-size:12px;color:var(--fg-dim);border-bottom:1px solid transparent;}
+  .nav-linkedin:hover{color:var(--fg);border-color:var(--fg-dim);}
+
+  .dock{display:flex;gap:2px;background:var(--bg-alt);border:1px solid var(--line);padding:4px;}
+  .dock-item{
+    font-family:var(--f-ui);font-weight:500;font-size:13px;padding:8px 16px;
+    color:var(--fg-dim);transition:transform .18s cubic-bezier(.2,.9,.3,1.4),color .15s ease,background .15s ease;
+    white-space:nowrap;
+  }
+  .dock-item:hover{color:var(--fg);}
+  .dock-item.is-active{color:var(--bg);background:var(--fg);}
+
+  .breadcrumb-row{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:10px 0;border-top:1px solid var(--line);font-family:var(--f-mono);
+    font-size:12px;color:var(--fg-dim);flex-wrap:wrap;
+  }
+  .breadcrumb-toggle{display:flex;border:1px solid var(--line-strong);}
+  .breadcrumb-toggle button{padding:5px 12px;font-family:var(--f-mono);font-size:11px;color:var(--fg-dim);}
+  .breadcrumb-toggle button.is-active{background:var(--fg);color:var(--bg);}
+
+  /* ---------- specular button ---------- */
+  .specular-btn{
+    position:relative;display:inline-flex;align-items:center;gap:8px;
+    border:1px solid var(--fg);padding:10px 18px;font-family:var(--f-ui);
+    font-weight:500;font-size:13px;overflow:hidden;isolation:isolate;
+  }
+  .specular-btn::before{
+    content:"";position:absolute;inset:0;z-index:-1;
+    background:radial-gradient(120px circle at var(--sx,50%) var(--sy,50%), rgba(243,241,234,0.9), transparent 60%);
+    opacity:0;transition:opacity .25s ease;
+  }
+  .specular-btn:hover::before{opacity:1;}
+  .specular-btn:hover{color:var(--bg);}
+  .specular-btn span{position:relative;z-index:1;}
+  .specular-btn.ghost{border-color:var(--line-strong);}
+
+  /* ---------- page wipe ---------- */
+  .page-wipe{
+    position:fixed;inset:0;background:var(--fg);z-index:9000;transform:scaleY(0);
+    transform-origin:bottom;pointer-events:none;
+  }
+  .page-wipe.is-active{animation:wipe .7s cubic-bezier(.76,0,.24,1) both;}
+  @keyframes wipe{
+    0%{transform:scaleY(0);transform-origin:bottom;}
+    45%{transform:scaleY(1);transform-origin:bottom;}
+    55%{transform:scaleY(1);transform-origin:top;}
+    100%{transform:scaleY(0);transform-origin:top;}
+  }
+
+  /* ---------- particle hero ---------- */
+  .hero{position:relative;height:46vh;min-height:320px;border-bottom:1px solid var(--line);}
+  .particle-hero{width:100%;height:100%;display:block;}
+  .hero-caption{
+    position:absolute;left:32px;bottom:16px;font-family:var(--f-mono);
+    font-size:11px;color:var(--fg-dimmer);letter-spacing:.08em;
+  }
+
+  /* ---------- footer ---------- */
+  .site-footer{
+    margin-top:auto;border-top:1px solid var(--line);padding:28px 0;
+    font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;
+  }
+
+  .back-to-top{
+    position:fixed;right:24px;bottom:24px;z-index:500;border:1px solid var(--line-strong);
+    background:var(--bg);padding:10px 14px;font-family:var(--f-mono);font-size:11px;
+    opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .3s ease,transform .3s ease;
+  }
+  .back-to-top.is-visible{opacity:1;transform:translateY(0);pointer-events:auto;}
+
+  /* ================= WORK / INDEX ================= */
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:56px 0 20px;flex-wrap:wrap;}
+  .section-title{font-family:var(--f-syne);font-weight:800;font-size:13px;letter-spacing:.14em;text-transform:uppercase;}
+
+  .toolbar{
+    display:flex;flex-wrap:wrap;gap:22px;align-items:center;padding:14px 0;
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:18px;
+  }
+  .toolbar-group{display:flex;align-items:center;gap:10px;}
+  .toolbar-label{font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);text-transform:uppercase;letter-spacing:.08em;}
+  .seg{display:flex;border:1px solid var(--line-strong);}
+  .seg button{padding:6px 11px;font-family:var(--f-mono);font-size:11px;color:var(--fg-dim);}
+  .seg button.is-active{background:var(--fg);color:var(--bg);}
+  .toolbar-reset{font-family:var(--f-mono);font-size:11px;color:var(--fg-dim);border-bottom:1px dashed var(--fg-dimmer);}
+  .toolbar-reset:hover{color:var(--fg);}
+
+  .elastic-slider{display:flex;align-items:center;gap:10px;}
+  .es-label{font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;}
+  .elastic-slider input[type=range]{
+    -webkit-appearance:none;appearance:none;width:120px;height:1px;background:var(--line-strong);
+  }
+  .elastic-slider input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:12px;height:12px;background:var(--fg);border-radius:50%;
+    transition:transform .35s cubic-bezier(.34,1.9,.4,1.1);
+  }
+  .elastic-slider input.is-dragging[type=range]::-webkit-slider-thumb{transform:scale(1.9);}
+  .elastic-slider input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--fg);border:none;border-radius:50%;}
+
+  .option-wheel{position:relative;}
+  .ow-trigger{font-family:var(--f-mono);font-size:11px;color:var(--fg-dim);border:1px solid var(--line-strong);padding:6px 11px;}
+  .ow-trigger b{color:var(--fg);font-weight:500;}
+  .ow-ring{position:absolute;top:50%;left:50%;width:0;height:0;z-index:50;}
+  .ow-opt{
+    position:absolute;top:0;left:0;transform-origin:center;width:64px;height:26px;margin-left:-32px;margin-top:-13px;
+    background:var(--bg);border:1px solid var(--line-strong);font-family:var(--f-mono);font-size:10px;
+    display:flex;align-items:center;justify-content:center;transition:background .15s ease,color .15s ease;
+  }
+  .ow-opt:hover,.ow-opt.is-active{background:var(--fg);color:var(--bg);}
+
+  .case-rows{display:flex;flex-direction:column;gap:1px;background:var(--line);}
+  .case-rows.is-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;}
+  .tilted-card{
+    background:var(--bg);padding:26px 28px;display:grid;grid-template-columns:56px 1fr auto;gap:22px;align-items:center;
+    will-change:transform;transition:transform .12s ease-out;
+  }
+  .tilted-card:hover{background:var(--bg-alt);}
+  .tc-num{font-family:var(--f-mono);font-size:12px;color:var(--fg-dimmer);}
+  .tc-headline{font-family:var(--f-fraunces);font-weight:600;font-size:clamp(18px,2.4vw,26px);line-height:1.2;}
+  .tc-sub{font-family:var(--f-sub);font-size:13px;color:var(--fg-dim);margin-top:6px;max-width:60ch;}
+  .tc-meta{text-align:right;font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);white-space:nowrap;}
+  .tc-tag{display:block;color:var(--fg-dim);margin-bottom:4px;}
+  @media (max-width:700px){
+    .tilted-card{grid-template-columns:1fr;gap:8px;}
+    .tc-meta{text-align:left;}
+    .case-rows.is-grid{grid-template-columns:1fr;}
+  }
+
+  .archive-row{margin-bottom:34px;}
+  .archive-row-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .archive-row-title{font-family:var(--f-ui);font-weight:600;font-size:14px;}
+  .archive-row-tag{font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);text-transform:uppercase;}
+  .circular-gallery{
+    display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory;
+  }
+  .circular-gallery::-webkit-scrollbar{height:4px;}
+  .circular-gallery::-webkit-scrollbar-thumb{background:var(--line-strong);}
+  .cg-item{flex:0 0 auto;width:150px;height:100px;scroll-snap-align:start;overflow:hidden;filter:grayscale(0.5) brightness(0.85);transition:filter .25s ease,transform .25s ease;}
+  .cg-item:hover{filter:grayscale(0) brightness(1);transform:scale(1.03);}
+  .cg-item img{width:100%;height:100%;object-fit:cover;}
+
+  .animated-list{display:flex;flex-direction:column;gap:1px;background:var(--line);}
+  .al-item{
+    background:var(--bg);padding:22px 26px;opacity:0;transform:translateY(16px);
+    transition:opacity .6s ease,transform .6s ease;
+  }
+  .al-item.is-visible{opacity:1;transform:translateY(0);}
+  .testi-quote{font-family:var(--f-playfair);font-style:italic;font-size:17px;line-height:1.5;max-width:70ch;}
+  .testi-name{font-family:var(--f-ui);font-weight:600;font-size:13px;margin-top:12px;}
+  .testi-role{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);margin-top:2px;}
+
+  .career-cta{margin:64px 0 40px;padding:30px 0;border-top:1px solid var(--line);}
+  .career-cta-label{font-family:var(--f-mono);font-size:11px;color:var(--fg-dim);margin-bottom:10px;}
+  .career-cta-link{font-family:var(--f-serif);font-style:italic;font-size:19px;line-height:1.45;display:inline-block;border-bottom:1px solid var(--line-strong);}
+  .career-cta-link:hover{border-color:var(--fg);}
+
+  /* ================= CASE STUDY DETAIL ================= */
+  .cs-credit{font-family:var(--f-mono);font-size:12px;color:var(--fg-dim);padding:22px 0;border-bottom:1px solid var(--line);}
+  .cs-deliverables{display:flex;flex-wrap:wrap;gap:10px;padding:22px 0;border-bottom:1px solid var(--line);}
+  .cs-deliverables span{
+    font-family:var(--f-sub);font-size:calc(12px + var(--i,0)*3px);color:var(--fg-dim);
+  }
+  .glyph-strip{
+    font-family:var(--f-display);font-size:clamp(30px,7vw,86px);letter-spacing:.02em;
+    padding:20px 0;border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;color:var(--fg-dimmer);
+  }
+  .cs-head{padding:44px 0;border-bottom:1px solid var(--line);}
+  .cs-headline{font-family:var(--f-fraunces);font-weight:600;font-size:clamp(28px,5vw,54px);line-height:1.08;max-width:16ch;}
+  .cs-subhead{font-family:var(--f-sub);font-size:16px;color:var(--fg-dim);margin-top:18px;max-width:62ch;line-height:1.6;}
+  .cs-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:24px;padding:30px 0;border-bottom:1px solid var(--line);}
+  .cs-detail-k{font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+  .cs-detail-v{font-family:var(--f-ui);font-size:14px;}
+  .cs-gallery{padding:30px 0;border-bottom:1px solid var(--line);}
+  .cs-extra-note{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);padding:20px 0;border-bottom:1px solid var(--line);}
+  .cs-closer{font-family:var(--f-playfair);font-style:italic;font-size:20px;line-height:1.6;max-width:60ch;padding:40px 0;}
+  .cs-footer-nav{display:flex;justify-content:space-between;padding:26px 0;border-top:1px solid var(--line);gap:12px;flex-wrap:wrap;}
+
+  /* ================= LIFE / CONTRACTS ================= */
+  .life-layout{display:grid;grid-template-columns:230px 1fr;gap:48px;padding-top:36px;}
+  @media (max-width:860px){.life-layout{grid-template-columns:1fr;}}
+  .line-sidebar{position:sticky;top:96px;align-self:start;max-height:80vh;overflow:auto;padding-right:8px;}
+  @media (max-width:860px){
+    .line-sidebar{position:static;display:flex;overflow-x:auto;gap:2px;max-height:none;margin-bottom:24px;padding-bottom:8px;}
+  }
+  .ls-item{
+    display:flex;align-items:center;gap:10px;padding:9px 4px;text-align:left;width:100%;
+    border-left:1px solid var(--line);padding-left:14px;
+  }
+  @media (max-width:860px){.ls-item{border-left:none;border-bottom:2px solid var(--line);white-space:nowrap;}}
+  .ls-item.is-active{border-left-color:var(--fg);color:var(--fg);}
+  @media (max-width:860px){.ls-item.is-active{border-bottom-color:var(--fg);}}
+  .ls-item:not(.is-active){color:var(--fg-dimmer);}
+  .ls-label{font-family:var(--f-mono);font-size:11px;}
+  .life-opener{font-family:var(--f-playfair);font-style:italic;font-size:22px;padding-bottom:30px;border-bottom:1px solid var(--line);margin-bottom:10px;}
+  .chapter{padding:38px 0;border-bottom:1px solid var(--line);scroll-margin-top:120px;}
+  .chapter-num{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);}
+  .chapter-title{font-family:var(--f-fraunces);font-weight:600;font-size:clamp(22px,3vw,34px);margin-top:6px;}
+  .chapter-sub{font-family:var(--f-sub);font-size:13px;color:var(--fg-dim);margin-top:8px;}
+  .chapter-body{font-family:var(--f-body);font-size:15px;line-height:1.75;color:#d8d6cd;margin-top:16px;max-width:70ch;}
+
+  /* ================= BALANCE ================= */
+  .balance-head{padding:40px 0 20px;}
+  .balance-title{font-family:var(--f-display);font-size:clamp(36px,7vw,80px);line-height:1;}
+  .balance-sub{font-family:var(--f-sub);font-size:14px;color:var(--fg-dim);margin-top:10px;}
+  .balance-split{display:flex;gap:0;align-items:flex-start;}
+  .balance-gallery-pane{overflow:hidden;}
+  .balance-divider{
+    width:14px;flex:0 0 auto;cursor:none;position:relative;align-self:stretch;
+  }
+  .balance-divider::before{
+    content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line-strong);
+  }
+  .balance-essay-pane{overflow:hidden;}
+  @media (max-width:860px){
+    .balance-split{flex-direction:column;}
+    .balance-divider{display:none;}
+    .balance-gallery-pane,.balance-essay-pane{width:100% !important;}
+  }
+  .masonry{width:100%;}
+  .masonry-item{break-inside:avoid;overflow:hidden;margin-bottom:0;filter:grayscale(.35);transition:filter .25s ease,transform .25s ease;}
+  .masonry-item:hover{filter:grayscale(0);}
+  .masonry-item img{width:100%;display:block;}
+  .essay-section{padding:26px 0;border-bottom:1px solid var(--line);}
+  .essay-num{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);}
+  .essay-headline{font-family:var(--f-serif);font-size:19px;line-height:1.4;margin-top:8px;}
+  .essay-summary{font-family:var(--f-body);font-size:13.5px;color:var(--fg-dim);line-height:1.65;margin-top:10px;}
+  .photo-modal{
+    position:fixed;inset:0;background:rgba(11,11,10,0.92);z-index:2000;display:flex;
+    align-items:center;justify-content:center;padding:40px;
+  }
+  .photo-modal-card{background:var(--paper);color:#111;padding:18px 18px 26px;max-width:640px;width:100%;}
+  .photo-modal-card img{width:100%;filter:none;}
+  .photo-modal-cap{font-family:var(--f-mono);font-size:11px;margin-top:14px;color:#555;}
+
+  /* ================= JOURNAL / ABOUT ================= */
+  .journal-layout{display:grid;grid-template-columns:280px 1fr;gap:48px;padding-top:36px;}
+  @media (max-width:860px){.journal-layout{grid-template-columns:1fr;}}
+  .flowing-menu{border-top:1px solid var(--line);}
+  .fm-item{position:relative;border-bottom:1px solid var(--line);padding:16px 4px;overflow:hidden;}
+  .fm-kicker{display:block;font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);letter-spacing:.08em;}
+  .fm-name{display:block;font-family:var(--f-display);font-size:26px;margin-top:4px;letter-spacing:.02em;}
+  .fm-item.is-active .fm-name,.fm-item:hover .fm-name{color:var(--signal);}
+  .fm-marquee{
+    display:block;font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:6px;
+  }
+  .letter-panel{padding-top:4px;}
+  .letter-kicker{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);}
+  .letter-name{font-family:var(--f-syne);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.1em;margin-top:8px;}
+  .letter-h1{font-family:var(--f-display);font-size:clamp(40px,8vw,96px);line-height:.98;margin-top:10px;}
+  .letter-deck{font-family:var(--f-serif);font-style:italic;font-size:18px;color:var(--fg-dim);margin-top:16px;max-width:60ch;}
+  .letter-body{margin-top:32px;}
+
+  .bio-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:16px;}
+  @media (max-width:700px){.bio-grid{grid-template-columns:1fr;}}
+  .bio-p{font-family:var(--f-body);font-size:14.5px;line-height:1.75;color:#d8d6cd;margin-bottom:14px;}
+  .contact-k{font-family:var(--f-mono);font-size:10px;color:var(--fg-dimmer);text-transform:uppercase;margin-top:16px;}
+  .contact-v{font-family:var(--f-ui);font-size:14px;margin-top:4px;}
+
+  .timeline-item{position:relative;}
+  .timeline-row{display:flex;gap:18px;align-items:baseline;cursor:none;}
+  .timeline-year{font-family:var(--f-mono);font-size:12px;color:var(--fg-dimmer);width:110px;flex:0 0 auto;}
+  .timeline-role{font-family:var(--f-ui);font-size:14px;}
+  .timeline-tip{
+    max-height:0;overflow:hidden;font-family:var(--f-body);font-size:13px;color:var(--fg-dim);
+    padding-left:128px;transition:max-height .3s ease,padding .3s ease;line-height:1.6;
+  }
+  .timeline-item:hover .timeline-tip,.timeline-item:focus-within .timeline-tip{max-height:120px;padding-top:8px;padding-bottom:2px;}
+
+  .accordion-item{border-bottom:1px solid var(--line);}
+  .accordion-trigger{
+    display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;
+    padding:16px 2px;font-family:var(--f-ui);font-weight:500;font-size:14.5px;
+  }
+  .accordion-trigger .plus{font-family:var(--f-mono);color:var(--fg-dimmer);}
+  .accordion-body{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+  .accordion-body.is-open{max-height:400px;}
+  .accordion-body-inner{padding:0 2px 18px;font-family:var(--f-body);font-size:13.5px;color:var(--fg-dim);line-height:1.7;}
+
+  .checklist{margin-top:10px;}
+  .checklist-item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);}
+  .checklist-box{width:14px;height:14px;border:1px solid var(--fg-dim);flex:0 0 auto;margin-top:3px;position:relative;}
+  .checklist-box.is-checked{background:var(--fg);}
+  .checklist-box.is-checked::after{content:"";position:absolute;inset:3px;background:var(--bg);}
+  .checklist-text{font-family:var(--f-ui);font-size:14px;}
+  .checklist-text.is-checked{color:var(--fg-dimmer);text-decoration:line-through;}
+
+  .confess-toggle{display:flex;gap:8px;margin:14px 0 6px;}
+  .confess-list{margin-top:10px;}
+  .confess-item{padding:10px 0;border-bottom:1px solid var(--line);font-family:var(--f-body);font-size:14px;display:flex;gap:10px;}
+  .confess-marker{font-family:var(--f-mono);color:var(--fg-dimmer);}
+  .letter-closing{font-family:var(--f-mono);font-size:11px;color:var(--fg-dimmer);margin-top:40px;padding-top:20px;border-top:1px solid var(--line);}
+
+  .fade-in{animation:fadeIn .5s ease both;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.7/babel.min.js" crossorigin></script>
+
+<script type="text/babel" data-presets="react" data-type="module">
+const { useState, useEffect, useRef, useMemo } = React;
+
+/* =========================================================================
+   DATA — pulled from the site content inventory
+   ========================================================================= */
+
+const NAV_ITEMS = [
+  { id: "index", label: "Work" },
+  { id: "contracts", label: "Life" },
+  { id: "generalassembly", label: "Balance" },
+  { id: "about", label: "Journal" },
+];
+
+const CASE_STUDIES = [
+  {
+    id: "bny", num: 1,
+    headline: `BNY Mellon — Pershing X`,
+    sub: `As the zero-to-one thinker that ultimately produced → Wove — Integrated Wealth Management Platform for Advisors`,
+    tag: `Enterprise UX · Design Systems`, year: `2022–23`,
+    credit: `Zack Gort · Publicis Sapient · 2022–23 · ← Principal UX Lead`,
+    specimen: `BNY Mellon —Pershing X / Financial Advisory Platform`,
+    subhead: `NBD — just the most sophisticated work of my career. De facto Team Lead and Product Owner on the Direct Indexing workstream, shipping a unified advisor dashboard for one of the most complex platforms in finance.`,
+    client: `BNY Mellon / Pershing X`, agency: `Publicis Sapient`, category: `Enterprise UX`, statusExtra: `Shipped · Live · NDA-safe content only`,
+    galleryCount: 20, figma: 2, video: true,
+    closer: `This is NBD — just the most sophisticated work of my career. The contract extension speaks for itself; the product is shipped and it is live.`,
+  },
+  {
+    id: "gnc", num: 2,
+    headline: `"if the bar ain't bending, you just pretending"`,
+    sub: `— my neighbor from Fairmount, PHI, wheying in.`,
+    tag: `E-Commerce UX`, year: `2021`,
+    credit: `Zack Gort · Elva Design Group · 2021 · ← Lead UX Designer`,
+    specimen: `this is / the whey`,
+    subhead: `Post-bankruptcy, every UX decision carried real weight. Mobile-first navigation designed bold enough to feel like a genuine rebrand — GNC went from bankruptcy to $500M/year within five years.`,
+    client: `GNC`, agency: `Elva Design Group`, category: `E-Commerce UX`, statusExtra: `Shipped · Live · Post-Bankruptcy Rebrand`,
+    galleryCount: 20, figma: 1, video: false,
+    closer: `Post-bankruptcy, every UX decision carried real weight. This one carried it well.`,
+  },
+  {
+    id: "hardinge", num: 3,
+    headline: `Designed a navigation system where we didn't throw everything but the kitchen sink...`,
+    sub: `B2B E-Commerce · PFSweb, LiveArea · Manager, UX (Aquasana, Simpson Strong-Tie, Hardinge)`,
+    tag: `B2B E-Commerce`, year: `2020–2021`,
+    credit: `Zack Gort · LiveArea · 2020–2021 · ← UX Manager`,
+    specimen: `Hardly / broke a sweat.`,
+    subhead: `Board-level pressure. A 0-1 Salesforce Commerce build for a B2B titan, shipped without the scope creep everyone expected.`,
+    client: `Hardinge Inc.`, agency: `LiveArea`, category: `B2B E-Commerce`, statusExtra: `Shipped · Board-Level visibility`,
+    galleryCount: 10, figma: 0, video: false,
+    closer: `Board-level pressure, kitchen-sink instincts resisted. Hardly broke a sweat.`,
+  },
+  {
+    id: "kent", num: 4,
+    headline: `1 S BROAD, FLOOR 9 — a premiere full-service agency.`,
+    sub: `that went from #artdeco office vibes with city hall traffic vying for our clients' conversational time`,
+    tag: `IA + Navigation`, year: `2016`,
+    credit: `Zack Gort · 160over90 · 2016 · ← Interaction Designer`,
+    specimen: `Eight regional campuses, dozens of international locations, multiple internal entities with unique priorities.`,
+    subhead: `A .EDU overhaul at real institutional scale — colorful to boot (WCAG 2.0 compliant) #bet.`,
+    client: `Kent State University`, agency: `160over90`, category: `IA + Navigation`, statusExtra: `8 Campuses + International`,
+    galleryCount: 12, figma: 0, video: false,
+    closer: `Eight campuses, one navigation system, zero excuses on accessibility.`,
+  },
+  {
+    id: "dana", num: 5,
+    headline: `PHI ↔ NYC; Pharma, Philanthropic, E-commerce; Midtown, Ramen`,
+    sub: `Frankly, this was a good-faith $20K project... (Antonio, hand-coded, 2-week timeline)`,
+    tag: `Non-profit Digital`, year: `2018`,
+    credit: `Zack Gort · FlightPath NYC · 2018 · ← Senior UX Designer`,
+    specimen: `a design system / for the Dana Foundation`,
+    subhead: `A decade without a refresh. A near 1:1 desktop-to-mobile experience was critical. Two brands, one card system.`,
+    client: `Dana Foundation`, agency: `FlightPath NYC`, category: `Non-profit Digital`, statusExtra: `Brands: dana.org + BAW · Bespoke Logo System`,
+    galleryCount: 15, figma: 0, video: false,
+    closer: `A decade without a refresh, closed out in two weeks of hand-coded good faith.`,
+  },
+  {
+    id: "power", num: 6,
+    headline: `"Power is a _____ company." Fill in the blank.`,
+    sub: `We gave them a whole bunch of sentences. Campaign & Digital Experience · Video, Animation, Lifestyle Photography · 160over90`,
+    tag: `Brand Campaign`, year: `2015`,
+    credit: `Zack Gort · 160over90 · 2015 · ← Designer`,
+    specimen: `"Power is a / _____ company."`,
+    subhead: `Rather than a singular brand statement, the blank becomes a canvas — five primary deliverables built around a fill-in-the-blank campaign.`,
+    client: `Power Home Remodeling Group`, agency: `160over90`, category: `Brand Campaign`, statusExtra: `5 Primary deliverables`,
+    galleryCount: 5, figma: 0, video: false,
+    closer: `The blank stayed a canvas. Everyone filled it differently, and that was the point.`,
+  },
+  {
+    id: "wovn", num: 7,
+    headline: `Millions of dollars of merchandise, shipped to a fanatical fanbase — derr, userbase.`,
+    sub: `AmericanMuscle.com · Full-Funnel E-Commerce UX + Product Photography + Raxiom Brand · Turn5 Inc.`,
+    tag: `E-Commerce`, year: `2011`,
+    credit: `Zack Gort · Turn5 Inc. · 2007–2011 · ← Web Designer · UX`,
+    specimen: `Full Throttle. / Homepage to Doorstep.`,
+    subhead: `It's a ton of fun to focus your efforts on a single product vertical when the fanbase is this fanatical — full-funnel e-commerce UX, product photography, and the Raxiom brand build.`,
+    client: `Turn5 Inc.`, agency: `—`, category: `E-Commerce · High-Volume Retail`, statusExtra: `Includes: Raxiom Brand + Photography`,
+    galleryCount: 19, figma: 0, video: false,
+    closer: `Homepage to doorstep, full throttle the whole way.`,
+  },
+];
+
+const ARCHIVE_ROWS = [
+  { title: `BNY Mellon — Pershing X`, tag: `Enterprise UX · Design Systems`, count: 8, seed: `bny` },
+  { title: `GNC — Shopify Plus Redesign`, tag: `E-Commerce UX`, count: 8, seed: `gnc` },
+  { title: `Hardinge — B2B SAP Hybris`, tag: `B2B E-Commerce`, count: 8, seed: `hardinge` },
+  { title: `Kent State — .EDU Overhaul`, tag: `IA + Navigation`, count: 8, seed: `kent` },
+  { title: `The Dana Foundation`, tag: `Non-profit Digital`, count: 8, seed: `dana` },
+  { title: `Power Home Remodeling`, tag: `Brand Campaign`, count: 6, seed: `power` },
+  { title: `AmericanMuscle.com`, tag: `E-Commerce`, count: 8, seed: `wovn` },
+];
+
+const TESTIMONIALS = [
+  {
+    quote: `Zack is reliable, creative, and deeply team-oriented — the kind of designer you want in the room when the deadline is real.`,
+    name: `Andrés Moros ↗`, role: `Senior Product & UX Designer · ExxonMobil · M.P.S. in UX Design`,
+    ctx: `April 2023 · worked with Zack on the same team`,
+  },
+  {
+    quote: `He brought empathy and a genuinely fresh perspective to every review — the rare collaborator who makes the whole team's work better.`,
+    name: `Christopher Bayle ↗`, role: `Creative Director, Experience Design · American Express`,
+    ctx: `April 2023 · worked with Zack on the same team`,
+  },
+];
+
+const CAREER_TIMELINE = [
+  { years: `2022-2023`, role: `Publicis Sapient — BNY Mellon / Pershing X`, detail: `Principal UX Lead on the Direct Indexing workstream. De facto Team Lead and Product Owner. Contract extension secured. Product shipped and is live.` },
+  { years: `2021`, role: `Elva Design Group — GNC, Shopify Plus`, detail: `Principal UX Designer owning discovery/research on the Shopify Plus redesign. GNC went from bankruptcy to $500M/year within five years.` },
+  { years: `2021`, role: `Code & Theory — TikTok For Business`, detail: `Senior UX Designer / Acting ACD, content strategy + headless CMS architecture for a new ByteDance business initiative.` },
+  { years: `2021`, role: `Huge — UX Designer (Contract)`, detail: `Contributing IA and user-flow prototypes/studies.` },
+  { years: `2020-2021`, role: `PFSweb, LiveArea — UX Manager`, detail: `UX Manager across enterprise retail accounts: Hardinge, Simpson Strong-Tie, Aquasana, Yeti, West Marine.` },
+  { years: `2018–2020`, role: `FlightPath {PHI~NYC} — Pharma & Philanthropy`, detail: `Merck, Vetsulin, pharma and philanthropic: Dana Foundation.` },
+  { years: `2017–18`, role: `WebLinc / Workarea — SaaS E-Commerce`, detail: `Agile/scrum dev-shop. SaaS e-commerce platform. UX writer/designer embedded in product development.` },
+  { years: `2016–17`, role: `O3 World — WOVN iOS`, detail: `Agile/scrum dev-shop. iOS product design for WOVN.` },
+  { years: `2014–16`, role: `160over90 — .EDU & Brand`, detail: `Embedded interactive designer across all agency branches. .EDU-focused: Kent State, UW-Madison, Comcast.` },
+  { years: `2011–14`, role: `Leadnomics — Design by Data`, detail: `Lead generation, finance, health. Design-by-data culture at an early-stage startup.` },
+  { years: `2007–11`, role: `Turn5 / Bootstrap Startup: E-commerce`, detail: `Email/display ad marketing, UI+UX for multi-vertical e-commerce, product photography, catalog, packaging, print.` },
+];
+
+const LIFE_CHAPTERS = [
+  { num: null, title: `Work`, sub: `"If you love what you do, you'll never work a day in your life."`, body: `That's the line this whole chapter runs on — not because it's true every day, but because it's true enough of them.` },
+  { num: 1, title: `Hi, I'm Zack`, sub: ``, body: `An intro without a date range, because this one's still open-ended. Designer, code-native, left-handed, self-automated autodidact — the rest of these chapters explain how that happened.` },
+  { num: 2, title: `The Impetus`, sub: `Circa, 2007–2008`, body: `The moment the decision got made — not gracefully, not with a plan, but made all the same.` },
+  { num: 3, title: `Art School "Stop Out"`, sub: `Pratt Institute of Art, Brooklyn — Circa, 2002–03; 2004–05`, body: `Stop-out, not drop-out. Two stints at Pratt that shaped how I think about form long after I stopped paying tuition for it.` },
+  { num: 4, title: `Doings of an Autodidact`, sub: `Pennsylvania suburbia — Circa, 2002–03; 2004–05`, body: `What you learn when nobody's teaching you and the internet is still slow enough to make you patient.` },
+  { num: 5, title: `Found On Road Designing`, sub: `Omni-channel, Multi-vertical E-commerce Startup — Circa, 2008–11`, body: `Email/display ad marketing, UI+UX for multi-vertical e-commerce, product photography, catalog, packaging, print — Turn5, where the bootstrap taught more than any course could.` },
+  { num: 6, title: `Design by Data`, sub: `Lead Generation Startup — Circa, 2011–14`, body: `Leadnomics. Lead generation, finance, health — a design-by-data culture at an early-stage startup, before "data-informed design" was a phrase anyone used in interviews.` },
+  { num: 7, title: `Enter #AgencyLife`, sub: `One Sixty Over Ninety, an Advertising & Branding Agency — Circa, 2014–2016`, body: `Embedded interactive designer across all agency branches. .EDU-focused: Kent State, UW-Madison, Comcast — and the start of learning how a brand campaign actually gets built.` },
+  { num: 8, title: `Gaining XP in UX`, sub: `O3 World, a digital product shop in Fishtown, Philly — Circa, 2017–18`, body: `Agile/scrum dev-shop. iOS product design for WOVN — the first time "UX" was the literal job title.` },
+  { num: 9, title: `Life at Workarea`, sub: `SaaS E-commerce Platform based in Olde City, PHI — Circa, 2017–18`, body: `UX writer/designer embedded in product development for a SaaS e-commerce platform. Different muscle than agency work — and a necessary one.` },
+  { num: 10, title: `PHI > NYC; Rinse and Repeat`, sub: `Foot-in-the-door to the NYC agency scene — Circa 2018–2019`, body: `PHI to NYC, pharma to philanthropy to e-commerce, Midtown to ramen. FlightPath, and the start of a commute that taught patience twice a day.` },
+  { num: 11, title: `Cards Against Bad UX`, sub: `PFSweb, LiveArea {Pre Merkle Acquisition} — Circa, 2020–21`, body: `UX Manager across enterprise retail accounts — Hardinge, Simpson Strong-Tie, Aquasana, Yeti, West Marine. Board-level pressure, kitchen-sink instincts resisted.` },
+  { num: 12, title: `Small cog, HUGE Wheel`, sub: `Freelance with HUGE Inc. — Circa, 2021`, body: `Contributing IA and user-flow prototypes/studies as a small cog in a considerably larger wheel.` },
+  { num: 13, title: `This is the Whey`, sub: `Boutique West Coast Design Agency specializing in Shopify builds — Circa, 2021`, body: `Elva Design Group, GNC, post-bankruptcy. Every UX decision carried real weight — the bar had to bend, or the whole thing would.` },
+  { num: 14, title: `Long Way to the Top`, sub: `62nd Floor of the World One Trade Center Tower — Circa, 2021`, body: `Code & Theory, TikTok For Business — content strategy and headless CMS architecture, sixty-two floors up, for a business initiative that didn't exist a year earlier.` },
+  { num: 15, title: `#SeizeTheSpace #BonCourage`, sub: `375 Hudson Street, along "Agency Row" — Circa, 2022–2023`, body: `Publicis Sapient, BNY Mellon / Pershing X. De facto Team Lead and Product Owner on Direct Indexing — the most sophisticated work of the career to date.` },
+  { num: 16, title: `Do the Twist!`, sub: `"Independent Contractor" — Circa, 2023–Present`, body: `Wolfgang & Co. — the studio, named for a dog who isn't here to see it, but is all over it anyway.` },
+  { num: 17, title: `Reason & Resolution`, sub: `Setting up for success today — Changing paradigms tomorrow`, body: `Where this is all headed: still shipping, still building, still betting on the sentence as the smallest unit of understanding between a person and a machine.` },
+];
+
+const BALANCE_ESSAY = [
+  { label: `01 — What's actually mine here`, headline: `The photographer is never in the frame. The point of view is the whole point.`, summary: `Almost nothing here is a photo of Zack himself — one exception (his own legs, on a skateboard) is included because it's the instrument that got him to each next moment, not the subject.` },
+  { label: `02 — Candor over composition`, headline: `Nobody in these photos is posing. That's the whole discipline.`, summary: `The moment a subject notices the camera, the photo is "over" — the goal is to shoot before or right at the edge of that.` },
+  { label: `03 — Empathy, briefly`, headline: `You don't get to know someone in one frame. You can still be kind to them in it.`, summary: `A stated rule: no one in these photos is a punchline or a prop; each subject is treated as the main character of their own frame.` },
+  { label: `04 — Irony and happenstance`, headline: `The best ones are always an accident you were ready for.`, summary: `"Candid" here means unplanned, not just unposed — the photo exists because Zack happened to be somewhere, not because he engineered the moment.` },
+];
+
+const BALANCE_PHOTOS = Array.from({ length: 48 }).map((_, i) => ({
+  src: `https://picsum.photos/seed/balance-${i}/${400 + (i % 5) * 30}/${300 + ((i * 7) % 5) * 40}`,
+  id: i,
+}));
+
+const JOURNAL_LETTERS = [
+  {
+    id: "about", kicker: `LETTER 01 · ABOUT`, name: `About`,
+    deck: `Who I am, what I actually do, and why the résumé undersells it.`,
+    h1: `No B.S.`,
+    closing: `Insight · Off The Record`,
+  },
+  {
+    id: "insight", kicker: `LETTER 02 · INSIGHT`, name: `Insight`,
+    deck: `The moments that actually taught me something — none of which ever made it into a case study.`,
+    h1: `Off The Record`,
+    accordions: [
+      { title: `01 …going off the rails on a crazy train`, body: `Setup, call, and fix, merged into one story — because that's usually how it actually happens. The setup goes fine, the call comes in wrong, and the fix has to be faster than the plan ever accounted for.` },
+      { title: `02 From Phenom to Phugazi`, body: `A lesson in the gap between what a platform claims and what it ships — and what you learn designing around that gap in real time.` },
+      { title: `03 Heartrate: 160/90`, body: `Placeholder — the number in the agency's name, and what it actually felt like some weeks.` },
+      { title: `04 Bootstrap Startup`, body: `Placeholder — Turn5, and what it means to design for a company that's building the plane and flying it at once.` },
+      { title: `05 The Early Days`, body: `Placeholder — Pennsylvania suburbia, dial-up patience, and the long way into this career.` },
+    ],
+    closing: `Insight · Off The Record`,
+  },
+  {
+    id: "outlook", kicker: `LETTER 03 · OUTLOOK`, name: `Outlook`,
+    deck: `Where this job is headed, and what's actually worth worrying about.`,
+    h1: `Still Shipping`,
+    accordions: [
+      { title: `01 What AI Actually Took`, body: `Not the job. The busywork around the job — the parts nobody was proud of anyway.` },
+      { title: `02 What's Left`, body: `Judgment, taste, and the willingness to defend a user who isn't in the room. Those don't automate well.` },
+      { title: `03 The Bet`, body: `That the sentence — plain, specific, human-written — stays the smallest unit of understanding between a person and a machine, no matter how the tools change around it.` },
+    ],
+    closing: `Outlook · Where This Is All Headed`,
+  },
+  {
+    id: "manifesto", kicker: `LETTER 04 · MANIFESTO`, name: `Manifesto`,
+    deck: `Five rules I keep even when nobody's checking.`,
+    h1: `The Doctrine`,
+    checklist: [
+      `Don't be an asshole`,
+      `Defend the user`,
+      `Design for intent, not outcomes`,
+      `Only offer three anecdotes in a single serving`,
+      `Stand in. Step up. Step forward.`,
+    ],
+    closing: `Manifesto · The Rules I Actually Keep`,
+  },
+  {
+    id: "confessions", kicker: `LETTER 05 · CONFESSIONS`, name: `Confessions`,
+    deck: `A few admissions, format optional.`,
+    h1: `Never Have I Ever`,
+    confessions: [
+      `Never missed a deadline`,
+      `Never gotten a speeding ticket`,
+      `Never taken a full 30-min lunch`,
+    ],
+    closing: `Confessions · Never Have I Ever`,
+  },
+];
+
+/* =========================================================================
+   UTILITIES / SHARED COMPONENTS
+   ========================================================================= */
+
+function useCustomCursor() {
+  useEffect(() => {
+    const dot = document.createElement("div");
+    dot.className = "cursor-dot";
+    document.body.appendChild(dot);
+    function onMove(e) {
+      dot.style.top = e.clientY + "px";
+      dot.style.left = e.clientX + "px";
+      const el = e.target.closest && e.target.closest("a,button,.tilted-card,input[type=range],.masonry-item,.fm-item");
+      dot.classList.toggle("is-big", !!el);
+    }
+    window.addEventListener("mousemove", onMove);
+    return () => { window.removeEventListener("mousemove", onMove); document.body.removeChild(dot); };
+  }, []);
+}
+
+function useClickSpark() {
+  useEffect(() => {
+    const canvas = document.createElement("canvas");
+    Object.assign(canvas.style, { position: "fixed", inset: 0, pointerEvents: "none", zIndex: 9998 });
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+    let sparks = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    function onClick(e) {
+      const n = 8;
+      for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 * i) / n;
+        sparks.push({ x: e.clientX, y: e.clientY, angle, life: 1, speed: 2 + Math.random() * 2 });
+      }
+    }
+    window.addEventListener("resize", resize);
+    document.addEventListener("click", onClick);
+    let raf;
+    function tick() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      sparks.forEach((s) => {
+        const len = 14 * s.life;
+        const x2 = s.x + Math.cos(s.angle) * len;
+        const y2 = s.y + Math.sin(s.angle) * len;
+        ctx.strokeStyle = `rgba(243,241,234,${s.life})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(x2, y2); ctx.stroke();
+        s.x += Math.cos(s.angle) * s.speed; s.y += Math.sin(s.angle) * s.speed; s.life -= 0.045;
+      });
+      sparks = sparks.filter((s) => s.life > 0);
+      raf = requestAnimationFrame(tick);
+    }
+    tick();
+    return () => { document.removeEventListener("click", onClick); window.removeEventListener("resize", resize); cancelAnimationFrame(raf); document.body.removeChild(canvas); };
+  }, []);
+}
+
+function usePageWipe(route) {
+  const [wiping, setWiping] = useState(false);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    setWiping(true);
+    const t = setTimeout(() => setWiping(false), 720);
+    return () => clearTimeout(t);
+  }, [route]);
+  return wiping;
+}
+
+function SpecularButton({ children, className = "", href = "#", onClick, ...rest }) {
+  const ref = useRef(null);
+  function onMove(e) {
+    const r = ref.current.getBoundingClientRect();
+    ref.current.style.setProperty("--sx", ((e.clientX - r.left) / r.width) * 100 + "%");
+    ref.current.style.setProperty("--sy", ((e.clientY - r.top) / r.height) * 100 + "%");
+  }
+  return (
+    <a ref={ref} href={href} className={"specular-btn " + className} onMouseMove={onMove}
+       onClick={(e) => { if (href === "#") e.preventDefault(); onClick && onClick(e); }} {...rest}>
+      <span>{children}</span>
+    </a>
+  );
+}
+
+function Dock({ items, active, onSelect }) {
+  const [hoverIdx, setHoverIdx] = useState(null);
+  return (
+    <nav className="dock" onMouseLeave={() => setHoverIdx(null)}>
+      {items.map((it, i) => {
+        const dist = hoverIdx === null ? 0 : Math.abs(hoverIdx - i);
+        const scale = hoverIdx === null ? 1 : Math.max(1, 1.28 - dist * 0.14);
+        return (
+          <button key={it.id} className={"dock-item" + (active === it.id ? " is-active" : "")}
+            style={{ transform: `scale(${scale})` }}
+            onMouseEnter={() => setHoverIdx(i)}
+            onClick={() => onSelect(it.id)}>
+            {it.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function TiltedCard({ children, className = "", onClick, maxTilt = 6 }) {
+  const ref = useRef(null);
+  const [style, setStyle] = useState({});
+  function onMove(e) {
+    const r = ref.current.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;
+    const py = (e.clientY - r.top) / r.height;
+    const rx = (py - 0.5) * -maxTilt * 2;
+    const ry = (px - 0.5) * maxTilt * 2;
+    setStyle({ transform: `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)` });
+  }
+  function onLeave() { setStyle({ transform: "perspective(900px) rotateX(0) rotateY(0)" }); }
+  return (
+    <div ref={ref} className={"tilted-card " + className} onMouseMove={onMove} onMouseLeave={onLeave} onClick={onClick} style={style}>
+      {children}
+    </div>
+  );
+}
+
+function CircularGallery({ images, alt }) {
+  return (
+    <div className="circular-gallery">
+      {images.map((src, i) => (
+        <div className="cg-item" key={i}><img loading="lazy" src={src} alt={alt || ""} /></div>
+      ))}
+    </div>
+  );
+}
+
+function AnimatedList({ items, renderItem, className = "" }) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(() => items.map(() => false));
+  useEffect(() => {
+    const els = ref.current.querySelectorAll(".al-item");
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) {
+          const idx = Number(en.target.dataset.idx);
+          setVisible((v) => { const nv = [...v]; nv[idx] = true; return nv; });
+        }
+      });
+    }, { threshold: 0.15 });
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [items]);
+  return (
+    <ul className={"animated-list " + className} ref={ref}>
+      {items.map((it, i) => (
+        <li key={i} className={"al-item" + (visible[i] ? " is-visible" : "")} data-idx={i} style={{ transitionDelay: i * 70 + "ms" }}>
+          {renderItem(it, i)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ElasticSlider({ label, min, max, value, onChange, suffix = "" }) {
+  const [dragging, setDragging] = useState(false);
+  return (
+    <label className="elastic-slider">
+      <span className="es-label">{label}</span>
+      <input type="range" min={min} max={max} value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onMouseDown={() => setDragging(true)} onMouseUp={() => setDragging(false)}
+        className={dragging ? "is-dragging" : ""} />
+      <span className="es-label">{value}{suffix}</span>
+    </label>
+  );
+}
+
+function OptionWheel({ label, options, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, []);
+  return (
+    <div className="option-wheel" ref={ref}>
+      <button className="ow-trigger" onClick={() => setOpen((o) => !o)}>{label}: <b>{value}</b></button>
+      {open && (
+        <div className="ow-ring">
+          {options.map((op, i) => {
+            const angle = (360 / options.length) * i - 90;
+            const rad = (angle * Math.PI) / 180;
+            const x = Math.cos(rad) * 58, y = Math.sin(rad) * 58;
+            return (
+              <button key={op} className={"ow-opt" + (value === op ? " is-active" : "")}
+                style={{ transform: `translate(${x}px,${y}px)` }}
+                onClick={() => { onChange(op); setOpen(false); }}>{op}</button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineSidebar({ items, activeIdx, onSelect }) {
+  return (
+    <nav className="line-sidebar">
+      {items.map((c, i) => (
+        <button key={i} className={"ls-item" + (activeIdx === i ? " is-active" : "")} onClick={() => onSelect(i)}>
+          <span className="ls-label">{c.num != null ? String(c.num).padStart(2, "0") : "—"} {c.title}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function FlowingMenu({ items, active, onSelect }) {
+  return (
+    <ul className="flowing-menu">
+      {items.map((it) => (
+        <li key={it.id} className={"fm-item" + (active === it.id ? " is-active" : "")} onClick={() => onSelect(it.id)}>
+          <span className="fm-kicker">{it.kicker}</span>
+          <span className="fm-name">{it.name}</span>
+          <span className="fm-marquee">{it.deck}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Masonry({ photos, tileWidth, gap, onOpen }) {
+  return (
+    <div className="masonry" style={{ columnWidth: tileWidth + "px", columnGap: gap + "px" }}>
+      {photos.map((p) => (
+        <div className="masonry-item" key={p.id} style={{ marginBottom: gap + "px" }} onClick={() => onOpen(p)}>
+          <img src={p.src} loading="lazy" alt="" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ParticleHero({ text, big }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    let w, h, particles = [];
+    const mouse = { x: -9999, y: -9999 };
+
+    function sampleText(str, fontSize) {
+      const off = document.createElement("canvas");
+      off.width = w; off.height = h;
+      const octx = off.getContext("2d");
+      octx.fillStyle = "#fff";
+      octx.font = `700 ${fontSize}px Anton, sans-serif`;
+      octx.textAlign = "center"; octx.textBaseline = "middle";
+      const maxWidth = w * 0.92;
+      let size = fontSize;
+      octx.font = `700 ${size}px Anton, sans-serif`;
+      while (octx.measureText(str).width > maxWidth && size > 8) {
+        size -= 2; octx.font = `700 ${size}px Anton, sans-serif`;
+      }
+      octx.fillText(str, w / 2, h / 2);
+      const data = octx.getImageData(0, 0, w, h).data;
+      const pts = [];
+      const gap = Math.max(3, Math.round(w / 220));
+      for (let y = 0; y < h; y += gap) {
+        for (let x = 0; x < w; x += gap) {
+          if (data[(y * w + x) * 4 + 3] > 128) pts.push({ tx: x, ty: y });
+        }
+      }
+      return pts;
+    }
+
+    function build() {
+      const pts = sampleText(text, big ? Math.min(w / 5, 150) : Math.min(w / 5, 150));
+      particles = pts.map((p) => ({ x: Math.random() * w, y: Math.random() * h, tx: p.tx, ty: p.ty, vx: 0, vy: 0 }));
+    }
+
+    function resize() {
+      w = canvas.parentElement.clientWidth; h = canvas.parentElement.clientHeight;
+      canvas.width = w; canvas.height = h;
+      build();
+    }
+
+    function onMove(e) {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
+    }
+    function onLeave() { mouse.x = -9999; mouse.y = -9999; }
+
+    canvas.addEventListener("mousemove", onMove);
+    canvas.addEventListener("mouseleave", onLeave);
+    window.addEventListener("resize", resize);
+    resize();
+
+    let raf;
+    function tick() {
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(243,241,234,0.88)";
+      particles.forEach((p) => {
+        const dx = p.tx - p.x, dy = p.ty - p.y;
+        p.vx += dx * 0.02; p.vy += dy * 0.02;
+        const mdx = p.x - mouse.x, mdy = p.y - mouse.y;
+        const dist = Math.hypot(mdx, mdy);
+        if (dist < 55 && dist > 0) {
+          const f = ((55 - dist) / 55) * 3.2;
+          p.vx += (mdx / dist) * f; p.vy += (mdy / dist) * f;
+        }
+        p.vx *= 0.82; p.vy *= 0.82;
+        p.x += p.vx; p.y += p.vy;
+        ctx.fillRect(p.x, p.y, 1.6, 1.6);
+      });
+      raf = requestAnimationFrame(tick);
+    }
+    tick();
+
+    return () => {
+      window.removeEventListener("resize", resize);
+      canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, [text]);
+  return <canvas className="particle-hero" ref={canvasRef} />;
+}
+
+/* =========================================================================
+   TOP CHROME
+   ========================================================================= */
+
+function TopChrome({ route, isIndex, onNavigate, breadcrumbMode, setBreadcrumbMode, breadcrumbLabel }) {
+  return (
+    <header className="topbar">
+      <div className="wrap topbar-row">
+        <button className="logo-mark" onClick={() => onNavigate("index")}>W&amp;Co.</button>
+        <Dock items={NAV_ITEMS} active={route.split("/")[0]} onSelect={onNavigate} />
+        <div className="nav-right">
+          <a className="nav-linkedin" href="https://linkedin.com/in/zackgort" target="_blank" rel="noreferrer">in/zackgort</a>
+          <SpecularButton href="#" title="Zack.Gort-Product.Design-Resume-JULY2026.pdf">Download CV</SpecularButton>
+        </div>
+      </div>
+      <div className="wrap breadcrumb-row">
+        <span>Zack Gort ›</span>
+        {isIndex ? (
+          <div className="breadcrumb-toggle">
+            <button className={breadcrumbMode === "xp" ? "is-active" : ""} onClick={() => setBreadcrumbMode("xp")}>XP</button>
+            <button className={breadcrumbMode === "spec" ? "is-active" : ""} onClick={() => setBreadcrumbMode("spec")}>Specializations</button>
+          </div>
+        ) : (
+          <span>{breadcrumbLabel}</span>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* =========================================================================
+   WORK / INDEX
+   ========================================================================= */
+
+function WorkPage({ onOpenCase, breadcrumbMode }) {
+  const [fontSize, setFontSize] = useState(48);
+  const [align, setAlign] = useState("Left");
+  const [layout, setLayout] = useState("List");
+  const [theme, setTheme] = useState("Dark");
+
+  const heroText = breadcrumbMode === "spec" ? "I think. I make. I design — Zack G." : "WORK";
+
+  return (
+    <div className="fade-in">
+      <section className="hero">
+        <ParticleHero text={heroText} />
+        <div className="hero-caption">particle-text hero · shift+scroll to resize</div>
+      </section>
+
+      <div className="wrap">
+        <div className="toolbar">
+          <ElasticSlider label="Font size" min={24} max={96} value={fontSize} onChange={setFontSize} suffix="px" />
+          <div className="toolbar-group">
+            <span className="toolbar-label">Align</span>
+            <div className="seg">
+              {["Left", "Center", "Right"].map((a) => (
+                <button key={a} className={align === a ? "is-active" : ""} onClick={() => setAlign(a)}>{a}</button>
+              ))}
+            </div>
+          </div>
+          <OptionWheel label="Layout" options={["List", "Grid"]} value={layout} onChange={setLayout} />
+          <OptionWheel label="Theme" options={["Dark", "Paper", "Mono"]} value={theme} onChange={setTheme} />
+          <button className="toolbar-reset" onClick={() => { setFontSize(48); setAlign("Left"); setLayout("List"); setTheme("Dark"); }}>Reset</button>
+        </div>
+
+        <div className="section-head">
+          <span className="section-title">Case Studies</span>
+          <span className="eyebrow">7 rows</span>
+        </div>
+        <div className={"case-rows" + (layout === "Grid" ? " is-grid" : "")} style={{ textAlign: align.toLowerCase() }}>
+          {CASE_STUDIES.map((cs) => (
+            <TiltedCard key={cs.id} onClick={() => onOpenCase(cs.id)}>
+              <span className="tc-num">{String(cs.num).padStart(2, "0")}</span>
+              <div>
+                <div className="tc-headline" style={{ fontSize: Math.max(15, fontSize * 0.42) + "px" }}>{cs.headline}</div>
+                <div className="tc-sub">{cs.sub}</div>
+              </div>
+              <div className="tc-meta">
+                <span className="tc-tag">{cs.tag}</span>
+                {cs.year}
+              </div>
+            </TiltedCard>
+          ))}
+        </div>
+
+        <div className="section-head">
+          <span className="section-title">Visual Archive</span>
+          <span className="eyebrow">thumbnail strips</span>
+        </div>
+        {ARCHIVE_ROWS.map((row) => (
+          <div className="archive-row" key={row.seed}>
+            <div className="archive-row-head">
+              <span className="archive-row-title">{row.title}</span>
+              <span className="archive-row-tag">{row.tag}</span>
+            </div>
+            <CircularGallery images={Array.from({ length: row.count }).map((_, i) => `https://picsum.photos/seed/${row.seed}-${i}/300/200`)} alt={row.title} />
+          </div>
+        ))}
+
+        <div className="section-head">
+          <span className="section-title">Testimonials</span>
+          <span className="eyebrow">2 entries</span>
+        </div>
+        <AnimatedList items={TESTIMONIALS} renderItem={(t) => (
+          <div>
+            <p className="testi-quote">&ldquo;{t.quote}&rdquo;</p>
+            <div className="testi-name">{t.name}</div>
+            <div className="testi-role">{t.role}</div>
+            <div className="testi-role">{t.ctx}</div>
+          </div>
+        )} />
+
+        <div className="career-cta">
+          <div className="career-cta-label">↓ All my bullshit:</div>
+          <SpecularButton href="https://zackgort.com/career" target="_blank" rel="noreferrer" className="ghost">
+            +15 years of XP (with receipts for at least 10 of those) // a curriculum vitae of a left-handed self-automated autodidact →
+          </SpecularButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   CASE STUDY DETAIL
+   ========================================================================= */
+
+function CaseStudyPage({ cs, onOpenCase, onBack }) {
+  const idx = CASE_STUDIES.findIndex((c) => c.id === cs.id);
+  const prev = CASE_STUDIES[(idx - 1 + CASE_STUDIES.length) % CASE_STUDIES.length];
+  const next = CASE_STUDIES[(idx + 1) % CASE_STUDIES.length];
+  const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  return (
+    <div className="fade-in">
+      <section className="hero">
+        <ParticleHero text={cs.tag.split(" ")[0].toUpperCase()} />
+        <div className="hero-caption">{cs.client}</div>
+      </section>
+      <div className="wrap">
+        <div className="cs-credit">{cs.credit}</div>
+        <div className="cs-deliverables">
+          {["Discovery", "IA", "Wireframes", "Visual System", "Prototype", "Handoff"].map((d, i) => (
+            <span key={d} style={{ "--i": i }}>{d}</span>
+          ))}
+        </div>
+        <div className="glyph-strip">{glyphs}</div>
+        <div className="cs-head">
+          <h1 className="cs-headline">{cs.specimen}</h1>
+          <p className="cs-subhead">{cs.subhead}</p>
+        </div>
+        <div className="cs-details">
+          <div><div className="cs-detail-k">Client</div><div className="cs-detail-v">{cs.client}</div></div>
+          <div><div className="cs-detail-k">Agency</div><div className="cs-detail-v">{cs.agency}</div></div>
+          <div><div className="cs-detail-k">Category</div><div className="cs-detail-v">{cs.category}</div></div>
+          <div><div className="cs-detail-k">Year</div><div className="cs-detail-v">{cs.year}</div></div>
+          <div><div className="cs-detail-k">Status</div><div className="cs-detail-v">{cs.statusExtra}</div></div>
+        </div>
+        <div className="cs-gallery">
+          <CircularGallery images={Array.from({ length: cs.galleryCount }).map((_, i) => `https://picsum.photos/seed/${cs.id}-${i}/420/280`)} alt={cs.client} />
+        </div>
+        <div className="cs-extra-note">
+          {cs.figma > 0 ? `${cs.figma} Figma embed${cs.figma > 1 ? "s" : ""} referenced (view in original)` : "No Figma embeds for this study"}
+          {cs.video ? " · includes a field-recording video with a custom player" : ""}
+        </div>
+        <p className="cs-closer">&ldquo;{cs.closer}&rdquo;</p>
+        <div className="cs-footer-nav">
+          <SpecularButton href="#" className="ghost" onClick={() => onOpenCase(prev.id)}>← {prev.headline.slice(0, 40)}</SpecularButton>
+          <SpecularButton href="#" onClick={onBack}>All case studies</SpecularButton>
+          <SpecularButton href="#" className="ghost" onClick={() => onOpenCase(next.id)}>{next.headline.slice(0, 40)} →</SpecularButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   LIFE / CONTRACTS
+   ========================================================================= */
+
+function LifePage() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [showTop, setShowTop] = useState(false);
+  const refs = useRef([]);
+
+  useEffect(() => {
+    function onScroll() { setShowTop(window.scrollY > window.innerHeight * 1.2); }
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  function goTo(i) {
+    setActiveIdx(i);
+    refs.current[i] && refs.current[i].scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  return (
+    <div className="wrap fade-in">
+      <div className="life-layout">
+        <LineSidebar items={LIFE_CHAPTERS} activeIdx={activeIdx} onSelect={goTo} />
+        <div>
+          <p className="life-opener">&ldquo;If you love what you do, you'll never work a day in your life.&rdquo;</p>
+          {LIFE_CHAPTERS.map((c, i) => (
+            <div className="chapter" key={i} ref={(el) => (refs.current[i] = el)}>
+              <div className="chapter-num">{c.num != null ? String(c.num).padStart(2, "0") : "—"}</div>
+              <h2 className="chapter-title">{c.title}</h2>
+              {c.sub && <div className="chapter-sub">{c.sub}</div>}
+              <p className="chapter-body">{c.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <button className={"back-to-top" + (showTop ? " is-visible" : "")} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>↑ top</button>
+    </div>
+  );
+}
+
+/* =========================================================================
+   BALANCE / GENERAL ASSEMBLY
+   ========================================================================= */
+
+function BalancePage() {
+  const [tileWidth, setTileWidth] = useState(150);
+  const [gap, setGap] = useState(8);
+  const [splitPct, setSplitPct] = useState(62);
+  const [modalPhoto, setModalPhoto] = useState(null);
+  const dragging = useRef(false);
+
+  function onDividerDown() { dragging.current = true; }
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragging.current) return;
+      const pct = (e.clientX / window.innerWidth) * 100;
+      setSplitPct(Math.min(80, Math.max(30, pct)));
+    }
+    function onUp() { dragging.current = false; }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, []);
+
+  function onWheelSize(e) {
+    if (!e.shiftKey) return;
+    e.preventDefault();
+    setTileWidth((w) => Math.min(320, Math.max(90, w - e.deltaY * 0.3)));
+  }
+
+  return (
+    <div className="fade-in">
+      <div className="wrap">
+        <div className="balance-head">
+          <h1 className="balance-title">Balance</h1>
+          <p className="balance-sub">A social wall, eventually — for now, the view from here. 48 photos · shift+scroll to resize.</p>
+        </div>
+        <div className="toolbar">
+          <ElasticSlider label="Size" min={90} max={320} value={tileWidth} onChange={setTileWidth} suffix="px" />
+          <ElasticSlider label="Gap" min={2} max={28} value={gap} onChange={setGap} suffix="px" />
+        </div>
+      </div>
+
+      <div className="wrap" style={{ marginTop: 24 }}>
+        <div className="balance-split">
+          <div className="balance-gallery-pane" style={{ width: splitPct + "%" }} onWheel={onWheelSize}>
+            <Masonry photos={BALANCE_PHOTOS} tileWidth={tileWidth} gap={gap} onOpen={setModalPhoto} />
+          </div>
+          <div className="balance-divider" onMouseDown={onDividerDown} />
+          <div className="balance-essay-pane" style={{ width: 100 - splitPct + "%", paddingLeft: 28 }}>
+            <div className="eyebrow" style={{ marginBottom: 14 }}>On These Photos</div>
+            {BALANCE_ESSAY.map((s) => (
+              <div className="essay-section" key={s.label}>
+                <div className="essay-num">{s.label}</div>
+                <div className="essay-headline">{s.headline}</div>
+                <div className="essay-summary">{s.summary}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {modalPhoto && (
+        <div className="photo-modal" onClick={() => setModalPhoto(null)}>
+          <div className="photo-modal-card" onClick={(e) => e.stopPropagation()}>
+            <img src={modalPhoto.src.replace(/\/\d+\/\d+$/, "/900/620")} alt="" />
+            <div className="photo-modal-cap">Balance — frame {String(modalPhoto.id + 1).padStart(2, "0")} of 48. Click outside to close.</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
+   JOURNAL / ABOUT
+   ========================================================================= */
+
+function AccordionItem({ title, body, defaultOpen }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div className="accordion-item">
+      <button className="accordion-trigger" onClick={() => setOpen((o) => !o)}>
+        <span>{title}</span>
+        <span className="plus">{open ? "−" : "+"}</span>
+      </button>
+      <div className={"accordion-body" + (open ? " is-open" : "")}>
+        <div className="accordion-body-inner">{body}</div>
+      </div>
+    </div>
+  );
+}
+
+function ManifestoChecklist({ items }) {
+  const [checked, setChecked] = useState(() => items.map(() => false));
+  return (
+    <div className="checklist">
+      {items.map((it, i) => (
+        <div className="checklist-item" key={i} onClick={() => setChecked((c) => { const nc = [...c]; nc[i] = !nc[i]; return nc; })}>
+          <span className={"checklist-box" + (checked[i] ? " is-checked" : "")} />
+          <span className={"checklist-text" + (checked[i] ? " is-checked" : "")}>{it}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfessionsList({ items }) {
+  const [numbered, setNumbered] = useState(true);
+  return (
+    <div>
+      <div className="confess-toggle">
+        <button className={"seg-btn"} style={{ border: "1px solid var(--line-strong)", padding: "5px 12px", fontFamily: "var(--f-mono)", fontSize: 11, background: numbered ? "var(--fg)" : "transparent", color: numbered ? "var(--bg)" : "var(--fg-dim)" }} onClick={() => setNumbered(true)}>Numbered</button>
+        <button style={{ border: "1px solid var(--line-strong)", padding: "5px 12px", fontFamily: "var(--f-mono)", fontSize: 11, background: !numbered ? "var(--fg)" : "transparent", color: !numbered ? "var(--bg)" : "var(--fg-dim)" }} onClick={() => setNumbered(false)}>Bulleted</button>
+      </div>
+      <div className="confess-list">
+        {items.map((it, i) => (
+          <div className="confess-item" key={i}>
+            <span className="confess-marker">{numbered ? String(i + 1).padStart(2, "0") : "—"}</span>
+            <span>{it}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AboutLetterBody() {
+  return (
+    <div>
+      <div className="bio-grid">
+        <div>
+          <p className="bio-p">Fifteen-plus years of product and UX design across fintech, e-commerce, higher ed, and non-profit — the résumé says "designer," but most of the work has been closer to translator: between what a business needs, what a system can do, and what a person is actually trying to accomplish.</p>
+          <p className="bio-p">Code-native and AI-fluent. Every artifact on this site was built by hand, in vanilla HTML/CSS/JS — including this one. The studio is called Wolfgang &amp; Co., named for a dog.</p>
+        </div>
+        <div>
+          <div className="contact-k">Expertise</div>
+          <div className="contact-v">Enterprise UX · Design Systems · IA + Navigation · E-Commerce UX</div>
+          <div className="contact-k">Based</div>
+          <div className="contact-v">Philadelphia, PA</div>
+          <div className="contact-k">Contact</div>
+          <div className="contact-v"><a href="https://linkedin.com/in/zackgort" target="_blank" rel="noreferrer">in/zackgort ↗</a></div>
+        </div>
+      </div>
+      <div className="section-head" style={{ marginTop: 40 }}>
+        <span className="section-title">Career Timeline</span>
+        <span className="eyebrow">11 entries · hover for detail</span>
+      </div>
+      <div>
+        {CAREER_TIMELINE.map((t, i) => (
+          <div className="timeline-item" key={i} tabIndex={0}>
+            <div className="timeline-row">
+              <span className="timeline-year">{t.years}</span>
+              <span className="timeline-role">{t.role}</span>
+            </div>
+            <div className="timeline-tip">{t.detail}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JournalPage() {
+  const [active, setActive] = useState("about");
+  const letter = JOURNAL_LETTERS.find((l) => l.id === active);
+
+  return (
+    <div className="wrap fade-in">
+      <div className="journal-layout">
+        <FlowingMenu items={JOURNAL_LETTERS} active={active} onSelect={setActive} />
+        <div className="letter-panel" key={active}>
+          <div className="letter-kicker">{letter.kicker}</div>
+          <div className="letter-name">{letter.name}</div>
+          <h1 className="letter-h1">{letter.h1}</h1>
+          <p className="letter-deck">{letter.deck}</p>
+          <div className="letter-body">
+            {letter.id === "about" && <AboutLetterBody />}
+            {letter.accordions && letter.accordions.map((a, i) => (
+              <AccordionItem key={a.title} title={a.title} body={a.body} defaultOpen={i === 0} />
+            ))}
+            {letter.checklist && <ManifestoChecklist items={letter.checklist} />}
+            {letter.confessions && <ConfessionsList items={letter.confessions} />}
+          </div>
+          <div className="letter-closing">{letter.closing}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   APP SHELL
+   ========================================================================= */
+
+function parseHash() {
+  const h = window.location.hash.replace("#", "") || "index";
+  return h;
+}
+
+function App() {
+  const [route, setRoute] = useState(parseHash());
+  const [breadcrumbMode, setBreadcrumbMode] = useState("xp");
+  useCustomCursor();
+  useClickSpark();
+  const wiping = usePageWipe(route);
+
+  useEffect(() => {
+    function onHash() { setRoute(parseHash()); window.scrollTo({ top: 0 }); }
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  function navigate(id) {
+    window.location.hash = "#" + id;
+  }
+
+  const isCase = route.startsWith("case/");
+  const caseId = isCase ? route.split("/")[1] : null;
+  const cs = isCase ? CASE_STUDIES.find((c) => c.id === caseId) : null;
+
+  let breadcrumbLabel = "Work";
+  if (route === "contracts") breadcrumbLabel = "Life";
+  if (route === "generalassembly") breadcrumbLabel = "Balance";
+  if (route === "about") breadcrumbLabel = "Journal";
+  if (isCase && cs) breadcrumbLabel = cs.client;
+
+  const navActiveId = isCase ? "index" : route;
+
+  return (
+    <div className="app">
+      <div className={"page-wipe" + (wiping ? " is-active" : "")} />
+      <TopChrome
+        route={navActiveId}
+        isIndex={route === "index"}
+        onNavigate={navigate}
+        breadcrumbMode={breadcrumbMode}
+        setBreadcrumbMode={setBreadcrumbMode}
+        breadcrumbLabel={breadcrumbLabel}
+      />
+      <main style={{ flex: 1 }}>
+        {route === "index" && <WorkPage onOpenCase={(id) => navigate("case/" + id)} breadcrumbMode={breadcrumbMode} />}
+        {route === "contracts" && <LifePage />}
+        {route === "generalassembly" && <BalancePage />}
+        {route === "about" && <JournalPage />}
+        {isCase && cs && (
+          <CaseStudyPage cs={cs} onOpenCase={(id) => navigate("case/" + id)} onBack={() => navigate("index")} />
+        )}
+      </main>
+      <footer className="site-footer wrap">
+        <span>Zack Gort — Wolfgang &amp; Co. © {new Date().getFullYear()}</span>
+        <span>Single-page application · client-side view routing</span>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
