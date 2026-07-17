@@ -2,8 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zack Gort — Wolfgang & Co.</title>
+
+<!-- ── SEO / SOCIAL PREVIEW ──────────────────────────────────────────────
+     No fallback existed before — a shared link rendered as a bare title
+     with no snippet or card. og:url and og:image below are placeholders:
+     swap og:url for the real published domain, and og:image for an actual
+     1200×630 screenshot of the site (the hero is canvas-rendered, not a
+     static image, so there isn't one to point to yet — the favicon is a
+     working stand-in, not a real preview image). ── -->
+<meta name="description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Zack Gort — Wolfgang &amp; Co.">
+<meta property="og:description" content="Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS.">
+<meta property="og:url" content="https://zack.cx/">
+<meta property="og:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Zack Gort — Wolfgang &amp; Co.">
+<meta name="twitter:description" content="Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp">
+
 <link rel="icon" type="image/webp" href="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;500&display=swap" rel="stylesheet">
@@ -64,6 +83,46 @@ body.light-mode{
   --accent:#FF3C1F;
 }
 html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  /* Keep opacity/color feedback (still useful, not motion-triggering) but
+     strip transform-based movement and cap durations so nothing "flies."
+     Scoped to transform/transition rather than a blanket * rule so we don't
+     also break IntersectionObserver-driven opacity reveals or the wipe's
+     JS-timed sequencing (handled separately, in JS, via window._reduceMotion). */
+  *{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
+  .wa-thumb-img,.ga-g-item img,.testimonial-name,.nav-right-link,.nav-tab,.nav-cta,.bc-btn{transition-duration:.001ms!important}
+  .wa-thumb:hover .wa-thumb-img,.ga-g-item:hover img{transform:none!important}
+}
+
+/* ── FOCUS STATES ─────────────────────────────────────────────────────────
+   Previously undefined sitewide — combined with the custom cursor, keyboard
+   users had no visible indication of where they were on the page at all.
+   :focus-visible (not :focus) so this only shows for keyboard/assistive-tech
+   navigation, not every mouse click. */
+:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+  border-radius:2px;
+}
+/* A few range inputs explicitly zeroed their native outline for the custom
+   slider look — give keyboard users an equivalent ring back, offset further
+   out since the thumb itself is small. */
+.fs-range:focus-visible,.wt-slider:focus-visible,.ga-slider:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:4px;
+}
+
+/* ── CURSOR FALLBACK ──────────────────────────────────────────────────────
+   `cursor:none` is set throughout (see #cursor below) to make room for the
+   custom dot — but that only makes sense once the cursor-tracking script
+   has actually confirmed it's running. Until html gets .cursor-ready (set
+   in JS, inside a try/catch, only after listeners are wired up), force the
+   native cursor back on everywhere so a blocked/slow/erroring script never
+   leaves a visitor with no visible pointer at all. */
+html:not(.cursor-ready) *,
+html:not(.cursor-ready){cursor:auto!important}
+
 body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hidden;cursor:none;-webkit-font-smoothing:antialiased}
 
 /* ── CURSOR ── */
@@ -4232,6 +4291,15 @@ let currentView = 'index';
 window._escPanelStack = [];
 const root = document.documentElement;
 
+// ── REDUCED MOTION ────────────────────────────────────────────────────────
+// Single source of truth for "should this page animate." Read once, kept
+// live via the change listener (some OSes let users toggle this without a
+// reload — e.g. macOS System Settings — so a stale one-time check would
+// leave motion on/off out of sync with the user's actual current setting).
+const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+window._reduceMotion = reduceMotionQuery.matches;
+reduceMotionQuery.addEventListener('change', e => { window._reduceMotion = e.matches; });
+
 function tbApplySize(px) {
   px = Math.min(72, Math.max(28, px));
   root.style.setProperty('--work-font-size', px + 'px');
@@ -4743,17 +4811,28 @@ window._heroBg = '#0a0a0a';
 // });
 
 // ── CURSOR ─────────────────────────────────────────────────────────────────
-const cur = document.getElementById('cursor');
-document.addEventListener('mousemove', e => {
-  cur.style.left = e.clientX + 'px';
-  cur.style.top  = e.clientY + 'px';
-  cur.classList.add('vis');
-});
-document.addEventListener('mouseleave', () => cur.classList.remove('vis'));
-document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(el => {
-  el.addEventListener('mouseenter', () => cur.classList.add('lg'));
-  el.addEventListener('mouseleave', () => cur.classList.remove('lg'));
-});
+// See the "CURSOR FALLBACK" CSS rule near the top of the stylesheet — the
+// native cursor stays on globally until .cursor-ready is added below, and
+// that only happens if this whole block runs without throwing. A missing
+// #cursor element, or any other error here, now degrades to "normal cursor,
+// everything else on the page still works" instead of "no visible pointer."
+try {
+  const cur = document.getElementById('cursor');
+  if (!cur) throw new Error('#cursor element not found');
+  document.addEventListener('mousemove', e => {
+    cur.style.left = e.clientX + 'px';
+    cur.style.top  = e.clientY + 'px';
+    cur.classList.add('vis');
+  });
+  document.addEventListener('mouseleave', () => cur.classList.remove('vis'));
+  document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(el => {
+    el.addEventListener('mouseenter', () => cur.classList.add('lg'));
+    el.addEventListener('mouseleave', () => cur.classList.remove('lg'));
+  });
+  document.documentElement.classList.add('cursor-ready');
+} catch (err) {
+  console.warn('Custom cursor disabled, falling back to native cursor:', err);
+}
 
 // ── LIGHTBULB ROW TOOLTIPS ──────────────────────────────────────────────────
 // ── WEIGHT-ROW HOVER PREVIEW — image follows cursor, clamped to viewport ───
@@ -5048,12 +5127,19 @@ document.addEventListener('keydown', e => {
   }
 
   if (currentView !== 'index') { navigate('index'); return; }
-  (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
+  (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: window._reduceMotion ? 'auto' : 'smooth' });
 });
 
 function navigate(id) {
   if (id === currentView) return;
   if (typeof window.closeCaseStudy === 'function') window.closeCaseStudy();
+  if (window._reduceMotion) {
+    // No wipe choreography — swap the view directly rather than making
+    // reduced-motion users sit through the same 380ms+450ms hold with the
+    // visual transition suppressed (that would just read as a stall).
+    showView(id);
+    return;
+  }
   wipe.className = 'in';
   setTimeout(() => {
     showView(id);
@@ -5227,10 +5313,16 @@ function initParticleHero(viewEl) {
 
     bX += (mx - bX) * BLOB_LERP_CS;
     bY += (my - bY) * BLOB_LERP_CS;
-    floatT += FLOAT_SPD_CS;
 
-    const fdx = Math.sin(floatT) * FLOAT_AX_CS + Math.sin(floatT * 1.7) * FLOAT_AX_CS * 0.28;
-    const fdy = Math.sin(floatT * 0.8 + 1) * FLOAT_AY_CS + Math.sin(floatT * 1.3 + 2) * FLOAT_AY_CS * 0.3;
+    // The perpetual sine-wave drift below is autonomous, unprompted motion —
+    // exactly what prefers-reduced-motion asks us to remove. Mouse-repel and
+    // settle-to-rest are left untouched: those are user-triggered, not ambient.
+    let fdx = 0, fdy = 0;
+    if (!window._reduceMotion) {
+      floatT += FLOAT_SPD_CS;
+      fdx = Math.sin(floatT) * FLOAT_AX_CS + Math.sin(floatT * 1.7) * FLOAT_AX_CS * 0.28;
+      fdy = Math.sin(floatT * 0.8 + 1) * FLOAT_AY_CS + Math.sin(floatT * 1.3 + 2) * FLOAT_AY_CS * 0.3;
+    }
 
     ctx.clearRect(0, 0, W, H);
     const bgColor = window._heroBg || '#0a0a0a';
@@ -5911,40 +6003,12 @@ function initAllNarrativeParticles(container) {
 })();
 
 
-// Native viewport pinch-zoom is disabled (see <meta viewport> maximum-scale=1,
-// user-scalable=no) so this two-finger gesture can drive the same type-ramp
-// scaler as the toolbar slider / Shift+Scroll, instead of zooming the page.
-(function initPinchZoomScaler() {
-  let startDist = null;
-  let startSize = 28;
-
-  function touchDist(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  }
-
-  window.addEventListener('touchstart', e => {
-    if (e.touches.length === 2) {
-      startDist = touchDist(e.touches);
-      startSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 28;
-    }
-  }, { passive: true });
-
-  window.addEventListener('touchmove', e => {
-    if (e.touches.length !== 2 || startDist === null) return;
-    e.preventDefault(); // suppress any residual native zoom/scroll during the pinch
-    const dist  = touchDist(e.touches);
-    const ratio = dist / startDist;
-    const next  = Math.min(72, Math.max(28, Math.round(startSize * ratio)));
-    tbApplySize(next);
-    toolbarState.size = next;
-  }, { passive: false });
-
-  window.addEventListener('touchend', e => {
-    if (e.touches.length < 2) startDist = null;
-  }, { passive: true });
-})();
+// Two-finger pinch is native browser zoom again now that the viewport meta
+// allows it (see <meta viewport> above) — this custom scaler used to hijack
+// that exact gesture via preventDefault() to drive the type-ramp instead,
+// which would now fight the browser for the same gesture. Removed rather
+// than left in place; type size is still adjustable via the toolbar slider
+// and Shift+Scroll on desktop. Mobile visitors get standard pinch-zoom.
 
 // ── GLYPH METRIC LINES ─────────────────────────────────────────────────────
 (function positionMetricLines() {
@@ -6573,7 +6637,7 @@ function initAllNarrativeParticles(container) {
   update();
 
   btn.addEventListener('click', () => {
-    (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: 'smooth' });
+    (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: window._reduceMotion ? 'auto' : 'smooth' });
   });
 })();
 
