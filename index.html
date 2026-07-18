@@ -3535,35 +3535,33 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-gallery-viewport{
   position:relative;
   flex:1 1 var(--ga-split,68%);
-  overflow-y:auto;
-  overflow-x:hidden;
+  overflow:hidden;
   background:var(--bg);
-  --ga-col-min:220px;
-  --ga-gap:6px;
+  touch-action:none;
+  overscroll-behavior:contain;
+  user-select:none;
 }
-.ga-gallery-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(min(var(--ga-col-min),100%),1fr));
-  gap:var(--ga-gap);
-  padding:var(--ga-gap);
-  align-content:start;
-}
+/* .ga-gallery-grid is now the pannable canvas, not a CSS grid — its
+   children are absolutely positioned in its own coordinate space, and the
+   whole thing is panned as a unit via `transform: translate3d(...)`. */
+.ga-gallery-grid{position:relative;will-change:transform}
 .ga-g-item{
-  position:relative;
+  position:absolute;
   overflow:hidden;
   border-radius:2px;
   background:rgba(var(--fg-rgb),.06);
   cursor:pointer;
-  aspect-ratio:4/3;
-  contain:layout style paint;
+  will-change:transform;
 }
 .ga-g-item img{
   width:100%;height:100%;object-fit:cover;display:block;
   opacity:0;
-  transition:opacity .5s ease,transform .35s cubic-bezier(.16,1,.3,1);
+  filter:grayscale(100%);
+  pointer-events:none;
+  transition:opacity .5s ease,filter .3s ease,transform .3s ease;
 }
 .ga-g-item img.loaded{opacity:1}
-.ga-g-item:hover img{transform:scale(1.045)}
+.ga-g-item:hover img,.ga-g-item:focus-within img{filter:grayscale(0%);transform:scale(1.05)}
 
 .ga-resize-handle{
   flex:0 0 1px;background:var(--rule);cursor:col-resize;position:relative;
@@ -3605,17 +3603,22 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 .ga-postcard{
   position:fixed;top:50%;left:50%;z-index:9751;
   width:min(480px,90vw);
+  max-height:92vh;overflow-y:auto;
   background:#ffffff;color:#0a0a0a;
   box-shadow:0 60px 120px -30px rgba(0,0,0,.5);
   transform:translate(-50%,-50%) scale(.94);
   opacity:0;pointer-events:none;
   transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .3s;
-  border-radius:3px;overflow:hidden;
+  border-radius:3px;
 }
 .ga-postcard.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto}
 .ga-postcard-close{position:absolute;top:16px;right:20px;z-index:2;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.9);background:none;border:none;cursor:pointer;text-shadow:0 1px 4px rgba(0,0,0,.5)}
-.ga-postcard-media{width:100%;height:280px;overflow:hidden;background:#eee}
-.ga-postcard-media img{width:100%;height:100%;object-fit:cover;display:block}
+/* Was a fixed 280px box with object-fit:cover, which cropped every photo to
+   fill it regardless of its actual proportions. max-height + object-fit:
+   contain shows the whole image, letterboxed rather than cropped, whatever
+   its aspect ratio. */
+.ga-postcard-media{width:100%;max-height:60vh;overflow:hidden;background:#eee;display:flex;align-items:center;justify-content:center}
+.ga-postcard-media img{width:100%;height:100%;object-fit:contain;display:block}
 .ga-postcard-type{padding:32px 34px 28px;text-align:center}
 .ga-postcard-kicker{font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(0,0,0,.4);margin-bottom:16px}
 .ga-postcard-caption{font-family:'Fraunces',serif;font-style:italic;font-weight:400;font-size:clamp(20px,3vw,27px);line-height:1.35;color:#0a0a0a;margin-bottom:22px}
@@ -3631,7 +3634,7 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 }
 @media(max-width:600px){
   .ga-postcard{width:92vw}
-  .ga-postcard-media{height:220px}
+  .ga-postcard-media{max-height:44vh}
   .ga-postcard-type{padding:24px 22px 22px}
   .ga-toolbar{height:auto;padding:8px 14px;flex-wrap:wrap;gap:10px;top:calc(var(--nav-h) + var(--bc-h))}
   .ga-toolbar-gap{margin-left:0}
@@ -4101,8 +4104,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 
         <div class="letter-impact-body">
           <div class="letter-impact-eyebrow">FORM UX-10 · GENERAL DISTRIBUTION · NDA-SAFE CONTENT ONLY</div>
-          <h2 class="letter-impact-title">Standing on <em>business</em>.</h2>
-          <p class="letter-impact-subtitle">Four engagements audited against the public record. What the business was doing while the work was shipping.</p>
+          <h2 class="letter-impact-title">The<br><em>Impact</em> Report.</h2>
+          <p class="letter-impact-subtitle">Four engagements, six balance sheets, one UX practice — audited against the public record. What the business was doing while the work was shipping.</p>
           <div class="letter-impact-filing-meta letter-impact-mono">
             <div><strong>Subject</strong>Zack Gort</div>
             <div><strong>Period covered</strong>2020 – 2023</div>
@@ -5505,7 +5508,7 @@ try {
     cur.classList.add('vis');
   });
   document.addEventListener('mouseleave', () => cur.classList.remove('vis'));
-  document.querySelectorAll('a,button,input,.work-row,.work-row-career').forEach(el => {
+  document.querySelectorAll('a,button,input,.work-row,.work-row-career,#gaGalleryViewport').forEach(el => {
     el.addEventListener('mouseenter', () => cur.classList.add('lg'));
     el.addEventListener('mouseleave', () => cur.classList.remove('lg'));
   });
@@ -7519,7 +7522,33 @@ function initAllNarrativeParticles(container) {
   "https://i.ibb.co/RcN0rLM/2302765161788654866-5144774570.jpg",
   "https://i.ibb.co/0ZWH7cT/2321673929708515123-5144774570.jpg",
   "https://i.ibb.co/Bt17HTb/2328203887297603696-5144774570.jpg",
-  "https://i.ibb.co/nDBk8sS/2439406711833686741-5144774570.jpg"
+  "https://i.ibb.co/nDBk8sS/2439406711833686741-5144774570.jpg",
+  "https://i.ibb.co/gM4dRT1v/mask-Uw-Dg-Mvg-Yh-Dco-WEJTuwuk-GLQFj-SVw.webp",
+  "https://i.ibb.co/PZ3QBsGF/Meattempting-Da-Vincibyzackgort-FKF.webp",
+  "https://i.ibb.co/jZWQDhyy/African-Finger-Harpbyzackgort-As-Bv-Y.webp",
+  "https://i.ibb.co/DPHNCsBk/ZAX02467-1.jpg",
+  "https://i.ibb.co/hqCtdrS/ZAX02263.jpg",
+  "https://i.ibb.co/pkywcMr/ZAX01018-2.jpg",
+  "https://i.ibb.co/s9WJzBcT/ZAX00007.jpg",
+  "https://i.ibb.co/0jHKxpPZ/vermont-91.jpg",
+  "https://i.ibb.co/7tQQM5Qh/IMG-6311-2.jpg",
+  "https://i.ibb.co/zhzzR57b/IMG-20200702-125535-150.jpg",
+  "https://i.ibb.co/gMDT38J5/IMG-20200527-221611-475.jpg",
+  "https://i.ibb.co/CKSLxP9w/DSC09034-2.jpg",
+  "https://i.ibb.co/7JX2kx7T/DSC08804.jpg",
+  "https://i.ibb.co/FbxpWLhV/DSC08352-1.jpg",
+  "https://i.ibb.co/XZcbdSDK/DSC04551.jpg",
+  "https://i.ibb.co/Vc4F4vfT/ZAX09994.jpg",
+  "https://i.ibb.co/9kVf8T6X/DSC00726.jpg",
+  "https://i.ibb.co/sv4mb4qk/ZAX09987.jpg",
+  "https://i.ibb.co/3xrYxxR/ZAX09787.jpg",
+  "https://i.ibb.co/HfXxRsg6/ZAX01363.jpg",
+  "https://i.ibb.co/Kp0wZtgT/ZAX01496.jpg",
+  "https://i.ibb.co/BVp34BF9/ZAX00466.jpg",
+  "https://i.ibb.co/fV1HTpvx/IMG-20200701-221037-295.jpg",
+  "https://i.ibb.co/j9vwMpg1/IMG-20200515-231729-042.jpg",
+  "https://i.ibb.co/bg5W6vyn/DSC09125.jpg",
+  "https://i.ibb.co/S4zk6NFx/DSC03039.jpg"
   ];
   const GA_CAPTIONS = ["…"];
 
@@ -7533,49 +7562,16 @@ function initAllNarrativeParticles(container) {
   const grid = document.getElementById('gaGalleryGrid');
   if (!viewport || !grid) return;
 
-  // A real, static grid — no wraparound tiling, no pan/inertia physics, no
-  // per-frame transform loop. The browser's own grid layout handles the
-  // 1-up → 2-up → 3-up → 4-up reflow entirely via auto-fill/minmax below;
-  // there's nothing left for JS to rebuild when the container resizes.
-  function buildGrid() {
-    grid.innerHTML = '';
-    const frag = document.createDocumentFragment();
-    GA_POOL.forEach(c => {
-      const item = document.createElement('div');
-      item.className = 'ga-g-item';
-      item.dataset.tag = c.tag;
-      item.dataset.body = (c.meta || '').replace(/"/g, '&quot;');
-      item.dataset.img = c.img;
-
-      const img = document.createElement('img');
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.alt = '';
-      // Fade in from zero only once the image has actually finished
-      // loading (covers both a fresh network fetch and an instant cache
-      // hit — .complete is already true in the latter case, so there's
-      // no load event left to wait for).
-      if (img.complete) {
-        img.classList.add('loaded');
-      } else {
-        img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
-      }
-      img.src = c.img;
-
-      item.appendChild(img);
-      item.tabIndex = 0;
-      item.setAttribute('role', 'button');
-      item.setAttribute('aria-label', c.tag || 'Open photo');
-      item.addEventListener('click', () => openGaPostcard(item));
-      item.addEventListener('keydown', e => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        openGaPostcard(item);
-      });
-      frag.appendChild(item);
-    });
-    grid.appendChild(frag);
-  }
+  // Shuffle once per visit so the arrangement isn't identical every load —
+  // shuffled as whole {tag, meta, img} records so a photo's caption always
+  // stays paired with its own image (unlike the reference implementation,
+  // which shuffled its image list and its caption list independently).
+  (function shufflePool(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  })(GA_POOL);
 
   const gaPostcardOverlay = document.getElementById('gaPostcardOverlay');
   const gaPostcard = document.getElementById('gaPostcard');
@@ -7599,72 +7595,239 @@ function initAllNarrativeParticles(container) {
   document.getElementById('gaPostcardClose')?.addEventListener('click', closeGaPostcard);
   gaPostcardOverlay?.addEventListener('click', closeGaPostcard);
 
-  // ── Grid size (minimum column width) — slider + Shift+Scroll, same
-  //    pattern as the font-size scaler used elsewhere on the site. A
-  //    smaller minimum lets more columns fit (denser, more "zoomed out");
-  //    a larger minimum pushes toward fewer, bigger columns. The CSS wraps
-  //    this in min(var(--ga-col-min),100%), so once the value exceeds the
-  //    pane's actual width, it clamps to a single full-width column (1-up)
-  //    no matter how wide the pane itself happens to be.
+  // ── Infinite draggable photo canvas ──────────────────────────────────────
+  // Tiles pan freely (mouse drag / touch / momentum flick) and tile
+  // infinitely — the photo pool repeats as you pan past its edges rather
+  // than stopping at a hard boundary. Only tiles inside the viewport (plus
+  // a buffer) are ever in the DOM at once; everything else gets swept as
+  // you pan away from it. Adapted from a reference "HomeGallery" component;
+  // ported to read from GA_POOL (so every photo keeps its tag/caption),
+  // culls against this pane's own size instead of the full browser window,
+  // respects prefers-reduced-motion (skips the momentum flick), and exposes
+  // updateSettings() so the existing size/gap sliders can re-tile it live
+  // instead of only being able to set it once at construction.
+  class GaCanvasGallery {
+    constructor(container, canvas, pool, settings) {
+      this.container = container;
+      this.canvas = canvas;
+      this.pool = pool;
+      this.settings = settings;
+      this.visibleItems = new Set();
+      this.isDragging = false;
+      this.mouseHasMoved = false;
+      this.startX = 0; this.startY = 0;
+      this.targetX = 0; this.targetY = 0;
+      this.currentX = 0; this.currentY = 0;
+      this.dragVelocityX = 0; this.dragVelocityY = 0;
+      this.lastDragTime = 0;
+      this.columns = 4;
+      this.recalcCells();
+      this.centerOrigin();
+      this.attachDragEvents();
+      this.animate = this.animate.bind(this);
+      this.raf = null;
+      this.animate();
+    }
+
+    recalcCells() {
+      this.cellWidth = this.cellHeight = this.settings.baseWidth + this.settings.itemGap;
+    }
+
+    centerOrigin() {
+      const w = this.container.clientWidth, h = this.container.clientHeight;
+      if (!w || !h) return;
+      const totalRows = Math.ceil(this.pool.length / this.columns);
+      const totalWidth = this.columns * this.cellWidth;
+      const totalHeight = totalRows * this.cellHeight;
+      this.currentX = this.targetX = (w - totalWidth) / 2;
+      this.currentY = this.targetY = (h - totalHeight) / 2;
+    }
+
+    getItemId(col, row) { return col + ',' + row; }
+    getItemPosition(col, row) { return { x: col * this.cellWidth, y: row * this.cellHeight }; }
+
+    updateVisibleItems() {
+      const buffer = this.settings.bufferZone;
+      const w = this.container.clientWidth || window.innerWidth;
+      const h = this.container.clientHeight || window.innerHeight;
+      const eWidth = w * (1 + buffer);
+      const eHeight = h * (1 + buffer);
+      const s = Math.floor((-this.currentX - eWidth / 2) / this.cellWidth);
+      const n = Math.ceil((-this.currentX + 1.5 * eWidth) / this.cellWidth);
+      const a = Math.floor((-this.currentY - eHeight / 2) / this.cellHeight);
+      const o = Math.ceil((-this.currentY + 1.5 * eHeight) / this.cellHeight);
+      const newVisible = new Set();
+      const placedCandidates = [];
+      const minSpacing = window.matchMedia('(max-width: 600px)').matches ? 5 : 4;
+      const poolLen = this.pool.length;
+
+      for (let row = a; row <= o; row++) {
+        for (let col = s; col <= n; col++) {
+          const itemId = this.getItemId(col, row);
+          newVisible.add(itemId);
+          if (this.visibleItems.has(itemId)) continue;
+
+          const pos = this.getItemPosition(col, row);
+          let candidate = Math.abs(row * this.columns + col) % poolLen;
+          let attempts = 0;
+          while (attempts < poolLen) {
+            let conflict = false;
+            for (const placed of placedCandidates) {
+              const dCol = col - placed.col, dRow = row - placed.row;
+              if (Math.sqrt(dCol * dCol + dRow * dRow) <= minSpacing && candidate === placed.candidate) {
+                conflict = true; break;
+              }
+            }
+            if (!conflict) break;
+            candidate = (candidate + 1) % poolLen;
+            attempts++;
+          }
+          placedCandidates.push({ col, row, candidate });
+
+          const rec = this.pool[candidate];
+          const item = document.createElement('div');
+          item.className = 'ga-g-item';
+          item.id = itemId;
+          item.style.cssText = 'width:' + this.settings.baseWidth + 'px;height:' + this.settings.baseWidth +
+            'px;left:' + pos.x + 'px;top:' + pos.y + 'px';
+          item.dataset.tag = rec.tag;
+          item.dataset.body = (rec.meta || '').replace(/"/g, '&quot;');
+          item.dataset.img = rec.img;
+          item.tabIndex = 0;
+          item.setAttribute('role', 'button');
+          item.setAttribute('aria-label', rec.tag || 'Open photo');
+
+          const img = document.createElement('img');
+          img.loading = 'lazy';
+          img.decoding = 'async';
+          img.alt = '';
+          if (img.complete) img.classList.add('loaded');
+          else img.addEventListener('load', () => img.classList.add('loaded'), { once: true });
+          img.src = rec.img;
+          item.appendChild(img);
+
+          this.canvas.appendChild(item);
+          this.visibleItems.add(itemId);
+        }
+      }
+
+      this.visibleItems.forEach(itemId => {
+        if (!newVisible.has(itemId)) {
+          const el = document.getElementById(itemId);
+          if (el && el.parentNode === this.canvas) this.canvas.removeChild(el);
+          this.visibleItems.delete(itemId);
+        }
+      });
+    }
+
+    animate() {
+      const ease = this.settings.dragEase;
+      this.currentX += (this.targetX - this.currentX) * ease;
+      this.currentY += (this.targetY - this.currentY) * ease;
+      this.canvas.style.transform = 'translate3d(' + this.currentX + 'px,' + this.currentY + 'px,0)';
+      this.updateVisibleItems();
+      this.raf = requestAnimationFrame(this.animate);
+    }
+
+    attachDragEvents() {
+      const c = this.container;
+      c.addEventListener('mousedown', e => {
+        this.isDragging = true;
+        this.mouseHasMoved = false;
+        this.startX = e.clientX; this.startY = e.clientY;
+      });
+      window.addEventListener('mousemove', e => {
+        if (!this.isDragging) return;
+        const dx = e.clientX - this.startX, dy = e.clientY - this.startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this.mouseHasMoved = true;
+        const now = Date.now();
+        const dt = Math.max(10, now - this.lastDragTime);
+        this.lastDragTime = now;
+        this.dragVelocityX = dx / dt; this.dragVelocityY = dy / dt;
+        this.targetX += dx; this.targetY += dy;
+        this.startX = e.clientX; this.startY = e.clientY;
+      });
+      window.addEventListener('mouseup', () => {
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        // Momentum flick on release — skipped for reduced-motion, matching
+        // this file's existing window._reduceMotion convention.
+        if (!window._reduceMotion && (Math.abs(this.dragVelocityX) > 0.1 || Math.abs(this.dragVelocityY) > 0.1)) {
+          this.targetX += this.dragVelocityX * this.settings.momentumFactor;
+          this.targetY += this.dragVelocityY * this.settings.momentumFactor;
+        }
+      });
+      c.addEventListener('touchstart', e => {
+        this.isDragging = true;
+        this.mouseHasMoved = false;
+        this.startX = e.touches[0].clientX; this.startY = e.touches[0].clientY;
+      });
+      window.addEventListener('touchmove', e => {
+        if (!this.isDragging) return;
+        const dx = e.touches[0].clientX - this.startX, dy = e.touches[0].clientY - this.startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) this.mouseHasMoved = true;
+        this.targetX += dx; this.targetY += dy;
+        this.startX = e.touches[0].clientX; this.startY = e.touches[0].clientY;
+      }, { passive: false });
+      window.addEventListener('touchend', () => { this.isDragging = false; });
+
+      // Click-to-open the postcard detail view — suppressed if this
+      // press-release actually dragged the canvas (same distinction the
+      // font-ramp mobile swipe elsewhere on the site relies on).
+      c.addEventListener('click', e => {
+        if (this.mouseHasMoved) return;
+        const item = e.target.closest('.ga-g-item');
+        if (item) openGaPostcard(item);
+      });
+      c.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const item = e.target.closest('.ga-g-item');
+        if (!item) return;
+        e.preventDefault();
+        openGaPostcard(item);
+      });
+    }
+
+    // Called by the size/gap controls below — re-tiles at the new cell
+    // size rather than resizing tiles in place, since a different cell
+    // size changes exactly which tiles fall inside the viewport.
+    updateSettings(patch) {
+      Object.assign(this.settings, patch);
+      this.recalcCells();
+      this.visibleItems.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.parentNode === this.canvas) this.canvas.removeChild(el);
+      });
+      this.visibleItems.clear();
+      this.updateVisibleItems();
+    }
+  }
+
+  const isMobileGa = window.matchMedia('(max-width: 600px)').matches;
+  let gaGallery = null;
+
+  // ── Size + gap controls — same slider / Shift+Scroll pattern used
+  //    elsewhere on the site, now driving tile pixel size directly instead
+  //    of a CSS grid column minimum: an infinitely-pannable canvas has no
+  //    "how many columns fit the pane" concept for a ceiling to track. ────
   const scaleSlider = document.getElementById('gaScaleSlider');
   const scaleLabel = document.getElementById('gaScaleLabel');
-  let userAdjustedGrid = false;
+  const SIZE_MIN = 140, SIZE_MAX = 640;
+  // Rough visual match to the old grid's "2-up" starting density, since
+  // there's no pane-width-fitting math left to derive it from directly.
+  let pos = isMobileGa ? 0.28 : 0.42;
 
-  // ── Non-linear curve ──────────────────────────────────────────────────
-  // Column count is roughly paneWidth / colMin — so a *linear* slider from
-  // 140px up to the pane's width reaches the 1-up threshold by the halfway
-  // mark (e.g. at 50% of a 580px ceiling, colMin≈360, and 580/360 already
-  // rounds down to 1 column). A power curve fixes this: colMin barely
-  // rises across the first stretch of the track (many columns, spread
-  // generously across low/mid slider positions) and only ramps steeply in
-  // the final stretch — so 2-up/3-up land around the middle and 1-up only
-  // shows up near the very end, matching how the track visually reads.
-  const COL_FLOOR = 140;
-  const CURVE_POWER = 4;
-  let colCeil = 2400; // dynamic, tracks the pane's live width — see updateSliderMax()
-  let pos = 0;         // 0–1, the slider's own linear position; colMin is derived from this
-  let colMin = COL_FLOOR;
+  function posToSize(p) { return Math.round(SIZE_MIN + (SIZE_MAX - SIZE_MIN) * p); }
 
-  function posToColMin(p) {
-    p = Math.max(0, Math.min(1, p));
-    return COL_FLOOR + (colCeil - COL_FLOOR) * Math.pow(p, CURVE_POWER);
-  }
-  function colMinToPos(px) {
-    const t = (px - COL_FLOOR) / (colCeil - COL_FLOOR);
-    return Math.pow(Math.max(0, Math.min(1, t)), 1 / CURVE_POWER);
-  }
-  function applyPos(p) {
+  function applyPos(p, retile) {
     pos = Math.max(0, Math.min(1, p));
-    colMin = posToColMin(pos);
+    const size = posToSize(pos);
     if (scaleSlider) scaleSlider.value = String(Math.round(pos * 1000));
-    if (scaleLabel) scaleLabel.textContent = Math.round(colMin) + 'px';
-    viewport.style.setProperty('--ga-col-min', colMin + 'px');
-  }
-  // Public-facing setter (used by the 2-up default below) — takes a target
-  // pixel value and converts it through the curve to the matching position.
-  function setColMin(px) {
-    applyPos(colMinToPos(px));
+    if (scaleLabel) scaleLabel.textContent = size + 'px';
+    if (gaGallery && retile !== false) gaGallery.updateSettings({ baseWidth: size });
   }
 
-  // The slider's ceiling in real pixels always tracks the pane's live
-  // width, recalculated on resize — but the *position* stays put when it
-  // changes, rather than clamping colMin against the new ceiling. That
-  // way resizing the window preserves "roughly how zoomed in you were,"
-  // instead of yanking the thumb to the end the moment the ceiling shrinks
-  // past the old pixel value.
-  function updateSliderMax() {
-    const w = viewport.clientWidth;
-    if (!w) return;
-    const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--ga-gap')) || 6;
-    const usable = Math.round(w - gap * 2);
-    colCeil = Math.max(COL_FLOOR + 160, usable + 4); // +4 so the very end reliably collapses to 1 column, not just barely 2
-    applyPos(pos);
-  }
-
-  updateSliderMax();
-  applyPos(0);
   if (scaleSlider) scaleSlider.addEventListener('input', () => {
-    userAdjustedGrid = true;
     applyPos(parseFloat(scaleSlider.value) / 1000);
   });
   const gaView = document.getElementById('view-generalassembly');
@@ -7672,41 +7835,22 @@ function initAllNarrativeParticles(container) {
     if (!e.shiftKey) return;
     e.preventDefault();
     e.stopPropagation();
-    userAdjustedGrid = true;
     applyPos(pos + (e.deltaY < 0 ? 0.03 : -0.03));
   }, { passive: false });
 
-  // ── Default to 2-up, on any screen size ──────────────────────────────
-  // A fixed px default can't hold "2 columns" across both a wide desktop
-  // window and a narrow phone — so instead of a static number, size the
-  // column minimum directly off the gallery pane's actual live width
-  // (the largest width two columns can share without letting a third
-  // one sneak in). Runs once per fresh visit to the page; backs off the
-  // moment the person touches the slider or Shift+Scrolls, so it never
-  // fights a deliberate choice.
-  function applyTwoUpDefault() {
-    const w = viewport.clientWidth;
-    if (!w) return; // view not laid out yet — bail rather than compute garbage
-    const gap = parseFloat(getComputedStyle(viewport).getPropertyValue('--ga-gap')) || 6;
-    const usable = w - gap * 2; // grid padding = one gap on each edge
-    const twoUp = Math.floor((usable - gap) / 2) - 2; // -2px safety margin against rounding
-    setColMin(twoUp);
-  }
-
   // ── Image gap ──────────────────────────────────────────────────────────
   const marginSlider = document.getElementById('gaMarginSlider');
-  function setGap(mult) {
-    viewport.style.setProperty('--ga-gap', Math.round(mult * 8) + 'px');
+  function applyGap(mult, retile) {
+    const gapPx = Math.round(mult * 8);
+    if (gaGallery && retile !== false) gaGallery.updateSettings({ itemGap: gapPx });
+    return gapPx;
   }
   if (marginSlider) {
-    setGap(parseFloat(marginSlider.value));
-    marginSlider.addEventListener('input', () => setGap(parseFloat(marginSlider.value)));
+    marginSlider.addEventListener('input', () => applyGap(parseFloat(marginSlider.value)));
   }
 
   // Resizable split between the gallery and the brief panel (same drag
   // pattern used by the type-specimen glyph resizer elsewhere on the site).
-  // Purely CSS now — the grid reflows on its own via auto-fill as the pane
-  // width changes, so there's nothing to recompute on drag.
   const resizeHandle = document.getElementById('gaResizeHandle');
   const splitEl = document.getElementById('gaSplit');
   if (resizeHandle && splitEl) {
@@ -7716,7 +7860,6 @@ function initAllNarrativeParticles(container) {
     function setSplitPct(pct) {
       splitPct = Math.max(35, Math.min(82, pct));
       splitEl.style.setProperty('--ga-split', splitPct + '%');
-      updateSliderMax();
     }
 
     resizeHandle.addEventListener('pointerdown', e => {
@@ -7737,28 +7880,27 @@ function initAllNarrativeParticles(container) {
     }
     resizeHandle.addEventListener('pointerup', endSplitDrag);
     resizeHandle.addEventListener('pointercancel', endSplitDrag);
-
     resizeHandle.addEventListener('keydown', e => {
       if (e.key === 'ArrowLeft')  { setSplitPct(splitPct - 3); e.preventDefault(); }
       if (e.key === 'ArrowRight') { setSplitPct(splitPct + 3); e.preventDefault(); }
     });
   }
 
-  buildGrid();
-
-  // Recompute the 2-up default on resize too (e.g. rotating a phone, or
-  // resizing a desktop window) — but only until the person has actually
-  // touched the grid controls themselves. The slider's ceiling, on the
-  // other hand, always tracks the pane's live width regardless of that —
-  // it's the track's own geometry, not a content default being overridden.
-  window.addEventListener('resize', () => {
-    updateSliderMax();
-    if (!userAdjustedGrid && currentView === 'generalassembly') applyTwoUpDefault();
-  });
-
+  // The gallery pane is display:none until the person actually visits
+  // Balance, so clientWidth/clientHeight read 0 at script-parse time —
+  // construct (and center) the canvas gallery lazily on first reveal
+  // instead, same as this file's other "wait until visible" hooks.
   window._gaOnShow = function () {
-    updateSliderMax();
-    if (!userAdjustedGrid) applyTwoUpDefault();
+    if (gaGallery) return;
+    const gapPx = applyGap(marginSlider ? parseFloat(marginSlider.value) : 0.2, false);
+    const settings = {
+      baseWidth: posToSize(pos),
+      itemGap: gapPx,
+      dragEase: 0.075,
+      momentumFactor: isMobileGa ? 140 : 200,
+      bufferZone: 1,
+    };
+    gaGallery = new GaCanvasGallery(viewport, grid, GA_POOL, settings);
   };
 })();
 
