@@ -257,6 +257,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 }
 #hero-loading.hidden{opacity:0;pointer-events:none}
 
+/* ── ACCESSIBILITY — third hero state, same canvas-particle mechanic as
+   Specializations, just laid out as a kicker + h1 + subhead + two-column
+   body block instead of one centered sentence. The visible canvas text is
+   decorative (aria-hidden); a real hidden h1/paragraphs sit alongside it
+   for screen readers and keyboard users — see initAccessibilityParticles. ── */
+#hero-accessibility{
+  display:none;
+  position:absolute;inset:0;z-index:6;
+  padding:0 32px;background:var(--bg);
+  box-sizing:border-box;
+}
+#hero-accessibility.active{display:block}
+#hero-a11y-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
 /* ── SPECIALIZATIONS — alternate hero state, toggled from the breadcrumb.
    Sits above the word-wall canvases with an opaque background so it fully
    covers them rather than layering on top; the wall itself keeps existing
@@ -2148,6 +2162,13 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
       <div id="hero-specialization">
         <canvas id="hero-spec-canvas" aria-hidden="true"></canvas>
         <span class="seo-text">I think. I make. I design — Zack G.</span>
+      </div>
+      <div id="hero-accessibility">
+        <canvas id="hero-a11y-canvas" aria-hidden="true"></canvas>
+        <h1 class="seo-text">Built to be used. Not just to be seen.</h1>
+        <p class="seo-text">Accessibility isn't a pass at the end of a project — it's a constraint I design with from the first sketch: semantic structure, a sane focus order, contrast that holds up in real light.</p>
+        <p class="seo-text">The particles on screen are decorative — the same mechanic as the word-wall and the Specializations sentence. Underneath, this is real markup: a real heading, real paragraphs, real reading order.</p>
+        <p class="seo-text">Keyboard navigation, screen-reader support, and reduced motion aren't edge cases. WCAG 2.1 AA is the floor here, not the target — checked before anything ships, not after.</p>
       </div>
     </section>
 
@@ -5896,11 +5917,12 @@ const VIEWS = {
 };
 
 // ── HERO MODE (index page only) — "XP" is the existing word-wall particle
-// hero; "Specializations" swaps it for a single centered line. Lives on
-// window so both the breadcrumb toggle (defined here) and the portrait
-// hero's render loop (defined much later in the script) can read/react to
-// the same value without one having to know about the other's internals.
-window._heroMode = 'xp'; // 'xp' | 'specializations'
+// hero; "Specializations" and "Accessibility" each swap it for their own
+// single centered line. Lives on window so both the breadcrumb toggle
+// (defined here) and the portrait hero's render loop (defined much later
+// in the script) can read/react to the same value without one having to
+// know about the other's internals.
+window._heroMode = 'xp'; // 'xp' | 'specializations' | 'accessibility'
 
 function renderBcLabel(id) {
   const bcLabel = document.getElementById('bc-label');
@@ -5910,22 +5932,30 @@ function renderBcLabel(id) {
     bcLabel.innerHTML =
       '<button class="bc-hero-toggle-btn' + (mode === 'xp' ? ' active' : '') + '" data-hero-mode="xp">XP</button>' +
       '<span class="bc-hero-toggle-sep">/</span>' +
-      '<button class="bc-hero-toggle-btn' + (mode === 'specializations' ? ' active' : '') + '" data-hero-mode="specializations">Specializations</button>';
+      '<button class="bc-hero-toggle-btn' + (mode === 'specializations' ? ' active' : '') + '" data-hero-mode="specializations">Specializations</button>' +
+      '<span class="bc-hero-toggle-sep">/</span>' +
+      '<button class="bc-hero-toggle-btn' + (mode === 'accessibility' ? ' active' : '') + '" data-hero-mode="accessibility">Accessibility</button>';
   } else {
     bcLabel.textContent = VIEWS[id]?.bcLabel || id;
   }
 }
 
 function applyHeroMode() {
-  const specEl = document.getElementById('hero-specialization');
-  if (!specEl) return;
+  const specEl  = document.getElementById('hero-specialization');
+  const a11yEl  = document.getElementById('hero-accessibility');
+  if (!specEl || !a11yEl) return;
   const isSpec = window._heroMode === 'specializations';
+  const isA11y = window._heroMode === 'accessibility';
   specEl.classList.toggle('active', isSpec);
+  a11yEl.classList.toggle('active', isA11y);
+  // The canvas may not have been sized correctly while hidden (some
+  // browsers report 0 for an element's box while display:none), so
+  // re-measure and re-lay-out right as each becomes visible.
   if (isSpec && typeof window._specRebuild === 'function') {
-    // The canvas may not have been sized correctly while hidden (some
-    // browsers report 0 for an element's box while display:none), so
-    // re-measure and re-lay-out right as it becomes visible.
     requestAnimationFrame(window._specRebuild);
+  }
+  if (isA11y && typeof window._a11yRebuild === 'function') {
+    requestAnimationFrame(window._a11yRebuild);
   }
 }
 
@@ -6725,7 +6755,7 @@ function initAllNarrativeParticles(container) {
     requestAnimationFrame(loop);
     if (!heroSection.closest('.view.active')) return;
     if (!heroVisible) return;
-    if (window._heroMode === 'specializations') return;
+    if (window._heroMode !== 'xp') return;
 
     bX += (mX - bX) * PT_LERP;
     bY += (mY - bY) * PT_LERP;
@@ -7015,6 +7045,253 @@ function initAllNarrativeParticles(container) {
   // the box may report zero size while display:none, so the very first
   // buildParticles() call above can end up with nothing to measure.
   window._specRebuild = buildParticles;
+})();
+
+// ── ACCESSIBILITY PARTICLE TEXT ──────────────────────────────────────────────
+// Same tether/repel particle mechanic as Specializations above, but instead
+// of one centered sentence this lays out a small hierarchy — kicker, h1,
+// subhead, and a two-column body paragraph — as one flat particle field.
+// Word-wrap + line stacking is computed once in buildParticles(); each
+// particle just remembers which font string and opacity its own line used.
+// The canvas itself is aria-hidden — a real h1/paragraphs sit next to it
+// (see the .seo-text elements in the markup) for anyone using a screen
+// reader or not running the animation.
+(function initAccessibilityParticles() {
+  const wrap = document.getElementById('hero-accessibility');
+  const canvas = document.getElementById('hero-a11y-canvas');
+  if (!wrap || !canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const SANS = "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif";
+  const PAD_X = 32;
+
+  const KICKER_TEXT = 'ACCESSIBILITY';
+  const H1_TEXT      = 'Before you ⛳ me';
+  const SUB_TEXT     = "Okay, NORMALLY, accessibility isn't a pass at the end of a project — it's a requirement that informs from the get-go, not as constraint, but as a baseline. With this being my creative sandbox, I'm hoping you give me a pass here and there — most features were built with accessibility and mobile viewing in mind.";
+  const COL1_TEXT    = 'The particles on screen are decorative, but serving a function (to draw interest while serving an actual function; showing clients I have worked with, a tongue-in-cheek specializations spec sheet, and a meta-commentary acknnowledgement that is this very paragraph) — Underneath, this is real markup: a real heading, real paragraphs, real reading order, with real SEO value.';
+  const COL2_TEXT    = "Keyboard navigation, screen-reader support, and reduced motion aren't edge cases. WCAG 2.1 AA is the floor here, not the target — checked before anything ships, not after.";
+
+  const TETHER = 0.02, DAMP = 0.74, LERP = 0.12, REPEL = 60;
+
+  let W = 0, H = 0, DPR = 1;
+  let mX = -999, mY = -999, bX = -999, bY = -999;
+  let particles = [];
+  let loaded = false;
+  let visible = false;
+  let started = false;
+
+  function isDarkMode() { return !document.body.classList.contains('light-mode'); }
+
+  // Greedy word-wrap using real measured widths (assumes ctx.font is
+  // already set to `font` by the caller before this runs).
+  function wrapWords(text, maxWidth) {
+    const spaceW = ctx.measureText(' ').width;
+    const words = text.split(' ');
+    const lines = [];
+    let current = [], currentWidth = 0;
+    words.forEach(word => {
+      const w = ctx.measureText(word).width;
+      const addWidth = current.length ? spaceW + w : w;
+      if (current.length && currentWidth + addWidth > maxWidth) {
+        lines.push({ words: current, width: currentWidth });
+        current = [word];
+        currentWidth = w;
+      } else {
+        current.push(word);
+        currentWidth += addWidth;
+      }
+    });
+    if (current.length) lines.push({ words: current, width: currentWidth });
+    return { lines, spaceW };
+  }
+
+  // Pushes one wrapped block's characters into `particles`, left-aligned at
+  // x0 starting at yTop, one visual "line" per lineHeight step. Assumes
+  // ctx.font is already set to `font`.
+  function emit(wrapped, font, opacity, x0, yTop, lineHeight, tracking) {
+    wrapped.lines.forEach((line, li) => {
+      let x = x0;
+      const y = yTop + li * lineHeight;
+      line.words.forEach((word, wi) => {
+        for (const ch of word) {
+          const cw = ctx.measureText(ch).width;
+          particles.push({ ch, font, opacity, restX: x, restY: y, x, y, vx: 0, vy: 0 });
+          x += cw + tracking;
+        }
+        if (wi < line.words.length - 1) x += wrapped.spaceW;
+      });
+    });
+  }
+
+  function buildParticles() {
+    W = wrap.clientWidth;
+    H = wrap.clientHeight;
+    if (!W || !H) return; // hidden (display:none) — nothing to measure yet
+
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    const isMobile = W <= 640;
+    const leftX = PAD_X;
+    const maxWidth = Math.max(80, W - PAD_X * 2);
+
+    const kickerSize = Math.max(9, Math.min(11, W * 0.009));
+    const kickerLH   = kickerSize * 1.6;
+    const h1Size     = Math.max(26, Math.min(56, W * 0.045));
+    const h1LH       = h1Size * 1.12;
+    const subSize    = Math.max(14, Math.min(20, W * 0.016));
+    const subLH      = subSize * 1.55;
+    const colSize    = Math.max(12, Math.min(15, W * 0.0115));
+    const colLH      = colSize * 1.85;
+    const colGap     = 48;
+    const colWidth   = isMobile ? maxWidth : (maxWidth - colGap) / 2;
+
+    const kickerFont = `700 ${kickerSize}px 'DM Mono',monospace`;
+    const h1Font     = `700 ${h1Size}px ${SANS}`;
+    const subFont    = `400 ${subSize}px ${SANS}`;
+    const colFont    = `400 ${colSize}px ${SANS}`;
+
+    ctx.font = kickerFont; const kickerM = wrapWords(KICKER_TEXT, maxWidth);
+    ctx.font = h1Font;     const h1M     = wrapWords(H1_TEXT, maxWidth);
+    ctx.font = subFont;    const subM    = wrapWords(SUB_TEXT, maxWidth);
+    ctx.font = colFont;    const col1M   = wrapWords(COL1_TEXT, colWidth);
+    ctx.font = colFont;    const col2M   = wrapWords(COL2_TEXT, colWidth);
+
+    const gapKickerH1 = kickerSize * 1.4;
+    const gapH1Sub    = h1Size * 0.4;
+    const gapSubCol   = subSize * 1.0;
+    const gapColMobile = colSize * 1.4;
+
+    const colBlockHeight = isMobile
+      ? (col1M.lines.length * colLH + gapColMobile + col2M.lines.length * colLH)
+      : Math.max(col1M.lines.length, col2M.lines.length) * colLH;
+
+    const totalHeight =
+      kickerM.lines.length * kickerLH + gapKickerH1 +
+      h1M.lines.length * h1LH + gapH1Sub +
+      subM.lines.length * subLH + gapSubCol +
+      colBlockHeight;
+
+    let y = Math.max(24, (H - totalHeight) / 2);
+    particles = [];
+
+    ctx.font = kickerFont;
+    emit(kickerM, kickerFont, 0.45, leftX, y, kickerLH, 1.5);
+    y += kickerM.lines.length * kickerLH + gapKickerH1;
+
+    ctx.font = h1Font;
+    emit(h1M, h1Font, 0.95, leftX, y, h1LH, 0);
+    y += h1M.lines.length * h1LH + gapH1Sub;
+
+    ctx.font = subFont;
+    emit(subM, subFont, 0.65, leftX, y, subLH, 0);
+    y += subM.lines.length * subLH + gapSubCol;
+
+    ctx.font = colFont;
+    if (isMobile) {
+      emit(col1M, colFont, 0.6, leftX, y, colLH, 0);
+      y += col1M.lines.length * colLH + gapColMobile;
+      emit(col2M, colFont, 0.6, leftX, y, colLH, 0);
+    } else {
+      emit(col1M, colFont, 0.6, leftX, y, colLH, 0);
+      emit(col2M, colFont, 0.6, leftX + colWidth + colGap, y, colLH, 0);
+    }
+
+    loaded = true;
+  }
+
+  function loop() {
+    requestAnimationFrame(loop);
+    if (window._heroMode !== 'accessibility') return;
+    if (!visible || !loaded) return;
+
+    bX += (mX - bX) * LERP;
+    bY += (mY - bY) * LERP;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.textBaseline = 'top';
+    const rgbStr = isDarkMode() ? '255,255,255' : '10,10,10';
+    let lastFont = '', lastAlphaBucket = -1;
+
+    for (const p of particles) {
+      p.vx += (p.restX - p.x) * TETHER;
+      p.vy += (p.restY - p.y) * TETHER;
+
+      const dx = p.x - bX, dy = p.y - bY;
+      const dSq = dx * dx + dy * dy;
+      if (dSq < REPEL * REPEL && dSq > 0.25) {
+        const d = Math.sqrt(dSq);
+        const f = 1 - d / REPEL;
+        const scale = f * f * 10 / d;
+        p.vx += dx * scale;
+        p.vy += dy * scale;
+      }
+
+      p.vx *= DAMP; p.vy *= DAMP;
+      p.x  += p.vx; p.y  += p.vy;
+
+      if (p.font !== lastFont) { ctx.font = p.font; lastFont = p.font; }
+      const bucket = (p.opacity * 64 + 0.5) | 0;
+      if (bucket !== lastAlphaBucket) {
+        ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
+        lastAlphaBucket = bucket;
+      }
+      ctx.fillText(p.ch, p.x, p.y);
+    }
+  }
+
+  // Same idle-release fix as Specializations: without this, a cursor that
+  // goes still near the text (rather than leaving) leaves nearby glyphs
+  // shoved outward and frozen instead of settling back to rest.
+  function releaseRepel() { mX = -999; mY = -999; }
+
+  let idleTimer = null;
+  function onMove(e) {
+    if (window._heroMode !== 'accessibility') return;
+    const r = canvas.getBoundingClientRect();
+    mX = e.clientX - r.left;
+    mY = e.clientY - r.top;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(releaseRepel, 1200);
+  }
+  window.addEventListener('mousemove', onMove);
+  wrap.addEventListener('mouseleave', () => {
+    clearTimeout(idleTimer);
+    releaseRepel();
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (loaded) buildParticles(); }, 120);
+  });
+
+  new IntersectionObserver(entries => {
+    visible = entries[0].isIntersecting;
+  }, { threshold: 0 }).observe(wrap);
+
+  function start() {
+    if (started) return;
+    started = true;
+    Promise.all([
+      document.fonts.load(`700 16px 'DM Mono'`).catch(() => {}),
+      document.fonts.load(`700 32px ${SANS}`).catch(() => {}),
+    ]).then(() => {
+      buildParticles();
+      loop();
+    });
+  }
+  start();
+
+  // Exposed so applyHeroMode() can force a fresh layout the instant
+  // Accessibility is switched on — the box may report zero size while
+  // display:none, so the very first buildParticles() call can end up with
+  // nothing to measure.
+  window._a11yRebuild = buildParticles;
 })();
 
 // ── CUSTOM SCROLL INDICATOR ─────────────────────────────────────────────────
