@@ -708,6 +708,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   max-width:100%;
   transition:opacity .12s ease;
 }
+.fs-glyph-hero span{display:inline-block}
 .fs-glyph-hero.swapping{opacity:0}
 .fs-glyph-hero[data-glyph-len="2"]{font-size:clamp(90px,11vw,170px)}
 .fs-glyph-hero[data-glyph-len="3"]{font-size:clamp(58px,7vw,108px)}
@@ -6711,6 +6712,10 @@ function initAllNarrativeParticles(container) {
       heroEl._swapTimer = setTimeout(() => {
         heroEl.textContent = word;
         heroEl.dataset.glyphLen = String(len);
+        // Word swaps replace all children with a plain text node — rebuild
+        // the per-character spans the pressure effect needs (see
+        // pressureGlyphHero() below) so it keeps working on the new word.
+        if (heroEl._pressureRewrap) heroEl._pressureRewrap();
         refit();
         requestAnimationFrame(() => heroEl.classList.remove('swapping'));
       }, 110);
@@ -6819,6 +6824,126 @@ function initAllNarrativeParticles(container) {
       } else {
         curX = 0; curY = 0;
         wrap.style.transform = 'translate(0px, 0px)';
+        raf = null;
+      }
+    }
+
+    window.addEventListener('mousemove', onMove);
+    panel.addEventListener('mouseleave', onLeave);
+  }
+
+  function initAll() {
+    document.querySelectorAll('.fs-glyph-left').forEach(initPanel);
+  }
+
+  initAll();
+})();
+
+// ── GLYPH HERO TYPE PRESSURE ─────────────────────────────────────────────────
+// Adapted from the "TextPressure" effect: each character's weight/width/
+// slant reacts to cursor proximity. The reference implementation assumes a
+// true variable font (Roboto Flex) with wght/wdth/ital axes all present.
+// None of our seven per-project display fonts (Playfair Display, Syne, Bebas
+// Neue, Space Grotesk, DM Serif Display, Outfit, Anton) have all three —
+// three of them (Bebas Neue, DM Serif Display, Anton) aren't variable fonts
+// at all — so raw font-variation-settings would do nothing visible on half
+// of these. Instead this drives three properties that work on ANY font:
+// plain `font-weight` (maps to the nearest static cut on a non-variable
+// font, drives the real wght axis on one that has it), a scaleX() transform
+// standing in for "width", and a synthetic `font-style: oblique <angle>`
+// slant standing in for "italic" — oblique is a rendering-engine shear, so
+// it visibly works even on faces with no italic cut at all.
+(function pressureGlyphHero() {
+  const MIN_WGHT = 100, MAX_WGHT = 900;
+  const MIN_SCALE = 0.92, MAX_SCALE = 1.12;
+  const MAX_OBLIQUE = 8; // degrees, at zero distance
+  const EASE = 15; // matches the reference implementation's mouse-lerp divisor
+
+  // Same falloff curve as the reference implementation: distance 0 → ~maxVal
+  // + minVal, distance >= maxDist → clamped to minVal.
+  function getAttr(distance, maxDist, minVal, maxVal) {
+    const val = maxVal - Math.abs((maxVal * distance) / maxDist);
+    return Math.max(minVal, val + minVal);
+  }
+
+  function initPanel(panel) {
+    const heroEl = panel.querySelector('.fs-glyph-hero');
+    if (!heroEl || heroEl._pressureInit) return;
+    heroEl._pressureInit = true;
+
+    function wrapChars() {
+      const text = heroEl.textContent;
+      heroEl.textContent = '';
+      const spans = [];
+      for (const ch of text) {
+        const span = document.createElement('span');
+        span.textContent = ch;
+        heroEl.appendChild(span);
+        spans.push(span);
+      }
+      heroEl._pressureSpans = spans;
+    }
+    wrapChars();
+    // Exposed so setHeroWord() (glyph letter-select swap, above) can rebuild
+    // the spans whenever the hero word itself changes.
+    heroEl._pressureRewrap = wrapChars;
+
+    let curX = 0, curY = 0, targetX = 0, targetY = 0, raf = null;
+
+    // Defaults to the hero's own center — same idea as the reference
+    // implementation, which initializes its "mouse" to the container center
+    // rather than an arbitrary point, and what mouseleave eases back toward
+    // (matching this file's convention of always releasing a hover/proximity
+    // effect back to a sane rest state rather than leaving it stuck).
+    function centerTarget() {
+      const r = heroEl.getBoundingClientRect();
+      targetX = r.left + r.width / 2;
+      targetY = r.top + r.height / 2;
+    }
+    centerTarget();
+    curX = targetX; curY = targetY;
+
+    function onMove(e) {
+      targetX = e.clientX;
+      targetY = e.clientY;
+      ensureLoop();
+    }
+    function onLeave() {
+      centerTarget();
+      ensureLoop();
+    }
+    function ensureLoop() {
+      if (raf) return;
+      tick();
+    }
+
+    function tick() {
+      curX += (targetX - curX) / EASE;
+      curY += (targetY - curY) / EASE;
+
+      const rect = heroEl.getBoundingClientRect();
+      const maxDist = Math.max(rect.width / 2, 40);
+      const spans = heroEl._pressureSpans || [];
+
+      spans.forEach(span => {
+        const r = span.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const d = Math.hypot(curX - cx, curY - cy);
+        const t = Math.max(0, 1 - Math.min(1, d / maxDist));
+
+        const wght    = Math.round(getAttr(d, maxDist, MIN_WGHT, MAX_WGHT));
+        const scale   = (MIN_SCALE + t * (MAX_SCALE - MIN_SCALE)).toFixed(3);
+        const oblique = (t * MAX_OBLIQUE).toFixed(1);
+
+        span.style.fontWeight = wght;
+        span.style.transform  = `scaleX(${scale})`;
+        span.style.fontStyle  = `oblique ${oblique}deg`;
+      });
+
+      if (Math.abs(targetX - curX) > 0.1 || Math.abs(targetY - curY) > 0.1) {
+        raf = requestAnimationFrame(tick);
+      } else {
         raf = null;
       }
     }
