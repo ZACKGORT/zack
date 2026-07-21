@@ -172,7 +172,7 @@
     transition:box-shadow .2s ease;
     cursor:pointer;
   }
-  .page:hover{ box-shadow:0 34px 70px rgba(0,0,0,.6); }
+  .page:hover{ z-index:100; box-shadow:0 34px 70px rgba(0,0,0,.6); }
   .pages-wrap.is-spread .page{
     position:relative; inset:auto; top:auto; left:auto;
     transform:none; width:280px;
@@ -252,7 +252,9 @@
     rotate:var(--arot, -6deg);
     filter:drop-shadow(0 14px 22px rgba(0,0,0,.45));
     font-family:'JetBrains Mono', monospace;
+    transition:filter .2s ease;
   }
+  .attachment:hover{ z-index:100; filter:drop-shadow(0 20px 30px rgba(0,0,0,.55)); }
   .pages-wrap.is-spread .attachment{ position:relative; inset:auto; top:auto; left:auto; }
 
   .attachment.receipt{
@@ -1340,6 +1342,7 @@ function switchSection(id){
     zoomedPage = null;
     zoomBackdrop.classList.remove('is-active');
     zoomHint.classList.remove('is-active');
+    if (wasSpread){ pagesWrap.classList.add('is-spread'); wasSpread = false; }
   }
   // reset detail view back to this section's homepage
   activeTab = null;
@@ -1482,10 +1485,17 @@ function renderPages(pages, attachments){
 const zoomBackdrop = document.getElementById('zoomBackdrop');
 const zoomHint = document.getElementById('zoomHint');
 let zoomedPage = null;
+let wasSpread = false;
 
 function zoomPage(el){
   if (zoomedPage === el) return;
   if (zoomedPage) unzoomPage();
+
+  // always expand from the "stacked" appearance, even if spread mode is active —
+  // dropping the class before Flip captures its start state forces a reflow back
+  // to the cascade positioning, so the open animation is consistent either way
+  wasSpread = pagesWrap.classList.contains('is-spread');
+  if (wasSpread) pagesWrap.classList.remove('is-spread');
 
   const state = Flip.getState(el);
   el.classList.add('is-zoomed');
@@ -1503,7 +1513,10 @@ function unzoomPage(){
   zoomedPage = null;
   zoomBackdrop.classList.remove('is-active');
   zoomHint.classList.remove('is-active');
-  Flip.from(state, { duration:.5, ease:'power3.inOut', absolute:true });
+  Flip.from(state, {
+    duration:.5, ease:'power3.inOut', absolute:true,
+    onComplete: () => { if (wasSpread) pagesWrap.classList.add('is-spread'); }
+  });
 }
 
 zoomBackdrop.addEventListener('click', unzoomPage);
@@ -1540,6 +1553,7 @@ function openDetail(tabEl, tabData, entry){
     zoomedPage = null;
     zoomBackdrop.classList.remove('is-active');
     zoomHint.classList.remove('is-active');
+    if (wasSpread){ pagesWrap.classList.add('is-spread'); wasSpread = false; }
   }
   if (!originalHome.has(tabEl)){
     originalHome.set(tabEl, { parent: tabEl.parentElement, next: tabEl.nextSibling });
@@ -1583,6 +1597,7 @@ function closeDetail(){
     zoomedPage = null;
     zoomBackdrop.classList.remove('is-active');
     zoomHint.classList.remove('is-active');
+    if (wasSpread){ pagesWrap.classList.add('is-spread'); wasSpread = false; }
   }
   if (!activeTab){
     // came from the default expanded state with no source tab — just show the list
