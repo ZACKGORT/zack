@@ -222,13 +222,16 @@ body {
   margin-left: 0; margin-right: 0;
 }
 .hero-img {
+  position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: contain;
   object-position: center center;
   display: block;
-  transition: transform 1.6s var(--ease-out-expo);
+  opacity: 0;
+  transition: opacity 1.1s var(--ease-out-expo), transform 1.6s var(--ease-out-expo);
 }
-.hero-sticky:hover .hero-img { transform: scale(1.015); }
+.hero-img.is-active { opacity: 1; }
+.hero-sticky:hover .hero-img.is-active { transform: scale(1.015); }
 
 /* Overlay + badge */
 .hero-overlay {
@@ -1268,10 +1271,14 @@ body {
       <!-- DESKTOP: single-column editorial overview -->
       <div class="info-right desk-info">
         <!-- Full-bleed hero -->
-        <div class="hero-sticky">
-          <img class="hero-img"
+        <div class="hero-sticky" id="heroCycle">
+          <img class="hero-img hero-img-a is-active"
                src="https://i.ibb.co/CGBfjVW/moonwalk-shoe-proto-v1.webp"
                alt="Moonwalk Air Jordans"
+               onerror="this.style.background='var(--off)'">
+          <img class="hero-img hero-img-b"
+               src="https://i.ibb.co/bMV6NvwG/moonwalk-shoe-proto-v1-angle2.webp"
+               alt="Moonwalk Air Jordans — alternate angle"
                onerror="this.style.background='var(--off)'">
           <div class="hero-overlay"></div>
           <div class="hero-badge-row">
@@ -1952,7 +1959,7 @@ const DOCS = [
           <div style="display:flex;flex-direction:column;gap:4px;font-family:'SF Mono','Fira Code',monospace;font-size:11px">
             <div style="background:var(--ink);color:var(--white);padding:8px 14px">HEADER — 52px fixed</div>
             <div style="background:#2a2a2a;color:#aaa;padding:8px 14px">HUD RAIL — 36px pill, fixed left:16px</div>
-            <div style="background:#b0b8c0;padding:32px 14px;text-align:center;color:var(--ink);font-weight:600">HERO IMAGE — 75vh · object-fit: contain</div>
+            <div style="background:#b0b8c0;padding:32px 14px;text-align:center;color:var(--ink);font-weight:600">HERO IMAGE — 75vh · object-fit: contain · crossfades 2 angles</div>
             <div style="display:grid;grid-template-columns:1fr 340px;gap:2px;background:var(--rule2)">
               <div style="background:var(--off);padding:20px 14px;color:var(--ink3)">
                 author · tags · description<br>cost table · ratings
@@ -2461,6 +2468,20 @@ function showDoc(id) {
   document.querySelectorAll('.doc-nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById('dnav-' + id)?.classList.add('active');
 }
+
+// ════ HERO IMAGE CYCLE ════
+(function heroCycle() {
+  const wrap = document.getElementById('heroCycle');
+  if (!wrap) return;
+  const imgs = wrap.querySelectorAll('.hero-img');
+  if (imgs.length < 2) return;
+  let i = 0;
+  setInterval(() => {
+    imgs[i].classList.remove('is-active');
+    i = (i + 1) % imgs.length;
+    imgs[i].classList.add('is-active');
+  }, 3200);
+})();
 
 // ════ INIT ════
 renderParts();
