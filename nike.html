@@ -29,6 +29,8 @@
   --hh: 52px;
   --mth: 56px;
   --sw: 360px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
 
   /* Nike font stack */
   --f-display: 'Bebas Neue', 'Helvetica Neue', Arial, sans-serif;
@@ -61,7 +63,8 @@ body {
 ────────────────────────────────────── */
 .hdr {
   position: fixed; top: 0; left: 0; right: 0; z-index: 400;
-  height: var(--hh);
+  height: calc(var(--hh) + var(--safe-t));
+  padding-top: var(--safe-t);
   background: var(--white);
   border-bottom: 1px solid var(--rule);
   display: flex; align-items: center;
@@ -166,10 +169,10 @@ body {
 ────────────────────────────────────── */
 .pages {
   position: fixed;
-  top: var(--hh); left: 0; right: 0; bottom: 0;
+  top: calc(var(--hh) + var(--safe-t)); left: 0; right: 0; bottom: 0;
 }
 @media (max-width: 899px) {
-  .pages { bottom: var(--mth); }
+  .pages { bottom: calc(var(--mth) + var(--safe-b)); }
 }
 
 .page {
@@ -795,7 +798,9 @@ body {
 .mob-tabs {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
-  height: var(--mth); background: var(--white); border-top: 1px solid var(--rule2);
+  height: calc(var(--mth) + var(--safe-b));
+  padding-bottom: var(--safe-b);
+  background: var(--white); border-top: 1px solid var(--rule2);
 }
 .mtab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -817,6 +822,13 @@ body {
   .hdr-right { border-left: none; }
   .avatar-row span { display: none; }
 
+  /* Header: decongest so it actually fits a phone width */
+  .hdr-left { padding: 0 8px 0 8px; gap: 6px; }
+  .proj-label { max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hdr-right { padding: 0 8px; gap: 6px; }
+  .hdr-pill { display: none; }
+  .atc-btn { padding: 9px 14px; font-size: 12px; }
+
   /* Overview page: already single-col, collapse purchase card to full width */
   .ir-body-grid { grid-template-columns: 1fr; }
   .ir-col-right { position: static; }
@@ -836,6 +848,19 @@ body {
   .tbl-head { display: none; }
   .prow { grid-template-columns: 1fr 50px; }
   .prow .cu, .prow .cs, .prow .csub { display: none; }
+
+  /* Left-rail HUD floats over content at narrow widths — its links are
+     covered by mob-tabs instead, so hide it rather than let it overlap. */
+  .hud-rail { display: none; }
+
+  /* Parts toolbar: allow chips/toggle to wrap instead of overflowing off-screen */
+  #page-parts .parts-toolbar { flex-wrap: wrap; row-gap: 8px; }
+  .sw { flex-basis: 100%; order: -1; }
+  .fg { flex-wrap: wrap; }
+  .fb { padding: 7px 12px; font-size: 13px; }
+
+  /* iOS Safari zooms the viewport on focus for inputs under 16px */
+  .si { font-size: 16px; }
 }
 
 @media (min-width: 900px) { .mob-info { display: none; } }
@@ -870,6 +895,10 @@ body {
   white-space: nowrap;
 }
 .atc-btn:hover { opacity: 0.88; }
+.atc-label::before { content: attr(data-full); }
+@media (max-width: 899px) {
+  .atc-label::before { content: attr(data-short); }
+}
 
 /* ── LEFT-RAIL HUD (Overview only) ── */
 .hud-rail {
@@ -1215,8 +1244,8 @@ body {
 
   <div class="hdr-right">
     <!-- Add to Cart replaces PUBLISHED pill -->
-    <button class="atc-btn" onclick="this.textContent='Added ✓';this.style.background='var(--green)';setTimeout(()=>{this.textContent='Add to Cart · $32,519';this.style.background='var(--ink)'},2000)">
-      Add to Cart · $32,519
+    <button class="atc-btn" onclick="handleAddToCart(this)">
+      <span class="atc-label" data-full="Add to Cart · $32,519" data-short="Add · $32,519"></span>
     </button>
     <div class="hdr-pill">
       <svg width="9" height="9" viewBox="0 0 14 14" fill="none"><path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
@@ -1690,6 +1719,19 @@ const SECTIONS = [
 
 // ════ STATE ════
 let curPage = 'info', curFilter = 'all', curView = 'grid', curSearch = '';
+
+// ════ ADD TO CART ════
+function handleAddToCart(btn) {
+  const label = btn.querySelector('.atc-label');
+  label.dataset.full = 'Added ✓';
+  label.dataset.short = 'Added ✓';
+  btn.style.background = 'var(--green)';
+  setTimeout(() => {
+    label.dataset.full = 'Add to Cart · $32,519';
+    label.dataset.short = 'Add · $32,519';
+    btn.style.background = 'var(--ink)';
+  }, 2000);
+}
 
 // ════ PAGE SWITCHING ════
 function gotoPage(p) {
