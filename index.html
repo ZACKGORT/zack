@@ -7117,7 +7117,6 @@ function initAllNarrativeParticles(container) {
   "https://i.ibb.co/9kVf8T6X/DSC00726.jpg",
   "https://i.ibb.co/sv4mb4qk/ZAX09987.jpg",
   "https://i.ibb.co/3xrYxxR/ZAX09787.jpg",
-  "https://i.ibb.co/HfXxRsg6/ZAX01363.jpg",
   "https://i.ibb.co/Kp0wZtgT/ZAX01496.jpg",
 
   "https://i.ibb.co/fV1HTpvx/IMG-20200701-221037-295.jpg",
@@ -7535,33 +7534,6 @@ function initAllNarrativeParticles(container) {
 
   const FADE_HOLD_MS = 6500; // how long each photo holds before crossfading to the next
 
-  // Landscape photos: show the whole frame rather than cropping into it —
-  // the hero strip is short relative to most wide photos, so a cover crop
-  // was clipping tops/bottoms badly. object-fit:contain has zero cropped
-  // headroom though, so it can't tolerate the overscan+pan trick used for
-  // parallax elsewhere — any offset there would clip real image content
-  // the moment it reaches the frame edge. So contain images are pinned at
-  // exact size with no pan (letterboxed, static). Portrait photos keep the
-  // centered square-ish crop (cover) with full overscan + parallax pan,
-  // since cover always has real crop headroom to draw from.
-  function fitHeroImage(img) {
-    if (!img.naturalWidth || !img.naturalHeight) return;
-    const isLandscape = img.naturalWidth >= img.naturalHeight;
-    if (isLandscape) {
-      img.dataset.fit = 'contain';
-      img.style.objectFit = 'contain';
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.transform = 'translate3d(0,0,0)';
-    } else {
-      img.dataset.fit = 'cover';
-      img.style.objectFit = 'cover';
-      img.style.width = '106%';
-      img.style.height = '106%';
-      // transform is left alone here — the parallax loop below drives it
-    }
-  }
-
   // Shuffle once per page load so the rotation order isn't identical every
   // visit, and every photo in the pool gets shown once before any repeats.
   const pool = (window._gaPhotos || []).slice();
@@ -7574,7 +7546,7 @@ function initAllNarrativeParticles(container) {
   let activeLayer = 0;
   if (pool.length) {
     const img0 = layers[0];
-    img0.onload = () => { fitHeroImage(img0); img0.classList.add('active'); };
+    img0.onload = () => { img0.classList.add('active'); };
     img0.src = pool[0];
   }
 
@@ -7584,7 +7556,6 @@ function initAllNarrativeParticles(container) {
     const nextLayer = 1 - activeLayer;
     const img = layers[nextLayer];
     img.onload = () => {
-      fitHeroImage(img);
       layers[activeLayer].classList.remove('active');
       img.classList.add('active');
       activeLayer = nextLayer;
@@ -7607,10 +7578,7 @@ function initAllNarrativeParticles(container) {
     cx += (tx - cx) * EASE;
     cy += (ty - cy) * EASE;
     const t = `translate3d(calc(-3% + ${cx.toFixed(2)}px), calc(-3% + ${cy.toFixed(2)}px), 0)`;
-    layers.forEach(img => {
-      if (img.dataset.fit === 'contain') return; // pinned, no pan — see fitHeroImage
-      img.style.transform = t;
-    });
+    layers.forEach(img => { img.style.transform = t; });
     if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
       raf = requestAnimationFrame(render);
     }
