@@ -236,14 +236,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 .bc-btn:hover{color:rgba(var(--fg-rgb),.6)}
 .bc-sep{opacity:.3}
 .bc-active{color:rgba(var(--fg-rgb),.55)}
-.bc-hero-toggle-btn{
-  background:none;border:none;padding:0;font:inherit;letter-spacing:inherit;
-  color:rgba(var(--fg-rgb),.45);cursor:none;transition:color .15s;
-}
-.bc-hero-toggle-btn:hover{color:rgba(var(--fg-rgb),.6)}
-.bc-hero-toggle-btn.active{color:rgba(var(--fg-rgb),.55);font-weight:700}
-.bc-hero-toggle-sep{opacity:.25;margin:0 6px}
-
 /* ── PAGE BODY OFFSET ── */
 .page-body{padding-top:calc(var(--nav-h) + var(--bc-h))}
 
@@ -252,48 +244,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 ══════════════════════════════════════════ */
 #view-index{}
 
-/* Image-text portrait hero */
-#hero{position:relative;width:100%;overflow:hidden;background:var(--bg);display:block}
-#hero-canvas,#hero-cc{position:absolute;top:0;left:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .7s ease}
-#hero-canvas.loaded,#hero-cc.loaded{opacity:1}
-#hero-cc{pointer-events:none;z-index:2}
-#hero-loading{
-  position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;
-  background:var(--bg);z-index:10;
-  font-family:'DM Mono',monospace;font-size:var(--fs-micro);letter-spacing:.25em;text-transform:uppercase;
-  color:var(--fg);opacity:.4;transition:opacity .6s;
+/* Homepage hero — reuses .cs-hero-image (see case-study hero rules below)
+   with a cursor-driven parallax shift on the image itself. The image is
+   overscaled (see .home-hero img) so it can pan within the frame without
+   ever exposing an edge; initHomeHeroParallax (JS) drives the transform. */
+#hero.home-hero{cursor:none}
+.home-hero img{
+  width:112%;
+  height:112%;
+  max-width:none;
+  transform:translate3d(-3%,-3%,0);
+  will-change:transform;
 }
-#hero-loading.hidden{opacity:0;pointer-events:none}
-
-/* ── ACCESSIBILITY — third hero state, same canvas-particle mechanic as
-   Specializations, just laid out as a kicker + h1 + subhead + two-column
-   body block instead of one centered sentence. The visible canvas text is
-   decorative (aria-hidden); a real hidden h1/paragraphs sit alongside it
-   for screen readers and keyboard users — see initAccessibilityParticles. ── */
-#hero-accessibility{
-  display:none;
-  position:absolute;inset:0;z-index:6;
-  padding:0 32px;background:var(--bg);
-  box-sizing:border-box;
-}
-#hero-accessibility.active{display:block}
-#hero-a11y-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-
-/* ── SPECIALIZATIONS — alternate hero state, toggled from the breadcrumb.
-   Sits above the word-wall canvases with an opaque background so it fully
-   covers them rather than layering on top; the wall itself keeps existing
-   underneath (unchanged), so flipping back to XP needs no rebuild. Rendered
-   as particle text (same mechanic as the word wall and the case-study/
-   narrative canvases elsewhere) rather than plain HTML — the sentence
-   layout, sizing, and centering are computed in JS; see initSpecializationParticles. ── */
-#hero-specialization{
-  display:none;
-  position:absolute;inset:0;z-index:6;
-  padding:0 32px;background:var(--bg);
-  box-sizing:border-box;
-}
-#hero-specialization.active{display:block}
-#hero-spec-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 
 /* Work index grid */
 .testimonials{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:0}
@@ -2219,21 +2181,9 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
      VIEW: INDEX
 ══════════════════════════════════════════ -->
 <div id="view-index" class="view active">
-    <section id="hero">
-      <canvas id="hero-canvas" aria-hidden="true"></canvas>
-      <canvas id="hero-cc" aria-hidden="true"></canvas>
-      <div id="hero-loading" aria-hidden="true">rendering</div>
-      <div id="hero-specialization">
-        <canvas id="hero-spec-canvas" aria-hidden="true"></canvas>
-        <span class="seo-text">I think. I make. I design — Zack G.</span>
-      </div>
-      <div id="hero-accessibility">
-        <canvas id="hero-a11y-canvas" aria-hidden="true"></canvas>
-        <h1 class="seo-text">Built to be used. Not just to be seen.</h1>
-        <p class="seo-text">Accessibility isn't a pass at the end of a project — it's a constraint I design with from the first sketch: semantic structure, a sane focus order, contrast that holds up in real light.</p>
-        <p class="seo-text">The particles on screen are decorative — the same mechanic as the word-wall and the Specializations sentence. Underneath, this is real markup: a real heading, real paragraphs, real reading order.</p>
-        <p class="seo-text">Keyboard navigation, screen-reader support, and reduced motion aren't edge cases. WCAG 2.1 AA is the floor here, not the target — checked before anything ships, not after.</p>
-      </div>
+    <h1 class="seo-text">I think. I make. I design — Zack G.</h1>
+    <section id="hero" class="cs-hero-image home-hero">
+      <img id="hero-img" src="https://i.ibb.co/1t6HprXL/ZAX02330.jpg" alt="" loading="eager">
     </section>
 
   <div class="page-body">
@@ -4993,7 +4943,6 @@ const FLOAT_AY  = 3;
 // Use window globals for repel radii so tbApplySize can write them
 // before the particle engine reads them — avoids let TDZ issues.
 window._repelR  = 155;  // CS particle hero repel radius
-window._ptRepel = 110;  // portrait hero repel radius
 
 // ── SHARED TOOLBAR STATE ─────────────────────────────────────────────────────
 const TOOLBAR_DEFAULTS = { size: 48, align: 'left', theme: 'dark' };
@@ -5058,8 +5007,7 @@ function tbApplySize(px) {
   root.style.setProperty('--tip-body-size',  Math.min(15, Math.max(9,  Math.round(10 * bodyScale))) + 'px');
   root.style.setProperty('--tip-head-size',  Math.min(10, Math.max(7,  Math.round(7  * bodyScale))) + 'px');
   root.style.setProperty('--tip-foot-size',  Math.min(11, Math.max(8,  Math.round(8  * bodyScale))) + 'px');
-  // Repel radii scale with slider — larger text = larger cursor influence zone
-  window._ptRepel = Math.round(110 * scale);
+  // Repel radius scales with slider — larger text = larger cursor influence zone
   window._repelR  = Math.round(155 * scale);
   document.querySelectorAll('.wt-size-label, .cs-size-label').forEach(el => el.textContent = px + 'px');
   document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => sl.value = px);
@@ -5094,7 +5042,6 @@ function tbApplyTheme(t) {
   document.querySelectorAll('.light-btn').forEach(b => b.classList.toggle('active', t === 'light'));
   document.querySelectorAll('.color-btn').forEach(b => b.classList.toggle('active', t === 'color'));
   window._heroBg = t === 'dark' ? '#0a0a0a' : '#ffffff';
-  if (window._portraitRebuild) window._portraitRebuild();
 }
 
 function tbReset() {
@@ -5996,59 +5943,12 @@ const VIEWS = {
   contracts:{ bcLabel:'Contracts',           navTab:'contracts' },
 };
 
-// ── HERO MODE (index page only) — "XP" is the existing word-wall particle
-// hero; "Specializations" and "Accessibility" each swap it for their own
-// single centered line. Lives on window so both the breadcrumb toggle
-// (defined here) and the portrait hero's render loop (defined much later
-// in the script) can read/react to the same value without one having to
-// know about the other's internals.
-window._heroMode = 'xp'; // 'xp' | 'specializations' | 'accessibility'
-
 function renderBcLabel(id) {
   const bcLabel = document.getElementById('bc-label');
   if (!bcLabel) return;
-  if (id === 'index') {
-    const mode = window._heroMode;
-    bcLabel.innerHTML =
-      '<button class="bc-hero-toggle-btn' + (mode === 'xp' ? ' active' : '') + '" data-hero-mode="xp">XP</button>' +
-      '<span class="bc-hero-toggle-sep">/</span>' +
-      '<button class="bc-hero-toggle-btn' + (mode === 'specializations' ? ' active' : '') + '" data-hero-mode="specializations">Specializations</button>' +
-      '<span class="bc-hero-toggle-sep">/</span>' +
-      '<button class="bc-hero-toggle-btn' + (mode === 'accessibility' ? ' active' : '') + '" data-hero-mode="accessibility">Accessibility</button>';
-  } else {
-    bcLabel.textContent = VIEWS[id]?.bcLabel || id;
-  }
+  bcLabel.textContent = VIEWS[id]?.bcLabel || id;
 }
-
-function applyHeroMode() {
-  const specEl  = document.getElementById('hero-specialization');
-  const a11yEl  = document.getElementById('hero-accessibility');
-  if (!specEl || !a11yEl) return;
-  const isSpec = window._heroMode === 'specializations';
-  const isA11y = window._heroMode === 'accessibility';
-  specEl.classList.toggle('active', isSpec);
-  a11yEl.classList.toggle('active', isA11y);
-  // The canvas may not have been sized correctly while hidden (some
-  // browsers report 0 for an element's box while display:none), so
-  // re-measure and re-lay-out right as each becomes visible.
-  if (isSpec && typeof window._specRebuild === 'function') {
-    requestAnimationFrame(window._specRebuild);
-  }
-  if (isA11y && typeof window._a11yRebuild === 'function') {
-    requestAnimationFrame(window._a11yRebuild);
-  }
-}
-
-document.addEventListener('click', e => {
-  const btn = e.target.closest('.bc-hero-toggle-btn');
-  if (!btn) return;
-  const mode = btn.dataset.heroMode;
-  if (mode === window._heroMode) return;
-  window._heroMode = mode;
-  applyHeroMode();
-  renderBcLabel('index');
-});
-renderBcLabel(currentView); // paints the toggle on first load — showView() only runs on subsequent navigation
+renderBcLabel(currentView); // paints the breadcrumb on first load — showView() only runs on subsequent navigation
 
 const wipe = document.getElementById('wipe');
 
@@ -6146,9 +6046,6 @@ function showView(id) {
   });
   initParticleHero(el);
   initAllNarrativeParticles(el);
-  if (id === 'index' && typeof window._portraitRebuild === 'function') {
-    setTimeout(() => window._portraitRebuild(true), 460);
-  }
   if (typeof window._placeGlyphMetrics === 'function') {
     requestAnimationFrame(() => requestAnimationFrame(window._placeGlyphMetrics));
   }
@@ -6652,727 +6549,6 @@ function initAllNarrativeParticles(container) {
   });
 }
 
-// ── PORTRAIT HERO (index) ──────────────────────────────────────────────────
-(function initPortraitHero() {
-  // Individual client/employer names — each one is a single "phrase" that
-  // gets its own randomly-assigned font, rather than randomizing per letter.
-  const POEM_PHRASES = [
-    "Comcast", "Charter", "Rachel Roy", "LimeCrime", "Organic Girl", "Goya",
-    "General Nutrition Centers", "Worldwide Stereo", "Simpson Strong-Tie",
-    "Shop Hardinge", "YETI", "Aquasana", "Kent State University",
-    "University of Wisconsin-Madison", "Texas A&M", "Centro.edu.mx",
-    "Power Home Remodeling Group", "TikTok For Business", "BNY Pershing X",
-    "The Dana Foundation", "Daz3D", "Sentral Lifestyle Apartments",
-    "Publicis Sapient", "Code & Theory", "Huge", "Elva Design Group",
-    "LiveArea", "WebLinc", "Workarea", "O3 World", "160OVER90",
-    "Leadnomics", "Turn5 Inc", "Phenom",
-  ];
-  const POEM_TEXT = POEM_PHRASES.join(" ");
-
-  const PT_TETHER = 0.014;
-  const PT_DAMP   = 0.76;
-  const PT_LERP   = 0.11;
-
-  function particleSize() {
-    return window.innerWidth <= 640 ? 13 : 22; // smaller on mobile so the tiled text doesn't dominate the viewport
-  }
-  let FONT_SIZE = particleSize();
-  let CHAR_W    = FONT_SIZE * 0.11;
-  let LINE_H    = FONT_SIZE * 0.33;
-
-  // Pool of fonts already loaded elsewhere on the site — each tiled character
-  // is randomly (but stably) assigned one of these at build time.
-  const PT_FONTS = [
-    '"Inter",sans-serif',
-    '"Playfair Display",serif',
-    '"Syne",sans-serif',
-    '"Bebas Neue",sans-serif',
-    '"Space Grotesk",sans-serif',
-    '"DM Serif Display",serif',
-  ];
-
-  const heroSection = document.getElementById('hero');
-  const canvas = document.getElementById('hero-canvas');
-  const cc     = document.getElementById('hero-cc');
-  const ctx    = canvas.getContext('2d');
-  const cctx   = cc.getContext('2d');
-
-  function heroH() {
-    const fs1  = Math.round(Math.min(window.innerWidth * 0.145, 195));
-    const fs2  = Math.round(fs1 * 0.28);
-    const padT = Math.round(fs1 * 0.55);
-    const padB = Math.round(fs1 * 1.6);
-    const gap  = Math.round(fs1 * 0.18);
-    const base = padT + fs1 + gap + fs2 + padB;
-    return window.innerWidth <= 640 ? Math.round(base * 1.35) : base;
-  }
-
-  let W = window.innerWidth;
-  let H = heroH();
-  heroSection.style.height = H + 'px';
-  canvas.width  = cc.width  = W;
-  canvas.height = cc.height = H;
-
-  let allChars = [], loaded = false;
-  const initTime = performance.now();
-  let mX = W/2, mY = H/2;
-  let bX = W/2, bY = H/2;
-
-  // The hero sits at the very top of the index page and scrolls out of view
-  // almost immediately once you start reading the work list below it — but
-  // its render loop has no way to know that on its own. Without this, it
-  // keeps running full character-physics + fillText every frame forever
-  // (gated only on "is the index view active", not "is it on screen"),
-  // competing with scroll compositing/painting for main-thread time and
-  // making scrolling feel sludgy. Pause the expensive work while offscreen.
-  let heroVisible = true;
-  new IntersectionObserver(entries => {
-    heroVisible = entries[0].isIntersecting;
-  }, { threshold: 0 }).observe(heroSection);
-  let eX = W/2, eY = H/2, eVX = 0, eVY = 0;
-
-  let _dark = !document.body.classList.contains('light-mode');
-  function isDarkMode() { return _dark; }
-  new MutationObserver(() => {
-    const nowDark = !document.body.classList.contains('light-mode');
-    if (nowDark !== _dark) {
-      _dark = nowDark;
-      if (loaded) { allChars = buildChars(); }
-    }
-  }).observe(document.body, { attributeFilter: ['class'] });
-
-  function buildGrid()  { return { cols: Math.floor(W / CHAR_W), rows: Math.floor(H / LINE_H) }; }
-
-  function buildChars(hardReset) {
-    const { cols, rows } = buildGrid();
-    const rowWidth = cols * CHAR_W;
-    const maxChars = cols * rows * 2; // generous ceiling so we never run dry mid-build
-
-    // Lay out real phrases left-to-right using each font's ACTUAL measured
-    // advance width (via ctx.measureText), wrapping to a new row when a
-    // phrase would overflow. Measuring directly (rather than estimating via
-    // a static ratio) is what guarantees no overlap/gap regardless of font.
-    const widthCache = {}; // `${font}|${weight}|${ch}` -> px, avoids re-measuring repeats
-    const measureWeight = isDarkMode() ? '300' : '500';
-    function charWidth(font, ch) {
-      const key = font + '|' + measureWeight + '|' + ch;
-      let w = widthCache[key];
-      if (w === undefined) {
-        ctx.font = `${measureWeight} ${FONT_SIZE}px ${font}`;
-        w = ctx.measureText(ch).width;
-        widthCache[key] = w;
-      }
-      return w;
-    }
-
-    const placed = [];
-    let x = 0, row = 0;
-    let i = 0, guard = 0;
-    while (row < rows && guard < maxChars) {
-      const phrase = POEM_PHRASES[i % POEM_PHRASES.length];
-      const font   = PT_FONTS[Math.floor(Math.random() * PT_FONTS.length)];
-      const spaceW = charWidth(font, ' ');
-
-      // Lay out this phrase character-by-character, wrapping mid-phrase
-      // (continuing the same font on the next line) whenever a glyph would
-      // overflow the row — this keeps every line filled edge-to-edge
-      // instead of leaving a gap when the whole phrase doesn't fit.
-      for (const ch of phrase) {
-        const cw = charWidth(font, ch);
-        if (x > 0 && x + cw > rowWidth) {
-          row++;
-          x = 0;
-          if (row >= rows) break;
-        }
-        placed.push({ ch, font, restX: x, restY: row * LINE_H });
-        x += cw;
-        guard++;
-      }
-      if (row >= rows) break;
-      if (x > 0 && x + spaceW > rowWidth) {
-        row++;
-        x = 0;
-        if (row >= rows) break;
-      } else {
-        placed.push({ ch: ' ', font, restX: x, restY: row * LINE_H });
-        x += spaceW;
-        guard++;
-      }
-      i++;
-    }
-
-    const prev = allChars;
-    const withinLoadGrace = hardReset || (performance.now() - initTime) < 900;
-    return placed.map((s, idx) => {
-      const p = withinLoadGrace ? null : prev[idx];
-      return {
-        ch: s.ch, font: s.font,
-        restX: s.restX, restY: s.restY,
-        x:  p ? p.x : s.restX,
-        y:  p ? p.y : s.restY,
-        vx: p ? p.vx : 0,
-        vy: p ? p.vy : 0,
-        baseOpacity: 1,
-      };
-    });
-  }
-
-  function rebuild(hardReset) {
-    FONT_SIZE = particleSize();
-    CHAR_W    = FONT_SIZE * 0.602;
-    LINE_H    = FONT_SIZE * 1.38;
-    W = window.innerWidth;
-    H = heroH();
-    heroSection.style.height = H + 'px';
-    canvas.width  = cc.width  = W;
-    canvas.height = cc.height = H;
-    allChars = buildChars(hardReset);
-    loaded   = true;
-    heroTop  = heroSection.getBoundingClientRect().top + window.scrollY;
-  }
-
-  function loop() {
-    requestAnimationFrame(loop);
-    if (!heroSection.closest('.view.active')) return;
-    if (!heroVisible) return;
-    if (window._heroMode !== 'xp') return;
-
-    bX += (mX - bX) * PT_LERP;
-    bY += (mY - bY) * PT_LERP;
-    eVX = (mX - eX) * 0.1; eVY = (mY - eY) * 0.1;
-    eX += (eVX *= 0.68);   eY += (eVY *= 0.68);
-
-    const dark = isDarkMode();
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = dark ? '#0a0a0a' : '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-
-    if (loaded) {
-      const ptRepel   = window._ptRepel || 110;
-      const ptRepelSq = ptRepel * ptRepel;
-      ctx.textBaseline = 'top';
-      const rgbStr = dark ? '255,255,255' : '0,0,0';
-      const fontWeight = dark ? '300' : '500';
-      let lastAlphaBucket = -1;
-      let lastFont = '';
-
-      for (const p of allChars) {
-        if (p.x < -CHAR_W || p.x > W + CHAR_W || p.y < -LINE_H || p.y > H + LINE_H) continue;
-        const dx = p.x - bX, dy = p.y - bY;
-        const dSq = dx*dx + dy*dy;
-
-        p.vx += (p.restX - p.x) * PT_TETHER;
-        p.vy += (p.restY - p.y) * PT_TETHER;
-
-        if (dSq < ptRepelSq && dSq > 0.25) {
-          const d     = Math.sqrt(dSq);
-          const f     = 1 - d / ptRepel;
-          const scale = f * f * 16 / d;
-          p.vx += dx * scale;
-          p.vy += dy * scale;
-        }
-
-        p.vx *= PT_DAMP; p.vy *= PT_DAMP;
-        p.x  += p.vx;   p.y  += p.vy;
-
-        const dFade = dSq > 0.25 ? Math.sqrt(dSq) : 0;
-        const alpha = p.baseOpacity * Math.min(1, Math.max(0, (dFade - 18) / 37));
-        if (alpha > 0.008) {
-          const bucket = (alpha * 64 + 0.5) | 0;
-          if (bucket !== lastAlphaBucket) {
-            ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
-            lastAlphaBucket = bucket;
-          }
-          if (p.font !== lastFont) {
-            ctx.font = `${fontWeight} ${FONT_SIZE}px ${p.font}`;
-            lastFont = p.font;
-          }
-          ctx.fillText(p.ch, p.x, p.y);
-        }
-      }
-
-      const bgR = dark ? '10,10,10' : '255,255,255';
-      const vg  = ctx.createLinearGradient(0, H * 0.78, 0, H);
-      vg.addColorStop(0, `rgba(${bgR},0)`);
-      vg.addColorStop(1, `rgba(${bgR},1)`);
-      ctx.fillStyle = vg;
-      ctx.fillRect(0, H * 0.78, W, H * 0.22);
-    }
-
-    cctx.clearRect(0, 0, W, H);
-    const rgb2 = dark ? '255,255,255' : '0,0,0';
-    cctx.fillStyle = `rgba(${rgb2},0.4)`;
-    cctx.beginPath(); cctx.arc(eX, eY, 4, 0, Math.PI*2); cctx.fill();
-    cctx.fillStyle = `rgb(${rgb2})`;
-    cctx.beginPath(); cctx.arc(mX, mY, 1.5, 0, Math.PI*2); cctx.fill();
-  }
-
-  window.addEventListener('mousemove', e => {
-    if (!heroVisible) return;
-    const r = canvas.getBoundingClientRect();
-    mX = e.clientX - r.left;
-    mY = e.clientY - r.top;
-  });
-  window.addEventListener('touchmove', e => {
-    if (!heroVisible) return;
-    const r = canvas.getBoundingClientRect();
-    mX = e.touches[0].clientX - r.left;
-    mY = e.touches[0].clientY - r.top;
-  }, { passive: true });
-
-  let _resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(() => { rebuild(); }, 120);
-  });
-
-  window._portraitRebuild = rebuild;
-
-  // ── SHIFT + SCROLL → font size scaler ──────────────────────────────────────
-  window.addEventListener('wheel', e => {
-    if (!e.shiftKey) return;
-    e.preventDefault();
-    const step   = e.deltaY > 0 ? -2 : 2;
-    const cur    = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--work-font-size')) || 28;
-    const next   = Math.min(72, Math.max(28, cur + step));
-    tbApplySize(next);
-    toolbarState.size = next;
-    document.querySelectorAll('.wt-slider, .cs-slider').forEach(sl => { sl.value = next; });
-  }, { passive: false });
-
-  rebuild();
-  document.getElementById('hero-loading').classList.add('hidden');
-  requestAnimationFrame(() => {
-    canvas.classList.add('loaded');
-    cc.classList.add('loaded');
-  });
-  loop();
-})();
-
-// ── SPECIALIZATIONS PARTICLE TEXT ───────────────────────────────────────────
-// Same particle mechanic as the rest of the site (tether-to-rest, mouse-
-// repel, dark/light aware) — but laid out as real word-wrapped, centered
-// lines with a responsive font size, since this is one short display
-// sentence rather than a fixed monospace-style character grid. Particles
-// start already at their rest position (no scatter-in), so the line reads
-// immediately and never fully depends on motion to be legible.
-(function initSpecializationParticles() {
-  const wrap = document.getElementById('hero-specialization');
-  const canvas = document.getElementById('hero-spec-canvas');
-  if (!wrap || !canvas) return;
-  const ctx = canvas.getContext('2d');
-  const TEXT = 'I think. I make. I design — Zack G.';
-  const PAD_X = 32; // matches the wrap's own CSS padding
-
-  const SPEC_TETHER = 0.02;
-  const SPEC_DAMP   = 0.74;
-  const SPEC_LERP   = 0.12;
-  const SPEC_REPEL  = 70;
-
-  let W = 0, H = 0, DPR = 1, FONT_SIZE = 32, LINE_H = 44;
-  let mX = -999, mY = -999, bX = -999, bY = -999;
-  let particles = [];
-  let loaded = false;
-  let visible = false;
-  let started = false;
-
-  function isDarkMode() { return !document.body.classList.contains('light-mode'); }
-  // Mirrors the sentence's previous CSS clamp(22px, 3.4vw, 46px) — same
-  // visual sizing, just computed in JS so the canvas can match it exactly.
-  function fontSize() { return Math.max(22, Math.min(46, window.innerWidth * 0.034)); }
-  function fontString(size) { return `italic 400 ${size}px 'Playfair Display', serif`; }
-
-  function buildParticles() {
-    W = wrap.clientWidth;
-    H = wrap.clientHeight;
-    if (!W || !H) return; // hidden (display:none) — nothing to measure yet
-
-    FONT_SIZE = fontSize();
-    LINE_H = FONT_SIZE * 1.4;
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * DPR;
-    canvas.height = H * DPR;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    ctx.font = fontString(FONT_SIZE);
-
-    // Greedy word-wrap into centered lines, using each word's real measured
-    // width — this is what makes it mobile-responsive: narrow viewports
-    // simply wrap to more, shorter lines instead of overflowing or shrinking
-    // illegibly small.
-    const maxLineWidth = Math.max(80, W - PAD_X * 2);
-    const spaceW = ctx.measureText(' ').width;
-    const words = TEXT.split(' ');
-    const lines = [];
-    let current = [], currentWidth = 0;
-    words.forEach(word => {
-      const w = ctx.measureText(word).width;
-      const addWidth = current.length ? spaceW + w : w;
-      if (current.length && currentWidth + addWidth > maxLineWidth) {
-        lines.push({ words: current, width: currentWidth });
-        current = [word];
-        currentWidth = w;
-      } else {
-        current.push(word);
-        currentWidth += addWidth;
-      }
-    });
-    if (current.length) lines.push({ words: current, width: currentWidth });
-
-    const blockHeight = lines.length * LINE_H;
-    const startY = (H - blockHeight) / 2 + FONT_SIZE * 0.78; // ~baseline offset within a line box
-
-    const next = [];
-    lines.forEach((line, li) => {
-      let x = (W - line.width) / 2;
-      const y = startY + li * LINE_H;
-      line.words.forEach((word, wi) => {
-        for (const ch of word) {
-          const cw = ctx.measureText(ch).width;
-          next.push({ ch, restX: x, restY: y, x, y, vx: 0, vy: 0 });
-          x += cw;
-        }
-        if (wi < line.words.length - 1) x += spaceW;
-      });
-    });
-    particles = next;
-    loaded = true;
-  }
-
-  function loop() {
-    requestAnimationFrame(loop);
-    if (window._heroMode !== 'specializations') return;
-    if (!visible || !loaded) return;
-
-    bX += (mX - bX) * SPEC_LERP;
-    bY += (mY - bY) * SPEC_LERP;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.font = fontString(FONT_SIZE);
-    ctx.textBaseline = 'alphabetic';
-    const rgbStr = isDarkMode() ? '255,255,255' : '10,10,10';
-    ctx.fillStyle = `rgba(${rgbStr},.95)`;
-
-    for (const p of particles) {
-      p.vx += (p.restX - p.x) * SPEC_TETHER;
-      p.vy += (p.restY - p.y) * SPEC_TETHER;
-
-      const dx = p.x - bX, dy = p.y - bY;
-      const dSq = dx * dx + dy * dy;
-      if (dSq < SPEC_REPEL * SPEC_REPEL && dSq > 0.25) {
-        const d = Math.sqrt(dSq);
-        const f = 1 - d / SPEC_REPEL;
-        const scale = f * f * 10 / d;
-        p.vx += dx * scale;
-        p.vy += dy * scale;
-      }
-
-      p.vx *= SPEC_DAMP; p.vy *= SPEC_DAMP;
-      p.x  += p.vx;     p.y  += p.vy;
-
-      ctx.fillText(p.ch, p.x, p.y);
-    }
-  }
-
-  // Releases the repel target back off-canvas so the tether can pull every
-  // character home to its legible rest position. Without this, a cursor that
-  // comes to rest near the sentence and then goes idle (stops moving, tabs
-  // away) leaves mX/mY pointed at that last spot forever — the nearby glyphs
-  // stay shoved outward and frozen there indefinitely instead of settling.
-  function releaseRepel() { mX = -999; mY = -999; }
-
-  let idleTimer = null;
-  function onMove(e) {
-    if (window._heroMode !== 'specializations') return;
-    const r = canvas.getBoundingClientRect();
-    mX = e.clientX - r.left;
-    mY = e.clientY - r.top;
-    clearTimeout(idleTimer);
-    // Cursor can rest motionless *inside* the canvas without ever firing
-    // mouseleave — treat prolonged no-movement the same as leaving so the
-    // text always recovers on its own.
-    idleTimer = setTimeout(releaseRepel, 1200);
-  }
-  window.addEventListener('mousemove', onMove);
-  wrap.addEventListener('mouseleave', () => {
-    clearTimeout(idleTimer);
-    releaseRepel();
-  });
-
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (loaded) buildParticles(); }, 120);
-  });
-
-  new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting;
-  }, { threshold: 0 }).observe(wrap);
-
-  function start() {
-    if (started) return;
-    started = true;
-    document.fonts.load(fontString(fontSize())).catch(() => {}).then(() => {
-      buildParticles();
-      loop();
-    });
-  }
-  start();
-
-  // Exposed so applyHeroMode() (defined earlier in the NAVIGATION section)
-  // can force a fresh layout the instant Specializations is switched on —
-  // the box may report zero size while display:none, so the very first
-  // buildParticles() call above can end up with nothing to measure.
-  window._specRebuild = buildParticles;
-})();
-
-// ── ACCESSIBILITY PARTICLE TEXT ──────────────────────────────────────────────
-// Same tether/repel particle mechanic as Specializations above, but instead
-// of one centered sentence this lays out a small hierarchy — kicker, h1,
-// subhead, and a two-column body paragraph — as one flat particle field.
-// Word-wrap + line stacking is computed once in buildParticles(); each
-// particle just remembers which font string and opacity its own line used.
-// The canvas itself is aria-hidden — a real h1/paragraphs sit next to it
-// (see the .seo-text elements in the markup) for anyone using a screen
-// reader or not running the animation.
-(function initAccessibilityParticles() {
-  const wrap = document.getElementById('hero-accessibility');
-  const canvas = document.getElementById('hero-a11y-canvas');
-  if (!wrap || !canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const SANS = "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif";
-  const PAD_X = 32;
-
-  const KICKER_TEXT = 'ACCESSIBILITY';
-  const H1_TEXT      = 'Before you ⛳ me';
-  const SUB_TEXT     = "Okay, NORMALLY, accessibility isn't a pass at the end of a project — it's a requirement that informs from the get-go, not as constraint, but as a baseline. With this being my creative sandbox, I'm hoping you give me a pass here and there — most features were built with accessibility and mobile viewing in mind.";
-  const COL1_TEXT    = 'The particles on screen are decorative, but serving a function (to draw interest while serving an actual function; showing clients I have worked with, a tongue-in-cheek specializations spec sheet, and a meta-commentary acknnowledgement that is this very paragraph) — Underneath, this is real markup: a real heading, real paragraphs, real reading order, with real SEO value.';
-  const COL2_TEXT    = "Keyboard navigation, screen-reader support, and reduced motion aren't edge cases. WCAG 2.1 AA is the floor here, not the target — checked before anything ships, not after.";
-
-  const TETHER = 0.02, DAMP = 0.74, LERP = 0.12, REPEL = 60;
-
-  let W = 0, H = 0, DPR = 1;
-  let mX = -999, mY = -999, bX = -999, bY = -999;
-  let particles = [];
-  let loaded = false;
-  let visible = false;
-  let started = false;
-
-  function isDarkMode() { return !document.body.classList.contains('light-mode'); }
-
-  // Greedy word-wrap using real measured widths (assumes ctx.font is
-  // already set to `font` by the caller before this runs).
-  function wrapWords(text, maxWidth) {
-    const spaceW = ctx.measureText(' ').width;
-    const words = text.split(' ');
-    const lines = [];
-    let current = [], currentWidth = 0;
-    words.forEach(word => {
-      const w = ctx.measureText(word).width;
-      const addWidth = current.length ? spaceW + w : w;
-      if (current.length && currentWidth + addWidth > maxWidth) {
-        lines.push({ words: current, width: currentWidth });
-        current = [word];
-        currentWidth = w;
-      } else {
-        current.push(word);
-        currentWidth += addWidth;
-      }
-    });
-    if (current.length) lines.push({ words: current, width: currentWidth });
-    return { lines, spaceW };
-  }
-
-  // Pushes one wrapped block's characters into `particles`, left-aligned at
-  // x0 starting at yTop, one visual "line" per lineHeight step. Assumes
-  // ctx.font is already set to `font`.
-  function emit(wrapped, font, opacity, x0, yTop, lineHeight, tracking) {
-    wrapped.lines.forEach((line, li) => {
-      let x = x0;
-      const y = yTop + li * lineHeight;
-      line.words.forEach((word, wi) => {
-        for (const ch of word) {
-          const cw = ctx.measureText(ch).width;
-          particles.push({ ch, font, opacity, restX: x, restY: y, x, y, vx: 0, vy: 0 });
-          x += cw + tracking;
-        }
-        if (wi < line.words.length - 1) x += wrapped.spaceW;
-      });
-    });
-  }
-
-  function buildParticles() {
-    W = wrap.clientWidth;
-    H = wrap.clientHeight;
-    if (!W || !H) return; // hidden (display:none) — nothing to measure yet
-
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * DPR;
-    canvas.height = H * DPR;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-    const isMobile = W <= 640;
-    const leftX = PAD_X;
-    const maxWidth = Math.max(80, W - PAD_X * 2);
-
-    const kickerSize = Math.max(9, Math.min(11, W * 0.009));
-    const kickerLH   = kickerSize * 1.6;
-    const h1Size     = Math.max(26, Math.min(56, W * 0.045));
-    const h1LH       = h1Size * 1.12;
-    const subSize    = Math.max(14, Math.min(20, W * 0.016));
-    const subLH      = subSize * 1.55;
-    const colSize    = Math.max(12, Math.min(15, W * 0.0115));
-    const colLH      = colSize * 1.85;
-    const colGap     = 48;
-    const colWidth   = isMobile ? maxWidth : (maxWidth - colGap) / 2;
-
-    const kickerFont = `700 ${kickerSize}px 'DM Mono',monospace`;
-    const h1Font     = `700 ${h1Size}px ${SANS}`;
-    const subFont    = `400 ${subSize}px ${SANS}`;
-    const colFont    = `400 ${colSize}px ${SANS}`;
-
-    ctx.font = kickerFont; const kickerM = wrapWords(KICKER_TEXT, maxWidth);
-    ctx.font = h1Font;     const h1M     = wrapWords(H1_TEXT, maxWidth);
-    ctx.font = subFont;    const subM    = wrapWords(SUB_TEXT, maxWidth);
-    ctx.font = colFont;    const col1M   = wrapWords(COL1_TEXT, colWidth);
-    ctx.font = colFont;    const col2M   = wrapWords(COL2_TEXT, colWidth);
-
-    const gapKickerH1 = kickerSize * 1.4;
-    const gapH1Sub    = h1Size * 0.4;
-    const gapSubCol   = subSize * 1.0;
-    const gapColMobile = colSize * 1.4;
-
-    const colBlockHeight = isMobile
-      ? (col1M.lines.length * colLH + gapColMobile + col2M.lines.length * colLH)
-      : Math.max(col1M.lines.length, col2M.lines.length) * colLH;
-
-    const totalHeight =
-      kickerM.lines.length * kickerLH + gapKickerH1 +
-      h1M.lines.length * h1LH + gapH1Sub +
-      subM.lines.length * subLH + gapSubCol +
-      colBlockHeight;
-
-    let y = Math.max(24, (H - totalHeight) / 2);
-    particles = [];
-
-    ctx.font = kickerFont;
-    emit(kickerM, kickerFont, 0.45, leftX, y, kickerLH, 1.5);
-    y += kickerM.lines.length * kickerLH + gapKickerH1;
-
-    ctx.font = h1Font;
-    emit(h1M, h1Font, 0.95, leftX, y, h1LH, 0);
-    y += h1M.lines.length * h1LH + gapH1Sub;
-
-    ctx.font = subFont;
-    emit(subM, subFont, 0.65, leftX, y, subLH, 0);
-    y += subM.lines.length * subLH + gapSubCol;
-
-    ctx.font = colFont;
-    if (isMobile) {
-      emit(col1M, colFont, 0.6, leftX, y, colLH, 0);
-      y += col1M.lines.length * colLH + gapColMobile;
-      emit(col2M, colFont, 0.6, leftX, y, colLH, 0);
-    } else {
-      emit(col1M, colFont, 0.6, leftX, y, colLH, 0);
-      emit(col2M, colFont, 0.6, leftX + colWidth + colGap, y, colLH, 0);
-    }
-
-    loaded = true;
-  }
-
-  function loop() {
-    requestAnimationFrame(loop);
-    if (window._heroMode !== 'accessibility') return;
-    if (!visible || !loaded) return;
-
-    bX += (mX - bX) * LERP;
-    bY += (mY - bY) * LERP;
-
-    ctx.clearRect(0, 0, W, H);
-    ctx.textBaseline = 'top';
-    const rgbStr = isDarkMode() ? '255,255,255' : '10,10,10';
-    let lastFont = '', lastAlphaBucket = -1;
-
-    for (const p of particles) {
-      p.vx += (p.restX - p.x) * TETHER;
-      p.vy += (p.restY - p.y) * TETHER;
-
-      const dx = p.x - bX, dy = p.y - bY;
-      const dSq = dx * dx + dy * dy;
-      if (dSq < REPEL * REPEL && dSq > 0.25) {
-        const d = Math.sqrt(dSq);
-        const f = 1 - d / REPEL;
-        const scale = f * f * 10 / d;
-        p.vx += dx * scale;
-        p.vy += dy * scale;
-      }
-
-      p.vx *= DAMP; p.vy *= DAMP;
-      p.x  += p.vx; p.y  += p.vy;
-
-      if (p.font !== lastFont) { ctx.font = p.font; lastFont = p.font; }
-      const bucket = (p.opacity * 64 + 0.5) | 0;
-      if (bucket !== lastAlphaBucket) {
-        ctx.fillStyle = `rgba(${rgbStr},${(bucket / 64).toFixed(2)})`;
-        lastAlphaBucket = bucket;
-      }
-      ctx.fillText(p.ch, p.x, p.y);
-    }
-  }
-
-  // Same idle-release fix as Specializations: without this, a cursor that
-  // goes still near the text (rather than leaving) leaves nearby glyphs
-  // shoved outward and frozen instead of settling back to rest.
-  function releaseRepel() { mX = -999; mY = -999; }
-
-  let idleTimer = null;
-  function onMove(e) {
-    if (window._heroMode !== 'accessibility') return;
-    const r = canvas.getBoundingClientRect();
-    mX = e.clientX - r.left;
-    mY = e.clientY - r.top;
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(releaseRepel, 1200);
-  }
-  window.addEventListener('mousemove', onMove);
-  wrap.addEventListener('mouseleave', () => {
-    clearTimeout(idleTimer);
-    releaseRepel();
-  });
-
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (loaded) buildParticles(); }, 120);
-  });
-
-  new IntersectionObserver(entries => {
-    visible = entries[0].isIntersecting;
-  }, { threshold: 0 }).observe(wrap);
-
-  function start() {
-    if (started) return;
-    started = true;
-    Promise.all([
-      document.fonts.load(`700 16px 'DM Mono'`).catch(() => {}),
-      document.fonts.load(`700 32px ${SANS}`).catch(() => {}),
-    ]).then(() => {
-      buildParticles();
-      loop();
-    });
-  }
-  start();
-
-  // Exposed so applyHeroMode() can force a fresh layout the instant
-  // Accessibility is switched on — the box may report zero size while
-  // display:none, so the very first buildParticles() call can end up with
-  // nothing to measure.
-  window._a11yRebuild = buildParticles;
-})();
 
 // ── CUSTOM SCROLL INDICATOR ─────────────────────────────────────────────────
 (function initScrollIndicator() {
@@ -8326,6 +7502,53 @@ function initAllNarrativeParticles(container) {
   btn.addEventListener('click', () => {
     (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: window._reduceMotion ? 'auto' : 'smooth' });
   });
+})();
+
+// ── HOMEPAGE HERO PARALLAX ───────────────────────────────────────────────────
+// Cursor-driven parallax on the homepage's static hero image (the same
+// .cs-hero-image component the case studies use). The <img> is overscaled
+// via CSS (.home-hero img) so it can shift within the frame under mouse
+// movement without ever exposing an edge. Respects prefers-reduced-motion.
+(function initHomeHeroParallax() {
+  const heroEl = document.getElementById('hero');
+  const img    = document.getElementById('hero-img');
+  if (!heroEl || !img) return;
+  if (window._reduceMotion) return;
+
+  const RANGE = 22; // max px the image shifts in either direction
+  const EASE  = 0.08;
+  let tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
+
+  function render() {
+    raf = null;
+    cx += (tx - cx) * EASE;
+    cy += (ty - cy) * EASE;
+    img.style.transform = `translate3d(calc(-3% + ${cx.toFixed(2)}px), calc(-3% + ${cy.toFixed(2)}px), 0)`;
+    if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
+      raf = requestAnimationFrame(render);
+    }
+  }
+
+  function onMove(e) {
+    const r = heroEl.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width;   // 0..1
+    const py = (e.clientY - r.top)  / r.height;  // 0..1
+    tx = (0.5 - px) * 2 * RANGE;
+    ty = (0.5 - py) * 2 * RANGE;
+    if (!raf) raf = requestAnimationFrame(render);
+  }
+
+  function onLeave() {
+    tx = 0; ty = 0;
+    if (!raf) raf = requestAnimationFrame(render);
+  }
+
+  heroEl.addEventListener('mousemove', onMove);
+  heroEl.addEventListener('mouseleave', onLeave);
+  heroEl.addEventListener('touchmove', e => {
+    if (!e.touches || !e.touches[0]) return;
+    onMove(e.touches[0]);
+  }, { passive: true });
 })();
 
 // ── HASH BOOT (lets this file jump straight to a specific page via
