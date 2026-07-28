@@ -244,18 +244,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 ══════════════════════════════════════════ */
 #view-index{}
 
-/* Homepage hero — reuses .cs-hero-image (see case-study hero rules below)
-   with a cursor-driven parallax shift on the image itself. The image is
-   overscaled (see .home-hero img) so it can pan within the frame without
-   ever exposing an edge; initHomeHeroParallax (JS) drives the transform. */
+/* Homepage hero — reuses .cs-hero-image (see case-study hero rules below).
+   Two stacked <img> layers crossfade between photos pulled from the same
+   pool as the Balance grid (window._gaPhotos), and both layers pan under
+   the cursor for a parallax effect. Each layer is overscaled slightly
+   (106%, centered via a matching -3% offset) so it can shift within the
+   frame without ever exposing an edge — driven by initHomeHeroParallax
+   (JS). Grayscale by default, full color on hover. Selector is
+   ID-qualified so it reliably wins over the later, more generic
+   .cs-hero-image img rule below. */
 #hero.home-hero{cursor:none}
-.home-hero img{
-  width:112%;
-  height:112%;
+#hero.home-hero .hero-img-layer{
+  position:absolute;
+  inset:0;
+  width:106%;
+  height:106%;
   max-width:none;
+  object-fit:cover;
+  object-position:center;
+  filter:grayscale(1) saturate(.92) contrast(1.02);
+  opacity:0;
   transform:translate3d(-3%,-3%,0);
-  will-change:transform;
+  transition:opacity 1.2s ease, filter .5s ease;
+  will-change:transform,opacity;
 }
+#hero.home-hero .hero-img-layer.active{opacity:1}
+#hero.home-hero:hover .hero-img-layer{filter:grayscale(0) saturate(.92) contrast(1.02)}
 
 /* Work index grid */
 .testimonials{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:0}
@@ -536,6 +550,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
   content:'';
   position:absolute;
   inset:0;
+  z-index:2;
   background:linear-gradient(180deg, rgba(0,0,0,0) 45%, var(--bg) 100%);
   pointer-events:none;
 }
@@ -2183,7 +2198,8 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 <div id="view-index" class="view active">
     <h1 class="seo-text">I think. I make. I design — Zack G.</h1>
     <section id="hero" class="cs-hero-image home-hero">
-      <img id="hero-img" src="https://i.ibb.co/1t6HprXL/ZAX02330.jpg" alt="" loading="eager">
+      <img class="hero-img-layer" alt="" loading="eager">
+      <img class="hero-img-layer" alt="" loading="lazy">
     </section>
 
   <div class="page-body">
@@ -7114,6 +7130,10 @@ function initAllNarrativeParticles(container) {
   ];
   const GA_CAPTIONS = ["…"];
 
+  // Exposed so the homepage hero (initHomeHeroParallax) can cycle through
+  // the same photo pool without duplicating this list.
+  window._gaPhotos = GA_PHOTOS;
+
   const GA_POOL = GA_PHOTOS.map((url, i) => ({
     tag: "Field notes · " + String(i + 1).padStart(2, "0"),
     meta: GA_CAPTIONS[i % GA_CAPTIONS.length],
@@ -7504,18 +7524,84 @@ function initAllNarrativeParticles(container) {
   });
 })();
 
-// ── HOMEPAGE HERO PARALLAX ───────────────────────────────────────────────────
-// Cursor-driven parallax on the homepage's static hero image (the same
-// .cs-hero-image component the case studies use). The <img> is overscaled
-// via CSS (.home-hero img) so it can shift within the frame under mouse
-// movement without ever exposing an edge. Respects prefers-reduced-motion.
+// ── HOMEPAGE HERO: PHOTO CYCLE + PARALLAX ────────────────────────────────────
+// The homepage hero reuses .cs-hero-image (same component the case studies
+// use) but pulls its photos from the same pool as the Balance grid
+// (window._gaPhotos, set by initGeneralAssembly above) instead of a single
+// static image, crossfading between two stacked <img> layers. Both layers
+// also pan under the cursor for a parallax effect. Respects reduced motion:
+// cycling and parallax both skip entirely, leaving a single static photo.
 (function initHomeHeroParallax() {
   const heroEl = document.getElementById('hero');
-  const img    = document.getElementById('hero-img');
-  if (!heroEl || !img) return;
+  const layers = heroEl ? Array.from(heroEl.querySelectorAll('.hero-img-layer')) : [];
+  if (!heroEl || layers.length < 2) return;
+
+  const FADE_HOLD_MS = 6500; // how long each photo holds before crossfading to the next
+
+  // Landscape photos: show the whole frame rather than cropping into it —
+  // the hero strip is short relative to most wide photos, so a cover crop
+  // was clipping tops/bottoms badly. object-fit:contain has zero cropped
+  // headroom though, so it can't tolerate the overscan+pan trick used for
+  // parallax elsewhere — any offset there would clip real image content
+  // the moment it reaches the frame edge. So contain images are pinned at
+  // exact size with no pan (letterboxed, static). Portrait photos keep the
+  // centered square-ish crop (cover) with full overscan + parallax pan,
+  // since cover always has real crop headroom to draw from.
+  function fitHeroImage(img) {
+    if (!img.naturalWidth || !img.naturalHeight) return;
+    const isLandscape = img.naturalWidth >= img.naturalHeight;
+    if (isLandscape) {
+      img.dataset.fit = 'contain';
+      img.style.objectFit = 'contain';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.transform = 'translate3d(0,0,0)';
+    } else {
+      img.dataset.fit = 'cover';
+      img.style.objectFit = 'cover';
+      img.style.width = '106%';
+      img.style.height = '106%';
+      // transform is left alone here — the parallax loop below drives it
+    }
+  }
+
+  // Shuffle once per page load so the rotation order isn't identical every
+  // visit, and every photo in the pool gets shown once before any repeats.
+  const pool = (window._gaPhotos || []).slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  let idx = 0;
+  let activeLayer = 0;
+  if (pool.length) {
+    const img0 = layers[0];
+    img0.onload = () => { fitHeroImage(img0); img0.classList.add('active'); };
+    img0.src = pool[0];
+  }
+
+  function showNext() {
+    if (pool.length < 2) return;
+    idx = (idx + 1) % pool.length;
+    const nextLayer = 1 - activeLayer;
+    const img = layers[nextLayer];
+    img.onload = () => {
+      fitHeroImage(img);
+      layers[activeLayer].classList.remove('active');
+      img.classList.add('active');
+      activeLayer = nextLayer;
+    };
+    img.src = pool[idx];
+  }
+
+  if (pool.length > 1 && !window._reduceMotion) {
+    setInterval(showNext, FADE_HOLD_MS);
+  }
+
   if (window._reduceMotion) return;
 
-  const RANGE = 22; // max px the image shifts in either direction
+  const RANGE = 12; // max px each layer shifts in either direction
   const EASE  = 0.08;
   let tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
 
@@ -7523,7 +7609,11 @@ function initAllNarrativeParticles(container) {
     raf = null;
     cx += (tx - cx) * EASE;
     cy += (ty - cy) * EASE;
-    img.style.transform = `translate3d(calc(-3% + ${cx.toFixed(2)}px), calc(-3% + ${cy.toFixed(2)}px), 0)`;
+    const t = `translate3d(calc(-3% + ${cx.toFixed(2)}px), calc(-3% + ${cy.toFixed(2)}px), 0)`;
+    layers.forEach(img => {
+      if (img.dataset.fit === 'contain') return; // pinned, no pan — see fitHeroImage
+      img.style.transform = t;
+    });
     if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
       raf = requestAnimationFrame(render);
     }
