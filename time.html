@@ -159,11 +159,16 @@
      same treatment as the Tilted Card reference (minus its cursor-follow
      tooltip, since the title is always visible here) ── */
   .thumb{position:relative;}
+  .thumb-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;will-change:transform;}
+  .thumb-media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    filter:grayscale(.85) contrast(1.05);transition:filter .35s;transform:translateZ(0);}
+  .thumb:hover .thumb-media{filter:grayscale(0) contrast(1.02);}
   .thumb-overlay{
     position:absolute;inset:0;z-index:2;
     display:flex;align-items:flex-end;gap:.45rem;
     padding:.6rem .65rem;
-    background:linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,0) 58%);
+    transform:translateZ(46px);
+    background:linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,0) 58%);
     pointer-events:none;
   }
   .thumb-idx{font-family:"JetBrains Mono",monospace;font-size:.6rem;color:rgba(242,239,233,.62);flex-shrink:0;}
@@ -172,12 +177,10 @@
 
   .tl-item .thumb{
     width:100%;aspect-ratio:4/5;overflow:hidden;background:var(--card);
-    border:1px solid rgba(242,239,233,.10);perspective:600px;
+    border:1px solid rgba(242,239,233,.10);perspective:450px;
     border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.42);
   }
   .tl-item.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
-  .tl-item .thumb img,.tl-item .thumb video{width:100%;height:100%;object-fit:cover;filter:grayscale(.85) contrast(1.05);transition:filter .4s,transform .2s cubic-bezier(.22,1,.36,1);}
-  .tl-item:hover .thumb img,.tl-item:hover .thumb video{filter:grayscale(0) contrast(1.02);transform:scale(1.04);}
   .tl-item .cardlabel{font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:center;padding:0 .5rem;line-height:1.1;}
   .tl-item.dim{opacity:.18;}
   .tl-item.dragging{opacity:.32;}
@@ -214,10 +217,8 @@
   .list-row.expanded .list-row-body{grid-template-rows:1fr;}
   .list-strip{display:flex;gap:.9rem;padding:.2rem .2rem 1.6rem;will-change:transform;}
   .list-card{flex:0 0 auto;width:150px;cursor:pointer;}
-  .list-card .thumb{width:100%;aspect-ratio:4/5;background:var(--card);overflow:hidden;border:1px solid rgba(242,239,233,.10);perspective:600px;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
+  .list-card .thumb{width:100%;aspect-ratio:4/5;background:var(--card);overflow:hidden;border:1px solid rgba(242,239,233,.10);perspective:450px;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
   .list-card.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
-  .list-card .thumb img,.list-card .thumb video{width:100%;height:100%;object-fit:cover;filter:grayscale(.85) contrast(1.05);transition:filter .3s,transform .2s cubic-bezier(.22,1,.36,1);}
-  .list-card:hover .thumb img,.list-card:hover .thumb video{filter:grayscale(0);transform:scale(1.04);}
   .list-card .cardlabel{font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:center;font-size:.85rem;}
   .list-card.dim{opacity:.2;}
   .list-empty{padding:0 .2rem 1.6rem;font-size:.72rem;color:var(--muted);letter-spacing:.04em;}
@@ -237,10 +238,8 @@
     gap:1.6rem 1rem;
   }
   .g-item{cursor:pointer;transition:opacity .3s;}
-  .g-item .thumb{width:100%;aspect-ratio:4/5;background:var(--card);overflow:hidden;border:1px solid rgba(242,239,233,.10);perspective:600px;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
+  .g-item .thumb{width:100%;aspect-ratio:4/5;background:var(--card);overflow:hidden;border:1px solid rgba(242,239,233,.10);perspective:450px;border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
   .g-item.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
-  .g-item .thumb img,.g-item .thumb video{width:100%;height:100%;object-fit:cover;filter:grayscale(.85) contrast(1.05);transition:filter .3s,transform .2s cubic-bezier(.22,1,.36,1);}
-  .g-item:hover .thumb img,.g-item:hover .thumb video{filter:grayscale(0);transform:scale(1.04);}
   .g-item .cardlabel{font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:center;font-size:.85rem;}
   .g-item.dim{opacity:.2;}
   .g-item.dragging{opacity:.32;}
@@ -520,36 +519,76 @@ function thumbHTML(item, opts){
     return `<div class="thumb" style="background:${item.bg}"><div class="cardlabel" style="color:${item.fg}">${item.label}</div></div>`;
   }
   const media = item.k==='video'
-    ? `<video src="${item.src}" autoplay muted loop playsinline disablepictureinpicture></video>`
-    : `<img loading="lazy" draggable="false" src="${item.img}" alt="">`;
+    ? `<video class="thumb-media" src="${item.src}" autoplay muted loop playsinline disablepictureinpicture></video>`
+    : `<img class="thumb-media" loading="lazy" draggable="false" src="${item.img}" alt="">`;
   const overlay = showOverlay ? `
     <div class="thumb-overlay">
       <span class="thumb-idx mono">${fmtIdx(item.idx)}</span>
       <span class="thumb-ttl">${item.t}</span>
     </div>` : '';
-  return `<div class="thumb">${media}${overlay}</div>`;
+  return `<div class="thumb"><div class="thumb-inner">${media}${overlay}</div></div>`;
 }
 
-/* ── hover tilt — adapted from the Tilted Card component. Cursor position
-   inside the thumb drives a subtle 3D rotation + scale on the media itself;
-   perspective lives on .thumb (see CSS). No spring/RAF loop — a short CSS
-   transition on transform gives the same eased settle for near-zero cost
-   across ~80 concurrently-mounted thumbs. ── */
+/* ── hover tilt — this is the Tilted Card component's own spring simulator
+   and constants (stiffness:100, damping:30, mass:2, rotateAmplitude:12,
+   scaleOnHover:1.05), verbatim. Two adaptations for a ~80-thumb grid instead
+   of one hero card: (1) the title overlay stays visible always rather than
+   fading in on hover — it doubles as this site's caption, not a tooltip —
+   though it still keeps the reference's translateZ(30px) depth-lift.
+   (2) each thumb's RAF loop only runs while its spring hasn't settled yet
+   (starts on interaction, stops once it settles back to rest), instead of
+   one perpetual loop per card, since there can be dozens mounted at once. ── */
+function createSpring(stiffness, damping, mass, initial){
+  let value = initial, target = initial, velocity = 0;
+  return {
+    set(v){ target = v; },
+    step(dt){
+      const springForce = -stiffness * (value - target);
+      const dampingForce = -damping * velocity;
+      const accel = (springForce + dampingForce) / mass;
+      velocity += accel * dt;
+      value += velocity * dt;
+      return value;
+    },
+    settled(){ return Math.abs(value-target) < 0.02 && Math.abs(velocity) < 0.02; }
+  };
+}
+
 function initTilt(thumbEl){
-  const media = thumbEl.querySelector('img,video');
-  if(!media) return;
-  const AMPL = 9;      // rotation amplitude in degrees — subtler than the
-                        // source demo's 12°, since these thumbs run much smaller
-  const SCALE = 1.045;
+  const inner = thumbEl.querySelector('.thumb-inner');
+  if(!inner) return;
+  const ROTATE_AMPLITUDE = 12;
+  const SCALE_ON_HOVER   = 1.05;
+
+  // damping:30, stiffness:100, mass:2 — exactly the reference's rotateX/rotateY/scale springs
+  const rotateX = createSpring(100, 30, 2, 0);
+  const rotateY = createSpring(100, 30, 2, 0);
+  const scale   = createSpring(100, 30, 2, 1);
+
+  let raf = null, lastTime = 0;
+  function tick(now){
+    const dt = Math.min((now - lastTime)/1000, 1/30);
+    lastTime = now;
+    const rx = rotateX.step(dt), ry = rotateY.step(dt), s = scale.step(dt);
+    inner.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${s.toFixed(3)})`;
+    if(rotateX.settled() && rotateY.settled() && scale.settled()){ raf = null; return; }
+    raf = requestAnimationFrame(tick);
+  }
+  function wake(){ if(raf===null){ lastTime = performance.now(); raf = requestAnimationFrame(tick); } }
+
   thumbEl.addEventListener('mousemove', e=>{
     const rect = thumbEl.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width/2;
     const offsetY = e.clientY - rect.top - rect.height/2;
-    const rx = (offsetY / (rect.height/2)) * -AMPL;
-    const ry = (offsetX / (rect.width/2)) * AMPL;
-    media.style.transform = `scale(${SCALE}) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+    rotateX.set((offsetY / (rect.height/2)) * -ROTATE_AMPLITUDE);
+    rotateY.set((offsetX / (rect.width/2)) * ROTATE_AMPLITUDE);
+    wake();
   });
-  thumbEl.addEventListener('mouseleave', ()=>{ media.style.transform = ''; });
+  thumbEl.addEventListener('mouseenter', ()=>{ scale.set(SCALE_ON_HOVER); wake(); });
+  thumbEl.addEventListener('mouseleave', ()=>{
+    rotateX.set(0); rotateY.set(0); scale.set(1);
+    wake();
+  });
 }
 
 /* ─────────────────────────── NAV ─────────────────────────── */
