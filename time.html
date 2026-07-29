@@ -80,13 +80,13 @@
   #filter-badge.show{display:flex;}
   #filter-badge .x{opacity:.6;font-family:"JetBrains Mono",monospace;}
   #filter-badge:hover .x{opacity:1;}
-  #export-btn{
+  #export-btn, #import-btn{
     background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     font-family:"Inter",sans-serif;font-weight:500;font-size:.66rem;
     letter-spacing:.1em;text-transform:uppercase;padding:.45rem .7rem;
     border-radius:2px;cursor:pointer;opacity:.75;transition:opacity .2s,background .2s;
   }
-  #export-btn:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
+  #export-btn:hover, #import-btn:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
   #theme-toggle{
     background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     width:2.05rem;height:2.05rem;border-radius:2px;cursor:pointer;
@@ -99,34 +99,36 @@
   html.light-theme #theme-toggle .icon-sun{display:none;}
   html.light-theme #theme-toggle .icon-moon{display:block;}
 
-  #export-modal{
+  .modal-overlay{
     position:fixed;inset:0;z-index:600;
     background:rgba(0,0,0,.78);
     display:flex;align-items:center;justify-content:center;
     opacity:0;pointer-events:none;transition:opacity .3s;
   }
-  #export-modal.show{opacity:1;pointer-events:all;}
-  #export-card{
+  .modal-overlay.show{opacity:1;pointer-events:all;}
+  .modal-card{
     background:var(--card);width:min(620px,90vw);padding:1.6rem;
     border:1px solid var(--line);display:flex;flex-direction:column;gap:.8rem;
+    max-height:86vh;overflow:auto;
   }
-  #export-card h3{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:1.05rem;}
-  #export-card p{font-size:.74rem;color:var(--muted);line-height:1.5;}
-  #export-text{
+  .modal-card h3{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:1.05rem;}
+  .modal-card p{font-size:.74rem;color:var(--muted);line-height:1.5;}
+  .modal-textarea{
     width:100%;height:220px;resize:vertical;background:var(--bg);color:var(--fg);
     border:1px solid var(--line);padding:.7rem;font-family:"JetBrains Mono",monospace;
     font-size:.68rem;line-height:1.4;
   }
-  #export-actions{display:flex;gap:.6rem;flex-wrap:wrap;}
-  #export-actions button{
+  .modal-actions{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;}
+  .modal-actions button{
     background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     font-family:"Inter",sans-serif;font-weight:500;font-size:.66rem;
     letter-spacing:.1em;text-transform:uppercase;padding:.5rem .85rem;
     border-radius:2px;cursor:pointer;opacity:.8;transition:opacity .2s,background .2s;
   }
-  #export-actions button:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
-  #export-actions button.primary{background:var(--fg);color:var(--bg);opacity:1;}
-  #export-actions button.primary:hover{opacity:.85;}
+  .modal-actions button:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
+  .modal-actions button.primary{background:var(--fg);color:var(--bg);opacity:1;}
+  .modal-actions button.primary:hover{opacity:.85;}
+  .modal-status{font-size:.7rem;color:var(--accent2);min-height:1em;}
 
   /* ── Nav pills ── */
   #nav{
@@ -392,7 +394,7 @@
   }
 
   @media (max-width:640px){
-    #export-btn, #filter-badge{display:none;}
+    #export-btn, #import-btn, #filter-badge{display:none;}
     .list-card{width:120px;}
 
     #detail-card{gap:.9rem;}
@@ -423,6 +425,7 @@
         <svg class="icon-sun" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>
       </button>
+      <button id="import-btn" title="Batch-add image URLs into Unsorted">+ Add</button>
       <button id="export-btn" title="Download the current arrangement so you can hand it back to Claude">Export</button>
     </div>
   </header>
@@ -471,15 +474,29 @@
   </div>
 </div>
 
-<div id="export-modal">
-  <div id="export-card">
+<div id="export-modal" class="modal-overlay">
+  <div id="export-card" class="modal-card">
     <h3>Current arrangement</h3>
     <p>This is every category name plus every piece, its title, group, and order. Copy it or download the file, then send it back in chat — Claude will bake it into the source file.</p>
-    <textarea id="export-text" readonly></textarea>
-    <div id="export-actions">
+    <textarea id="export-text" class="modal-textarea" readonly></textarea>
+    <div id="export-actions" class="modal-actions">
       <button id="export-copy" class="primary">Copy to clipboard</button>
       <button id="export-download">Download .json</button>
       <button id="export-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="import-modal" class="modal-overlay">
+  <div id="import-card" class="modal-card">
+    <h3>Add images to Unsorted</h3>
+    <p>Paste one image URL per line (or separate with commas). Each one lands in "Unsorted" as its own piece — retitle, re-caption, and re-file them from List or Grid whenever you're ready.</p>
+    <textarea id="import-text" class="modal-textarea" placeholder="https://example.com/photo-one.jpg
+https://example.com/photo-two.jpg"></textarea>
+    <div id="import-status" class="modal-status"></div>
+    <div id="import-actions" class="modal-actions">
+      <button id="import-submit" class="primary">Add to Unsorted</button>
+      <button id="import-close">Close</button>
     </div>
   </div>
 </div>
@@ -493,7 +510,7 @@
    (flow & list views) and the filter pills. Order = sequence: left-to-right
    in the flow view, top-to-bottom in list view. Reorder freely — nothing
    downstream assumes these are calendar months. */
-let GROUPS = ['Type','Portrait','Motion','Brand','Product','Fashion','Opening','The Sweetest','Chronicles of Wolfgang','Lost & Found','Welcome Home','Found on the Road','The King From Queens','Good Day, Now Good Night'];
+let GROUPS = ['Type','Portrait','Motion','Brand','Product','Fashion','Opening','The Sweetest','Chronicles of Wolfgang','Lost & Found','Welcome Home','Found on the Road','The King From Queens','Good Day, Now Good Night','Unsorted'];
 
 const RAW = [
   {t:'Night Signal', c:'Motion', m:2, k:'photo', img:'https://i.ibb.co/0RLXVg2g/hidaddy.webp'},
@@ -601,6 +618,41 @@ const RAW = [
   {t:"Lastsleepies", c:'Good Day, Now Good Night', m:13, k:'photo', img:"https://i.ibb.co/0RM9H4bs/lastsleepies.webp"},
   {t:"Curbyourdog", c:'Good Day, Now Good Night', m:13, k:'photo', img:"https://i.ibb.co/HTqtChHv/curbyourdog.webp"},
   {t:"Flower", c:'Good Day, Now Good Night', m:13, k:'photo', img:"https://i.ibb.co/B5hk87fv/flower.webp"},
+
+  // ── Unsorted — batch-imported clips, ready to re-file ──
+  {t:'Boardwalks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/boardwalks_v1%20(720p).mp4'},
+  {t:'Boop', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/boop_v1%20(2160p).mp4'},
+  {t:'Exciting Things', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/excitingthings_v1%20(1080p).mp4'},
+  {t:'Favorite Fairmount', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/favoritefairmount_v1%20(720p).mp4'},
+  {t:'Fubar', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/fubar_v1%20(1080p).mp4'},
+  {t:'Goated', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/goated_v1%20(1080p).mp4'},
+  {t:'Grassy Paths', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/grassypaths_v1%20(720p).mp4'},
+  {t:'Gravel Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/gravelwalks_v1%20(1080p).mp4'},
+  {t:'Hallow Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/hallowwalks_v1%20(720p).mp4'},
+  {t:'Inline Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/inlinewalks_v1%20(1080p).mp4'},
+  {t:'In Need of an Upgrade', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/inneedofanupgrade_v1%20(1080p).mp4'},
+  {t:'Looking for Me', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/lookingforme_v1%20(1080p).mp4'},
+  {t:'Looking Fresh', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/lookingfresh_v1%20(1080p).mp4'},
+  {t:'Massacre', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/massacre_v1%20(1080p).mp4'},
+  {t:'Meats to Eat 2', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/meatstoeat2_v1%20(720p).mp4'},
+  {t:'Ominous Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/ominouswalks_v1%20(1080p).mp4'},
+  {t:'Precarious Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/precariouswalks_v1%20(720p).mp4'},
+  {t:'Reality', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/reality_v1%20(720p).mp4'},
+  {t:'Really Interesting Branches', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/reallyinterestingbranches_v1%20(720p).mp4'},
+  {t:'Really Rocky Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/reallyrockywalks_v1%20(1440p).mp4'},
+  {t:'Reverse Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/reversewalks_v1%20(720p)%20(1).mp4'},
+  {t:'Say That You Love Me', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/saythatyouloveme_v1%20(1080p).mp4'},
+  {t:'Sidewalks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/sidewalks_v1%20(720p).mp4'},
+  {t:'Skateboard Walks', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/skateboardwalks_v1%20(720p).mp4'},
+  {t:'Standing Not Walking', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/standingnotwalking_v1%20(1440p).mp4'},
+  {t:'Storms', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/storms_v1%20(720p).mp4'},
+  {t:'Suburban Boy', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/suburbanboy_v1%20(1080p).mp4'},
+  {t:'There\'s Food at Home, Wolfgang', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/theresfoodathomewolfgang_v1%20(1080p).mp4'},
+  {t:'Upgrade', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/upgrade_v1%20(720p).mp4'},
+  {t:'Walks Into Elevators', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/walksintoelevators_v1%20(1080p).mp4'},
+  {t:'Walks Out of Elevators', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/walksoutofelevators_v1%20(720p).mp4'},
+  {t:'Wherever Whatever', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/whereverwhatever_v1%20(720p).mp4'},
+  {t:'Windy 2', c:'Unsorted', m:14, k:'video', src:'https://raw.githubusercontent.com/ZACKGORT/mp4/main/windy2_v1%20(720p).mp4'},
 ];
 
 const ITEMS = RAW.map((r,i)=>Object.assign({idx:i+1}, r));
@@ -935,6 +987,66 @@ document.getElementById('export-download').addEventListener('click', ()=>{
   setTimeout(()=>{ btn.textContent = 'Download .json'; }, 1800);
 });
 
+/* ─────────────────────────── BATCH IMPORT (→ Unsorted) ─────────────────────────── */
+const importBtn = document.getElementById('import-btn');
+const importModal = document.getElementById('import-modal');
+const importText = document.getElementById('import-text');
+const importStatus = document.getElementById('import-status');
+
+function unsortedIndex(){
+  let m = GROUPS.indexOf('Unsorted');
+  if(m === -1){
+    GROUPS.push('Unsorted');
+    m = GROUPS.length - 1;
+    buildGridCats();
+  }
+  return m;
+}
+function looksLikeUrl(s){ return /^https?:\/\/\S+$/i.test(s); }
+function isVideoUrl(s){ return /\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(s); }
+function titleFromUrl(url){
+  try{
+    const path = new URL(url).pathname;
+    let name = decodeURIComponent(path.split('/').filter(Boolean).pop() || '');
+    name = name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
+    if(!name) return 'Untitled';
+    return name.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }catch(e){ return 'Untitled'; }
+}
+
+importBtn.addEventListener('click', ()=>{
+  importText.value = '';
+  importStatus.textContent = '';
+  importModal.classList.add('show');
+});
+document.getElementById('import-close').addEventListener('click', ()=> importModal.classList.remove('show'));
+importModal.addEventListener('click', e=>{ if(e.target===importModal) importModal.classList.remove('show'); });
+
+document.getElementById('import-submit').addEventListener('click', ()=>{
+  const raw = importText.value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  const urls = raw.filter(looksLikeUrl);
+  const skipped = raw.length - urls.length;
+  if(!urls.length){
+    importStatus.textContent = raw.length ? "None of those looked like valid URLs." : "Paste at least one image URL first.";
+    return;
+  }
+  const m = unsortedIndex();
+  urls.forEach(url=>{
+    ITEMS.push(isVideoUrl(url)
+      ? { t: titleFromUrl(url), c: GROUPS[m], m, k:'video', src:url }
+      : { t: titleFromUrl(url), c: GROUPS[m], m, k:'photo', img:url });
+  });
+  ITEMS.forEach((it,i)=>{ it.idx = i+1; });
+
+  renderList();
+  renderGrid();
+  renderTimeline();
+
+  importStatus.textContent = `Added ${urls.length} image${urls.length>1?'s':''} to Unsorted` +
+    (skipped ? ` (skipped ${skipped} that didn't look like a URL).` : '.');
+  importText.value = '';
+});
+
 /* ═══════════════════════════ TIMELINE VIEW ═══════════════════════════ */
 const trackEl = document.getElementById('tl-track');
 const itemsLayerEl = document.getElementById('tl-items-layer');
@@ -1004,7 +1116,7 @@ function moveItemByDrop(fromIdx, beforeIdx, newGroup){
   if(fromIdx===null || fromIdx===undefined || isNaN(fromIdx)) return;
   if(fromIdx<0 || fromIdx>=ITEMS.length) return;
   const item = ITEMS[fromIdx];
-  if(newGroup !== null && newGroup !== undefined) item.m = newGroup;
+  if(newGroup !== null && newGroup !== undefined){ item.m = newGroup; item.c = GROUPS[newGroup]; }
   ITEMS.splice(fromIdx,1);
   let insertAt = (beforeIdx===null || beforeIdx===undefined) ? ITEMS.length : beforeIdx;
   if(fromIdx < insertAt) insertAt -= 1;
