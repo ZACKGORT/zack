@@ -19,9 +19,10 @@
     --bg:#0a0a0a;
     --dot: rgba(255,255,255,.07);
     --fg:#f2efe9;
-    --muted: rgba(242,239,233,.4);
-    --faint: rgba(242,239,233,.16);
-    --line: rgba(242,239,233,.12);
+    --fg-rgb: 242,239,233;
+    --muted: rgba(var(--fg-rgb),.4);
+    --faint: rgba(var(--fg-rgb),.16);
+    --line: rgba(var(--fg-rgb),.12);
     --card:#161616;
     --accent:#ff3d1a;
     --accent2:#4fa596;
@@ -29,6 +30,19 @@
     --pad:1.4rem;
     font-size:16px;
   }
+  /* ── light theme — everything else is built on the variables above, so
+     this is the only palette swap needed; toggled via a class on <html>. ── */
+  html.light-theme{
+    --bg:#f3f1ec;
+    --dot: rgba(23,20,15,.07);
+    --fg:#17140f;
+    --fg-rgb: 23,20,15;
+    --card:#ffffff;
+    --accent:#e5380f;
+    --accent2:#2c7a6d;
+    --yellow:#b8860b;
+  }
+  html.light-theme .thumb-media{filter:grayscale(.85) contrast(1.05) brightness(1.02);}
   html,body{
     width:100%;height:100%;
     background:var(--bg);
@@ -67,12 +81,23 @@
   #filter-badge .x{opacity:.6;font-family:"JetBrains Mono",monospace;}
   #filter-badge:hover .x{opacity:1;}
   #export-btn{
-    background:transparent;border:1px solid rgba(242,239,233,.28);color:var(--fg);
+    background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     font-family:"Inter",sans-serif;font-weight:500;font-size:.66rem;
     letter-spacing:.1em;text-transform:uppercase;padding:.45rem .7rem;
     border-radius:2px;cursor:pointer;opacity:.75;transition:opacity .2s,background .2s;
   }
-  #export-btn:hover{opacity:1;background:rgba(242,239,233,.08);}
+  #export-btn:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
+  #theme-toggle{
+    background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
+    width:2.05rem;height:2.05rem;border-radius:2px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    opacity:.75;transition:opacity .2s,background .2s;
+  }
+  #theme-toggle:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
+  #theme-toggle svg{width:.95rem;height:.95rem;stroke:var(--fg);fill:none;stroke-width:1.6;}
+  #theme-toggle .icon-moon{display:none;}
+  html.light-theme #theme-toggle .icon-sun{display:none;}
+  html.light-theme #theme-toggle .icon-moon{display:block;}
 
   #export-modal{
     position:fixed;inset:0;z-index:600;
@@ -94,12 +119,12 @@
   }
   #export-actions{display:flex;gap:.6rem;flex-wrap:wrap;}
   #export-actions button{
-    background:transparent;border:1px solid rgba(242,239,233,.28);color:var(--fg);
+    background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     font-family:"Inter",sans-serif;font-weight:500;font-size:.66rem;
     letter-spacing:.1em;text-transform:uppercase;padding:.5rem .85rem;
     border-radius:2px;cursor:pointer;opacity:.8;transition:opacity .2s,background .2s;
   }
-  #export-actions button:hover{opacity:1;background:rgba(242,239,233,.08);}
+  #export-actions button:hover{opacity:1;background:rgba(var(--fg-rgb),.08);}
   #export-actions button.primary{background:var(--fg);color:var(--bg);opacity:1;}
   #export-actions button.primary:hover{opacity:.85;}
 
@@ -110,7 +135,7 @@
     background:rgba(10,10,10,.6);
     backdrop-filter:blur(10px) saturate(1.3);
     -webkit-backdrop-filter:blur(10px) saturate(1.3);
-    border:1px solid rgba(242,239,233,.14);
+    border:1px solid rgba(var(--fg-rgb),.14);
     border-radius:100px;padding:.28rem;
   }
   .pill{
@@ -137,14 +162,14 @@
   #tl-bgtext{
     position:absolute;top:50%;left:0;white-space:nowrap;
     font-family:"Space Grotesk",sans-serif;font-weight:700;
-    font-size:15vw;line-height:1;color:rgba(242,239,233,.055);
+    font-size:15vw;line-height:1;color:rgba(var(--fg-rgb),.055);
     transform:translateY(-50%);will-change:transform;user-select:none;
   }
   #tl-track{position:absolute;top:0;left:0;height:100%;will-change:transform;}
   #tl-items-layer{position:absolute;top:0;left:0;height:100%;will-change:transform;}
   .tl-col-items{will-change:transform;}
-  .tl-col-items.drag-over-col{background:rgba(242,239,233,.05);}
-  .tl-col-line{position:absolute;top:12%;bottom:14%;width:1px;background:rgba(242,239,233,.16);}
+  .tl-col-items.drag-over-col{background:rgba(var(--fg-rgb),.05);}
+  .tl-col-line{position:absolute;top:12%;bottom:14%;width:1px;background:rgba(var(--fg-rgb),.16);}
   .tl-col-label{
     position:absolute;bottom:2.4rem;
     font-family:"Space Grotesk",sans-serif;font-weight:500;
@@ -183,12 +208,19 @@
   .thumb-idx{font-family:"JetBrains Mono",monospace;font-size:.6rem;color:rgba(242,239,233,.62);flex-shrink:0;}
   .thumb-ttl{font-family:"Inter",sans-serif;font-size:.72rem;font-weight:500;letter-spacing:.01em;color:#fff;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .thumb-ttl[contenteditable="true"]{pointer-events:auto;border-radius:3px;}
+  .thumb-ttl[contenteditable="true"]:empty:before{content:'Untitled';opacity:.5;}
+
+  /* ── inline editing (List + Grid) — Timeline never gets contenteditable,
+     so this only ever lights up where editing is actually allowed ── */
+  [contenteditable="true"]{-webkit-user-select:text;user-select:text;cursor:text;}
+  [contenteditable="true"]:focus{outline:none;box-shadow:0 0 0 1px rgba(var(--fg-rgb),.4);}
 
   .tl-item{z-index:1;}
   .tl-item:hover{z-index:30;}
   .tl-item .thumb{
     width:100%;aspect-ratio:4/5;background:var(--card);
-    border:1px solid rgba(242,239,233,.10);perspective:450px;
+    border:1px solid rgba(var(--fg-rgb),.10);perspective:450px;
   }
   .tl-item .thumb-inner{border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.42);}
   .tl-item.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
@@ -211,7 +243,7 @@
   #view-list{overflow:hidden;}
   #list-wrap{position:absolute;inset:0;top:5.6rem;bottom:0;overflow-y:auto;padding:0 var(--pad) 3rem;}
   #list-wrap::-webkit-scrollbar{width:0;}
-  .list-row{border-bottom:1px solid rgba(242,239,233,.14);}
+  .list-row{border-bottom:1px solid rgba(var(--fg-rgb),.14);}
   .list-row-head{
     display:flex;align-items:baseline;justify-content:space-between;
     padding:1.1rem .2rem;cursor:pointer;user-select:none;
@@ -220,16 +252,35 @@
     font-family:"Space Grotesk",sans-serif;font-weight:300;
     font-size:clamp(1.7rem,4.4vw,3rem);color:var(--faint);
     transition:color .3s,font-weight .3s;
+    border-radius:4px;
   }
+  .list-month[contenteditable="true"]{cursor:text;}
+  .list-month[contenteditable="true"]:empty:before{content:'Untitled category';opacity:.4;}
   .list-row.expanded .list-month{color:var(--fg);font-weight:600;}
-  .list-idx{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);}
+  .list-row-head-right{display:flex;align-items:center;gap:.7rem;flex-shrink:0;}
+  .list-idx{font-family:"JetBrains Mono",monospace;font-size:.72rem;color:var(--muted);white-space:nowrap;}
+  .list-cat-del{
+    flex-shrink:0;background:transparent;border:1px solid rgba(var(--fg-rgb),.24);color:var(--muted);
+    font-family:"Inter",sans-serif;font-weight:500;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;
+    padding:.32rem .55rem;border-radius:2px;cursor:pointer;
+    opacity:0;transition:opacity .2s,color .2s,border-color .2s;
+  }
+  .list-row-head:hover .list-cat-del{opacity:.65;}
+  .list-cat-del:hover{opacity:1 !important;color:var(--accent);border-color:var(--accent);}
+  #list-add-row{
+    padding:1.1rem .2rem;cursor:pointer;user-select:none;text-align:center;
+    font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:.95rem;
+    color:var(--muted);border:1px dashed rgba(var(--fg-rgb),.2);border-radius:6px;
+    margin-top:1rem;transition:color .2s,border-color .2s;
+  }
+  #list-add-row:hover{color:var(--fg);border-color:rgba(var(--fg-rgb),.4);}
   .list-row-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .55s cubic-bezier(.65,0,.35,1);}
   .list-row-body-inner{overflow:hidden;}
   .list-row.expanded .list-row-body{grid-template-rows:1fr;}
   .list-strip{display:flex;gap:.9rem;padding:.2rem .2rem 1.6rem;will-change:transform;}
   .list-card{flex:0 0 auto;width:150px;cursor:pointer;position:relative;z-index:1;}
   .list-card:hover{z-index:30;}
-  .list-card .thumb{width:100%;aspect-ratio:4/5;background:var(--card);border:1px solid rgba(242,239,233,.10);perspective:450px;}
+  .list-card .thumb{width:100%;aspect-ratio:4/5;background:var(--card);border:1px solid rgba(var(--fg-rgb),.10);perspective:450px;}
   .list-card .thumb-inner{border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
   .list-card.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
   .list-card .cardlabel{font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:center;font-size:.85rem;}
@@ -242,7 +293,7 @@
   #grid-scroll::-webkit-scrollbar{width:0;}
   #grid-topline{
     display:flex;justify-content:space-between;align-items:baseline;
-    padding-bottom:1.1rem;margin-bottom:1.1rem;border-bottom:1px solid rgba(242,239,233,.16);
+    padding-bottom:1.1rem;margin-bottom:1.1rem;border-bottom:1px solid rgba(var(--fg-rgb),.16);
   }
   #grid-title{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:1rem;letter-spacing:.02em;}
   #grid-count{font-family:"JetBrains Mono",monospace;font-size:.7rem;color:var(--muted);}
@@ -252,7 +303,7 @@
   }
   .g-item{cursor:pointer;transition:opacity .3s;position:relative;z-index:1;}
   .g-item:hover{z-index:30;}
-  .g-item .thumb{width:100%;aspect-ratio:4/5;background:var(--card);border:1px solid rgba(242,239,233,.10);perspective:450px;}
+  .g-item .thumb{width:100%;aspect-ratio:4/5;background:var(--card);border:1px solid rgba(var(--fg-rgb),.10);perspective:450px;}
   .g-item .thumb-inner{border-radius:11px;box-shadow:0 12px 30px rgba(0,0,0,.4);}
   .g-item.is-card .thumb{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;}
   .g-item .cardlabel{font-family:"Space Grotesk",sans-serif;font-weight:600;text-align:center;font-size:.85rem;}
@@ -267,7 +318,7 @@
     background:linear-gradient(to top, var(--bg) 55%, transparent);
   }
   .cat-pill{
-    padding:.5rem 1rem;border-radius:2px;border:1px solid rgba(242,239,233,.22);
+    padding:.5rem 1rem;border-radius:2px;border:1px solid rgba(var(--fg-rgb),.22);
     background:var(--card);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
     cursor:pointer;transition:all .2s;color:var(--fg);
   }
@@ -294,12 +345,12 @@
   #detail-close{
     position:absolute;top:-3rem;right:0;
     width:2.3rem;height:2.3rem;border-radius:50%;
-    background:transparent;border:1px solid rgba(242,239,233,.28);color:var(--fg);
+    background:transparent;border:1px solid rgba(var(--fg-rgb),.28);color:var(--fg);
     font-size:.85rem;cursor:pointer;
     display:flex;align-items:center;justify-content:center;
     transition:background .2s,opacity .2s;
   }
-  #detail-close:hover{background:rgba(242,239,233,.1);}
+  #detail-close:hover{background:rgba(var(--fg-rgb),.1);}
   #detail-frame{
     position:relative;
     width:min(460px,80vw);
@@ -319,6 +370,8 @@
     pointer-events:none;
   }
   #detail-caption .idx{display:block;font-family:"JetBrains Mono",monospace;font-size:.6rem;opacity:.55;margin-bottom:.15rem;}
+  #detail-caption-text[contenteditable="true"]{pointer-events:auto;border-radius:3px;}
+  #detail-caption-text[contenteditable="true"]:empty:before{content:'Untitled';opacity:.5;}
 
   /* ── Custom minimalist scroll indicators ── */
   .scrollbar-h{
@@ -339,7 +392,7 @@
   }
 
   @media (max-width:640px){
-    #hdr-right{display:none;}
+    #export-btn, #filter-badge{display:none;}
     .list-card{width:120px;}
 
     #detail-card{gap:.9rem;}
@@ -366,6 +419,10 @@
     </div>
     <div id="hdr-right">
       <div id="filter-badge"><span id="filter-label"></span><span class="x">✕</span></div>
+      <button id="theme-toggle" type="button" title="Toggle light / dark theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"></path></svg>
+      </button>
       <button id="export-btn" title="Download the current arrangement so you can hand it back to Claude">Export</button>
     </div>
   </header>
@@ -417,7 +474,7 @@
 <div id="export-modal">
   <div id="export-card">
     <h3>Current arrangement</h3>
-    <p>This is every piece in its current group and order. Copy it or download the file, then send it back in chat — Claude will bake the new order into the source file.</p>
+    <p>This is every category name plus every piece, its title, group, and order. Copy it or download the file, then send it back in chat — Claude will bake it into the source file.</p>
     <textarea id="export-text" readonly></textarea>
     <div id="export-actions">
       <button id="export-copy" class="primary">Copy to clipboard</button>
@@ -436,7 +493,7 @@
    (flow & list views) and the filter pills. Order = sequence: left-to-right
    in the flow view, top-to-bottom in list view. Reorder freely — nothing
    downstream assumes these are calendar months. */
-const GROUPS = ['Type','Portrait','Motion','Brand','Product','Fashion','Opening','The Sweetest','Chronicles of Wolfgang','Lost & Found','Welcome Home','Found on the Road','The King From Queens','Good Day, Now Good Night'];
+let GROUPS = ['Type','Portrait','Motion','Brand','Product','Fashion','Opening','The Sweetest','Chronicles of Wolfgang','Lost & Found','Welcome Home','Found on the Road','The King From Queens','Good Day, Now Good Night'];
 
 const RAW = [
   {t:'Night Signal', c:'Motion', m:2, k:'photo', img:'https://i.ibb.co/0RLXVg2g/hidaddy.webp'},
@@ -559,11 +616,14 @@ function hash(s){let h=0;for(let i=0;i<s.length;i++)h=Math.imul(31,h)+s.charCode
 function srand(seed){const x=Math.sin(seed+1)*10000;return x-Math.floor(x);}
 function fmtIdx(n){return String(n).padStart(2,'0');}
 function matches(item){return !category || item.c === category;}
+function escapeHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function thumbHTML(item, opts){
-  const showOverlay = !opts || opts.overlay !== false;
+  opts = opts || {};
+  const showOverlay = opts.overlay !== false;
+  const editableTitle = !!opts.editableTitle;
   if(item.k==='card'){
-    return `<div class="thumb" style="background:${item.bg}"><div class="cardlabel" style="color:${item.fg}">${item.label}</div></div>`;
+    return `<div class="thumb" style="background:${item.bg}"><div class="cardlabel" style="color:${item.fg}">${escapeHtml(item.label)}</div></div>`;
   }
   const media = item.k==='video'
     ? `<video class="thumb-media" src="${item.src}" autoplay muted loop playsinline disablepictureinpicture></video>`
@@ -571,9 +631,42 @@ function thumbHTML(item, opts){
   const overlay = showOverlay ? `
     <div class="thumb-overlay">
       <span class="thumb-idx mono">${fmtIdx(item.idx)}</span>
-      <span class="thumb-ttl">${item.t}</span>
+      <span class="thumb-ttl"${editableTitle ? ' contenteditable="true" spellcheck="false"' : ''}>${escapeHtml(item.t)}</span>
     </div>` : '';
   return `<div class="thumb"><div class="thumb-inner">${media}${overlay}</div></div>`;
+}
+
+/* ── live caption/title editing (List + Grid only — Timeline stays read-only) ──
+   Single source of truth is ITEMS[i].t; every surface showing that title
+   (list card, grid card, and an open detail card) gets kept in sync. ── */
+function updateItemTitle(i, newTitle){
+  const val = String(newTitle==null?'':newTitle).trim() || 'Untitled';
+  ITEMS[i].t = val;
+  document.querySelectorAll(`[data-i="${i}"] .thumb-ttl`).forEach(el=>{
+    if(el.textContent !== val) el.textContent = val;
+  });
+  const capText = document.getElementById('detail-caption-text');
+  if(capText && capText.dataset.i === String(i) && capText.textContent !== val){
+    capText.textContent = val;
+  }
+  return val;
+}
+
+function wireEditableTitle(containerEl, i){
+  const ttl = containerEl.querySelector('.thumb-ttl[contenteditable]');
+  if(!ttl) return;
+  ttl.addEventListener('mousedown', e=>{
+    e.stopPropagation();
+    if(containerEl.hasAttribute('draggable')) containerEl.setAttribute('draggable','false');
+  });
+  ttl.addEventListener('click', e=> e.stopPropagation());
+  ttl.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); ttl.blur(); }
+  });
+  ttl.addEventListener('blur', ()=>{
+    ttl.textContent = updateItemTitle(i, ttl.textContent);
+    if(containerEl.hasAttribute('draggable')) containerEl.setAttribute('draggable','true');
+  });
 }
 
 /* ── hover tilt — this is the Tilted Card component's own spring simulator
@@ -661,6 +754,13 @@ function switchView(id){
   setTimeout(()=>{transitioning=false;},420);
 }
 
+/* ─────────────────────────── THEME ─────────────────────────── */
+// session-only (no persistence) — starts dark, toggled by the header button.
+const themeToggleBtn = document.getElementById('theme-toggle');
+themeToggleBtn.addEventListener('click', ()=>{
+  document.documentElement.classList.toggle('light-theme');
+});
+
 /* ─────────────────────────── FILTER BADGE ─────────────────────────── */
 const badgeEl = document.getElementById('filter-badge');
 const badgeLabel = document.getElementById('filter-label');
@@ -670,7 +770,10 @@ function setCategory(c){
   category = (category===c) ? null : c;
   badgeLabel.textContent = category || '';
   badgeEl.classList.toggle('show', !!category);
-  document.querySelectorAll('.cat-pill').forEach(p=>p.classList.toggle('active', p.dataset.cat===category));
+  document.querySelectorAll('.cat-pill').forEach(p=>{
+    const isAll = p.dataset.cat === '';
+    p.classList.toggle('active', isAll ? !category : p.dataset.cat===category);
+  });
   refreshDim();
 }
 
@@ -693,17 +796,94 @@ function refreshDim(){
 const detailEl = document.getElementById('detail');
 document.getElementById('detail-close').addEventListener('click', closeDetail);
 detailEl.addEventListener('click', e=>{ if(e.target===detailEl) closeDetail(); });
-function openDetail(item){
+function openDetail(item, opts){
+  opts = opts || {};
+  const editable = !!opts.editable; // only List/Grid pass this — Timeline opens read-only
+  const i = ITEMS.indexOf(item);
+
   const frame = document.getElementById('detail-frame');
   const old = frame.querySelector('.thumb');
   if(old) old.remove();
   frame.insertAdjacentHTML('afterbegin', thumbHTML(item, {overlay:false}));
   initTilt(frame.querySelector('.thumb'));
-  document.getElementById('detail-caption').innerHTML =
-    `<span class="idx mono">${fmtIdx(item.idx)} / ${ITEMS.length} — ${GROUPS[item.m]}</span>${item.t}`;
+
+  const capEl = document.getElementById('detail-caption');
+  capEl.innerHTML =
+    `<span class="idx mono">${fmtIdx(item.idx)} / ${ITEMS.length} — ${escapeHtml(GROUPS[item.m])}</span>` +
+    `<span id="detail-caption-text" data-i="${i}"${editable ? ' contenteditable="true" spellcheck="false"' : ''}>${escapeHtml(item.t)}</span>`;
+
+  if(editable){
+    const textEl = document.getElementById('detail-caption-text');
+    textEl.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); textEl.blur(); }
+    });
+    textEl.addEventListener('blur', ()=>{
+      textEl.textContent = updateItemTitle(i, textEl.textContent);
+    });
+  }
   detailEl.classList.add('show');
 }
 function closeDetail(){ detailEl.classList.remove('show'); }
+
+/* ─────────────────────────── CATEGORY MANAGEMENT (List view only) ─────────────────────────── */
+function commitCategoryName(m, newName){
+  const oldName = GROUPS[m];
+  const val = String(newName==null?'':newName).trim() || 'Untitled category';
+  if(val === oldName) return;
+  GROUPS[m] = val;
+  ITEMS.forEach(it=>{ if(it.m===m) it.c = val; });
+  if(category === oldName) category = val;
+  const labels = trackEl.querySelectorAll('.tl-col-label');
+  if(labels[m]) labels[m].textContent = val;
+  buildGridCats();
+}
+
+function addCategory(){
+  GROUPS.push('New Category');
+  const m = GROUPS.length - 1;
+  renderList();
+  renderGrid();
+  renderTimeline();
+  buildGridCats();
+  requestAnimationFrame(()=>{
+    const row = listRows.find(r=>r.m===m);
+    if(!row) return;
+    setFocused(m, true);
+    const nameEl = row.headEl.querySelector('.list-month');
+    if(nameEl){
+      nameEl.focus();
+      const range = document.createRange();
+      range.selectNodeContents(nameEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  });
+}
+
+function deleteCategoryPrompt(m){
+  if(GROUPS.length <= 1){ alert('You need at least one category.'); return; }
+  const name = GROUPS[m];
+  const affected = ITEMS.filter(it=>it.m===m);
+  const fallback = m>0 ? m-1 : m+1;
+  const fallbackName = GROUPS[fallback];
+  const msg = affected.length
+    ? `Delete "${name}"? ${affected.length} image${affected.length>1?'s':''} will move into "${fallbackName}".`
+    : `Delete "${name}"?`;
+  if(!confirm(msg)) return;
+
+  affected.forEach(it=>{ it.m = fallback; it.c = fallbackName; });
+  GROUPS.splice(m,1);
+  ITEMS.forEach(it=>{ if(it.m > m) it.m -= 1; });
+  if(category === name) category = null;
+  if(focusedGroup === m) focusedGroup = 0; else if(focusedGroup > m) focusedGroup -= 1;
+  if(expandedGroup === m) expandedGroup = 0; else if(expandedGroup > m) expandedGroup -= 1;
+
+  renderList();
+  renderGrid();
+  renderTimeline();
+  buildGridCats();
+}
 
 /* ─────────────────────────── EXPORT ─────────────────────────── */
 const exportBtn = document.getElementById('export-btn');
@@ -711,10 +891,10 @@ const exportModal = document.getElementById('export-modal');
 const exportText = document.getElementById('export-text');
 
 function buildExportPayload(){
-  // one object per piece, in current order — this is the exact shape Claude
-  // needs to rebuild the RAW array, so nothing beyond idx/uid is stripped.
-  const data = ITEMS.map(({idx, ...rest})=>rest);
-  return JSON.stringify(data, null, 2);
+  // groups + one object per piece, in current order — this is the exact shape
+  // Claude needs to rebuild GROUPS and the RAW array, so nothing beyond idx is stripped.
+  const items = ITEMS.map(({idx, ...rest})=>rest);
+  return JSON.stringify({ groups: GROUPS, items }, null, 2);
 }
 
 exportBtn.addEventListener('click', ()=>{
@@ -1038,11 +1218,34 @@ function renderList(){
 
     const head = document.createElement('div');
     head.className = 'list-row-head';
-    head.innerHTML = `<div class="list-month disp">${name}</div><div class="list-idx">(${fmtIdx(m+1)} / ${fmtIdx(GROUPS.length)})</div>`;
+    head.innerHTML = `
+      <div class="list-month disp" contenteditable="true" spellcheck="false">${escapeHtml(name)}</div>
+      <div class="list-row-head-right">
+        <div class="list-idx">(${fmtIdx(m+1)} / ${fmtIdx(GROUPS.length)})</div>
+        <button class="list-cat-del" type="button" title="Delete this category">Delete ✕</button>
+      </div>`;
     head.addEventListener('click', ()=>{
       // clicking brings this row to focus explicitly (in addition to cursor-driven focus)
       setFocused(m, true);
     });
+
+    const nameEl = head.querySelector('.list-month');
+    nameEl.addEventListener('mousedown', e=> e.stopPropagation());
+    nameEl.addEventListener('click', e=> e.stopPropagation());
+    nameEl.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); nameEl.blur(); }
+    });
+    nameEl.addEventListener('blur', ()=>{
+      commitCategoryName(m, nameEl.textContent);
+      nameEl.textContent = GROUPS[m];
+    });
+
+    const delBtn = head.querySelector('.list-cat-del');
+    delBtn.addEventListener('click', e=>{
+      e.stopPropagation();
+      deleteCategoryPrompt(m);
+    });
+
     row.appendChild(head);
 
     const body = document.createElement('div');
@@ -1059,9 +1262,10 @@ function renderList(){
         const card = document.createElement('div');
         card.className = 'list-card' + (item.k==='card' ? ' is-card' : '');
         card.dataset.i = i;
-        card.innerHTML = thumbHTML(item);
+        card.innerHTML = thumbHTML(item, {editableTitle:true});
         initTilt(card.querySelector('.thumb'));
-        card.addEventListener('click', ()=>openDetail(item));
+        wireEditableTitle(card, i);
+        card.addEventListener('click', ()=>openDetail(item, {editable:true}));
         strip.appendChild(card);
       });
       inner.appendChild(strip);
@@ -1078,6 +1282,12 @@ function renderList(){
 
     listRows.push({ m, rowEl: row, headEl: head, innerEl: inner, stripEl: strip });
   });
+
+  const addRow = document.createElement('div');
+  addRow.id = 'list-add-row';
+  addRow.textContent = '+ New Category';
+  addRow.addEventListener('click', addCategory);
+  listWrap.appendChild(addRow);
 
   lockScrollTop = listWrap.scrollTop;
 }
@@ -1167,9 +1377,10 @@ function renderGrid(){
     el.className = 'g-item' + (item.k==='card' ? ' is-card' : '');
     el.dataset.i = i;
     el.setAttribute('draggable','true');
-    el.innerHTML = thumbHTML(item);
+    el.innerHTML = thumbHTML(item, {editableTitle:true});
     initTilt(el.querySelector('.thumb'));
-    el.addEventListener('click', ()=>openDetail(item));
+    wireEditableTitle(el, i);
+    el.addEventListener('click', ()=>openDetail(item, {editable:true}));
     el.addEventListener('dragstart', e=>{
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', String(i));
@@ -1208,28 +1419,27 @@ window.addEventListener('resize', updateGridScrollbar);
 updateGridScrollbar();
 
 const gridCatsEl = document.getElementById('grid-cats');
-const allPill = document.createElement('div');
-allPill.className = 'cat-pill active';
-allPill.textContent = 'All';
-allPill.dataset.cat = '';
-allPill.addEventListener('click', ()=>setCategory(null));
-gridCatsEl.appendChild(allPill);
 
-GROUPS.forEach(cat=>{
-  const p = document.createElement('div');
-  p.className = 'cat-pill';
-  p.textContent = cat;
-  p.dataset.cat = cat;
-  p.addEventListener('click', ()=>setCategory(cat));
-  gridCatsEl.appendChild(p);
-});
+function buildGridCats(){
+  gridCatsEl.innerHTML = '';
 
-/* keep All-pill visually in sync too */
-const _setCategoryOrig = setCategory;
-setCategory = function(c){
-  _setCategoryOrig(c);
-  allPill.classList.toggle('active', !category);
-};
+  const allPill = document.createElement('div');
+  allPill.className = 'cat-pill' + (!category ? ' active' : '');
+  allPill.textContent = 'All';
+  allPill.dataset.cat = '';
+  allPill.addEventListener('click', ()=>setCategory(null));
+  gridCatsEl.appendChild(allPill);
+
+  GROUPS.forEach(cat=>{
+    const p = document.createElement('div');
+    p.className = 'cat-pill' + (category===cat ? ' active' : '');
+    p.textContent = cat;
+    p.dataset.cat = cat;
+    p.addEventListener('click', ()=>setCategory(cat));
+    gridCatsEl.appendChild(p);
+  });
+}
+buildGridCats();
 
 })();
 
