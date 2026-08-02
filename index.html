@@ -5010,9 +5010,19 @@ function tbApplySize(px) {
   const scaleMult = Math.min(1.6, Math.max(0.72, scale));
   root.style.setProperty('--scale-mult', scaleMult.toFixed(3));
   // Nav (Work/Life/Balance/Journal tabs, in/zackgort, CV button, logo,
-  // nav-h itself) tracks the same multiplier so it grows/shrinks in step
-  // with whichever type-size slider the visitor is using, on every page.
-  root.style.setProperty('--nav-scale', scaleMult.toFixed(3));
+  // nav-h itself) tracks the type-size slider so it grows/shrinks in step
+  // with whichever value the visitor is using — but measured against THIS
+  // view's own default (28 on index, 48 elsewhere — see defaultSizeForView),
+  // not the fixed 48px baseline `scale` above. Anchoring to a fixed 48
+  // meant index (default 28) always loaded with the nav pinned to its
+  // 0.72 floor while every other page loaded at 1.0 — the nav visibly
+  // changed size just from switching tabs, before the visitor touched
+  // anything. Anchoring to each view's own default makes every page land
+  // at nav-scale 1.0 on arrival, and the nav only drifts once the visitor
+  // actually moves that page's slider away from its default.
+  const navBase = defaultSizeForView(currentView) || 48;
+  const navScaleMult = Math.min(1.6, Math.max(0.72, px / navBase));
+  root.style.setProperty('--nav-scale', navScaleMult.toFixed(3));
   // --page-scale drives About and CV page text proportionally (body, labels, timeline, h1s)
   if (currentView === 'about' || currentView === 'contracts') {
     root.style.setProperty('--page-scale', (px / 48).toFixed(3));
