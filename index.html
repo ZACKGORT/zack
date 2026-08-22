@@ -575,8 +575,15 @@
       z-index: 999;
       display: none;
       background: transparent;
+      transition: background 0.15s ease;
     }
-    .hc-backdrop.active { display: block; }
+    .hc-backdrop.active {
+      display: block;
+      /* a faint scrim makes it visually obvious the tree behind is
+         momentarily blocked, so a tap doesn't get mistaken for hitting
+         a tree row that's actually covered by the card. */
+      background: rgba(0, 0, 0, 0.35);
+    }
 
     .hc-close {
       position: absolute;
@@ -2071,6 +2078,10 @@
 
   let hideTimeout = null;
   let visible = false;
+  let cardShownAt = 0; // timestamp card last became visible — guards against
+                        // a fast follow-up tap landing on the card (e.g. the
+                        // thumb) when the user actually meant to hit a tree
+                        // row that was momentarily covered by the card.
   let currentThumbSrc = '';
 
   // ---------------------------------------------------------------------
@@ -2290,6 +2301,13 @@
       currentThumbSrc = meta.thumb;
       hcThumb.onclick = (e) => {
         e.stopPropagation();
+        // On touch, the card sits fixed/centered and can end up overlapping
+        // a tree row the user is actually trying to tap (e.g. a parent
+        // folder to collapse). A tap that lands on the thumb within a beat
+        // of the card appearing is almost always that mis-tap rather than
+        // a deliberate "zoom the image" tap, so ignore it and just let the
+        // card sit there — a second, real tap on the thumb will still work.
+        if (isTouch && Date.now() - cardShownAt < 400) return;
         openLightbox(meta.thumb, meta.title || node.name);
       };
     } else {
@@ -2343,6 +2361,7 @@
       hcBackdrop.classList.add('active');
     }
     visible = true;
+    cardShownAt = Date.now();
     clearTimeout(hideTimeout);
   }
 
