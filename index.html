@@ -608,9 +608,17 @@
       width: calc(100% / 0.85);
       height: calc(100% / 0.85);
     }
+    .hover-card .hc-iframe-wrap img,
+    .hover-card .hc-iframe-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
     .hover-card .hc-content {
       padding: 12px 16px 14px;
       background: #161616;
+      flex-shrink: 0;
     }
     .hover-card .hc-title {
       font-family: Fraunces, Georgia, serif;
@@ -1141,6 +1149,7 @@
   <div class="hc-inner">
     <div class="hc-iframe-wrap" id="hcIframeWrap">
       <iframe id="hcIframe" src="" loading="lazy" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+      <img id="hcImage" src="" alt="" style="display:none;">
     </div>
     <div class="hc-content">
       <div class="hc-title" id="hcTitle">Project</div>
@@ -2127,6 +2136,7 @@
   // ─── Hover Card ───
   const hoverCard = document.getElementById('hoverCard');
   const hcIframe = document.getElementById('hcIframe');
+  const hcImage = document.getElementById('hcImage');
   const hcTitle = document.getElementById('hcTitle');
   const hcSub = document.getElementById('hcSub');
   const hcDesc = document.getElementById('hcDesc');
@@ -2147,12 +2157,24 @@
     hcTitle.textContent = meta.title || node.name;
     hcSub.textContent = meta.sub || '';
     hcDesc.textContent = meta.desc || '';
+    const isVideoThumb = meta.thumb && /\.(mp4|mov|webm)$/i.test(meta.thumb);
     if (meta.iframeUrl) {
       hcIframeWrap.style.display = 'block';
+      hcIframe.style.display = 'block';
       hcIframe.src = meta.iframeUrl;
+      hcImage.style.display = 'none';
+      hcImage.src = '';
+    } else if (meta.thumb && !isVideoThumb) {
+      hcIframeWrap.style.display = 'block';
+      hcIframe.style.display = 'none';
+      hcIframe.src = '';
+      hcImage.style.display = 'block';
+      hcImage.src = meta.thumb;
     } else {
       hcIframeWrap.style.display = 'none';
       hcIframe.src = '';
+      hcImage.style.display = 'none';
+      hcImage.src = '';
     }
     const cardW = Math.min(340, window.innerWidth - 40);
     const cardH = Math.min(340, window.innerHeight - 60);
@@ -2186,6 +2208,7 @@
     hoverCard.style.left = x + 'px';
     hoverCard.style.top = y + 'px';
     hoverCard.style.width = cardW + 'px';
+    hoverCard.style.height = cardH + 'px';
     hoverCard.style.maxHeight = cardH + 'px';
     hoverCard.classList.add('visible');
     hoverVisible = true;
@@ -2202,6 +2225,7 @@
       hoverVisible = false;
       hoverCardNodeId = null;
       hcIframe.src = '';
+      hcImage.src = '';
     };
     if (immediate) {
       clearTimeout(hideTimeout);
