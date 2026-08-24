@@ -255,10 +255,15 @@
       border-bottom: 1px solid var(--rule);
       outline: none;
       padding: 0 var(--unit);
+      transition: background 0.2s ease;
     }
     .row:last-child { border-bottom: none; }
     .row:hover { background: var(--panel); }
-    .row.selected { background: var(--panel); box-shadow: inset 3px 0 0 var(--ink); }
+    .row.selected {
+      background: var(--panel);
+      box-shadow: inset 3px 0 0 var(--ink);
+      animation: selectPulse 0.4s ease;
+    }
     .row:focus-visible { box-shadow: inset 0 0 0 2px var(--ink); }
     @media (hover: none) and (pointer: coarse) {
       .row { min-height: 48px; touch-action: manipulation; }
@@ -298,7 +303,7 @@
       color: var(--grey);
     }
 
-    /* ─── profile trigger (was floating avatar) ─── */
+    /* ─── profile trigger ─── */
     .profile-trigger {
       display: flex; align-items: center; gap: calc(var(--unit) * 1.25);
     }
@@ -311,212 +316,773 @@
     }
     .profile-trigger .avatar-fallback { display: none; }
 
-    /* ─── overlays (shared) ─── */
+    /* ============================================================
+       OVERLAY ENHANCEMENTS — Professional Polish
+       ============================================================ */
+
+    /* ─── Overlay Base ─── */
     .overlay {
-      position: fixed; inset: 0; z-index: 9000;
-      background: rgba(10,10,11,0.97);
-      display: flex; align-items: flex-start; justify-content: center;
-      opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
       padding: calc(var(--unit)*7) var(--margin) calc(var(--unit)*7);
       overflow-y: auto;
+      background: rgba(0, 0, 0, 0.92);
+      backdrop-filter: blur(0px) saturate(1);
+      opacity: 0;
+      pointer-events: none;
+      transition: 
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        backdrop-filter 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        background 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: opacity, backdrop-filter;
+      -webkit-overflow-scrolling: touch;
     }
-    .overlay.open { opacity: 1; pointer-events: auto; }
-    .overlay-close {
-      position: fixed; top: calc(var(--unit)*3); right: var(--margin);
-      width: 40px; height: 40px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--panel); border: 1px solid var(--rule);
-      border-radius: var(--radius-sm);
-      color: var(--ink); font-family: 'IBM Plex Mono', monospace; font-size: 16px;
-      cursor: pointer; z-index: 9500;
-    }
-    .overlay-close:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
+    .overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+      backdrop-filter: blur(12px) saturate(1.2);
+      background: rgba(0, 0, 0, 0.94);
+    }
+
+    /* ─── Overlay Type Variations ─── */
+    .overlay[data-type="case"] {
+      background: rgba(0, 0, 0, 0.96);
+    }
+
+    .overlay[data-type="reader"] {
+      background: rgba(0, 0, 0, 0.92);
+    }
+
+    .overlay[data-type="gallery"] {
+      background: rgba(0, 0, 0, 0.88);
+    }
+
+    .overlay[data-type="case"] .panel-grid {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      padding: calc(var(--unit)*4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    /* ─── Overlay Close Button ─── */
+    .overlay-close {
+      position: fixed;
+      top: calc(var(--unit)*3);
+      right: var(--margin);
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50%;
+      color: var(--ink);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 18px;
+      cursor: pointer;
+      z-index: 9500;
+      transition: 
+        background 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 0.3s ease;
+      opacity: 0;
+      transform: scale(0.8) rotate(-90deg);
+      will-change: transform, opacity;
+    }
+
+    .overlay.open .overlay-close {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+      transition-delay: 0.15s;
+    }
+
+    .overlay-close:hover {
+      background: var(--ink);
+      color: var(--paper);
+      border-color: var(--ink);
+      transform: scale(1.05) rotate(0deg);
+    }
+
+    .overlay-close:active {
+      transform: scale(0.92);
+    }
+
+    /* ─── Panel Content ─── */
     .panel {
       max-width: var(--max-width);
       width: 100%;
       margin: 0 auto;
-    }
-    .panel-grid {
-      display: grid; grid-template-columns: repeat(12, 1fr); column-gap: var(--gutter);
-    }
-
-    /* ─── profile overlay ─── */
-    .profile-head {
-      grid-column: 1 / 13;
-      display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap;
-      gap: calc(var(--unit)*2);
-      padding-bottom: calc(var(--unit)*3);
-      border-bottom: 1px solid var(--rule-strong);
-      margin-bottom: calc(var(--unit)*4);
-    }
-    .profile-head .avatar-large {
-      width: 72px; height: 72px; object-fit: cover; border: 1px solid var(--rule);
-      border-radius: var(--radius);
-      flex-shrink: 0;
-    }
-    .profile-head-name { display: flex; align-items: flex-end; gap: calc(var(--unit)*3); flex-wrap: wrap; }
-    .profile-head h1 { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 40px; letter-spacing: -0.02em; }
-    .role-badge {
-      font-family: 'IBM Plex Mono', monospace; font-size: var(--fs-micro); letter-spacing: 0.05em;
-      color: var(--grey); text-transform: uppercase; white-space: nowrap;
-    }
-    .profile-head-actions { display: flex; gap: calc(var(--unit)*2.5); }
-    .meta-row { margin-top: calc(var(--unit)); color: var(--grey); }
-    .bio { margin-top: calc(var(--unit)*2); max-width: 60ch; color: var(--ink); }
-
-    .profile-col-a { grid-column: 1 / 7; }
-    .profile-col-b { grid-column: 7 / 13; }
-    @media (max-width: 820px) {
-      .profile-col-a, .profile-col-b { grid-column: 1 / 13; }
-      .profile-head-name { flex-direction: column; align-items: flex-start; gap: calc(var(--unit)); }
-      .profile-head h1 { font-size: 30px; }
+      opacity: 0;
+      transform: translateY(24px) scale(0.98);
+      transition: 
+        opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform, opacity;
     }
 
-    .experience-list { display: flex; flex-direction: column; }
-    .experience-item {
-      display: grid; grid-template-columns: 90px 1fr; column-gap: var(--unit);
-      padding: calc(var(--unit)*1.25) 0; border-bottom: 1px solid var(--rule);
-    }
-    .experience-item .year {
-      font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink); padding-top: 2px;
-    }
-    .experience-item .details .role { font-size: var(--fs-body); font-weight: 600; margin: 0; }
-    .experience-item .details .company { font-size: 13px; color: var(--grey); margin: 2px 0 0; }
-
-    .capability-list { display: flex; flex-wrap: wrap; gap: calc(var(--unit)*1.5) calc(var(--unit)*2); margin-top: 0; }
-    .capability-tag {
-      font-family: 'IBM Plex Mono', monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em;
-      border-bottom: 1px solid var(--rule-strong); padding-bottom: 2px;
+    .overlay.open .panel {
+      opacity: 1;
+      transform: translateY(0) scale(1);
     }
 
-    .career-timeline { margin-top: calc(var(--unit)*4); border-top: 1px solid var(--rule); padding-top: calc(var(--unit)*3); }
-    .tl-entry { display: block; border-bottom: 1px solid var(--rule); }
-    .tl-label {
-      display: block; padding: calc(var(--unit)*1) 0; font-size: 13px; cursor: default;
-    }
-    .tl-tooltip {
-      display: none; font-size: 12px; color: var(--grey); padding: 0 0 calc(var(--unit)*1.5) calc(var(--unit)*2);
-      border-left: 1px solid var(--rule); margin-left: calc(var(--unit));
-    }
-    .tl-entry:hover .tl-tooltip { display: block; }
-
-    .profile-contact { display: flex; flex-direction: column; gap: calc(var(--unit)*1.25); margin-top: calc(var(--unit)*4); }
-    .profile-contact a {
-      display: flex; align-items: center; gap: calc(var(--unit)*1.25);
-      font-family: 'IBM Plex Mono', monospace; font-size: 13px; text-decoration: none;
-      border-bottom: 1px solid transparent;
-    }
-    .profile-contact a:hover { border-bottom-color: var(--ink); }
-    .profile-contact svg { width: 14px; height: 14px; flex-shrink: 0; }
-
-    .profile-section-title {
-      font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--grey); margin-bottom: calc(var(--unit)*2);
+    /* ─── Panel Grid Items ─── */
+    .panel-grid > * {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: 
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    /* ─── case study overlay ─── */
+    .overlay.open .panel-grid > * {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Stagger children with increasing delays */
+    .overlay.open .panel-grid > *:nth-child(1) { transition-delay: 0.04s; }
+    .overlay.open .panel-grid > *:nth-child(2) { transition-delay: 0.08s; }
+    .overlay.open .panel-grid > *:nth-child(3) { transition-delay: 0.12s; }
+    .overlay.open .panel-grid > *:nth-child(4) { transition-delay: 0.16s; }
+    .overlay.open .panel-grid > *:nth-child(5) { transition-delay: 0.20s; }
+    .overlay.open .panel-grid > *:nth-child(6) { transition-delay: 0.24s; }
+    .overlay.open .panel-grid > *:nth-child(7) { transition-delay: 0.28s; }
+    .overlay.open .panel-grid > *:nth-child(8) { transition-delay: 0.32s; }
+
+    /* ─── Case Study Specific ─── */
     .case-head {
-      grid-column: 1 / 13;
-      border-bottom: 1px solid var(--rule-strong);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       padding-bottom: calc(var(--unit)*3);
       margin-bottom: calc(var(--unit)*4);
     }
-    .case-badge { display: block; margin-bottom: calc(var(--unit)*1.5); }
-    .case-head h1 { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: 44px; letter-spacing: -0.03em; line-height: 1.02; }
-    .case-meta { display: flex; flex-wrap: wrap; gap: var(--unit) calc(var(--unit)*3); margin-top: calc(var(--unit)*2); font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--grey); }
-    .case-meta span.tag { color: var(--grey-dim); }
 
-    .grid-hero { grid-column: 1 / 6; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--panel); }
-    .grid-hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .grid-hero .placeholder-hero {
-      padding: calc(var(--unit)*4); font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--grey);
-    }
-    .case-steps { grid-column: 6 / 13; display: flex; flex-direction: column; }
-    .grid-item {
-      display: grid; grid-template-columns: 56px 1fr; column-gap: calc(var(--unit)*2);
-      padding: calc(var(--unit)*2) 0; border-bottom: 1px solid var(--rule);
-    }
-    .grid-item .step-number { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 28px; color: var(--ink); line-height: 1; }
-    .grid-item .step-title { font-size: var(--fs-body); font-weight: 700; margin: 0 0 4px; }
-    .grid-item .step-desc { font-size: 14px; color: var(--grey); line-height: 1.5; margin: 0; }
-    @media (max-width: 820px) {
-      .grid-hero, .case-steps { grid-column: 1 / 13; }
-      .grid-hero { aspect-ratio: 16/9; margin-bottom: calc(var(--unit)*2); }
-      .case-head h1 { font-size: 30px; }
+    .case-head h1 {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 900;
+      font-size: 44px;
+      letter-spacing: -0.03em;
+      line-height: 1.02;
+      margin: 0;
+      background: linear-gradient(135deg, #ffffff 60%, rgba(255, 255, 255, 0.6));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    /* ─── hover card ─── */
-    .hover-card {
-      position: fixed; pointer-events: none; z-index: 4000;
-      width: 340px; max-height: 340px;
+    .case-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--unit) calc(var(--unit)*3);
+      margin-top: calc(var(--unit)*2);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--grey);
+    }
+
+    .case-meta .tag {
+      color: var(--grey-dim);
+      transition: color 0.3s ease;
+    }
+
+    .case-meta .tag:hover {
+      color: var(--ink);
+    }
+
+    /* ─── Case Grid Hero ─── */
+    .grid-hero {
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      overflow: hidden;
       background: var(--panel);
-      border: 1px solid var(--rule-strong);
-      opacity: 0; transition: opacity 0.15s ease;
+      position: relative;
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .grid-hero:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .grid-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: 
+        transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.5s ease;
+      will-change: transform;
+      animation: imageReveal 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .grid-hero:hover img {
+      transform: scale(1.03);
+      filter: brightness(1.05) contrast(1.05);
+    }
+
+    @keyframes imageReveal {
+      0% { opacity: 0; transform: scale(1.02); filter: blur(4px); }
+      100% { opacity: 1; transform: scale(1); filter: blur(0); }
+    }
+
+    @keyframes selectPulse {
+      0% { box-shadow: inset 0 0 0 2px var(--ink); }
+      100% { box-shadow: inset 3px 0 0 var(--ink); }
+    }
+
+    /* ─── Case Steps ─── */
+    .case-steps {
+      display: flex;
+      flex-direction: column;
+      gap: calc(var(--unit)*1);
+    }
+
+    .grid-item {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      column-gap: calc(var(--unit)*2);
+      padding: calc(var(--unit)*2) calc(var(--unit)*1.5);
+      border-radius: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      transition: 
+        background 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+        padding-left 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.3s ease;
+      position: relative;
+      cursor: default;
+    }
+
+    .grid-item:last-child {
+      border-bottom: none;
+    }
+
+    .grid-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+      padding-left: calc(var(--unit)*2);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .grid-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 20%;
+      height: 60%;
+      width: 2px;
+      background: var(--ink);
+      transform: scaleY(0);
+      transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      transform-origin: center;
+      border-radius: 2px;
+    }
+
+    .grid-item:hover::before {
+      transform: scaleY(1);
+    }
+
+    .grid-item .step-number {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 700;
+      font-size: 28px;
+      color: var(--ink);
+      line-height: 1;
+      transition: 
+        transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+        color 0.3s ease;
+      will-change: transform;
+    }
+
+    .grid-item:hover .step-number {
+      transform: scale(1.1) translateX(4px);
+      color: var(--grey);
+    }
+
+    .grid-item .step-title {
+      font-size: var(--fs-body);
+      font-weight: 700;
+      margin: 0 0 4px;
+      transition: color 0.3s ease;
+    }
+
+    .grid-item:hover .step-title {
+      color: var(--ink);
+    }
+
+    .grid-item .step-desc {
+      font-size: 14px;
+      color: var(--grey);
+      line-height: 1.5;
+      margin: 0;
+      transition: color 0.3s ease;
+    }
+
+    .grid-item:hover .step-desc {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* ─── Reader Overlay ─── */
+    .reader-overlay .reader-content {
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      font-size: var(--fs-body);
+      line-height: 1.7;
+      padding: calc(var(--unit)*2) 0;
+    }
+
+    .reader-content > * {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: 
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .overlay.open .reader-content > * {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .overlay.open .reader-content > *:nth-child(1) { transition-delay: 0.05s; }
+    .overlay.open .reader-content > *:nth-child(2) { transition-delay: 0.10s; }
+    .overlay.open .reader-content > *:nth-child(3) { transition-delay: 0.15s; }
+    .overlay.open .reader-content > *:nth-child(4) { transition-delay: 0.20s; }
+    .overlay.open .reader-content > *:nth-child(5) { transition-delay: 0.25s; }
+    .overlay.open .reader-content > *:nth-child(6) { transition-delay: 0.30s; }
+    .overlay.open .reader-content > *:nth-child(7) { transition-delay: 0.35s; }
+    .overlay.open .reader-content > *:nth-child(8) { transition-delay: 0.40s; }
+    .overlay.open .reader-content > *:nth-child(9) { transition-delay: 0.45s; }
+    .overlay.open .reader-content > *:nth-child(10) { transition-delay: 0.50s; }
+    .overlay.open .reader-content > *:nth-child(11) { transition-delay: 0.55s; }
+    .overlay.open .reader-content > *:nth-child(12) { transition-delay: 0.60s; }
+
+    .reader-content h1 {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: 36px;
+      margin: 0 0 calc(var(--unit)*1.5);
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #ffffff 70%, rgba(255, 255, 255, 0.5));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .reader-content h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin: calc(var(--unit)*3) 0 var(--unit);
+      letter-spacing: -0.01em;
+    }
+
+    .reader-content h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: calc(var(--unit)*3) 0 var(--unit);
+    }
+
+    .reader-content p {
+      margin: 0 0 calc(var(--unit)*2);
+      color: var(--ink);
+      opacity: 0.88;
+    }
+
+    .reader-content strong {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .reader-content img {
+      max-width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      margin: calc(var(--unit)*2) 0;
+      display: block;
+      transition: 
+        transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.4s ease;
+      cursor: zoom-in;
+    }
+
+    .reader-content img:hover {
+      transform: scale(1.01);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .reader-content video {
+      max-width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      margin: calc(var(--unit)*2) 0;
+      background: #000;
+      display: block;
+    }
+
+    .reader-content code {
+      font-family: 'IBM Plex Mono', monospace;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 5px;
+      font-size: 13px;
+      border-radius: 3px;
+    }
+
+    .reader-content pre {
+      font-family: 'IBM Plex Mono', monospace;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 6px;
+      padding: calc(var(--unit)*2);
+      overflow-x: auto;
+      font-size: 13px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .reader-content a {
+      color: var(--grey);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      transition: 
+        color 0.3s ease,
+        border-color 0.3s ease;
+    }
+
+    .reader-content a:hover {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
+    }
+
+    /* ─── Lightbox ─── */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      padding: var(--margin);
+      backdrop-filter: blur(8px);
+    }
+
+    .lightbox.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .lightbox img {
+      max-width: 90vw;
+      max-height: 84vh;
+      object-fit: contain;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      transform: scale(0.92);
+      opacity: 0;
+      transition: 
+        transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .lightbox.open img {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    .lightbox-caption {
+      position: fixed;
+      bottom: var(--margin);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      color: var(--paper);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      background: var(--ink);
+      border-radius: 4px;
+      padding: calc(var(--unit)) calc(var(--unit)*2);
+      white-space: nowrap;
+      opacity: 0;
+      transition: 
+        opacity 0.4s ease,
+        transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .lightbox.open .lightbox-caption {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+      transition-delay: 0.2s;
+    }
+
+    /* ─── Hover Card ─── */
+    .hover-card {
+      position: fixed;
+      pointer-events: none;
+      z-index: 4000;
+      width: 340px;
+      max-height: 340px;
+      background: rgba(12, 12, 12, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      opacity: 0;
+      transition: 
+        opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
       will-change: transform, opacity, left, top;
       overflow: hidden;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+      transform: scale(0.96) translateY(4px);
     }
-    .hover-card.visible { opacity: 1; }
-    .hc-inner { width: 100%; height: 100%; display: flex; flex-direction: column; }
-    .hc-iframe-wrap { flex: 1; min-height: 180px; background: var(--panel); position: relative; overflow: hidden; display: none; }
-    .hc-iframe-wrap iframe {
-      width: 100%; height: 100%; border: none; display: block; pointer-events: none;
-      transform: scale(0.85); transform-origin: top left; width: calc(100% / 0.85); height: calc(100% / 0.85);
-    }
-    .hc-image-wrap { flex: 1; min-height: 180px; background: var(--panel); position: relative; overflow: hidden; display: none; }
-    .hc-image-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
-    .hc-content { padding: calc(var(--unit)*1.5) calc(var(--unit)*2); border-top: 1px solid var(--rule); flex-shrink: 0; }
-    .hc-title { font-family: 'Archivo', sans-serif; font-weight: 700; font-size: var(--fs-body); margin: 0 0 2px; }
-    .hc-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--grey); margin: 0; }
-    .hc-desc { font-size: 12px; color: var(--grey); margin: 4px 0 0; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .hover-card.touch-mode { pointer-events: auto; }
-    .hc-close {
-      position: absolute; top: var(--unit); right: var(--unit); width: 26px; height: 26px;
-      display: none; align-items: center; justify-content: center;
-      background: var(--paper); border: 1px solid var(--rule); color: var(--ink);
-      border-radius: var(--radius-sm);
-      font-size: 13px; cursor: pointer; pointer-events: auto; z-index: 5;
-    }
-    .hover-card.touch-mode .hc-close { display: flex; }
-    .hc-backdrop { position: fixed; inset: 0; z-index: -1; display: none; background: transparent; }
-    .hover-card.touch-mode .hc-backdrop { display: block; }
-    @media (max-width: 640px) { .hover-card { width: 280px; max-height: 280px; } .hc-iframe-wrap { min-height: 140px; } }
 
-    /* ─── lightbox ─── */
-    .lightbox {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9600;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none; transition: opacity 0.2s ease; padding: var(--margin);
+    .hover-card.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      animation: cardAppear 0.25s cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .lightbox.open { opacity: 1; pointer-events: auto; }
-    .lightbox img { max-width: 90vw; max-height: 84vh; object-fit: contain; border: 1px solid var(--rule); border-radius: var(--radius-sm); }
-    .lightbox-caption {
-      position: fixed; bottom: var(--margin); left: 50%; transform: translateX(-50%);
-      color: var(--paper); font-family: 'IBM Plex Mono', monospace; font-size: 12px;
-      background: var(--ink); border-radius: var(--radius-sm);
-      padding: calc(var(--unit)) calc(var(--unit)*2); white-space: nowrap;
-    }
-    @media (max-width: 640px) { .lightbox { padding: 16px; } }
 
-    /* ─── reader overlay ─── */
-    .reader-overlay.overlay { justify-content: center; }
-    .reader-content {
-      max-width: 760px; width: 100%; margin: 0 auto;
-      font-size: var(--fs-body); line-height: 1.7; padding: calc(var(--unit)*2) 0;
+    @keyframes cardAppear {
+      0% { opacity: 0; transform: scale(0.96) translateY(4px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
     }
-    .reader-overlay.reader-iframe-mode { padding: 0; }
-    .reader-overlay.reader-iframe-mode .reader-content { max-width: none; width: 100%; height: 100%; padding: 0; }
-    .reader-iframe { width: 100%; height: 100%; border: none; display: block; background: var(--paper); }
-    .reader-content h1 { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 36px; margin: 0 0 calc(var(--unit)*1.5); letter-spacing: -0.01em; }
-    .reader-content h2 { font-size: 22px; font-weight: 700; margin: calc(var(--unit)*3) 0 var(--unit); }
-    .reader-content h3 { font-size: 17px; font-weight: 700; margin: calc(var(--unit)*3) 0 var(--unit); }
-    .reader-content p { margin: 0 0 var(--unit)*2; margin: 0 0 calc(var(--unit)*2); color: var(--ink); }
-    .reader-content strong { font-weight: 700; }
-    .reader-content img { max-width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-sm); margin: calc(var(--unit)*2) 0; display: block; }
-    .reader-content video { max-width: 100%; border: 1px solid var(--rule); border-radius: var(--radius-sm); margin: calc(var(--unit)*2) 0; background: #000; display: block; }
-    .reader-content code { font-family: 'IBM Plex Mono', monospace; background: var(--panel); padding: 2px 5px; font-size: 13px; }
-    .reader-content pre { font-family: 'IBM Plex Mono', monospace; background: var(--panel); border-radius: var(--radius-sm); padding: calc(var(--unit)*2); overflow-x: auto; font-size: 13px; }
-    .reader-content a { text-decoration: underline; text-underline-offset: 2px; }
+
+    .hover-card .hc-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hover-card .hc-iframe-wrap {
+      flex: 1;
+      min-height: 180px;
+      background: rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hover-card .hc-iframe-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      pointer-events: none;
+      transform: scale(0.85);
+      transform-origin: top left;
+      width: calc(100% / 0.85);
+      height: calc(100% / 0.85);
+    }
+
+    .hover-card .hc-image-wrap {
+      flex: 1;
+      min-height: 180px;
+      background: rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hover-card .hc-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .hover-card.visible .hc-image-wrap img {
+      transform: scale(1.02);
+    }
+
+    .hover-card .hc-content {
+      padding: calc(var(--unit)*1.5) calc(var(--unit)*2);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      flex-shrink: 0;
+      background: rgba(12, 12, 12, 0.95);
+    }
+
+    .hover-card .hc-title {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 700;
+      font-size: var(--fs-body);
+      margin: 0 0 2px;
+      color: var(--ink);
+    }
+
+    .hover-card .hc-sub {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--grey);
+      margin: 0;
+    }
+
+    .hover-card .hc-desc {
+      font-size: 12px;
+      color: var(--grey-dim);
+      margin: 4px 0 0;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .hover-card .hc-close {
+      position: absolute;
+      top: var(--unit);
+      right: var(--unit);
+      width: 28px;
+      height: 28px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--ink);
+      border-radius: 50%;
+      font-size: 13px;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 5;
+      backdrop-filter: blur(4px);
+      transition: 
+        background 0.3s ease,
+        transform 0.3s ease;
+    }
+
+    .hover-card.touch-mode .hc-close {
+      display: flex;
+    }
+
+    .hover-card .hc-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.1);
+    }
+
+    .hover-card.touch-mode {
+      pointer-events: auto;
+    }
+
+    .hover-card .hc-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      display: none;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(2px);
+    }
+
+    .hover-card.touch-mode .hc-backdrop {
+      display: block;
+    }
+
+    /* ─── Profile Overlay ─── */
+    .profile-overlay .panel-grid {
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      padding: calc(var(--unit)*4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .profile-head .avatar-large {
+      width: 72px;
+      height: 72px;
+      object-fit: cover;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      flex-shrink: 0;
+      transition: 
+        transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+        border-color 0.4s ease;
+    }
+
+    .profile-head .avatar-large:hover {
+      transform: scale(1.05) rotate(-2deg);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .profile-head h1 {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 900;
+      font-size: 40px;
+      letter-spacing: -0.02em;
+      margin: 0;
+      background: linear-gradient(135deg, #ffffff 60%, rgba(255, 255, 255, 0.5));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .profile-head .role-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: var(--fs-micro);
+      letter-spacing: 0.05em;
+      color: var(--grey);
+      text-transform: uppercase;
+      white-space: nowrap;
+      -webkit-text-fill-color: var(--grey);
+    }
+
+    .capability-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      padding-bottom: 2px;
+      transition: 
+        border-color 0.3s ease,
+        color 0.3s ease;
+      cursor: default;
+    }
+
+    .capability-tag:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .experience-item {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      column-gap: var(--unit);
+      padding: calc(var(--unit)*1.25) 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      transition: 
+        background 0.3s ease,
+        padding-left 0.3s ease;
+      border-radius: 4px;
+      padding-left: var(--unit);
+    }
+
+    .experience-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+      padding-left: calc(var(--unit)*1.5);
+    }
+
+    .experience-item .year {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      color: var(--ink);
+      padding-top: 2px;
+    }
+
+    .experience-item .details .role {
+      font-size: var(--fs-body);
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .experience-item .details .company {
+      font-size: 13px;
+      color: var(--grey);
+      margin: 2px 0 0;
+    }
 
     /* ─── footer ─── */
     .footer {
@@ -531,11 +1097,102 @@
     @media (max-width: 640px) {
       :root { --margin: 16px; --gutter: 16px; }
       .case-head h1 { font-size: 26px; }
+      .profile-head h1 { font-size: 24px; }
     }
 
-    /* reduced motion */
+    @media (max-width: 820px) {
+      .overlay {
+        padding: calc(var(--unit)*4) var(--margin) calc(var(--unit)*4);
+      }
+      
+      .overlay[data-type="case"] .panel-grid {
+        padding: calc(var(--unit)*2);
+      }
+      
+      .profile-overlay .panel-grid {
+        padding: calc(var(--unit)*2);
+      }
+      
+      .case-head h1 {
+        font-size: 30px;
+      }
+      
+      .profile-head h1 {
+        font-size: 30px;
+      }
+      
+      .grid-hero {
+        aspect-ratio: 16/9;
+        margin-bottom: calc(var(--unit)*2);
+      }
+      
+      .grid-item {
+        grid-template-columns: 40px 1fr;
+        padding: calc(var(--unit)*1.5) var(--unit);
+      }
+      
+      .grid-item .step-number {
+        font-size: 22px;
+      }
+      
+      .reader-content h1 {
+        font-size: 28px;
+      }
+      
+      .overlay-close {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        top: calc(var(--unit)*2);
+        right: calc(var(--unit)*2);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .overlay {
+        padding: calc(var(--unit)*3) 12px calc(var(--unit)*3);
+      }
+      
+      .overlay[data-type="case"] .panel-grid {
+        padding: calc(var(--unit)*1.5);
+      }
+      
+      .profile-overlay .panel-grid {
+        padding: calc(var(--unit)*1.5);
+      }
+      
+      .case-head h1 {
+        font-size: 24px;
+      }
+      
+      .profile-head h1 {
+        font-size: 24px;
+      }
+      
+      .hover-card {
+        width: 280px;
+        max-height: 280px;
+      }
+      
+      .hover-card .hc-iframe-wrap {
+        min-height: 140px;
+      }
+    }
+
+    /* ─── Reduced Motion ─── */
     @media (prefers-reduced-motion: reduce) {
-      * { transition-duration: 0.001ms !important; }
+      * {
+        animation-duration: 0.001ms !important;
+        transition-duration: 0.001ms !important;
+      }
+      
+      .overlay {
+        backdrop-filter: none !important;
+      }
+      
+      .overlay.open {
+        backdrop-filter: none !important;
+      }
     }
   </style>
 </head>
@@ -560,7 +1217,66 @@
   </div>
 </header>
 
-<div class="profile-overlay overlay" id="profileOverlay" role="dialog" aria-modal="true" aria-label="Profile">
+<main>
+  <section class="hero">
+    <div class="grid">
+      <div class="hero-eyebrow t-micro">Index — 00 / Masthead</div>
+      <div class="hero-name"><h1 class="t-display">Zack Gort</h1></div>
+      <div class="hero-role">Product &amp; UX Designer — enterprise UX, navigation systems, and design systems across fintech, e-commerce, and SaaS. Code-native. Based PHI ↔ NYC.</div>
+      <div class="hero-facts">
+        <div><div class="fact-num">19</div><div class="fact-label t-micro">Years in practice, 2007–2026</div></div>
+        <div><div class="fact-num">10</div><div class="fact-label t-micro">Roles held across 10 employers</div></div>
+        <div><div class="fact-num">6</div><div class="fact-label t-micro">Sectors: fintech, e-comm, SaaS, .EDU, pharma, non-profit</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tree-section">
+    <div class="grid">
+      <div class="section-head">
+        <div class="section-head-left">
+          <span class="t-micro section-index">01</span>
+          <span class="section-title">Selected Work — Index</span>
+        </div>
+        <div class="section-actions">
+          <button class="text-link" id="expandAllBtn">Expand all</button>
+          <button class="text-link" id="collapseAllBtn">Collapse all</button>
+        </div>
+      </div>
+      <div class="tree-wrap">
+        <div class="tree-colheads t-micro" aria-hidden="true">
+          <span></span><span>Name</span><span>Type</span><span style="text-align:right;">Size</span>
+        </div>
+        <div class="tree" id="tree" role="tree" aria-label="Repository file tree"></div>
+      </div>
+      <div class="hint">↑↓ move · → open / into · ← close / up · enter or space toggles · home / end jump</div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="grid">
+      <div class="footer-left t-micro">Zack Gort — craft.experience — built as a flush-left, twelve-column index.</div>
+      <div class="footer-right t-micro">in/zackgort · zack.cx · zckgrt@gmail.com</div>
+    </div>
+  </footer>
+</main>
+
+<!-- ─── Overlays ─── -->
+
+<!-- Case Overlay -->
+<div class="overlay" id="caseOverlay" role="dialog" aria-modal="true" aria-label="Case study">
+  <button class="overlay-close" id="caseClose" aria-label="Close case study">✕</button>
+  <div class="panel" id="caseContainer"></div>
+</div>
+
+<!-- Reader Overlay -->
+<div class="overlay reader-overlay" id="readerOverlay" role="dialog" aria-modal="true" aria-label="Document reader">
+  <button class="overlay-close" id="readerClose" aria-label="Close">✕</button>
+  <div class="reader-content" id="readerContent"></div>
+</div>
+
+<!-- Profile Overlay -->
+<div class="overlay profile-overlay" id="profileOverlay" role="dialog" aria-modal="true" aria-label="Profile">
   <button class="overlay-close" id="profileClose" aria-label="Close profile">✕</button>
   <div class="panel">
     <div class="panel-grid">
@@ -636,50 +1352,14 @@
   </div>
 </div>
 
-<main>
-  <section class="hero">
-    <div class="grid">
-      <div class="hero-eyebrow t-micro">Index — 00 / Masthead</div>
-      <div class="hero-name"><h1 class="t-display">Zack Gort</h1></div>
-      <div class="hero-role">Product &amp; UX Designer — enterprise UX, navigation systems, and design systems across fintech, e-commerce, and SaaS. Code-native. Based PHI ↔ NYC.</div>
-      <div class="hero-facts">
-        <div><div class="fact-num">19</div><div class="fact-label t-micro">Years in practice, 2007–2026</div></div>
-        <div><div class="fact-num">10</div><div class="fact-label t-micro">Roles held across 10 employers</div></div>
-        <div><div class="fact-num">6</div><div class="fact-label t-micro">Sectors: fintech, e-comm, SaaS, .EDU, pharma, non-profit</div></div>
-      </div>
-    </div>
-  </section>
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
+  <button class="overlay-close" id="lightboxClose" aria-label="Close image">✕</button>
+  <img id="lightboxImg" src="" alt="enlarged preview">
+  <div class="lightbox-caption" id="lightboxCaption">click to close · ESC</div>
+</div>
 
-  <section id="tree-section">
-    <div class="grid">
-      <div class="section-head">
-        <div class="section-head-left">
-          <span class="t-micro section-index">01</span>
-          <span class="section-title">Selected Work — Index</span>
-        </div>
-        <div class="section-actions">
-          <button class="text-link" id="expandAllBtn">Expand all</button>
-          <button class="text-link" id="collapseAllBtn">Collapse all</button>
-        </div>
-      </div>
-      <div class="tree-wrap">
-        <div class="tree-colheads t-micro" aria-hidden="true">
-          <span></span><span>Name</span><span>Type</span><span style="text-align:right;">Size</span>
-        </div>
-        <div class="tree" id="tree" role="tree" aria-label="Repository file tree"></div>
-      </div>
-      <div class="hint">↑↓ move · → open / into · ← close / up · enter or space toggles · home / end jump</div>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <div class="grid">
-      <div class="footer-left t-micro">Zack Gort — craft.experience — built as a flush-left, twelve-column index.</div>
-      <div class="footer-right t-micro">in/zackgort · zack.cx · zckgrt@gmail.com</div>
-    </div>
-  </footer>
-</main>
-
+<!-- Hover Card -->
 <div class="hover-card" id="hoverCard" aria-hidden="true">
   <div class="hc-backdrop" id="hcBackdrop"></div>
   <button class="hc-close" id="hcClose" aria-label="Close">✕</button>
@@ -696,22 +1376,6 @@
       <div class="hc-desc" id="hcDesc">Short description</div>
     </div>
   </div>
-</div>
-
-<div class="case-overlay overlay" id="caseOverlay" role="dialog" aria-modal="true" aria-label="Case study">
-  <button class="overlay-close" id="caseClose" aria-label="Close case study">✕</button>
-  <div class="panel" id="caseContainer"></div>
-</div>
-
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
-  <button class="overlay-close" id="lightboxClose" aria-label="Close image">✕</button>
-  <img id="lightboxImg" src="" alt="enlarged preview">
-  <div class="lightbox-caption" id="lightboxCaption">click to close · ESC</div>
-</div>
-
-<div class="reader-overlay overlay" id="readerOverlay" role="dialog" aria-modal="true" aria-label="Document reader">
-  <button class="overlay-close" id="readerClose" aria-label="Close">✕</button>
-  <div class="reader-content" id="readerContent"></div>
 </div>
 
 <script>
@@ -925,21 +1589,20 @@
                     caseHero: 'https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp'
                   }
                 },
-
-                { id: 'life-cards', name: 'Cards Against Bad UX', type: 'file', size: '1.6 KB',
-              projectMeta: {
-                title: 'Cards Against Bad UX',
-                sub: 'PFSweb, LiveArea {Pre Merkle Acquisition} · 2020–21',
-                location: '📍 Philadelphia, PA',
-                desc: 'Gamified client workshopping to humanize requirements gathering: shifting jargon-laden spreadsheets toward user-centric thinking with cards like "As a shopper," "As a content manager," or "As a guest user."',
-                factoids: ['gamification', 'workshop'],
-                tags: ['Innovation', 'Workshop', 'Gamification'],
-                size: '1.6 KB',
-                thumb: 'https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png',
-                readme: '# Cards Against Bad UX\n\n**PFSweb, LiveArea {Pre Merkle Acquisition} | Circa, 2020–21**\n\n![Cards Against Bad UX](https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png)\n\n### Cards against bad UX? What?\n\nWhat do you do when you\'re working with a sophisticated client, who has a tremendously complex product line and deep inventory, who are accustomed to B2B and B2E operations and dealings, and whom while fluent with their industry acumen, were completely unfamiliar with "the design process"?\n\n![frustration](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a9toSr99x6NtE5YC7bGnzw.png)\n\nWhat do you do when jargon-laden spreadsheets and single-sided meetings net nothing but frustration with the client to the point where they\'re considering abandoning the contract?\n\n![the pivot](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*pXU6SpY7MxMKiyfVI-976g.gif)\n\n### Enter "Cards Against Bad UX"\n\nAll I did was \'simplify what we asked\'; to shift the conversation away from technical jargon and towards user-centric thinking. By providing different perspectives such as "As a shopper," "As a content manager," or "As a guest user," and pairing it with a simple visual {a card}, I was able to help our stakeholders empathize with their end-users and focus on their needs and experiences.\n\nThis approach not only catalyzed communication but also encouraged collaboration and problem-solving from both sides of the table. It allowed our client to see the project from various angles and find common ground, ultimately leading to more effective solutions and preventing frustration or contract abandonment.'
-              }
-            },
-
+                {
+                  id: 'life-cards', name: 'Cards Against Bad UX', type: 'file', size: '1.6 KB',
+                  projectMeta: {
+                    title: 'Cards Against Bad UX',
+                    sub: 'PFSweb, LiveArea {Pre Merkle Acquisition} · 2020–21',
+                    location: '📍 Philadelphia, PA',
+                    desc: 'Gamified client workshopping to humanize requirements gathering: shifting jargon-laden spreadsheets toward user-centric thinking with cards like "As a shopper," "As a content manager," or "As a guest user."',
+                    factoids: ['gamification', 'workshop'],
+                    tags: ['Innovation', 'Workshop', 'Gamification'],
+                    size: '1.6 KB',
+                    thumb: 'https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png',
+                    readme: '# Cards Against Bad UX\n\n**PFSweb, LiveArea {Pre Merkle Acquisition} | Circa, 2020–21**\n\n![Cards Against Bad UX](https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png)\n\n### Cards against bad UX? What?\n\nWhat do you do when you\'re working with a sophisticated client, who has a tremendously complex product line and deep inventory, who are accustomed to B2B and B2E operations and dealings, and whom while fluent with their industry acumen, were completely unfamiliar with "the design process"?\n\n![frustration](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*a9toSr99x6NtE5YC7bGnzw.png)\n\nWhat do you do when jargon-laden spreadsheets and single-sided meetings net nothing but frustration with the client to the point where they\'re considering abandoning the contract?\n\n![the pivot](https://miro.medium.com/v2/resize:fit:1400/format:webp/1*pXU6SpY7MxMKiyfVI-976g.gif)\n\n### Enter "Cards Against Bad UX"\n\nAll I did was \'simplify what we asked\'; to shift the conversation away from technical jargon and towards user-centric thinking. By providing different perspectives such as "As a shopper," "As a content manager," or "As a guest user," and pairing it with a simple visual {a card}, I was able to help our stakeholders empathize with their end-users and focus on their needs and experiences.\n\nThis approach not only catalyzed communication but also encouraged collaboration and problem-solving from both sides of the table. It allowed our client to see the project from various angles and find common ground, ultimately leading to more effective solutions and preventing frustration or contract abandonment.'
+                  }
+                },
                 {
                   id: 'hardinge-gallery', name: 'gallery', type: 'folder',
                   children: [
@@ -1190,8 +1853,6 @@
             }
           ]
         },
-
-
         {
           id: 'prototypes', name: 'prototypes', type: 'folder',
           children: [
@@ -1261,18 +1922,13 @@
               }
             }
           ]
-        },
-
-
-
-
+        }
       ]
     },
     {
       id: 'public', name: 'public', type: 'folder',
       children: [
-
-      {
+        {
           id: 'life', name: 'life', type: 'folder',
           children: [
             {
@@ -1506,12 +2162,7 @@
               ]
             }
           ]
-        },
-
-        
-
-
-
+        }
       ]
     },
     {
@@ -1520,7 +2171,6 @@
         {
           id: 'life-ventilation', name: 'Ventilation', type: 'folder',
           children: [
-
             { id: 'life-twist', name: 'Do the Twist!', type: 'file', size: '1.3 KB',
               projectMeta: {
                 title: 'Do the Twist!',
@@ -1589,7 +2239,7 @@
         tags: ['documentation', 'design system'],
         size: '6.2 KB',
         thumb: '',
-        readme: `# craft.experience\n\nA design system for the modern web.\n\n## Principles\n\n1. **Accessibility first** – Every component is built with WCAG 2.1 AA in mind.\n2. **Consistency** – A unified language across all products.\n3. **Flexibility** – Components that adapt to any context.\n\n![design system](https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp)\n\n## Getting Started\n\n\`\`\`bash\nnpm install @craft/experience\n\`\`\`\n\n## Contributing\n\nWe welcome contributions! Please read our contribution guide.\n`
+        readme: '# craft.experience\n\nA design system for the modern web.\n\n## Principles\n\n1. **Accessibility first** – Every component is built with WCAG 2.1 AA in mind.\n2. **Consistency** – A unified language across all products.\n3. **Flexibility** – Components that adapt to any context.\n\n![design system](https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp)\n\n## Getting Started\n\n```bash\nnpm install @craft/experience\n```\n\n## Contributing\n\nWe welcome contributions! Please read our contribution guide.\n'
       }
     }
   ];
@@ -1612,10 +2262,7 @@
   let selectedId = null;
   const treeEl = document.getElementById('tree');
 
-  // ── "text pressure" system — ported from ifimaybefrank.com. Each
-  // opted-in text node's letters are split into spans whose variable-font
-  // weight axis eases toward a value driven by distance from the cursor.
-  // One shared eased cursor + rAF loop drives every registered instance.
+  // ── "text pressure" system ──
   const pressureCursorTarget = { x: -9999, y: -9999 };
   const pressureCursor = { x: -9999, y: -9999 };
   const pressureInstances = [];
@@ -1797,8 +2444,11 @@
   function openCaseStudy(node) {
     const meta = node.projectMeta;
     if (!meta) return;
-    const stepsHtml = (meta.caseSteps || []).map(s => `
-      <div class="grid-item">
+    
+    caseOverlay.setAttribute('data-type', 'case');
+    
+    const stepsHtml = (meta.caseSteps || []).map((s, i) => `
+      <div class="grid-item" style="transition-delay: ${0.12 + (i * 0.06)}s">
         <div class="step-number t-data">${s.step}</div>
         <div class="step-content">
           <div class="step-title">${s.title}</div>
@@ -1806,14 +2456,16 @@
         </div>
       </div>
     `).join('');
+    
     const heroHtml = meta.caseHero ? `
-      <div class="grid-hero">
+      <div class="grid-hero" style="transition-delay: 0.08s">
         <img src="${meta.caseHero}" alt="${meta.title}" loading="lazy">
       </div>
-    ` : `<div class="grid-hero"><div class="placeholder-hero">${meta.title}</div></div>`;
+    ` : `<div class="grid-hero" style="transition-delay: 0.08s"><div class="placeholder-hero">${meta.title}</div></div>`;
+    
     caseContainer.innerHTML = `
       <div class="panel-grid">
-        <div class="case-head">
+        <div class="case-head" style="transition-delay: 0.04s">
           <span class="t-micro case-badge">Case study</span>
           <h1>${meta.title}</h1>
           <div class="case-meta">
@@ -1826,6 +2478,7 @@
         <div class="case-steps">${stepsHtml}</div>
       </div>
     `;
+    
     caseOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -1833,16 +2486,20 @@
   function closeCaseStudy() {
     caseOverlay.classList.remove('open');
     document.body.style.overflow = '';
-    caseContainer.innerHTML = '';
+    setTimeout(() => {
+      caseContainer.innerHTML = '';
+      caseOverlay.removeAttribute('data-type');
+    }, 500);
   }
+  
   caseClose.addEventListener('click', closeCaseStudy);
   caseOverlay.addEventListener('click', (e) => { if (e.target === caseOverlay) closeCaseStudy(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && caseOverlay.classList.contains('open')) closeCaseStudy(); });
 
   // ─── Lightbox ───
   const lightbox = document.getElementById('lightbox');
   const lightboxImg = document.getElementById('lightboxImg');
   const lightboxCaption = document.getElementById('lightboxCaption');
+  
   function openLightbox(src, caption) {
     if (!src) return;
     lightboxImg.src = src;
@@ -1850,15 +2507,16 @@
     lightbox.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
+  
   function closeLightbox() {
     lightbox.classList.remove('open');
     document.body.style.overflow = '';
   }
+  
   document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
   lightbox.addEventListener('click', (e) => { if (e.target === lightbox || e.target === lightboxImg) closeLightbox(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox(); });
 
-  // ─── Full-screen reader (markdown / iframe) ───
+  // ─── Full-screen reader ───
   const readerOverlay = document.getElementById('readerOverlay');
   const readerContent = document.getElementById('readerContent');
 
@@ -1872,7 +2530,9 @@
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
     html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" loading="lazy">');
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, src) => {
+      return `<img src="${src}" alt="${alt}" loading="lazy" onclick="openLightbox('${src}', '${alt}')">`;
+    });
     html = html.replace(/\[video\](.*?)\[\/video\]/g, '<video src="$1" controls playsinline muted></video>');
     html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     html = html.replace(/\n\n/g, '</p><p>');
@@ -1884,17 +2544,22 @@
   function openReader(node) {
     const meta = node.projectMeta;
     if (!meta) return;
+    
+    readerOverlay.setAttribute('data-type', 'reader');
+    
     if (meta.iframeUrl) {
       readerContent.innerHTML = `<iframe src="${meta.iframeUrl}" class="reader-iframe" title="${meta.title || node.name}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>`;
       readerOverlay.classList.add('open', 'reader-iframe-mode');
       document.body.style.overflow = 'hidden';
       return;
     }
+    
     readerOverlay.classList.remove('reader-iframe-mode');
     const content = meta.readme || `# ${meta.title || node.name}\n\n${meta.desc || ''}\n\n**${meta.sub || ''}**\n\n${(meta.tags || []).map(t => `<span class="tag">${t}</span>`).join(' ')}`;
     readerContent.innerHTML = renderMarkdown(content);
     readerOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    
     setTimeout(() => {
       readerContent.querySelectorAll('video').forEach(v => {
         v.muted = true;
@@ -1907,14 +2572,16 @@
     readerOverlay.classList.remove('open', 'reader-iframe-mode');
     document.body.style.overflow = '';
     readerContent.querySelectorAll('video').forEach(v => v.pause());
-    readerContent.innerHTML = '';
+    setTimeout(() => {
+      readerContent.innerHTML = '';
+      readerOverlay.removeAttribute('data-type');
+    }, 500);
   }
 
   document.getElementById('readerClose').addEventListener('click', closeReader);
   readerOverlay.addEventListener('click', (e) => { if (e.target === readerOverlay) closeReader(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && readerOverlay.classList.contains('open')) closeReader(); });
 
-  // ─── Detail dispatcher: routes each node to the right view ───
+  // ─── Detail dispatcher ───
   function isGalleryImage(node) {
     const parentId = parentIndex[node.id];
     const parent = parentId ? nodeIndex[parentId] : null;
@@ -2121,6 +2788,28 @@
   window.addEventListener('scroll', () => hideHoverCard(true), { passive: true });
   window.addEventListener('resize', () => hideHoverCard(true), { passive: true });
 
+  // ─── Keyboard shortcuts for overlays ───
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (lightbox.classList.contains('open')) {
+        closeLightbox();
+        return;
+      }
+      if (caseOverlay.classList.contains('open')) {
+        closeCaseStudy();
+        return;
+      }
+      if (readerOverlay.classList.contains('open')) {
+        closeReader();
+        return;
+      }
+      if (profileOverlay.classList.contains('open')) {
+        closeProfile();
+        return;
+      }
+    }
+  });
+
   // ─── Profile ───
   const profileAvatar = document.getElementById('profileAvatar');
   const profileOverlay = document.getElementById('profileOverlay');
@@ -2130,19 +2819,15 @@
     profileOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
   }
+  
   function closeProfile() {
     profileOverlay.classList.remove('open');
     document.body.style.overflow = '';
   }
+  
   profileAvatar.addEventListener('click', openProfile);
-  profileAvatar.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); }
-  });
   profileClose.addEventListener('click', closeProfile);
   profileOverlay.addEventListener('click', (e) => { if (e.target === profileOverlay) closeProfile(); });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && profileOverlay.classList.contains('open')) closeProfile();
-  });
 
   initPressureText(document.querySelector('.hero-name .t-display'), { wght: [300, 900] }, 'hero');
 
