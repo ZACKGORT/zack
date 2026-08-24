@@ -61,6 +61,37 @@
       position: relative;
     }
 
+    /* ─── Page Scroll Indicator — minimalist thin thumb, no track/arrows ─── */
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: var(--grey-dim) transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--grey-dim);
+      border-radius: 3px;
+      border: 1px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--grey);
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-button {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
     a { color: inherit; }
 
     ::selection { background: var(--ink); color: #000000; }
@@ -529,7 +560,9 @@
       overflow-y: auto;
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
-      padding: 0 2px 30px 2px;
+      /* extra right padding pushes the scrollbar gutter away from the
+         reading column instead of hugging the text */
+      padding: 0 calc(var(--unit)*2.5) 30px 4px;
       position: relative;
       z-index: 1;
     }
@@ -558,11 +591,25 @@
       max-height: 85vh;
       overflow: hidden;
       position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header lives outside the scrollable/blurred region now, and sits in
+       its own stacking context above .panel-blur (z-index: 10) so the
+       vignette can no longer paint over the avatar and title. */
+    .profile-overlay .profile-head {
+      position: relative;
+      z-index: 11;
+      flex-shrink: 0;
+      padding-bottom: calc(var(--unit)*2);
     }
 
     .profile-overlay .overlay-scroll {
-      max-height: 80vh;
-      padding: 0 4px 30px 4px;
+      max-height: none;
+      flex: 1 1 auto;
+      min-height: 0;
+      padding: 0 calc(var(--unit)*2.5) 30px 4px;
     }
 
     /* ─── Panel Blur (progressive fade) ─── */
@@ -1039,6 +1086,13 @@
       line-height: 1.7;
       padding: calc(var(--unit)*2) 0;
       position: relative;
+    }
+
+    /* Fill the full available viewport height (overlay padding + reader-content
+       padding accounted for) instead of clipping at a fixed 70vh, which left a
+       dead gap below the panel and cut content off early. */
+    .reader-overlay .overlay-scroll {
+      max-height: calc(100vh - (var(--unit) * 16));
     }
 
     .reader-content > * {
@@ -1626,7 +1680,7 @@
       }
       
       .profile-overlay .overlay-scroll {
-        max-height: 85vh;
+        max-height: none;
       }
       
       .overlay[data-type="case"] .overlay-scroll {
@@ -1635,6 +1689,10 @@
       
       .overlay-scroll {
         max-height: 80vh;
+      }
+
+      .reader-overlay .overlay-scroll {
+        max-height: calc(100vh - (var(--unit) * 12));
       }
       
       .case-head h1 {
@@ -1688,7 +1746,7 @@
       }
       
       .profile-overlay .overlay-scroll {
-        max-height: 88vh;
+        max-height: none;
       }
       
       .overlay[data-type="case"] .overlay-scroll {
@@ -1697,7 +1755,11 @@
       
       .overlay-scroll {
         max-height: 85vh;
-        padding: 0 2px 20px 2px;
+        padding: 0 14px 20px 2px;
+      }
+
+      .reader-overlay .overlay-scroll {
+        max-height: calc(100vh - (var(--unit) * 10));
       }
       
       .case-head h1 {
@@ -1886,20 +1948,20 @@
   <button class="overlay-close" id="profileClose" aria-label="Close profile">✕</button>
   <div class="panel">
     <div class="panel-grid" style="position:relative;">
-      <div class="overlay-scroll" id="profileScroll">
-        <div class="profile-head" style="grid-column:1/13;">
-          <div class="profile-head-name">
-            <img class="avatar-large" src="https://raw.githubusercontent.com/ZACKGORT/zack/refs/heads/main/media/Group%201597880951.png" alt="Zack Gort" onerror="this.style.display='none';">
-            <div>
-              <h1>Zack Gort <span class="role-badge">[Staff / Principal UX]</span></h1>
-              <p class="meta-row t-micro">Product &amp; UX Designer · Code-Native · PHI ↔ NYC</p>
-            </div>
-          </div>
-          <div class="profile-head-actions">
-            <a class="text-link" href="https://ifimaybefrank.com" target="_blank" rel="noopener">Frankly ↗</a>
-            <a class="text-link" href="mailto:zckgrt@gmail.com">Get in touch ↗</a>
+      <div class="profile-head" style="grid-column:1/13;">
+        <div class="profile-head-name">
+          <img class="avatar-large" src="https://raw.githubusercontent.com/ZACKGORT/zack/refs/heads/main/media/Group%201597880951.png" alt="Zack Gort" onerror="this.style.display='none';">
+          <div>
+            <h1>Zack Gort <span class="role-badge">[Staff / Principal UX]</span></h1>
+            <p class="meta-row t-micro">Product &amp; UX Designer · Code-Native · PHI ↔ NYC</p>
           </div>
         </div>
+        <div class="profile-head-actions">
+          <a class="text-link" href="https://ifimaybefrank.com" target="_blank" rel="noopener">Frankly ↗</a>
+          <a class="text-link" href="mailto:zckgrt@gmail.com">Get in touch ↗</a>
+        </div>
+      </div>
+      <div class="overlay-scroll" id="profileScroll">
         <p class="bio" style="grid-column:1/9;">Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS.</p>
 
         <div class="profile-col-a" style="margin-top:32px;">
