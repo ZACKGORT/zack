@@ -2873,19 +2873,129 @@
     return !!(parent && /gallery$/.test(parent.id) && node.projectMeta && node.projectMeta.thumb);
   }
 
-  function openDetail(node) {
-    const meta = node.projectMeta;
-    if (!meta) return;
-    if (meta.caseSteps && meta.caseSteps.length) {
-      openCaseStudy(node);
-    } else if (meta.iframeUrl) {
-      openReader(node);
-    } else if (isGalleryImage(node)) {
-      openLightbox(meta.thumb, meta.title || node.name);
-    } else {
-      openReader(node);
-    }
+// In the openDetail function, update the prototype handling:
+
+function openDetail(node) {
+  const meta = node.projectMeta;
+  if (!meta) return;
+  
+  // Check if this is a prototype (from the prototypes folder)
+  const parentId = parentIndex[node.id];
+  const parent = parentId ? nodeIndex[parentId] : null;
+  const isPrototype = parent && parent.id === 'prototypes';
+  
+  if (meta.iframeUrl && isPrototype) {
+    // Open prototype in full viewport mode
+    openPrototypeFull(node);
+    return;
   }
+  
+  if (meta.caseSteps && meta.caseSteps.length) {
+    openCaseStudy(node);
+  } else if (meta.iframeUrl) {
+    openReader(node);
+  } else if (isGalleryImage(node)) {
+    openLightbox(meta.thumb, meta.title || node.name);
+  } else {
+    openReader(node);
+  }
+}
+
+// Add this new function for full-viewport prototypes
+function openPrototypeFull(node) {
+  const meta = node.projectMeta;
+  if (!meta || !meta.iframeUrl) return;
+  
+  // Create a full-viewport overlay just for prototypes
+  const existing = document.getElementById('prototypeOverlay');
+  if (existing) existing.remove();
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'prototypeOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 9500;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+    animation: overlayIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  `;
+  
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '✕';
+  closeBtn.style.cssText = `
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50%;
+    color: #fff;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  `;
+  closeBtn.onmouseover = () => { closeBtn.style.background = '#fff'; closeBtn.style.color = '#3D6BEF'; };
+  closeBtn.onmouseout = () => { closeBtn.style.background = 'rgba(255,255,255,0.06)'; closeBtn.style.color = '#fff'; };
+  closeBtn.onclick = closePrototypeFull;
+  
+  // Iframe
+  const iframe = document.createElement('iframe');
+  iframe.src = meta.iframeUrl;
+  iframe.style.cssText = `
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+  `;
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+  iframe.setAttribute('loading', 'lazy');
+  iframe.setAttribute('referrerpolicy', 'no-referrer');
+  
+  overlay.appendChild(iframe);
+  overlay.appendChild(closeBtn);
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  
+  // Focus the iframe after it loads
+  iframe.onload = () => { iframe.focus(); };
+}
+
+function closePrototypeFull() {
+  const overlay = document.getElementById('prototypeOverlay');
+  if (overlay) {
+    overlay.style.animation = 'overlayOut 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+    setTimeout(() => {
+      overlay.remove();
+      document.body.style.overflow = '';
+    }, 300);
+  }
+}
+
+// Add CSS animations
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+  @keyframes overlayIn {
+    0% { opacity: 0; transform: scale(0.98); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes overlayOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.98); }
+  }
+`;
+document.head.appendChild(styleSheet);
 
   // ─── Progressive Blur Helpers ───
   function checkScrollable() {
@@ -3156,25 +3266,30 @@
 
   // ─── Keyboard shortcuts for overlays ───
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      if (lightbox.classList.contains('open')) {
-        closeLightbox();
-        return;
-      }
-      if (caseOverlay.classList.contains('open')) {
-        closeCaseStudy();
-        return;
-      }
-      if (readerOverlay.classList.contains('open')) {
-        closeReader();
-        return;
-      }
-      if (profileOverlay.classList.contains('open')) {
-        closeProfile();
-        return;
-      }
+  if (e.key === 'Escape') {
+    // Check for prototype overlay first
+    if (document.getElementById('prototypeOverlay')) {
+      closePrototypeFull();
+      return;
     }
-  });
+    if (lightbox.classList.contains('open')) {
+      closeLightbox();
+      return;
+    }
+    if (caseOverlay.classList.contains('open')) {
+      closeCaseStudy();
+      return;
+    }
+    if (readerOverlay.classList.contains('open')) {
+      closeReader();
+      return;
+    }
+    if (profileOverlay.classList.contains('open')) {
+      closeProfile();
+      return;
+    }
+  }
+});
 
   // ─── Profile ───
   const profileAvatar = document.getElementById('profileAvatar');
