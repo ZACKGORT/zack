@@ -707,16 +707,27 @@
     .overlay[data-type="cine"].open .cine-slide { opacity: 1; }
 
     .cine-bg { position: absolute; inset: 0; transition: background 0.9s ease; }
+    
     .cine-img {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      object-fit: cover; opacity: 0;
+      position: absolute; 
+      inset: 0; 
+      width: 100%; 
+      height: 100%;
+      object-fit: cover; 
+      opacity: 0;
       transition: opacity 1.1s ease, transform 9s ease;
       transform: scale(1.05);
+      display: none;
     }
-    .cine-img.vis { opacity: 0.24; transform: scale(1); }
+    .cine-img.vis { 
+      display: block;
+      opacity: 0.55; 
+      transform: scale(1); 
+    }
+    
     .cine-scrim {
       position: absolute; inset: 0;
-      background: linear-gradient(135deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.14) 55%, rgba(0,0,0,0.5) 100%);
+      background: linear-gradient(135deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.55) 100%);
     }
     .cine-ambient {
       position: absolute; inset: 0; pointer-events: none;
@@ -3675,11 +3686,22 @@
     sectorSlide.classList.remove('anim');
     
     sectorBg.style.background = '#08070a';
-    sectorImg.src = slide.img || '';
-    sectorImg.className = '';
+    
+    // Fix: Properly display the background image
+    const imgEl = sectorImg;
+    if (slide.img) {
+      imgEl.src = slide.img;
+      imgEl.style.display = 'block';
+      imgEl.className = 'cine-img vis';
+      imgEl.style.opacity = '0.55';
+    } else {
+      imgEl.style.display = 'none';
+      imgEl.className = '';
+    }
+    
     sectorAmbient.style.setProperty('--cine-accent', slide.accent || '#c8704a');
     sectorAmbient.style.background = `radial-gradient(ellipse 80% 60% at 15% 100%, ${slide.accent || '#c8704a'} 0%, transparent 65%)`;
-    sectorAmbient.style.opacity = '0';
+    sectorAmbient.style.opacity = '0.5';
     
     sectorIdx.textContent = `0${index + 1}`;
     
@@ -3701,8 +3723,9 @@
     
     requestAnimationFrame(() => {
       sectorSlide.classList.add('anim');
-      sectorImg.className = 'vis';
-      sectorAmbient.style.opacity = '0.5';
+      if (slide.img) {
+        imgEl.style.opacity = '0.55';
+      }
     });
     
     updateSectorNav();
