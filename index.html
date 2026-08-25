@@ -778,7 +778,14 @@
     .overlay[data-type="cine"].open .cine-slide { opacity: 1; }
 
     .cine-bg { position: absolute; inset: 0; transition: background 0.9s ease; }
-    
+
+    .cine-img-wrap {
+      position: absolute;
+      inset: -4%;
+      will-change: transform;
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
     .cine-img {
       position: absolute; 
       inset: 0; 
@@ -810,6 +817,8 @@
       display: flex; flex-direction: column; justify-content: flex-end;
       padding: 9vh 7vw 12vh;
       max-width: 1100px;
+      will-change: transform;
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
     }
     .cine-era {
       font-family: 'Recursive', monospace; font-variation-settings: 'MONO' 1, 'CASL' 0, 'slnt' 0; font-size: clamp(8px,0.9vw,10px);
@@ -904,6 +913,55 @@
       .cine-hl { max-width: 16ch; }
       .cine-dg { gap: 6%; }
       .cine-corner { display: none; }
+    }
+
+    /* ─── Short / landscape viewports (mobile landscape) ───
+       .cine-content bottom-anchors its stack via justify-content: flex-end,
+       which clips the top of the block on short screens. Compress the
+       type scale and vertical rhythm so the whole block fits without
+       relying on scroll. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .cine-content {
+        padding: 3vh 6vw 8vh;
+        justify-content: center;
+        max-width: 84vw;
+      }
+      .cine-idx { top: 10px; }
+      .cine-era { margin-bottom: 4px; font-size: 7px; }
+      .cine-tag { margin-bottom: 6px; }
+      .cine-hl {
+        font-size: clamp(18px, 3.2vw, 30px);
+        line-height: 1.08;
+        margin-bottom: 8px;
+        max-width: 26ch;
+      }
+      .cine-body {
+        font-size: clamp(10px, 1.3vw, 13px);
+        line-height: 1.4;
+        max-width: 62ch;
+      }
+      .cine-pq {
+        font-size: clamp(12px, 1.7vw, 17px);
+        line-height: 1.3;
+        margin-top: 10px;
+        padding-left: 12px;
+        border-left-width: 2px;
+      }
+      .cine-dg { margin: 10px 0 2px; gap: 5%; }
+      .cine-dv { font-size: clamp(15px, 2.2vw, 22px); margin-bottom: 2px; }
+      .cine-dl { font-size: 6.5px; }
+      .cine-corner { display: none; }
+      .cine-nav { bottom: 10px; }
+      .cine-nb { padding: 8px 14px; font-size: 12px; }
+    }
+
+    @media (max-height: 380px) and (orientation: landscape) {
+      .cine-content { padding: 2vh 6vw 7vh; }
+      .cine-era { display: none; }
+      .cine-hl { font-size: clamp(16px, 3vw, 24px); margin-bottom: 6px; }
+      .cine-body { -webkit-line-clamp: 3; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+      .cine-pq { margin-top: 6px; }
+      .cine-dg { margin: 6px 0 0; }
     }
 
     /* ─── Case Study Specific ─── */
@@ -2028,7 +2086,9 @@
   <button class="overlay-close" id="sectorClose" aria-label="Close">✕</button>
   <div class="cine-slide" id="cineSlide">
     <div class="cine-bg" id="cineBg"></div>
-    <img class="cine-img" id="cineImg" alt="">
+    <div class="cine-img-wrap" id="cineImgWrap">
+      <img class="cine-img" id="cineImg" alt="">
+    </div>
     <div class="cine-scrim"></div>
     <div class="cine-ambient" id="cineAmbient"></div>
     <div class="cine-corner tl"></div>
@@ -3777,6 +3837,7 @@
   const sectorClose = document.getElementById('sectorClose');
   const sectorSlide = document.getElementById('cineSlide');
   const sectorBg = document.getElementById('cineBg');
+  const sectorImgWrap = document.getElementById('cineImgWrap');
   const sectorImg = document.getElementById('cineImg');
   const sectorAmbient = document.getElementById('cineAmbient');
   const sectorContent = document.getElementById('cineContent');
@@ -3786,6 +3847,34 @@
   const sectorPrev = document.getElementById('cinePrev');
   const sectorNext = document.getElementById('cineNext');
 
+  // ─── Cursor parallax (image + text move independently) ────
+  const cineParallaxEnabled = window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function resetCineParallax() {
+    sectorImgWrap.style.transform = 'translate3d(0,0,0)';
+    sectorContent.style.transform = 'translate3d(0,0,0)';
+  }
+
+  function onCineMouseMove(e) {
+    const rect = sectorOverlay.getBoundingClientRect();
+    const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;   // -1 to 1
+    const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2;   // -1 to 1
+
+    // Image drifts opposite the cursor, subtly (background layer).
+    const imgX = nx * -6, imgY = ny * -6;
+    // Text drifts with the cursor, a touch more (foreground layer).
+    const txtX = nx * 10, txtY = ny * 6;
+
+    sectorImgWrap.style.transform = `translate3d(${imgX}px, ${imgY}px, 0)`;
+    sectorContent.style.transform = `translate3d(${txtX}px, ${txtY}px, 0)`;
+  }
+
+  if (cineParallaxEnabled) {
+    sectorOverlay.addEventListener('mousemove', onCineMouseMove);
+    sectorOverlay.addEventListener('mouseleave', resetCineParallax);
+  }
+
   function openSector(key) {
     const slides = sectorSlides[key];
     if (!slides) return;
@@ -3793,6 +3882,7 @@
     sectorCurrentSlide = 0;
     sectorOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    resetCineParallax();
     showSectorSlide(0);
   }
 
@@ -3800,6 +3890,7 @@
     sectorOverlay.classList.remove('open');
     document.body.style.overflow = '';
     sectorSlidesData = [];
+    resetCineParallax();
   }
 
   function showSectorSlide(index) {
@@ -3807,6 +3898,7 @@
     if (!slide) return;
     
     sectorSlide.classList.remove('anim');
+    resetCineParallax();
     
     sectorBg.style.background = '#08070a';
     
