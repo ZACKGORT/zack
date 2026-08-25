@@ -337,12 +337,93 @@
       .hero-top { display: block; }
       .hero-folders {
         grid-column: 1 / 13;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
         border-top: 1px solid var(--rule);
         padding-top: calc(var(--unit) * 3);
+        padding-bottom: calc(var(--unit) * 0.5);
         margin-top: calc(var(--unit) * 3);
+        margin-left: calc(var(--margin) * -1);
+        margin-right: calc(var(--margin) * -1);
+        padding-left: var(--margin);
+        padding-right: var(--margin);
+        scroll-padding-left: var(--margin);
+        scroll-padding-right: var(--margin);
+        mask-image: linear-gradient(to right, transparent 0, #000 var(--margin), #000 calc(100% - var(--margin)), transparent 100%);
+        -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--margin), #000 calc(100% - var(--margin)), transparent 100%);
       }
-      .folder-item { flex: 1 1 40%; min-width: 140px; }
+      .hero-folders::-webkit-scrollbar { display: none; }
+      .folder-item {
+        flex: 0 0 auto;
+        width: 62vw;
+        max-width: 240px;
+        min-width: 168px;
+        scroll-snap-align: start;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .folder-item { width: 72vw; }
+    }
+
+    /* ─── mobile swipe/drag affordance for hero folders ─── */
+    .folder-scroll-track,
+    .folder-scroll-hint {
+      display: none;
+    }
+    @media (max-width: 900px) {
+      .hero-folders.draggable { cursor: grab; }
+      .hero-folders.draggable.dragging {
+        cursor: grabbing;
+        scroll-snap-type: none;
+      }
+      .hero-folders.draggable.dragging .folder-item { pointer-events: none; }
+
+      .folder-scroll-track {
+        display: block;
+        grid-column: 1 / 13;
+        position: relative;
+        height: 2px;
+        margin-top: calc(var(--unit) * 1.5);
+        background: var(--rule);
+        border-radius: 2px;
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      .folder-scroll-track.visible { opacity: 1; }
+      .folder-scroll-fill {
+        position: absolute;
+        top: 0; left: 0; height: 100%;
+        width: 33%;
+        background: var(--ink);
+        border-radius: 2px;
+        transform: translateX(0);
+        transition: transform 0.12s linear;
+      }
+      .folder-scroll-hint {
+        grid-column: 1 / 13;
+        display: flex;
+        align-items: center;
+        gap: calc(var(--unit) * 0.75);
+        margin-top: calc(var(--unit) * 1.25);
+        color: var(--grey-dim);
+        animation: hintFade 2.6s ease-out 1;
+        animation-fill-mode: forwards;
+      }
+      .folder-scroll-hint svg { width: 11px; height: 11px; animation: hintNudge 1.4s ease-in-out 2; }
+      @keyframes hintFade { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+      @keyframes hintNudge {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(4px); }
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .folder-scroll-hint, .folder-scroll-hint svg { animation: none; }
     }
 
     /* ─── section labels ─── */
@@ -391,6 +472,9 @@
       overflow-y: auto;
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
+    }
+    @media (max-width: 900px) {
+      .tree { max-height: 70vh; }
     }
     .tree::-webkit-scrollbar {
       width: 4px;
@@ -1919,7 +2003,7 @@
 <main>
   <section class="hero">
     <div class="grid">
-      <div class="hero-eyebrow t-micro">Index — 00 / Masthead</div>
+      <div class="hero-eyebrow t-micro">Hello World — I am:</div>
       <div class="hero-top">
         <div class="hero-name"><h1 class="t-display">Zack Gort</h1></div>
         <div class="hero-role">Product &amp; UX Designer — enterprise UX, navigation systems, and design systems across fintech, e-commerce, and SaaS. Code-native. Based PHI ↔ NYC.</div>
@@ -1931,7 +2015,7 @@
               </svg>
             </span>
             <span class="folder-label">Financial Services</span>
-            <span class="folder-sub t-micro">BNY Mellon / Publicis Sapient<br>Product Owner</span>
+            <span class="folder-sub t-micro">BNY Mellon / Publicis Sapient<br>Product Owner, mentor</span>
           </button>
           <button class="folder-item" type="button" data-sector="ecommerce" aria-haspopup="dialog">
             <span class="folder-icon-wrap">
@@ -1940,7 +2024,7 @@
               </svg>
             </span>
             <span class="folder-label">E-commerce</span>
-            <span class="folder-sub t-micro">Salesforce / Shopify<br>IA, UX, UI</span>
+            <span class="folder-sub t-micro">Salesforce / Shopify<br>IC: IA, UX, UI</span>
           </button>
           <button class="folder-item" type="button" data-sector="consumer" aria-haspopup="dialog">
             <span class="folder-icon-wrap">
@@ -1948,9 +2032,14 @@
                 <path class="folder-tab" d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
               </svg>
             </span>
-            <span class="folder-label">Regulated</span>
-            <span class="folder-sub t-micro">.EDU / Healthcare / Non-Profit<br>Brand &amp; Interactive Systems</span>
+            <span class="folder-label">Consumer</span>
+            <span class="folder-sub t-micro">Social / .EDU / Pharma & Non-Profit<br>IC: CX, CMS, UX+UI</span>
           </button>
+        </div>
+        <div class="folder-scroll-track" aria-hidden="true"><div class="folder-scroll-fill"></div></div>
+        <div class="folder-scroll-hint t-micro" aria-hidden="true">
+          <span>Swipe</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </div>
       </div>
     </div>
@@ -4021,9 +4110,102 @@
   }
 
   // ─── Sector Event Listeners ────────────────────────────────
+  let folderDragged = false;
   document.querySelectorAll('.folder-item').forEach((btn) => {
-    btn.addEventListener('click', () => openSector(btn.dataset.sector));
+    btn.addEventListener('click', () => {
+      if (folderDragged) { folderDragged = false; return; }
+      openSector(btn.dataset.sector);
+    });
   });
+
+  // ─── Hero folders: swipe indicator + mouse/trackpad drag-to-scroll ───
+  (function initFolderScroll() {
+    const wrap = document.querySelector('.hero-folders');
+    const track = document.querySelector('.folder-scroll-track');
+    const fill = document.querySelector('.folder-scroll-fill');
+    const hint = document.querySelector('.folder-scroll-hint');
+    if (!wrap || !track || !fill) return;
+
+    function updateIndicator() {
+      const scrollable = wrap.scrollWidth - wrap.clientWidth;
+      if (scrollable <= 4) {
+        track.classList.remove('visible');
+        return;
+      }
+      track.classList.add('visible');
+      const trackWidth = track.clientWidth || 1;
+      const thumbWidth = Math.max(24, (wrap.clientWidth / wrap.scrollWidth) * trackWidth);
+      const maxTravel = Math.max(trackWidth - thumbWidth, 1);
+      const progress = scrollable > 0 ? wrap.scrollLeft / scrollable : 0;
+      fill.style.width = thumbWidth + 'px';
+      fill.style.transform = `translateX(${progress * maxTravel}px)`;
+    }
+
+    wrap.addEventListener('scroll', updateIndicator, { passive: true });
+    window.addEventListener('resize', updateIndicator);
+    updateIndicator();
+
+    // Dismiss the "Swipe" hint on first interaction
+    function dismissHint() {
+      if (hint) {
+        hint.style.animation = 'none';
+        hint.style.transition = 'opacity 0.3s ease';
+        hint.style.opacity = '0';
+      }
+      wrap.removeEventListener('scroll', dismissHint);
+      wrap.removeEventListener('pointerdown', dismissHint);
+    }
+    wrap.addEventListener('scroll', dismissHint, { passive: true, once: true });
+    wrap.addEventListener('pointerdown', dismissHint, { once: true });
+
+    // Mouse/trackpad click-and-drag scrolling (touch already scrolls natively)
+    let isDown = false;
+    let startX = 0;
+    let startScroll = 0;
+    let moved = false;
+
+    wrap.addEventListener('pointerdown', (e) => {
+      const scrollable = wrap.scrollWidth - wrap.clientWidth;
+      if (scrollable <= 4) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      isDown = true;
+      moved = false;
+      startX = e.clientX;
+      startScroll = wrap.scrollLeft;
+    });
+
+    function onPointerMove(e) {
+      if (!isDown) return;
+      const dx = e.clientX - startX;
+      if (Math.abs(dx) > 4) {
+        if (!moved) wrap.classList.add('draggable', 'dragging');
+        moved = true;
+      }
+      if (moved) wrap.scrollLeft = startScroll - dx;
+    }
+
+    function endDrag() {
+      if (!isDown) return;
+      isDown = false;
+      wrap.classList.remove('dragging');
+      if (moved) {
+        folderDragged = true;
+        setTimeout(() => { folderDragged = false; }, 0);
+      }
+      moved = false;
+    }
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+
+    // Mark draggable once we know it's scrollable (updates on resize too)
+    function markDraggable() {
+      const scrollable = wrap.scrollWidth - wrap.clientWidth;
+      wrap.classList.toggle('draggable', scrollable > 4);
+    }
+    markDraggable();
+    window.addEventListener('resize', markDraggable);
+  })();
 
   sectorClose.addEventListener('click', closeSector);
   sectorOverlay.addEventListener('click', (e) => { if (e.target === sectorOverlay) closeSector(); });
