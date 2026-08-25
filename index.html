@@ -92,6 +92,32 @@
       height: 0;
     }
 
+    /* ─── Overlay Scroll Progress Line — shown only while a case study,
+       reader, or profile overlay is open; tracks that overlay's own
+       scroll position along the top of the viewport. ─── */
+    .scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--rule);
+      z-index: 99999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .scroll-progress.active {
+      opacity: 1;
+    }
+    .scroll-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--ink);
+      transform-origin: left;
+      transition: width 0.12s linear;
+    }
+
     a { color: inherit; }
 
     ::selection { background: var(--ink); color: #000000; }
@@ -155,7 +181,7 @@
     .topbar {
       position: sticky; top: 0; z-index: 500;
       background: var(--paper);
-      border-bottom: 0px solid var(--rule-strong);
+      border-bottom: 1px solid var(--rule-strong);
       padding: var(--unit) 0;
     }
     .topbar .grid { align-items: center; }
@@ -560,24 +586,19 @@
       overflow-y: auto;
       scroll-behavior: smooth;
       -webkit-overflow-scrolling: touch;
+      /* extra right padding pushes the scrollbar gutter away from the
+         reading column instead of hugging the text */
       padding: 0 calc(var(--unit)*2.5) 30px 4px;
       position: relative;
       z-index: 1;
     }
 
+    .overlay-scroll {
+      scrollbar-width: none;
+    }
     .overlay-scroll::-webkit-scrollbar {
-      width: 4px;
-      background: transparent;
-    }
-    .overlay-scroll::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .overlay-scroll::-webkit-scrollbar-thumb {
-      background: var(--grey-dim);
-      border-radius: 2px;
-    }
-    .overlay-scroll::-webkit-scrollbar-thumb:hover {
-      background: var(--grey);
+      display: none;
+      width: 0;
     }
 
     /* ─── Profile Overlay ─── */
@@ -593,6 +614,9 @@
       flex-direction: column;
     }
 
+    /* Header lives outside the scrollable/blurred region now, and sits in
+       its own stacking context above .panel-blur (z-index: 10) so the
+       vignette can no longer paint over the avatar and title. */
     .profile-overlay .profile-head {
       position: relative;
       z-index: 11;
@@ -739,105 +763,6 @@
 
     .overlay-close:active {
       transform: scale(0.92);
-    }
-
-    /* ─── Enhanced Case Study Styles ─── */
-    .case-narrative p {
-      font-size: 17px;
-      line-height: 1.7;
-      color: var(--grey);
-      max-width: 68ch;
-    }
-
-    .case-factoids .factoid-tag {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      color: var(--grey);
-      background: var(--panel);
-      padding: 4px 14px;
-      border-radius: 20px;
-      border: 1px solid var(--rule);
-      transition: all 0.3s ease;
-    }
-
-    .case-factoids .factoid-tag:hover {
-      background: var(--ink);
-      color: var(--paper);
-      border-color: var(--ink);
-    }
-
-    .masonry {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: var(--gutter);
-      margin: calc(var(--unit)*2) 0;
-    }
-
-    .masonry-item {
-      overflow: hidden;
-      border-radius: 6px;
-      border: 1px solid var(--rule);
-      background: var(--panel);
-      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
-      position: relative;
-    }
-
-    .masonry-item img {
-      width: 100%;
-      aspect-ratio: 16/10;
-      object-fit: cover;
-      display: block;
-      cursor: pointer;
-      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), filter 0.4s ease;
-    }
-
-    .masonry-item:hover img {
-      transform: scale(1.05);
-      filter: brightness(1.05) contrast(1.05);
-    }
-
-    .masonry-item:hover {
-      transform: translateY(-6px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.35);
-      border-color: rgba(255,255,255,0.2);
-    }
-
-    .masonry-caption {
-      padding: calc(var(--unit)*1.5) var(--unit);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--grey);
-      border-top: 1px solid var(--rule);
-      letter-spacing: 0.02em;
-    }
-
-    .cs-footer .csf-nav button {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--grey);
-      background: none;
-      border: none;
-      cursor: pointer;
-      text-decoration: underline;
-      text-underline-offset: 4px;
-      transition: color 0.3s ease;
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-
-    .cs-footer .csf-nav button:hover {
-      color: var(--ink);
-      background: rgba(255,255,255,0.05);
-    }
-
-    @media (max-width: 640px) {
-      .masonry {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 12px;
-      }
-      .case-narrative p {
-        font-size: 15px;
-      }
     }
 
     /* ============================================================
@@ -1240,6 +1165,9 @@
       position: relative;
     }
 
+    /* Fill the full available viewport height (overlay padding + reader-content
+       padding accounted for) instead of clipping at a fixed 70vh, which left a
+       dead gap below the panel and cut content off early. */
     .reader-overlay .overlay-scroll {
       max-height: calc(100vh - (var(--unit) * 16));
     }
@@ -1965,6 +1893,7 @@
   </style>
 </head>
 <body>
+<div class="scroll-progress" id="scrollProgress" aria-hidden="true"><div class="scroll-progress-fill" id="scrollProgressFill"></div></div>
 
 <a class="skip-link" href="#tree">Skip to index</a>
 
@@ -3285,6 +3214,28 @@
   hcClose.addEventListener('click', (e) => { e.stopPropagation(); hideHoverCard(true); });
   hcBackdrop.addEventListener('click', () => hideHoverCard(true));
 
+  // ─── Scroll Progress Line — shown only while a case study, reader, or
+  // profile overlay is open, tracking that overlay's own scroll region.
+  // The main page and file tree keep their native scrollbars. ───
+  const scrollProgress = document.getElementById('scrollProgress');
+  const scrollProgressFill = document.getElementById('scrollProgressFill');
+  function setScrollProgress(el) {
+    if (!scrollProgressFill || !el) return;
+    const max = el.scrollHeight - el.clientHeight;
+    const pct = max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) * 100 : 0;
+    scrollProgressFill.style.width = pct + '%';
+  }
+  function showScrollProgress(el) {
+    if (scrollProgress) scrollProgress.classList.add('active');
+    setScrollProgress(el);
+  }
+  function hideScrollProgress() {
+    if (scrollProgress) scrollProgress.classList.remove('active');
+  }
+  function bindScrollProgress(el) {
+    if (el) el.addEventListener('scroll', () => setScrollProgress(el), { passive: true });
+  }
+
   // ─── Case Study ───
   const caseOverlay = document.getElementById('caseOverlay');
   const caseContainer = document.getElementById('caseContainer');
@@ -3292,15 +3243,29 @@
   const caseScroll = document.getElementById('caseScroll');
   const caseBlur = document.getElementById('caseBlur');
 
-  // ─── Enhanced Case Study Renderer ───
   function openCaseStudy(node) {
     const meta = node.projectMeta;
     if (!meta) return;
     
     caseOverlay.setAttribute('data-type', 'case');
     
-    // Build the full case study HTML
-    let html = `
+    const stepsHtml = (meta.caseSteps || []).map((s, i) => `
+      <div class="grid-item" style="transition-delay: ${0.12 + (i * 0.06)}s">
+        <div class="step-number t-data">${s.step}</div>
+        <div class="step-content">
+          <div class="step-title">${s.title}</div>
+          <div class="step-desc">${s.desc}</div>
+        </div>
+      </div>
+    `).join('');
+    
+    const heroHtml = meta.caseHero ? `
+      <div class="grid-hero" style="transition-delay: 0.08s">
+        <img src="${meta.caseHero}" alt="${meta.title}" loading="lazy">
+      </div>
+    ` : `<div class="grid-hero" style="transition-delay: 0.08s"><div class="placeholder-hero">${meta.title}</div></div>`;
+    
+    caseScroll.innerHTML = `
       <div class="case-head" style="transition-delay: 0.04s">
         <span class="t-micro case-badge">Case study</span>
         <h1>${meta.title}</h1>
@@ -3310,98 +3275,21 @@
           ${meta.tags ? meta.tags.map(t => `<span class="tag">#${t}</span>`).join('') : ''}
         </div>
       </div>
+      ${heroHtml}
+      <div class="case-steps">${stepsHtml}</div>
     `;
     
-    // Hero image
-    if (meta.caseHero) {
-      html += `<div class="grid-hero" style="transition-delay: 0.08s">
-        <img src="${meta.caseHero}" alt="${meta.title}" loading="lazy" onclick="openLightbox('${meta.caseHero}', '${meta.title}')">
-      </div>`;
-    }
-    
-    // Lead narrative
-    if (meta.desc) {
-      html += `<div class="case-narrative" style="transition-delay: 0.10s; padding: calc(var(--unit)*3) 0;">
-        <p style="font-size: 17px; line-height: 1.7; color: var(--grey); max-width: 68ch;">${meta.desc}</p>
-      </div>`;
-    }
-    
-    // Factoids (if available)
-    if (meta.factoids && meta.factoids.length) {
-      html += `<div class="case-factoids" style="transition-delay: 0.12s; display: flex; gap: calc(var(--unit)*3); flex-wrap: wrap; padding-bottom: calc(var(--unit)*3); border-bottom: 1px solid var(--rule); margin-bottom: calc(var(--unit)*3);">
-        ${meta.factoids.map(f => `<span class="factoid-tag">${f}</span>`).join('')}
-      </div>`;
-    }
-    
-    // Steps
-    if (meta.caseSteps && meta.caseSteps.length) {
-      html += `<div class="case-steps">`;
-      meta.caseSteps.forEach((s, i) => {
-        const stepNum = s.step || String(i + 1).padStart(2, '0');
-        html += `<div class="grid-item" style="transition-delay: ${0.12 + (i * 0.06)}s">
-          <div class="step-number t-data">${stepNum}</div>
-          <div class="step-content">
-            <div class="step-title">${s.title}</div>
-            <div class="step-desc">${s.desc}</div>
-          </div>
-        </div>`;
-      });
-      html += `</div>`;
-    }
-    
-    // Gallery — find gallery children in the tree
-    const galleryImages = [];
-    (function walk(nodes) {
-      nodes.forEach(n => {
-        if (n.id === node.id && n.children) {
-          n.children.forEach(child => {
-            if (child.type === 'folder' && /gallery/.test(child.id) && child.children) {
-              child.children.forEach(img => {
-                if (img.type === 'file' && img.projectMeta && img.projectMeta.thumb) {
-                  galleryImages.push({
-                    src: img.projectMeta.thumb,
-                    caption: img.projectMeta.title || img.name,
-                    alt: img.projectMeta.sub || ''
-                  });
-                }
-              });
-            }
-          });
-        }
-        if (n.children) walk(n.children);
-      });
-    })(TREE);
-    
-    if (galleryImages.length) {
-      html += `<div class="fs-section-label" style="transition-delay: 0.20s; padding-top: calc(var(--unit)*4);">Gallery</div>
-      <div class="masonry reveal" style="transition-delay: 0.22s;">`;
-      galleryImages.forEach((img, i) => {
-        html += `<div class="masonry-item" style="transition-delay: ${0.22 + (i * 0.04)}s;">
-          <img src="${img.src}" alt="${img.alt || img.caption}" loading="lazy" onclick="openLightbox('${img.src}', '${img.caption}')">
-          ${img.caption ? `<div class="masonry-caption">${img.caption}</div>` : ''}
-        </div>`;
-      });
-      html += `</div>`;
-    }
-    
-    // Footer
-    html += `<div class="cs-footer" style="padding: calc(var(--unit)*4) 0; margin-top: calc(var(--unit)*4); border-top: 1px solid var(--rule); display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--unit);">
-      <div class="csf-left" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--grey);">Zack Gort · Wolfgang &amp; Co. · © 2026 · NDA-safe content only.</div>
-      <div class="csf-nav" style="display: flex; gap: calc(var(--unit)*2);">
-        <button onclick="closeCaseStudy()" style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--grey); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 4px;">← Close</button>
-      </div>
-    </div>`;
-    
-    caseScroll.innerHTML = html;
     caseOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     if (caseScroll) caseScroll.scrollTop = 0;
+    showScrollProgress(caseScroll);
     setTimeout(checkScrollable, 100);
   }
 
   function closeCaseStudy() {
     caseOverlay.classList.remove('open');
     document.body.style.overflow = '';
+    hideScrollProgress();
     setTimeout(() => {
       caseScroll.innerHTML = '';
       caseOverlay.removeAttribute('data-type');
@@ -3470,6 +3358,7 @@
       readerScroll.innerHTML = `<iframe src="${meta.iframeUrl}" class="reader-iframe" title="${meta.title || node.name}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>`;
       readerOverlay.classList.add('open', 'reader-iframe-mode');
       document.body.style.overflow = 'hidden';
+      showScrollProgress(readerScroll);
       return;
     }
     
@@ -3478,6 +3367,7 @@
     readerScroll.innerHTML = renderMarkdown(content);
     readerOverlay.classList.add('open');
     document.body.style.overflow = 'hidden';
+    showScrollProgress(readerScroll);
     
     setTimeout(() => {
       readerScroll.querySelectorAll('video').forEach(v => {
@@ -3491,6 +3381,7 @@
   function closeReader() {
     readerOverlay.classList.remove('open', 'reader-iframe-mode');
     document.body.style.overflow = '';
+    hideScrollProgress();
     readerScroll.querySelectorAll('video').forEach(v => v.pause());
     setTimeout(() => {
       readerScroll.innerHTML = '';
@@ -3778,16 +3669,19 @@
 
   if (caseScroll) {
     caseScroll.addEventListener('scroll', checkScrollable);
+    bindScrollProgress(caseScroll);
   }
 
   if (readerScroll) {
     readerScroll.addEventListener('scroll', checkScrollableReader);
+    bindScrollProgress(readerScroll);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
     const profileScroll = document.getElementById('profileScroll');
     if (profileScroll) {
       profileScroll.addEventListener('scroll', checkScrollableProfile);
+      bindScrollProgress(profileScroll);
     }
   });
 
@@ -3841,6 +3735,7 @@
     const profileScroll = document.getElementById('profileScroll');
     if (profileScroll) {
       profileScroll.scrollTop = 0;
+      showScrollProgress(profileScroll);
       setTimeout(checkScrollableProfile, 100);
     }
   }
@@ -3848,6 +3743,7 @@
   function closeProfile() {
     profileOverlay.classList.remove('open');
     document.body.style.overflow = '';
+    hideScrollProgress();
     const profileBlur = document.getElementById('profileBlur');
     if (profileBlur) profileBlur.classList.remove('scrolling');
   }
