@@ -60,7 +60,7 @@
       transform: scale(1);
     }
 
-    /* --- CRISP THUMBNAIL PREVIEW (lower-right, no effects, native aspect) --- */
+    /* --- CRISP THUMBNAIL PREVIEW --- */
     #paste-thumb {
       position: fixed;
       bottom: 80px;
@@ -96,7 +96,7 @@
       image-rendering: auto;
     }
 
-    /* --- CENTERED PASTE/SAVE PROMPT --- */
+    /* --- CENTERED PROMPT — dual label state machine --- */
     #paste-prompt {
       position: absolute;
       inset: 0;
@@ -116,18 +116,65 @@
       pointer-events: none;
     }
 
-    #paste-prompt .prompt-main {
+    /* --- dual label container --- */
+    .prompt-dual {
+      display: flex;
+      align-items: baseline;
+      gap: 32px;
       font-family: 'Archivo', sans-serif;
       font-weight: 900;
-      font-size: clamp(48px, 12vw, 120px);
       letter-spacing: -0.03em;
-      color: #f0ece2;
       line-height: 1;
-      text-shadow: 0 4px 32px rgba(0,0,0,0.4);
-      transition: font-size 0.4s ease;
+      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    #paste-prompt .prompt-sub {
+    .prompt-label {
+      transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+      user-select: none;
+    }
+
+    .prompt-label.paste {
+      font-size: clamp(48px, 12vw, 120px);
+      color: #f0ece2;
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+
+    .prompt-label.paste.pasted {
+      font-size: clamp(28px, 6vw, 60px);
+      color: rgba(240,236,226,0.25);
+      opacity: 0.4;
+      transform: translateX(40px) scale(0.85);
+    }
+
+    .prompt-label.save {
+      font-size: clamp(28px, 6vw, 60px);
+      color: rgba(240,236,226,0.25);
+      opacity: 0.4;
+      transform: translateX(-40px) scale(0.85);
+    }
+
+    .prompt-label.save.active {
+      font-size: clamp(48px, 12vw, 120px);
+      color: #f0ece2;
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+
+    .prompt-label.save.saved {
+      font-size: clamp(32px, 7vw, 72px);
+      color: rgba(240,236,226,0.3);
+      opacity: 0.5;
+      transform: translateX(0) scale(0.9);
+    }
+
+    .prompt-label.save.saved::after {
+      content: ' ✓';
+      color: #b8a2d4;
+      opacity: 0.8;
+    }
+
+    .prompt-sub {
       font-family: 'IBM Plex Mono', monospace;
       font-size: clamp(10px, 1.2vw, 14px);
       letter-spacing: 0.15em;
@@ -135,9 +182,10 @@
       color: rgba(240,236,226,0.35);
       margin-top: 12px;
       transition: opacity 0.4s ease;
+      text-align: center;
     }
 
-    #paste-prompt .prompt-sub.hidden-sub {
+    .prompt-sub.hidden-sub {
       opacity: 0;
     }
 
@@ -177,7 +225,7 @@
       border-color: rgba(240,236,226,0.3);
     }
 
-    /* --- INFO PANEL (top-left dropdown) --- */
+    /* --- INFO PANEL --- */
     #info-panel {
       position: fixed;
       top: 68px;
@@ -465,12 +513,29 @@
       font-family: inherit;
     }
 
+    /* --- corner markers --- */
+    .paste-corner {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0.25;
+    }
+    .paste-corner.tl { top: 4%; left: 4%; border-top: 1px solid #f0ece2; border-left: 1px solid #f0ece2; }
+    .paste-corner.br { bottom: calc(4% + 70px); right: 4%; border-bottom: 1px solid #f0ece2; border-right: 1px solid #f0ece2; }
+
     /* --- responsive --- */
     @media (max-width: 600px) {
       #paste-text-preview { padding: 4vh 4vw; }
       #paste-text-preview pre { font-size: clamp(12px, 3vw, 16px); padding: 1rem 1.5rem; max-height: 60vh; }
       #paste-thumb { max-width: 200px; max-height: 150px; bottom: 72px; right: 12px; }
-      #paste-prompt .prompt-main { font-size: clamp(36px, 15vw, 60px); }
+      .prompt-dual { gap: 16px; }
+      .prompt-label.paste { font-size: clamp(32px, 12vw, 48px); }
+      .prompt-label.paste.pasted { font-size: clamp(18px, 5vw, 28px); transform: translateX(20px) scale(0.85); }
+      .prompt-label.save { font-size: clamp(18px, 5vw, 28px); transform: translateX(-20px) scale(0.85); }
+      .prompt-label.save.active { font-size: clamp(32px, 12vw, 48px); transform: translateX(0) scale(1); }
+      .prompt-label.save.saved { font-size: clamp(22px, 6vw, 32px); }
       #info-panel { max-width: 300px; padding: 18px 20px; left: 12px; top: 60px; }
       #info-toggle { top: 12px; left: 12px; width: 36px; height: 36px; font-size: 14px; }
       #paste-controls { bottom: 16px; padding: 6px 10px; gap: 6px; }
@@ -483,8 +548,13 @@
       #paste-text-preview { padding: 2vh 4vw; }
       #paste-text-preview pre { font-size: clamp(10px, 1.8vw, 14px); padding: 0.8rem 1.2rem; max-height: 50vh; }
       #paste-thumb { max-width: 140px; max-height: 105px; bottom: 64px; right: 12px; }
-      #paste-prompt .prompt-main { font-size: clamp(28px, 8vw, 48px); }
-      #paste-prompt .prompt-sub { font-size: clamp(8px, 1vw, 11px); }
+      .prompt-dual { gap: 16px; }
+      .prompt-label.paste { font-size: clamp(24px, 8vw, 40px); }
+      .prompt-label.paste.pasted { font-size: clamp(14px, 4vw, 22px); transform: translateX(16px) scale(0.85); }
+      .prompt-label.save { font-size: clamp(14px, 4vw, 22px); transform: translateX(-16px) scale(0.85); }
+      .prompt-label.save.active { font-size: clamp(24px, 8vw, 40px); transform: translateX(0) scale(1); }
+      .prompt-label.save.saved { font-size: clamp(16px, 5vw, 28px); }
+      .prompt-sub { font-size: clamp(8px, 1vw, 11px); margin-top: 6px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -506,9 +576,12 @@
       <img id="paste-thumb-img" src="" alt="thumbnail preview" />
     </div>
 
-    <!-- CENTERED PROMPT -->
+    <!-- CENTERED PROMPT — dual label state machine -->
     <div id="paste-prompt">
-      <div class="prompt-main" id="promptMain">Paste</div>
+      <div class="prompt-dual">
+        <span class="prompt-label paste" id="labelPaste">Paste</span>
+        <span class="prompt-label save" id="labelSave">Save</span>
+      </div>
       <div class="prompt-sub" id="promptSub">ctrl+v or drag &amp; drop</div>
     </div>
 
@@ -526,7 +599,7 @@
     <div class="paste-corner br"></div>
   </div>
 
-  <!-- INFO TOGGLE (top-left) -->
+  <!-- INFO TOGGLE -->
   <button id="info-toggle" aria-label="Toggle info panel">ⓘ</button>
 
   <!-- INFO PANEL -->
@@ -565,7 +638,8 @@
       const thumbImg = document.getElementById('paste-thumb-img');
       const ambient = document.getElementById('paste-ambient');
       const prompt = document.getElementById('paste-prompt');
-      const promptMain = document.getElementById('promptMain');
+      const labelPaste = document.getElementById('labelPaste');
+      const labelSave = document.getElementById('labelSave');
       const promptSub = document.getElementById('promptSub');
       const statusEl = document.getElementById('paste-status');
       const saveBtn = document.getElementById('saveBtn');
@@ -582,6 +656,7 @@
       let imageSrc = null;
       let textString = '';
       let infoOpen = false;
+      let saveTimeout = null;
 
       // ---- info toggle ----
       infoToggle.addEventListener('click', () => {
@@ -590,24 +665,41 @@
         infoToggle.classList.toggle('active', infoOpen);
       });
 
-      // ---- update prompt ----
-      function updatePrompt(mainText, subText) {
-        promptMain.textContent = mainText;
-        if (subText !== undefined) {
-          promptSub.textContent = subText;
-          promptSub.classList.remove('hidden-sub');
-        } else {
-          promptSub.classList.add('hidden-sub');
+      // ---- state machine: update labels ----
+      function setState(state) {
+        // state: 'empty' | 'loaded' | 'saved'
+        labelPaste.classList.remove('pasted');
+        labelSave.classList.remove('active', 'saved');
+
+        switch(state) {
+          case 'empty':
+            labelPaste.textContent = 'Paste';
+            labelPaste.className = 'prompt-label paste';
+            labelSave.textContent = 'Save';
+            labelSave.className = 'prompt-label save';
+            promptSub.classList.remove('hidden-sub');
+            promptSub.textContent = 'ctrl+v or drag & drop';
+            prompt.classList.remove('hidden');
+            break;
+          case 'loaded':
+            labelPaste.textContent = 'Pasted';
+            labelPaste.className = 'prompt-label paste pasted';
+            labelSave.textContent = 'Save';
+            labelSave.className = 'prompt-label save active';
+            promptSub.classList.add('hidden-sub');
+            prompt.classList.remove('hidden');
+            break;
+          case 'saved':
+            labelPaste.textContent = 'Pasted';
+            labelPaste.className = 'prompt-label paste pasted';
+            labelSave.textContent = 'Saved';
+            labelSave.className = 'prompt-label save saved';
+            promptSub.classList.add('hidden-sub');
+            prompt.classList.remove('hidden');
+            break;
+          default:
+            break;
         }
-      }
-
-      function showPrompt(mainText, subText) {
-        prompt.classList.remove('hidden');
-        updatePrompt(mainText, subText);
-      }
-
-      function hidePrompt() {
-        prompt.classList.add('hidden');
       }
 
       // ---- reset everything ----
@@ -632,13 +724,17 @@
         statusEl.classList.remove('ready');
         saveBtn.disabled = true;
         clearBtn.disabled = true;
-        // show prompt
-        showPrompt('Paste', 'ctrl+v or drag & drop');
+        // set state to empty
+        setState('empty');
         // reset ambient
         ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
         ambient.style.opacity = '0.6';
         // reset parallax
         imgWrap.style.transform = 'translate3d(0,0,0)';
+        if (saveTimeout) {
+          clearTimeout(saveTimeout);
+          saveTimeout = null;
+        }
       }
 
       // ---- set image ----
@@ -660,8 +756,8 @@
           saveBtn.disabled = false;
           clearBtn.disabled = false;
           
-          // update prompt: "Save"
-          showPrompt('Save', '');
+          // set state to loaded (Paste → Pasted, Save becomes active)
+          setState('loaded');
           
           if (meta && meta.accent) {
             ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
@@ -684,7 +780,7 @@
           statusEl.classList.add('ready');
           saveBtn.disabled = false;
           clearBtn.disabled = false;
-          showPrompt('Save', '');
+          setState('loaded');
           if (meta && meta.accent) {
             ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
             ambient.style.opacity = '0.6';
@@ -708,7 +804,7 @@
         statusEl.classList.add('ready');
         saveBtn.disabled = false;
         clearBtn.disabled = false;
-        showPrompt('Save', '');
+        setState('loaded');
         ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
         ambient.style.opacity = '0.6';
       }
@@ -727,15 +823,17 @@
           link.click();
           document.body.removeChild(link);
           setTimeout(() => URL.revokeObjectURL(url), 5000);
-          // after save, prompt to paste again
-          setTimeout(() => {
-            showPrompt('Paste', 'saved ✓');
-            setTimeout(() => {
-              if (!hasImage && !hasText) {
-                promptSub.textContent = 'ctrl+v or drag & drop';
-              }
-            }, 2000);
-          }, 300);
+          
+          // set state to saved
+          setState('saved');
+          
+          // after 2.5s, reset to empty
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            resetAll();
+            saveTimeout = null;
+          }, 2500);
+          
         } else if (hasText && textString) {
           const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
           const name = 'paste-' + Date.now() + '.txt';
@@ -747,14 +845,14 @@
           link.click();
           document.body.removeChild(link);
           setTimeout(() => URL.revokeObjectURL(url), 5000);
-          setTimeout(() => {
-            showPrompt('Paste', 'saved ✓');
-            setTimeout(() => {
-              if (!hasImage && !hasText) {
-                promptSub.textContent = 'ctrl+v or drag & drop';
-              }
-            }, 2000);
-          }, 300);
+          
+          setState('saved');
+          
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            resetAll();
+            saveTimeout = null;
+          }, 2500);
         }
       }
 
@@ -765,7 +863,6 @@
         const items = clipboardData.items;
         let imageBlob = null;
 
-        // 1) Check for image
         for (let i = 0; i < items.length; i++) {
           if (items[i].type.startsWith('image/')) {
             imageBlob = items[i].getAsFile();
@@ -773,16 +870,13 @@
           }
         }
         if (imageBlob) {
-          const meta = {
-            accent: '#b8a2d4',
-          };
+          const meta = { accent: '#b8a2d4' };
           const url = URL.createObjectURL(imageBlob);
           setImage(url, imageBlob, meta);
           setTimeout(() => URL.revokeObjectURL(url), 5000);
           return true;
         }
 
-        // 2) Check for text
         let text = '';
         for (let i = 0; i < items.length; i++) {
           if (items[i].type === 'text/plain') {
@@ -870,7 +964,6 @@
 
         targetX = nx * -8;
         targetY = ny * -6;
-        // prompt gets subtle parallax too
         prompt.style.transform = `translate3d(${nx * 4}px, ${ny * 3}px, 0)`;
       }
 
@@ -905,10 +998,10 @@
       animateParallax();
 
       // ---- init ----
-      showPrompt('Paste', 'ctrl+v or drag & drop');
+      setState('empty');
       resetAll();
 
-      console.log('📄 /PASTED — minimal, centered, info tucked away');
+      console.log('📄 /PASTED — Paste → Pasted → Save → Saved state machine');
     })();
   </script>
 </body>
