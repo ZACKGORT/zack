@@ -619,6 +619,21 @@
       overflow: hidden;
     }
 
+    /* ─── Aurora background layer — behind the scrollable case-study
+       content, above the panel-grid's own tint ─── */
+    .case-aurora {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+    .case-aurora canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
     .overlay[data-type="case"] .overlay-scroll {
       max-height: 75vh;
       padding: 0 4px 30px 4px;
@@ -883,6 +898,21 @@
     .overlay[data-type="cine"].open .cine-slide { opacity: 1; }
 
     .cine-bg { position: absolute; inset: 0; transition: background 0.9s ease; }
+
+    /* ─── Aurora background layer — sits above the solid .cine-bg fill,
+       behind the image/scrim/content layers of both cine overlays ─── */
+    .cine-aurora {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    .cine-aurora canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
 
     .cine-img-wrap {
       position: absolute;
@@ -2379,6 +2409,7 @@
   <button class="overlay-close" id="caseClose" aria-label="Close case study">✕</button>
   <div class="panel" id="caseContainer">
     <div class="panel-grid">
+      <div class="case-aurora" id="caseAurora"></div>
       <div class="overlay-scroll" id="caseScroll">
         <!-- Dynamic content rendered here -->
       </div>
@@ -2483,6 +2514,7 @@
   <button class="overlay-close" id="sectorClose" aria-label="Close">✕</button>
   <div class="cine-slide" id="cineSlide">
     <div class="cine-bg" id="cineBg"></div>
+    <div class="cine-aurora" id="cineAurora"></div>
     <div class="cine-img-wrap" id="cineImgWrap">
       <img class="cine-img" id="cineImg" alt="">
     </div>
@@ -2508,6 +2540,7 @@
   <button class="overlay-close" id="caseCineClose" aria-label="Close">✕</button>
   <div class="cine-slide anim" id="caseCineSlide">
     <div class="cine-bg" id="caseCineBg"></div>
+    <div class="cine-aurora" id="caseCineAurora"></div>
     <div class="cine-img-wrap" id="caseCineImgWrap">
       <img class="cine-img" id="caseCineImg" alt="">
     </div>
@@ -2550,6 +2583,202 @@
 
 <script>
 (function () {
+  // ─── Aurora background effect ─── vanilla WebGL2, no deps.
+  // Mounted lazily into an overlay's aurora container on open, torn
+  // down on close — avoids burning a render loop on hidden canvases.
+  function AuroraEffect(container, {
+    colorStops = ["#5227FF", "#7cff67", "#5227FF"],
+    amplitude = 1.0,
+    blend = 0.5,
+    speed = 1.0
+  } = {}) {
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+
+    const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false });
+    if (!gl) { return null; }
+
+    const vertexShaderSrc = `#version 300 es
+      in vec2 position;
+      void main() { gl_Position = vec4(position, 0.0, 1.0); }
+    `;
+
+    const fragmentShaderSrc = `#version 300 es
+      precision highp float;
+      uniform float uTime;
+      uniform float uAmplitude;
+      uniform vec3 uColorStops[3];
+      uniform vec2 uResolution;
+      uniform float uBlend;
+      out vec4 fragColor;
+
+      vec3 permute(vec3 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
+
+      float snoise(vec2 v){
+        const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+        vec2 i  = floor(v + dot(v, C.yy));
+        vec2 x0 = v - i + dot(i, C.xx);
+        vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+        vec4 x12 = x0.xyxy + C.xxzz;
+        x12.xy -= i1;
+        i = mod(i, 289.0);
+        vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+        vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);
+        m = m * m; m = m * m;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
+        vec3 h = abs(x) - 0.5;
+        vec3 ox = floor(x + 0.5);
+        vec3 a0 = x - ox;
+        m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+        vec3 g;
+        g.x  = a0.x  * x0.x  + h.x  * x0.y;
+        g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+        return 130.0 * dot(m, g);
+      }
+
+      struct ColorStop { vec3 color; float position; };
+
+      #define COLOR_RAMP(colors, factor, finalColor) {              \\
+        int index = 0;                                              \\
+        for (int i = 0; i < 2; i++) {                                \\
+           ColorStop currentColor = colors[i];                      \\
+           bool isInBetween = currentColor.position <= factor;       \\
+           index = isInBetween ? i : index;                          \\
+        }                                                             \\
+        ColorStop currentColor = colors[index];                      \\
+        ColorStop nextColor = colors[index + 1];                     \\
+        float range = nextColor.position - currentColor.position;    \\
+        float lerpFactor = (factor - currentColor.position) / max(range, 0.0001); \\
+        finalColor = mix(currentColor.color, nextColor.color, clamp(lerpFactor, 0.0, 1.0)); \\
+      }
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / uResolution.xy;
+        ColorStop colors[3];
+        colors[0] = ColorStop(uColorStops[0], 0.0);
+        colors[1] = ColorStop(uColorStops[1], 0.5);
+        colors[2] = ColorStop(uColorStops[2], 1.0);
+        vec3 rampColor;
+        COLOR_RAMP(colors, uv.x, rampColor);
+        float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
+        height = exp(height);
+        height = (uv.y * 2.0 - height + 0.2);
+        float intensity = 0.6 * height;
+        float midPoint = 0.20;
+        float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
+        vec3 auroraColor = intensity * rampColor;
+        fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
+      }
+    `;
+
+    function compileShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSrc);
+    const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSrc);
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.useProgram(program);
+
+    const positions = new Float32Array([-1, -1, 3, -1, -1, 3]);
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+    const positionLoc = gl.getAttribLocation(program, 'position');
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const uTimeLoc = gl.getUniformLocation(program, 'uTime');
+    const uAmplitudeLoc = gl.getUniformLocation(program, 'uAmplitude');
+    const uColorStopsLoc = gl.getUniformLocation(program, 'uColorStops');
+    const uResolutionLoc = gl.getUniformLocation(program, 'uResolution');
+    const uBlendLoc = gl.getUniformLocation(program, 'uBlend');
+
+    function hexToRgb(hex) {
+      const c = hex.replace('#', '');
+      return [
+        parseInt(c.substring(0, 2), 16) / 255,
+        parseInt(c.substring(2, 4), 16) / 255,
+        parseInt(c.substring(4, 6), 16) / 255
+      ];
+    }
+    const colorStopsFlat = colorStops.flatMap(hexToRgb);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    let animId;
+    const startTime = performance.now();
+
+    function resize() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const width = container.clientWidth || 1;
+      const height = container.clientHeight || 1;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+    resize();
+
+    function render() {
+      const now = (performance.now() - startTime) * 0.001 * speed;
+      gl.useProgram(program);
+      gl.uniform1f(uTimeLoc, now);
+      gl.uniform1f(uAmplitudeLoc, amplitude);
+      gl.uniform3fv(uColorStopsLoc, new Float32Array(colorStopsFlat));
+      gl.uniform2f(uResolutionLoc, canvas.width, canvas.height);
+      gl.uniform1f(uBlendLoc, blend);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      animId = requestAnimationFrame(render);
+    }
+    render();
+
+    return {
+      destroy() {
+        cancelAnimationFrame(animId);
+        resizeObserver.disconnect();
+        gl.deleteProgram(program);
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+        gl.deleteBuffer(positionBuffer);
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      }
+    };
+  }
+
+  // Tracks the live instance per overlay so repeated opens don't stack canvases.
+  const auroraInstances = {};
+  function mountAurora(key, containerId, opts) {
+    if (auroraInstances[key]) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    auroraInstances[key] = AuroraEffect(container, opts);
+  }
+  function unmountAurora(key) {
+    if (auroraInstances[key]) {
+      auroraInstances[key].destroy();
+      auroraInstances[key] = null;
+    }
+  }
+
   // ─── COMPLETE TREE DATA ───
   const TREE = [
     {
@@ -3881,12 +4110,14 @@
     if (caseScroll) caseScroll.scrollTop = 0;
     showScrollProgress(caseScroll);
     setTimeout(checkScrollable, 100);
+    mountAurora('case', 'caseAurora', { colorStops: ['#3D6BEF', '#c8704a', '#3D6BEF'], blend: 1, amplitude: 1.0, speed: 0.6 });
   }
 
   function closeCaseStudy() {
     caseOverlay.classList.remove('open');
     document.body.style.overflow = '';
     hideScrollProgress();
+    unmountAurora('case');
     setTimeout(() => {
       caseScroll.innerHTML = '';
       caseOverlay.removeAttribute('data-type');
@@ -4030,6 +4261,7 @@
     showCaseCineImage(0);
     updateCaseCineNav();
     startCaseCineAutoplay();
+    mountAurora('caseCine', 'caseCineAurora', { colorStops: ['#3D6BEF', cine.accent || '#c8704a', '#3D6BEF'], blend: 1, amplitude: 1.0, speed: 0.6 });
   }
 
   function closeCaseCine() {
@@ -4037,6 +4269,7 @@
     document.body.style.overflow = '';
     stopCaseCineAutoplay();
     caseCineImages = [];
+    unmountAurora('caseCine');
   }
 
   function showCaseCineImage(index) {
@@ -4808,6 +5041,7 @@
     document.body.style.overflow = 'hidden';
     resetCineParallax();
     showSectorSlide(0);
+    mountAurora('sector', 'cineAurora', { colorStops: ['#3D6BEF', (slides[0] && slides[0].accent) || '#c8704a', '#3D6BEF'], blend: 1, amplitude: 1.0, speed: 0.6 });
   }
 
   function closeSector() {
@@ -4815,6 +5049,7 @@
     document.body.style.overflow = '';
     sectorSlidesData = [];
     resetCineParallax();
+    unmountAurora('sector');
   }
 
   function showSectorSlide(index) {
