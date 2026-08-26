@@ -992,25 +992,63 @@
     }
     .overlay[data-type="cine"].open .cine-nav { opacity: 1; pointer-events: auto; }
 
-    /* ── case-cine click hotspots — thin edge zones over the slide so
-       paging through case-study frames is a single low-effort click
-       near either side; a plain text counter replaces the button nav. ── */
-    .case-cine-hotspot {
+    /* ── shared cine hotspots — thin edge zones over the slide so
+       paging through case-study/sector frames is a single low-effort
+       click near either side; a custom cursor (dot + stretch ellipse +
+       chevron) replaces the system cursor when JS hotspot nav is active,
+       and a plain arrow-in-circle cursor is the static fallback. ── */
+    .cine-hotspot {
       position: absolute; top: 0; bottom: 0;
       width: clamp(64px, 10vw, 200px);
       z-index: 4;
     }
-    .case-cine-hotspot-prev {
+    .cine-hotspot-prev {
       left: 0;
       cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%3E%3Ccircle%20cx%3D%2722%27%20cy%3D%2722%27%20r%3D%2720%27%20fill%3D%27rgba%2820%2C20%2C20%2C0.55%29%27/%3E%3Cpath%20d%3D%27M26%2012%20L16%2022%20L26%2032%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E") 22 22, w-resize;
     }
-    .case-cine-hotspot-next {
+    .cine-hotspot-next {
       right: 0;
       cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%3E%3Ccircle%20cx%3D%2722%27%20cy%3D%2722%27%20r%3D%2720%27%20fill%3D%27rgba%2820%2C20%2C20%2C0.55%29%27/%3E%3Cpath%20d%3D%27M18%2012%20L28%2022%20L18%2032%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E") 22 22, e-resize;
     }
-    .case-cine-hotspot.hidden { display: none; }
+    .cine-hotspot.hidden { display: none; }
+    .cine-hotspot.custom-cursor-active { cursor: none; }
 
-    .case-cine-counter {
+    /* Custom hotspot cursor: dot + directional stretch ellipse + chevron */
+    .hotspot-cursor {
+      position: fixed; top: 0; left: 0;
+      width: 0; height: 0;
+      z-index: 9700;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+    }
+    .hotspot-cursor.visible { opacity: 1; }
+    .hotspot-cursor-ellipse {
+      position: absolute; top: 0; left: 0;
+      width: 46px; height: 46px;
+      margin: -23px 0 0 -23px;
+      border-radius: 50%;
+      background: rgba(20,20,20,0.55);
+      transform: scaleX(var(--hc-stretch, 1)) scaleY(var(--hc-squeeze, 1)) rotate(var(--hc-angle, 0deg));
+      transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .hotspot-cursor-dot {
+      position: absolute; top: 0; left: 0;
+      width: 0; height: 0;  /* hidden */
+      margin: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .hotspot-cursor-chevron {
+      position: absolute; top: 0; left: 0;
+      width: 28px; height: 28px;
+      margin: -14px 0 0 -14px;
+      transform: rotate(0deg);
+      transition: transform 0.18s ease;
+    }
+    .hotspot-cursor.dir-prev .hotspot-cursor-chevron { transform: rotate(180deg); }
+
+    .cine-hotspot-counter {
       position: fixed; bottom: calc(24px + env(safe-area-inset-bottom,0px)); left: 50%;
       transform: translateX(-50%); z-index: 9600;
       font-family: 'Recursive', monospace; font-variation-settings: 'MONO' 1, 'CASL' 0, 'slnt' 0;
@@ -1018,7 +1056,7 @@
       white-space: nowrap; pointer-events: none;
       opacity: 0; transition: opacity 0.3s ease;
     }
-    .overlay[data-type="cine"].open .case-cine-counter { opacity: 1; }
+    .overlay[data-type="cine"].open .cine-hotspot-counter { opacity: 1; }
     .cine-nb {
       background: none; border: none; cursor: pointer; color: rgba(240,236,226,1);
       padding: 12px 20px; font-size: 14px; font-family: 'Recursive', monospace; font-variation-settings: 'MONO' 1, 'CASL' 0, 'slnt' 0;
@@ -2234,6 +2272,8 @@
     <div class="cine-corner br"></div>
     <div class="cine-idx" id="cineIdx"></div>
     <div class="cine-content" id="cineContent"></div>
+    <div class="cine-hotspot cine-hotspot-prev" id="sectorHotspotPrev" aria-label="Previous slide" role="button" tabindex="-1"></div>
+    <div class="cine-hotspot cine-hotspot-next" id="sectorHotspotNext" aria-label="Next slide" role="button" tabindex="-1"></div>
   </div>
   <div class="cine-nav">
     <button class="cine-nb" id="cinePrev" aria-label="Previous slide">←</button>
@@ -2256,10 +2296,10 @@
     <div class="cine-corner tl"></div>
     <div class="cine-corner br"></div>
     <div class="cine-content" id="caseCineContent"></div>
-    <div class="case-cine-hotspot case-cine-hotspot-prev" id="caseCineHotspotPrev" aria-label="Previous image" role="button" tabindex="-1"></div>
-    <div class="case-cine-hotspot case-cine-hotspot-next" id="caseCineHotspotNext" aria-label="Next image" role="button" tabindex="-1"></div>
+    <div class="cine-hotspot cine-hotspot-prev" id="caseCineHotspotPrev" aria-label="Previous image" role="button" tabindex="-1"></div>
+    <div class="cine-hotspot cine-hotspot-next" id="caseCineHotspotNext" aria-label="Next image" role="button" tabindex="-1"></div>
   </div>
-  <div class="case-cine-counter" id="caseCineCounter">—</div>
+  <div class="cine-hotspot-counter" id="caseCineCounter">—</div>
 </div>
 
 <!-- Lightbox -->
@@ -3663,8 +3703,19 @@
     if (caseCineTimer) { clearInterval(caseCineTimer); caseCineTimer = null; }
   }
 
-  caseCineHotspotPrev.addEventListener('click', () => goToCaseCineImage(caseCineIndex - 1));
-  caseCineHotspotNext.addEventListener('click', () => goToCaseCineImage(caseCineIndex + 1));
+  setupHotspotNavigation({
+    overlay: caseCineOverlay,
+    prevZone: caseCineHotspotPrev,
+    nextZone: caseCineHotspotNext,
+    onPrev: () => goToCaseCineImage(caseCineIndex - 1),
+    onNext: () => goToCaseCineImage(caseCineIndex + 1)
+  });
+  setupParallax({
+    overlay: caseCineOverlay,
+    imgLayer: document.getElementById('caseCineImgWrap'),
+    textLayer: document.getElementById('caseCineContent')
+  });
+
   caseCineClose.addEventListener('click', closeCaseCine);
   caseCineOverlay.addEventListener('click', (e) => { if (e.target === caseCineOverlay) closeCaseCine(); });
 
@@ -4279,33 +4330,104 @@
   const sectorPrev = document.getElementById('cinePrev');
   const sectorNext = document.getElementById('cineNext');
 
-  // ─── Cursor parallax (image + text move independently) ────
-  const cineParallaxEnabled = window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
-    !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ─── Shared: hotspot navigation (click zones + custom cursor) ────
+  // Used by both the case-study overlay and the sector overlay. Renders
+  // thin invisible click zones on the left/right edges of the slide; a
+  // custom cursor (dot + direction-of-travel stretch ellipse + chevron)
+  // takes over on fine-pointer/hover devices, falling back to a plain
+  // arrow-in-circle system cursor everywhere else (touch, reduced motion).
+  function setupHotspotNavigation({ overlay, prevZone, nextZone, onPrev, onNext }) {
+    if (!prevZone || !nextZone) return;
 
-  function resetCineParallax() {
-    sectorImgWrap.style.transform = 'translate3d(0,0,0)';
-    sectorContent.style.transform = 'translate3d(0,0,0)';
+    const supportsCustomCursor = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    let cursorEl = null;
+
+    if (supportsCustomCursor) {
+      prevZone.classList.add('custom-cursor-active');
+      nextZone.classList.add('custom-cursor-active');
+
+      cursorEl = document.createElement('div');
+      cursorEl.className = 'hotspot-cursor';
+      cursorEl.innerHTML =
+        '<div class="hotspot-cursor-ellipse"></div>' +
+        '<div class="hotspot-cursor-dot"></div>' +
+        '<svg class="hotspot-cursor-chevron" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      document.body.appendChild(cursorEl);
+
+      let lastX = 0, lastY = 0, lastT = 0;
+
+      const track = (e, dir) => {
+        const now = performance.now();
+        const dt = Math.max(now - lastT, 1);
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        const speed = Math.min(Math.hypot(dx, dy) / dt, 1.4);
+        const angle = (dx || dy) ? Math.atan2(dy, dx) * (180 / Math.PI) : 0;
+        lastX = e.clientX; lastY = e.clientY; lastT = now;
+
+        cursorEl.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`;
+        cursorEl.style.setProperty('--hc-stretch', (1 + speed * 0.55).toFixed(2));
+        cursorEl.style.setProperty('--hc-squeeze', (1 - speed * 0.2).toFixed(2));
+        cursorEl.style.setProperty('--hc-angle', `${angle}deg`);
+        cursorEl.classList.toggle('dir-prev', dir === 'prev');
+        cursorEl.classList.toggle('visible', true);
+      };
+
+      [[prevZone, 'prev'], [nextZone, 'next']].forEach(([zone, dir]) => {
+        zone.addEventListener('mouseenter', (e) => track(e, dir));
+        zone.addEventListener('mousemove', (e) => track(e, dir));
+        zone.addEventListener('mouseleave', () => cursorEl.classList.remove('visible'));
+      });
+
+      new MutationObserver(() => {
+        if (!overlay.classList.contains('open')) cursorEl.classList.remove('visible');
+      }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    prevZone.addEventListener('click', onPrev);
+    nextZone.addEventListener('click', onNext);
   }
 
-  function onCineMouseMove(e) {
-    const rect = sectorOverlay.getBoundingClientRect();
-    const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;   // -1 to 1
-    const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2;   // -1 to 1
+  // ─── Shared: cursor parallax (image + text move independently) ────
+  function setupParallax({ overlay, imgLayer, textLayer, imgStrength = 6, textStrengthX = 10, textStrengthY = 6 }) {
+    const enabled = window.matchMedia('(hover: hover) and (pointer: fine)').matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!enabled) return () => {};
 
-    // Image drifts opposite the cursor, subtly (background layer).
-    const imgX = nx * -6, imgY = ny * -6;
-    // Text drifts with the cursor, a touch more (foreground layer).
-    const txtX = nx * 10, txtY = ny * 6;
+    function reset() {
+      imgLayer.style.transform = 'translate3d(0,0,0)';
+      textLayer.style.transform = 'translate3d(0,0,0)';
+    }
 
-    sectorImgWrap.style.transform = `translate3d(${imgX}px, ${imgY}px, 0)`;
-    sectorContent.style.transform = `translate3d(${txtX}px, ${txtY}px, 0)`;
+    function onMove(e) {
+      const rect = overlay.getBoundingClientRect();
+      const nx = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      const ny = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+
+      const imgX = nx * -imgStrength, imgY = ny * -imgStrength;
+      const txtX = nx * textStrengthX, txtY = ny * textStrengthY;
+
+      imgLayer.style.transform = `translate3d(${imgX}px, ${imgY}px, 0)`;
+      textLayer.style.transform = `translate3d(${txtX}px, ${txtY}px, 0)`;
+    }
+
+    overlay.addEventListener('mousemove', onMove);
+    overlay.addEventListener('mouseleave', reset);
+    return reset;
   }
 
-  if (cineParallaxEnabled) {
-    sectorOverlay.addEventListener('mousemove', onCineMouseMove);
-    sectorOverlay.addEventListener('mouseleave', resetCineParallax);
-  }
+  const resetCineParallax = setupParallax({
+    overlay: sectorOverlay,
+    imgLayer: sectorImgWrap,
+    textLayer: sectorContent
+  });
+
+  setupHotspotNavigation({
+    overlay: sectorOverlay,
+    prevZone: document.getElementById('sectorHotspotPrev'),
+    nextZone: document.getElementById('sectorHotspotNext'),
+    onPrev: () => goToSectorSlide(sectorCurrentSlide - 1),
+    onNext: () => goToSectorSlide(sectorCurrentSlide + 1)
+  });
 
   function openSector(key) {
     const slides = sectorSlides[key];
@@ -4334,7 +4456,6 @@
     
     sectorBg.style.background = '#08070a';
     
-    // Fix: Properly display the background image
     const imgEl = sectorImg;
     if (slide.img) {
       imgEl.src = slide.img;
@@ -4434,7 +4555,6 @@
     window.addEventListener('resize', updateIndicator);
     updateIndicator();
 
-    // Dismiss the "Swipe" hint on first interaction
     function dismissHint() {
       if (hint) {
         hint.style.animation = 'none';
@@ -4447,7 +4567,6 @@
     wrap.addEventListener('scroll', dismissHint, { passive: true, once: true });
     wrap.addEventListener('pointerdown', dismissHint, { once: true });
 
-    // Mouse/trackpad click-and-drag scrolling (touch already scrolls natively)
     let isDown = false;
     let startX = 0;
     let startScroll = 0;
@@ -4487,7 +4606,6 @@
     window.addEventListener('pointerup', endDrag);
     window.addEventListener('pointercancel', endDrag);
 
-    // Mark draggable once we know it's scrollable (updates on resize too)
     function markDraggable() {
       const scrollable = wrap.scrollWidth - wrap.clientWidth;
       wrap.classList.toggle('draggable', scrollable > 4);
