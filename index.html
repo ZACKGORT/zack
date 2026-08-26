@@ -991,6 +991,34 @@
       opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
     }
     .overlay[data-type="cine"].open .cine-nav { opacity: 1; pointer-events: auto; }
+
+    /* ── case-cine click hotspots — thin edge zones over the slide so
+       paging through case-study frames is a single low-effort click
+       near either side; a plain text counter replaces the button nav. ── */
+    .case-cine-hotspot {
+      position: absolute; top: 0; bottom: 0;
+      width: clamp(64px, 10vw, 200px);
+      z-index: 4;
+    }
+    .case-cine-hotspot-prev {
+      left: 0;
+      cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%3E%3Ccircle%20cx%3D%2722%27%20cy%3D%2722%27%20r%3D%2720%27%20fill%3D%27rgba%2820%2C20%2C20%2C0.55%29%27/%3E%3Cpath%20d%3D%27M26%2012%20L16%2022%20L26%2032%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E") 22 22, w-resize;
+    }
+    .case-cine-hotspot-next {
+      right: 0;
+      cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2744%27%20height%3D%2744%27%3E%3Ccircle%20cx%3D%2722%27%20cy%3D%2722%27%20r%3D%2720%27%20fill%3D%27rgba%2820%2C20%2C20%2C0.55%29%27/%3E%3Cpath%20d%3D%27M18%2012%20L28%2022%20L18%2032%27%20fill%3D%27none%27%20stroke%3D%27white%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27/%3E%3C/svg%3E") 22 22, e-resize;
+    }
+    .case-cine-hotspot.hidden { display: none; }
+
+    .case-cine-counter {
+      position: fixed; bottom: calc(24px + env(safe-area-inset-bottom,0px)); left: 50%;
+      transform: translateX(-50%); z-index: 9600;
+      font-family: 'Recursive', monospace; font-variation-settings: 'MONO' 1, 'CASL' 0, 'slnt' 0;
+      font-size: 10px; letter-spacing: 0.14em; color: rgba(240,236,226,0.45);
+      white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: opacity 0.3s ease;
+    }
+    .overlay[data-type="cine"].open .case-cine-counter { opacity: 1; }
     .cine-nb {
       background: none; border: none; cursor: pointer; color: rgba(240,236,226,1);
       padding: 12px 20px; font-size: 14px; font-family: 'Recursive', monospace; font-variation-settings: 'MONO' 1, 'CASL' 0, 'slnt' 0;
@@ -2228,13 +2256,10 @@
     <div class="cine-corner tl"></div>
     <div class="cine-corner br"></div>
     <div class="cine-content" id="caseCineContent"></div>
+    <div class="case-cine-hotspot case-cine-hotspot-prev" id="caseCineHotspotPrev" aria-label="Previous image" role="button" tabindex="-1"></div>
+    <div class="case-cine-hotspot case-cine-hotspot-next" id="caseCineHotspotNext" aria-label="Next image" role="button" tabindex="-1"></div>
   </div>
-  <div class="cine-nav">
-    <button class="cine-nb" id="caseCinePrev" aria-label="Previous image">←</button>
-    <div class="cine-counter" id="caseCineCounter">—</div>
-    <div class="cine-dots" id="caseCineDots"></div>
-    <button class="cine-nb" id="caseCineNext" aria-label="Next image">→</button>
-  </div>
+  <div class="case-cine-counter" id="caseCineCounter">—</div>
 </div>
 
 <!-- Lightbox -->
@@ -3546,10 +3571,9 @@
   const caseCineImg = document.getElementById('caseCineImg');
   const caseCineAmbient = document.getElementById('caseCineAmbient');
   const caseCineContent = document.getElementById('caseCineContent');
-  const caseCinePrev = document.getElementById('caseCinePrev');
-  const caseCineNext = document.getElementById('caseCineNext');
+  const caseCineHotspotPrev = document.getElementById('caseCineHotspotPrev');
+  const caseCineHotspotNext = document.getElementById('caseCineHotspotNext');
   const caseCineCounter = document.getElementById('caseCineCounter');
-  const caseCineDots = document.getElementById('caseCineDots');
 
   let caseCineImages = [];
   let caseCineIndex = 0;
@@ -3623,15 +3647,9 @@
 
   function updateCaseCineNav() {
     caseCineCounter.textContent = caseCineImages.length ? `${caseCineIndex + 1} / ${caseCineImages.length}` : '—';
-    caseCineDots.innerHTML = caseCineImages.map((_, i) =>
-      `<span class="cine-dot ${i === caseCineIndex ? 'active' : ''}"></span>`
-    ).join('');
-    caseCineDots.querySelectorAll('.cine-dot').forEach((dot, i) => {
-      dot.addEventListener('click', () => goToCaseCineImage(i));
-    });
     const multi = caseCineImages.length > 1;
-    caseCinePrev.style.visibility = multi ? 'visible' : 'hidden';
-    caseCineNext.style.visibility = multi ? 'visible' : 'hidden';
+    caseCineHotspotPrev.classList.toggle('hidden', !multi);
+    caseCineHotspotNext.classList.toggle('hidden', !multi);
   }
 
   function startCaseCineAutoplay() {
@@ -3645,8 +3663,8 @@
     if (caseCineTimer) { clearInterval(caseCineTimer); caseCineTimer = null; }
   }
 
-  caseCinePrev.addEventListener('click', () => goToCaseCineImage(caseCineIndex - 1));
-  caseCineNext.addEventListener('click', () => goToCaseCineImage(caseCineIndex + 1));
+  caseCineHotspotPrev.addEventListener('click', () => goToCaseCineImage(caseCineIndex - 1));
+  caseCineHotspotNext.addEventListener('click', () => goToCaseCineImage(caseCineIndex + 1));
   caseCineClose.addEventListener('click', closeCaseCine);
   caseCineOverlay.addEventListener('click', (e) => { if (e.target === caseCineOverlay) closeCaseCine(); });
 
