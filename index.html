@@ -3654,8 +3654,84 @@
   let hoverCardNodeId = null;
   let hoverVisible = false;
   let hideTimeout = null;
-  let currentX = -200, currentY = -200;
-  let targetX = -200, targetY = -200;
+
+  // Casual magnetic follow: the card eases toward the cursor with a plain,
+  // gentle lerp. As the cursor (and so the card's natural target position)
+  // gets close to the file-tree column, a soft repulsion nudges the target
+  // further right — the closer it gets, the harder it pushes — so the card
+  // drifts clear of the labels instead of ever landing on top of them.
+  let currentX = -400, currentY = -400;
+  let targetX = -400, targetY = -400;
+  const EASE = 0.14;
+  const AVOID_ZONE = 160;   // px of runway over which repulsion ramps up
+  const AVOID_STRENGTH = 130; // max extra px pushed away at zero clearance
+  let loopRunning = false;
+
+  function followLoop() {
+    currentX += (targetX - currentX) * EASE;
+    currentY += (targetY - currentY) * EASE;
+    hoverCard.style.left = currentX + 'px';
+    hoverCard.style.top = currentY + 'px';
+
+    const settled = Math.abs(targetX - currentX) < 0.3 && Math.abs(targetY - currentY) < 0.3;
+    if (hoverVisible || !settled) {
+      requestAnimationFrame(followLoop);
+    } else {
+      loopRunning = false;
+    }
+  }
+
+  function ensureLoopRunning() {
+    if (!loopRunning) {
+      loopRunning = true;
+      requestAnimationFrame(followLoop);
+    }
+  }
+
+  function applyTreeAvoidance(x, node) {
+    // Avoid only the label text itself (the row's name column), not the
+    // full-width row including the TYPE/SIZE columns — otherwise the card
+    // gets shoved almost entirely off-screen on wide rows.
+    const rowEl = document.querySelector(`[data-id="${node.id}"]`);
+    const nameEl = rowEl ? rowEl.querySelector('.name') : null;
+    const labelRight = (nameEl || rowEl) ? (nameEl || rowEl).getBoundingClientRect().right : 0;
+    const clearance = x - labelRight;
+    if (clearance < AVOID_ZONE) {
+      const t = Math.max(0, 1 - Math.max(clearance, 0) / AVOID_ZONE);
+      x += t * t * AVOID_STRENGTH;
+    }
+    return Math.max(x, labelRight + 16);
+  }
+
+  function computeCardTarget(node, event) {
+    let cardW = Math.min(340, window.innerWidth - 40);
+    const cardH = Math.min(340, window.innerHeight - 60);
+    let x, y;
+    if (isTouch) {
+      x = (window.innerWidth - cardW) / 2;
+      y = Math.max(20, (window.innerHeight - cardH) / 2);
+    } else {
+      // Y stays anchored to the vertical center of the file-tree panel
+      // regardless of cursor position, so the card holds steady as you
+      // move up and down rows instead of chasing the pointer vertically.
+      const treeRect = treeEl.getBoundingClientRect();
+      y = treeRect.top + treeRect.height / 2 - cardH / 2;
+      if (y < 10) y = 10;
+      if (y + cardH > window.innerHeight - 20) y = window.innerHeight - cardH - 20;
+
+      if (event && typeof event.clientX === 'number') {
+        x = applyTreeAvoidance(event.clientX + 16, node);
+      } else {
+        const rowEl = document.querySelector(`[data-id="${node.id}"]`);
+        const rect = rowEl ? rowEl.getBoundingClientRect() : { right: 20 };
+        x = applyTreeAvoidance(rect.right + 16, node);
+      }
+      if (x + cardW > window.innerWidth - 20) {
+        cardW = Math.max(200, window.innerWidth - 20 - x);
+      }
+    }
+    return { x, y, cardW, cardH };
+  }
 
   function showHoverCard(node, event) {
     const meta = node.projectMeta;
@@ -3679,44 +3755,30 @@
       hcImageWrap.style.display = 'none';
       hcImage.src = '';
     }
-    let cardW = Math.min(340, window.innerWidth - 40);
-    const cardH = Math.min(340, window.innerHeight - 60);
-    let x, y;
+
+    const { x, y, cardW, cardH } = computeCardTarget(node, event);
+    const wasVisible = hoverVisible;
+
     if (isTouch) {
-      x = (window.innerWidth - cardW) / 2;
-      y = Math.max(20, (window.innerHeight - cardH) / 2);
       hoverCard.classList.add('touch-mode');
       hcBackdrop.style.display = 'block';
-    } else if (event && typeof event.clientX === 'number') {
-      // Float in the top-right quadrant of the cursor: card sits to the
-      // right of the pointer, growing upward, with the cursor roughly at
-      // its bottom-left corner. Never fall back to the cursor's left.
-      x = event.clientX + 16;
-      y = event.clientY - cardH - 16;
-      if (x + cardW > window.innerWidth - 20) {
-        cardW = Math.max(200, window.innerWidth - 20 - x);
-      }
-      if (y < 10) y = 10;
-      if (y + cardH > window.innerHeight - 20) y = window.innerHeight - cardH - 20;
-      hoverCard.classList.remove('touch-mode');
-      hcBackdrop.style.display = 'none';
     } else {
-      const rowEl = document.querySelector(`[data-id="${node.id}"]`);
-      const rect = rowEl ? rowEl.getBoundingClientRect() : { right: 20, top: 20 };
-      x = rect.right + 16;
-      y = rect.top - cardH - 16;
-      if (x + cardW > window.innerWidth - 20) {
-        cardW = Math.max(200, window.innerWidth - 20 - x);
-      }
-      if (y < 10) y = 10;
-      if (y + cardH > window.innerHeight - 20) y = window.innerHeight - cardH - 20;
       hoverCard.classList.remove('touch-mode');
       hcBackdrop.style.display = 'none';
     }
+
     targetX = x; targetY = y;
-    currentX = x; currentY = y;
-    hoverCard.style.left = x + 'px';
-    hoverCard.style.top = y + 'px';
+    if (!wasVisible) {
+      // Fresh appearance: start a touch short of the target so the first
+      // frame still eases in, matching the ongoing follow behavior.
+      currentX = x - 12;
+      currentY = y + 8;
+    }
+    // If already visible and switching rows, leave current as-is so the
+    // card eases from wherever it is toward the new target.
+
+    hoverCard.style.left = currentX + 'px';
+    hoverCard.style.top = currentY + 'px';
     hoverCard.style.width = cardW + 'px';
     hoverCard.style.height = cardH + 'px';
     hoverCard.style.maxHeight = cardH + 'px';
@@ -3724,6 +3786,7 @@
     hoverVisible = true;
     hoverCardNodeId = node.id;
     clearTimeout(hideTimeout);
+    ensureLoopRunning();
   }
 
   function hideHoverCard(immediate) {
@@ -4314,21 +4377,10 @@
         row.addEventListener('mouseleave', () => { hideHoverCard(); });
         row.addEventListener('mousemove', (e) => {
           if (hoverVisible) {
-            let cardW = Math.min(340, window.innerWidth - 40);
-            const cardH = Math.min(340, window.innerHeight - 60);
-            let x = e.clientX + 16;
-            let y = e.clientY - cardH - 16;
-            if (x + cardW > window.innerWidth - 20) {
-              cardW = Math.max(200, window.innerWidth - 20 - x);
-              hoverCard.style.width = cardW + 'px';
-            }
-            if (y < 10) y = 10;
-            if (y + cardH > window.innerHeight - 20) y = window.innerHeight - cardH - 20;
+            const { x, y, cardW } = computeCardTarget(node, e);
             targetX = x; targetY = y;
-            currentX += (targetX - currentX) * 0.15;
-            currentY += (targetY - currentY) * 0.15;
-            hoverCard.style.left = currentX + 'px';
-            hoverCard.style.top = currentY + 'px';
+            hoverCard.style.width = cardW + 'px';
+            ensureLoopRunning();
           }
         });
       }
