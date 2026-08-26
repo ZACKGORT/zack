@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>PASTE · SAVE</title>
+  <title>/PASTED</title>
   <style>
     /* --- reset: full-viewport, brutalist, no chrome --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -58,6 +58,42 @@
     #paste-img.visible {
       opacity: 0.65;
       transform: scale(1);
+    }
+
+    /* --- CRISP THUMBNAIL PREVIEW (lower-right, no effects, native aspect) --- */
+    #paste-thumb {
+      position: fixed;
+      bottom: 80px;
+      right: 24px;
+      z-index: 15;
+      max-width: 320px;
+      max-height: 240px;
+      width: auto;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid rgba(240,236,226,0.12);
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      transform: scale(0.92) translateY(8px);
+      pointer-events: none;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    }
+
+    #paste-thumb.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    #paste-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      image-rendering: auto;
     }
 
     /* --- text preview (for pasted text) --- */
@@ -387,6 +423,7 @@
       #paste-content { padding: 6vh 6vw 14vh; }
       #paste-text-preview { padding: 4vh 4vw; }
       #paste-text-preview pre { font-size: clamp(12px, 3vw, 16px); padding: 1rem 1.5rem; max-height: 60vh; }
+      #paste-thumb { max-width: 200px; max-height: 150px; bottom: 72px; right: 12px; }
       .paste-corner { display: none; }
       #paste-controls { bottom: 16px; padding: 6px 10px; gap: 6px; }
       #paste-controls button { font-size: 9px; padding: 6px 12px; }
@@ -398,6 +435,7 @@
       #paste-content { padding: 4vh 6vw 10vh; justify-content: center; }
       #paste-text-preview { padding: 2vh 4vw; }
       #paste-text-preview pre { font-size: clamp(10px, 1.8vw, 14px); padding: 0.8rem 1.2rem; max-height: 50vh; }
+      #paste-thumb { max-width: 140px; max-height: 105px; bottom: 64px; right: 12px; }
       .paste-hl { font-size: clamp(20px, 4vw, 32px); margin-bottom: 8px; }
       .paste-body { font-size: clamp(11px, 1.3vw, 14px); }
       .paste-pq { font-size: clamp(12px, 1.5vw, 18px); margin-top: 8px; padding-left: 12px; }
@@ -421,6 +459,11 @@
       <img id="paste-img" src="" alt="pasted image" />
     </div>
 
+    <!-- CRISP THUMBNAIL PREVIEW (lower-right, no effects, native aspect) -->
+    <div id="paste-thumb">
+      <img id="paste-thumb-img" src="" alt="thumbnail preview" />
+    </div>
+
     <!-- text preview (for pasted text) -->
     <div id="paste-text-preview">
       <pre id="paste-text-content"></pre>
@@ -436,7 +479,7 @@
 
     <!-- foreground content -->
     <div id="paste-content" class="paste-slide">
-      <div class="paste-era">paste · save</div>
+      <div class="paste-era">/PASTED</div>
       <div class="paste-tag">Bookmark this shit. Paste images or text, save instantly.</div>
       <div class="paste-hl">1. Paste 2. Save</div>
       <div class="paste-body">Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.</div>
@@ -466,6 +509,8 @@
       const stage = document.getElementById('paste-stage');
       const imgWrap = document.getElementById('paste-img-wrap');
       const imgEl = document.getElementById('paste-img');
+      const thumb = document.getElementById('paste-thumb');
+      const thumbImg = document.getElementById('paste-thumb-img');
       const ambient = document.getElementById('paste-ambient');
       const content = document.getElementById('paste-content');
       const statusEl = document.getElementById('paste-status');
@@ -481,7 +526,7 @@
       let imageSrc = null;
       let textString = '';
 
-      // ---- default content (unified copy) ----
+      // ---- default content (/PASTED) ----
       function setDefaultContent() {
         const era = content.querySelector('.paste-era');
         const tag = content.querySelector('.paste-tag');
@@ -490,7 +535,7 @@
         const pq = content.querySelector('.paste-pq');
         const metrics = content.querySelector('.paste-metrics');
 
-        if (era) era.textContent = 'paste · save';
+        if (era) era.textContent = '/PASTED';
         if (tag) tag.textContent = 'Bookmark this shit. Paste images or text, save instantly.';
         if (hl) hl.textContent = '1. Paste 2. Save';
         if (body) body.textContent = 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.';
@@ -530,6 +575,9 @@
         // hide image
         imgEl.className = 'paste-img';
         imgEl.src = '';
+        // hide thumbnail
+        thumb.classList.remove('visible');
+        thumbImg.src = '';
         // hide text preview
         textPreview.classList.remove('visible');
         textContent.textContent = '';
@@ -558,8 +606,14 @@
       function setImage(src, blob, meta) {
         const img = new Image();
         img.onload = () => {
+          // main image
           imgEl.src = src;
           imgEl.className = 'paste-img visible';
+          
+          // crisp thumbnail — preserve native aspect ratio
+          thumbImg.src = src;
+          thumb.classList.add('visible');
+          
           hasImage = true;
           hasText = false;
           imageBlob = blob;
@@ -578,7 +632,7 @@
             const body = content.querySelector('.paste-body');
             const pq = content.querySelector('.paste-pq');
             const metrics = content.querySelector('.paste-metrics');
-            if (era) era.textContent = meta.era || 'paste · save';
+            if (era) era.textContent = meta.era || '/PASTED';
             if (tag) tag.textContent = meta.tag || 'Bookmark this shit. Paste images or text, save instantly.';
             if (hl) hl.textContent = meta.headline || '1. Paste 2. Save';
             if (body) body.textContent = meta.body || 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.';
@@ -605,6 +659,8 @@
           // fallback
           imgEl.src = src;
           imgEl.className = 'paste-img visible';
+          thumbImg.src = src;
+          thumb.classList.add('visible');
           hasImage = true;
           hasText = false;
           imageBlob = blob;
@@ -632,6 +688,8 @@
         textPreview.classList.add('visible');
         imgEl.className = 'paste-img';
         imgEl.src = '';
+        thumb.classList.remove('visible');
+        thumbImg.src = '';
         statusEl.textContent = '✓ text ready · save as .txt';
         statusEl.classList.add('ready');
         saveBtn.disabled = false;
@@ -685,7 +743,7 @@
         }
         if (imageBlob) {
           const meta = {
-            era: 'pasted · ' + new Date().toLocaleTimeString(),
+            era: '/PASTED',
             tag: 'Bookmark this shit. Paste images or text, save instantly.',
             headline: '1. Paste 2. Save',
             body: 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.',
@@ -748,7 +806,7 @@
         }
         if (blob) {
           const meta = {
-            era: 'dropped · ' + new Date().toLocaleTimeString(),
+            era: '/PASTED',
             tag: 'Bookmark this shit. Paste images or text, save instantly.',
             headline: '1. Paste 2. Save',
             body: 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.',
@@ -847,7 +905,7 @@
       setDefaultContent();
       resetAll();
 
-      console.log('📄 PASTE · SAVE — images & text, full-viewport, no fluff');
+      console.log('📄 /PASTED — images & text, full-viewport, no fluff');
     })();
   </script>
 </body>
