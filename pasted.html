@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PASTE · SAVE</title>
+  <style>
+    /* --- reset: full-viewport, brutalist, no chrome --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #0c0b0e;
+      font-family: 'Archivo', 'Helvetica Neue', sans-serif;
+      font-weight: 600;
+      color: #f0ece2;
+    }
+
+    /* --- full-screen stage: paste zone + canvas --- */
+    #paste-stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #0c0b0e;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: crosshair;
+    }
+
+    /* --- image layer (parallax) --- */
+    #paste-img-wrap {
+      position: absolute;
+      inset: -6%;
+      will-change: transform;
+      transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #paste-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0;
+      transition: opacity 1.2s ease, transform 0.3s ease;
+      transform: scale(1.02);
+      filter: blur(0px) saturate(1.2);
+      will-change: transform, opacity, filter;
+    }
+
+    #paste-img.visible {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+
+    /* --- text preview (for pasted text) --- */
+    #paste-text-preview {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10vh 10vw;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    #paste-text-preview.visible {
+      opacity: 1;
+    }
+
+    #paste-text-preview pre {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(14px, 2vw, 28px);
+      line-height: 1.6;
+      color: #f0ece2;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(8px);
+      padding: 2rem 3rem;
+      border-radius: 8px;
+      border: 1px solid rgba(240,236,226,0.08);
+      max-width: 90vw;
+      max-height: 70vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+    }
+
+    #paste-text-preview pre::-webkit-scrollbar {
+      width: 4px;
+      background: transparent;
+    }
+    #paste-text-preview pre::-webkit-scrollbar-thumb {
+      background: rgba(240,236,226,0.2);
+      border-radius: 4px;
+    }
+
+    /* --- scrim + ambient glow --- */
+    .paste-scrim {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background: linear-gradient(145deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none;
+    }
+
+    #paste-ambient {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: 0.6;
+      transition: background 0.8s ease, opacity 0.8s ease;
+      background: radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%);
+    }
+
+    /* --- foreground content (type overlay) --- */
+    #paste-content {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 8vh 7vw 12vh;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      pointer-events: none;
+      will-change: transform, opacity;
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                  opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* --- hide text when image is present --- */
+    #paste-content.hidden {
+      opacity: 0 !important;
+      pointer-events: none;
+      transform: translateY(20px);
+      transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+                  visibility 0s 0.7s;
+      visibility: hidden;
+    }
+
+    .paste-era {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(9px, 0.9vw, 11px);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(240,236,226,0.35);
+      margin-bottom: 10px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.6s 0.1s, transform 0.6s 0.1s;
+    }
+    .paste-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(10px, 1.1vw, 14px);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #b8a2d4;
+      margin-bottom: 16px;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.6s 0.15s, transform 0.6s 0.15s;
+    }
+    .paste-hl {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 900;
+      font-size: clamp(28px, 6vw, 72px);
+      line-height: 1.04;
+      letter-spacing: -0.02em;
+      color: #f0ece2;
+      max-width: 18ch;
+      margin-bottom: 18px;
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.7s 0.25s, transform 0.7s 0.25s;
+    }
+    .paste-body {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 400;
+      font-size: clamp(14px, 1.5vw, 20px);
+      line-height: 1.6;
+      color: rgba(240,236,226,0.75);
+      max-width: 56ch;
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.7s 0.35s, transform 0.7s 0.35s;
+    }
+    .paste-pq {
+      font-family: 'Archivo', sans-serif;
+      font-style: italic;
+      font-weight: 400;
+      font-size: clamp(16px, 1.8vw, 28px);
+      line-height: 1.35;
+      color: #f0ece2;
+      border-left: 3px solid #b8a2d4;
+      padding-left: 22px;
+      max-width: 46ch;
+      margin-top: 16px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.7s 0.4s, transform 0.7s 0.4s;
+    }
+    .paste-metrics {
+      display: flex;
+      gap: 10%;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.7s 0.3s, transform 0.7s 0.3s;
+    }
+    .paste-metric-value {
+      font-family: 'Archivo', sans-serif;
+      font-weight: 800;
+      font-size: clamp(24px, 3.2vw, 44px);
+      color: #b8a2d4;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .paste-metric-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: clamp(8px, 0.8vw, 10px);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(240,236,226,0.4);
+    }
+
+    .paste-slide.anim .paste-era,
+    .paste-slide.anim .paste-tag,
+    .paste-slide.anim .paste-hl,
+    .paste-slide.anim .paste-body,
+    .paste-slide.anim .paste-pq,
+    .paste-slide.anim .paste-metrics {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* --- corner markers --- */
+    .paste-corner {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0.25;
+    }
+    .paste-corner.tl { top: 4%; left: 4%; border-top: 1px solid #f0ece2; border-left: 1px solid #f0ece2; }
+    .paste-corner.br { bottom: calc(4% + 70px); right: 4%; border-bottom: 1px solid #f0ece2; border-right: 1px solid #f0ece2; }
+
+    /* --- controls --- */
+    #paste-controls {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      gap: 12px;
+      background: rgba(12, 11, 14, 0.7);
+      backdrop-filter: blur(16px);
+      padding: 8px 14px;
+      border-radius: 60px;
+      border: 1px solid rgba(240,236,226,0.15);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      pointer-events: auto;
+    }
+
+    #paste-controls button {
+      background: transparent;
+      border: none;
+      color: #f0ece2;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 18px;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(240,236,226,0.04);
+      border: 1px solid rgba(240,236,226,0.08);
+      font-weight: 600;
+    }
+
+    #paste-controls button:hover {
+      background: rgba(240,236,226,0.12);
+      border-color: rgba(240,236,226,0.3);
+    }
+
+    #paste-controls button:active {
+      transform: scale(0.96);
+    }
+
+    #paste-controls .btn-primary {
+      background: #b8a2d4;
+      color: #0c0b0e;
+      border-color: #b8a2d4;
+    }
+
+    #paste-controls .btn-primary:hover {
+      background: #d0bcf0;
+      border-color: #d0bcf0;
+    }
+
+    #paste-controls .btn-primary:disabled {
+      opacity: 0.25;
+      pointer-events: none;
+      filter: grayscale(0.8);
+    }
+
+    #paste-controls .btn-clear {
+      background: transparent;
+      color: rgba(240,236,226,0.5);
+      border-color: rgba(240,236,226,0.08);
+    }
+
+    #paste-controls .btn-clear:hover {
+      color: #f0ece2;
+      border-color: rgba(240,236,226,0.3);
+    }
+
+    /* --- status badge --- */
+    #paste-status {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      z-index: 20;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(240,236,226,0.25);
+      background: rgba(12,11,14,0.5);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 40px;
+      border: 1px solid rgba(240,236,226,0.06);
+      pointer-events: none;
+      transition: color 0.3s ease, border-color 0.3s ease;
+    }
+
+    #paste-status.ready {
+      color: rgba(240,236,226,0.7);
+      border-color: rgba(240,236,226,0.15);
+    }
+
+    /* --- keyboard hint --- */
+    #paste-hint {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(240,236,226,0.15);
+      pointer-events: none;
+      text-align: right;
+      line-height: 1.6;
+    }
+
+    #paste-hint kbd {
+      background: rgba(240,236,226,0.04);
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(240,236,226,0.06);
+      font-family: inherit;
+    }
+
+    /* --- responsive --- */
+    @media (max-width: 600px) {
+      #paste-content { padding: 6vh 6vw 14vh; }
+      #paste-text-preview { padding: 4vh 4vw; }
+      #paste-text-preview pre { font-size: clamp(12px, 3vw, 16px); padding: 1rem 1.5rem; max-height: 60vh; }
+      .paste-corner { display: none; }
+      #paste-controls { bottom: 16px; padding: 6px 10px; gap: 6px; }
+      #paste-controls button { font-size: 9px; padding: 6px 12px; }
+      #paste-status { top: 12px; right: 12px; font-size: 7px; padding: 4px 10px; }
+      #paste-hint { display: none; }
+    }
+
+    @media (max-height: 480px) and (orientation: landscape) {
+      #paste-content { padding: 4vh 6vw 10vh; justify-content: center; }
+      #paste-text-preview { padding: 2vh 4vw; }
+      #paste-text-preview pre { font-size: clamp(10px, 1.8vw, 14px); padding: 0.8rem 1.2rem; max-height: 50vh; }
+      .paste-hl { font-size: clamp(20px, 4vw, 32px); margin-bottom: 8px; }
+      .paste-body { font-size: clamp(11px, 1.3vw, 14px); }
+      .paste-pq { font-size: clamp(12px, 1.5vw, 18px); margin-top: 8px; padding-left: 12px; }
+      .paste-era { margin-bottom: 4px; }
+      .paste-tag { margin-bottom: 6px; }
+      .paste-metrics { margin-top: 8px; gap: 6%; }
+      .paste-metric-value { font-size: clamp(16px, 2.5vw, 26px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- FULL-VIEWPORT STAGE -->
+  <div id="paste-stage">
+    <!-- image layer (parallax) -->
+    <div id="paste-img-wrap">
+      <img id="paste-img" src="" alt="pasted image" />
+    </div>
+
+    <!-- text preview (for pasted text) -->
+    <div id="paste-text-preview">
+      <pre id="paste-text-content"></pre>
+    </div>
+
+    <!-- scrim + ambient glow -->
+    <div class="paste-scrim"></div>
+    <div id="paste-ambient"></div>
+
+    <!-- corner markers -->
+    <div class="paste-corner tl"></div>
+    <div class="paste-corner br"></div>
+
+    <!-- foreground content -->
+    <div id="paste-content" class="paste-slide">
+      <div class="paste-era">paste · save</div>
+      <div class="paste-tag">Bookmark this shit. Paste images or text, save instantly.</div>
+      <div class="paste-hl">1. Paste 2. Save</div>
+      <div class="paste-body">Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.</div>
+      <div class="paste-pq">"The fastest way to save anything from your clipboard"</div>
+      <div class="paste-metrics">
+        <div><div class="paste-metric-value">∞</div><div class="paste-metric-label">images</div></div>
+        <div><div class="paste-metric-value">∞</div><div class="paste-metric-label">text files</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- status badge -->
+  <div id="paste-status">⏎ paste image or text (ctrl+v)</div>
+
+  <!-- controls -->
+  <div id="paste-controls">
+    <button class="btn-clear" id="clearBtn" disabled>clear</button>
+    <button class="btn-primary" id="saveBtn" disabled>save</button>
+  </div>
+
+  <!-- hint -->
+  <div id="paste-hint"><kbd>⌘V</kbd> or <kbd>Ctrl+V</kbd> · drag &amp; drop</div>
+
+  <script>
+    (function() {
+      // ---- DOM refs ----
+      const stage = document.getElementById('paste-stage');
+      const imgWrap = document.getElementById('paste-img-wrap');
+      const imgEl = document.getElementById('paste-img');
+      const ambient = document.getElementById('paste-ambient');
+      const content = document.getElementById('paste-content');
+      const statusEl = document.getElementById('paste-status');
+      const saveBtn = document.getElementById('saveBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const textPreview = document.getElementById('paste-text-preview');
+      const textContent = document.getElementById('paste-text-content');
+
+      // ---- state ----
+      let hasImage = false;
+      let hasText = false;
+      let imageBlob = null;
+      let imageSrc = null;
+      let textString = '';
+
+      // ---- default content (unified copy) ----
+      function setDefaultContent() {
+        const era = content.querySelector('.paste-era');
+        const tag = content.querySelector('.paste-tag');
+        const hl = content.querySelector('.paste-hl');
+        const body = content.querySelector('.paste-body');
+        const pq = content.querySelector('.paste-pq');
+        const metrics = content.querySelector('.paste-metrics');
+
+        if (era) era.textContent = 'paste · save';
+        if (tag) tag.textContent = 'Bookmark this shit. Paste images or text, save instantly.';
+        if (hl) hl.textContent = '1. Paste 2. Save';
+        if (body) body.textContent = 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.';
+        if (pq) pq.textContent = '"The fastest way to save anything from your clipboard"';
+        if (metrics) {
+          const vals = metrics.querySelectorAll('.paste-metric-value');
+          const labels = metrics.querySelectorAll('.paste-metric-label');
+          if (vals[0]) vals[0].textContent = '∞';
+          if (labels[0]) labels[0].textContent = 'images';
+          if (vals[1]) vals[1].textContent = '∞';
+          if (labels[1]) labels[1].textContent = 'text files';
+        }
+        // re-trigger animation
+        content.classList.remove('anim', 'hidden');
+        requestAnimationFrame(() => {
+          content.classList.add('anim');
+        });
+      }
+
+      // ---- hide text overlay (fade out) ----
+      function hideContent() {
+        content.classList.add('hidden');
+        content.classList.remove('anim');
+      }
+
+      // ---- show text overlay (fade in) ----
+      function showContent() {
+        content.classList.remove('hidden');
+        content.classList.remove('anim');
+        requestAnimationFrame(() => {
+          content.classList.add('anim');
+        });
+      }
+
+      // ---- reset everything ----
+      function resetAll() {
+        // hide image
+        imgEl.className = 'paste-img';
+        imgEl.src = '';
+        // hide text preview
+        textPreview.classList.remove('visible');
+        textContent.textContent = '';
+        // reset state
+        hasImage = false;
+        hasText = false;
+        imageBlob = null;
+        imageSrc = null;
+        textString = '';
+        // reset UI
+        statusEl.textContent = '⏎ paste image or text (ctrl+v)';
+        statusEl.classList.remove('ready');
+        saveBtn.disabled = true;
+        clearBtn.disabled = true;
+        // show default content
+        setDefaultContent();
+        // reset ambient
+        ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
+        ambient.style.opacity = '0.6';
+        // reset parallax
+        imgWrap.style.transform = 'translate3d(0,0,0)';
+        content.style.transform = 'translate3d(0,0,0)';
+      }
+
+      // ---- set image ----
+      function setImage(src, blob, meta) {
+        const img = new Image();
+        img.onload = () => {
+          imgEl.src = src;
+          imgEl.className = 'paste-img visible';
+          hasImage = true;
+          hasText = false;
+          imageBlob = blob;
+          imageSrc = src;
+          textPreview.classList.remove('visible');
+          statusEl.textContent = '✓ image ready · save as .png';
+          statusEl.classList.add('ready');
+          saveBtn.disabled = false;
+          clearBtn.disabled = false;
+          hideContent();
+
+          if (meta) {
+            const era = content.querySelector('.paste-era');
+            const tag = content.querySelector('.paste-tag');
+            const hl = content.querySelector('.paste-hl');
+            const body = content.querySelector('.paste-body');
+            const pq = content.querySelector('.paste-pq');
+            const metrics = content.querySelector('.paste-metrics');
+            if (era) era.textContent = meta.era || 'paste · save';
+            if (tag) tag.textContent = meta.tag || 'Bookmark this shit. Paste images or text, save instantly.';
+            if (hl) hl.textContent = meta.headline || '1. Paste 2. Save';
+            if (body) body.textContent = meta.body || 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.';
+            if (pq) pq.textContent = meta.pq || '"The fastest way to save anything from your clipboard"';
+            if (metrics) {
+              const vals = metrics.querySelectorAll('.paste-metric-value');
+              const labels = metrics.querySelectorAll('.paste-metric-label');
+              if (meta.metrics) {
+                meta.metrics.forEach((m, i) => {
+                  if (vals[i]) vals[i].textContent = m.value;
+                  if (labels[i]) labels[i].textContent = m.label;
+                });
+              }
+            }
+            if (meta.accent) {
+              ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
+              ambient.style.opacity = '0.6';
+            }
+          }
+          imgWrap.style.transform = 'translate3d(0,0,0)';
+          content.style.transform = 'translate3d(0,0,0)';
+        };
+        img.onerror = () => {
+          // fallback
+          imgEl.src = src;
+          imgEl.className = 'paste-img visible';
+          hasImage = true;
+          hasText = false;
+          imageBlob = blob;
+          imageSrc = src;
+          textPreview.classList.remove('visible');
+          statusEl.textContent = '✓ image ready · save as .png';
+          statusEl.classList.add('ready');
+          saveBtn.disabled = false;
+          clearBtn.disabled = false;
+          hideContent();
+          if (meta && meta.accent) {
+            ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
+            ambient.style.opacity = '0.6';
+          }
+        };
+        img.src = src;
+      }
+
+      // ---- set text ----
+      function setText(text) {
+        hasText = true;
+        hasImage = false;
+        textString = text;
+        textContent.textContent = text;
+        textPreview.classList.add('visible');
+        imgEl.className = 'paste-img';
+        imgEl.src = '';
+        statusEl.textContent = '✓ text ready · save as .txt';
+        statusEl.classList.add('ready');
+        saveBtn.disabled = false;
+        clearBtn.disabled = false;
+        hideContent();
+        // ambient
+        ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
+        ambient.style.opacity = '0.6';
+      }
+
+      // ---- save handler ----
+      function handleSave() {
+        if (hasImage && imageBlob) {
+          const blob = imageBlob;
+          const ext = blob.type.split('/')[1] || 'png';
+          const name = 'screenshot-' + Date.now() + '.' + ext;
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.href = url;
+          link.download = name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } else if (hasText && textString) {
+          const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
+          const name = 'paste-' + Date.now() + '.txt';
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.href = url;
+          link.download = name;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }
+      }
+
+      // ---- paste handler ----
+      async function handlePaste(clipboardData) {
+        if (!clipboardData) return false;
+
+        // 1) Check for image
+        const items = clipboardData.items;
+        let imageBlob = null;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.startsWith('image/')) {
+            imageBlob = items[i].getAsFile();
+            break;
+          }
+        }
+        if (imageBlob) {
+          const meta = {
+            era: 'pasted · ' + new Date().toLocaleTimeString(),
+            tag: 'Bookmark this shit. Paste images or text, save instantly.',
+            headline: '1. Paste 2. Save',
+            body: 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.',
+            pq: '"The fastest way to save anything from your clipboard"',
+            accent: '#b8a2d4',
+            metrics: [
+              { value: '1', label: 'image' },
+              { value: (imageBlob.size / 1024).toFixed(0) + 'KB', label: 'size' }
+            ]
+          };
+          const url = URL.createObjectURL(imageBlob);
+          setImage(url, imageBlob, meta);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          return true;
+        }
+
+        // 2) Check for text
+        let text = '';
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type === 'text/plain') {
+            text = await new Promise((resolve) => {
+              items[i].getAsString(resolve);
+            });
+            break;
+          }
+        }
+        // Also check for text/uri-list (URLs)
+        if (!text) {
+          for (let i = 0; i < items.length; i++) {
+            if (items[i].type === 'text/uri-list') {
+              text = await new Promise((resolve) => {
+                items[i].getAsString(resolve);
+              });
+              break;
+            }
+          }
+        }
+        if (text && text.trim().length > 0) {
+          setText(text.trim());
+          return true;
+        }
+
+        return false;
+      }
+
+      // ---- drag & drop ----
+      stage.addEventListener('dragover', (e) => { e.preventDefault(); });
+      stage.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const files = e.dataTransfer.files;
+        if (files.length === 0) return;
+
+        // Check for image file
+        let blob = null;
+        for (let i = 0; i < files.length; i++) {
+          if (files[i].type.startsWith('image/')) {
+            blob = files[i];
+            break;
+          }
+        }
+        if (blob) {
+          const meta = {
+            era: 'dropped · ' + new Date().toLocaleTimeString(),
+            tag: 'Bookmark this shit. Paste images or text, save instantly.',
+            headline: '1. Paste 2. Save',
+            body: 'Images → .png · Text → .txt. No fluff, no plugins, no privacy issues.',
+            pq: '"The fastest way to save anything from your clipboard"',
+            accent: '#b8a2d4',
+            metrics: [
+              { value: '1', label: 'image' },
+              { value: (blob.size / 1024).toFixed(0) + 'KB', label: 'size' }
+            ]
+          };
+          const url = URL.createObjectURL(blob);
+          setImage(url, blob, meta);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          return;
+        }
+
+        // Check for text file
+        for (let i = 0; i < files.length; i++) {
+          if (files[i].type === 'text/plain' || files[i].name.endsWith('.txt')) {
+            const text = await files[i].text();
+            if (text && text.trim().length > 0) {
+              setText(text.trim());
+              return;
+            }
+          }
+        }
+
+        statusEl.textContent = '⚠️ unsupported file type';
+        setTimeout(() => {
+          if (!hasImage && !hasText) {
+            statusEl.textContent = '⏎ paste image or text (ctrl+v)';
+          }
+        }, 3000);
+      });
+
+      // ---- event listeners ----
+      saveBtn.addEventListener('click', handleSave);
+      clearBtn.addEventListener('click', resetAll);
+
+      document.addEventListener('paste', async (e) => {
+        const success = await handlePaste(e.clipboardData);
+        if (success) e.preventDefault();
+      });
+
+      // ---- CURSOR PARALLAX ----
+      let targetX = 0, targetY = 0;
+      let smoothX = 0, smoothY = 0;
+
+      function updateParallax(clientX, clientY) {
+        const rect = stage.getBoundingClientRect();
+        const nx = ((clientX - rect.left) / rect.width - 0.5) * 2;
+        const ny = ((clientY - rect.top) / rect.height - 0.5) * 2;
+
+        targetX = nx * -8;
+        targetY = ny * -6;
+        const contentX = nx * 6;
+        const contentY = ny * 4;
+        content.style.transform = `translate3d(${contentX}px, ${contentY}px, 0)`;
+        // slight parallax on text preview too
+        textPreview.style.transform = `translate3d(${nx * 4}px, ${ny * 3}px, 0)`;
+      }
+
+      function animateParallax() {
+        smoothX += (targetX - smoothX) * 0.08;
+        smoothY += (targetY - smoothY) * 0.08;
+        imgWrap.style.transform = `translate3d(${smoothX}px, ${smoothY}px, 0)`;
+        requestAnimationFrame(animateParallax);
+      }
+
+      stage.addEventListener('mousemove', (e) => {
+        updateParallax(e.clientX, e.clientY);
+      });
+
+      stage.addEventListener('mouseleave', () => {
+        targetX = 0;
+        targetY = 0;
+        content.style.transform = 'translate3d(0,0,0)';
+        textPreview.style.transform = 'translate3d(0,0,0)';
+      });
+
+      stage.addEventListener('touchmove', (e) => {
+        const t = e.touches[0];
+        if (t) updateParallax(t.clientX, t.clientY);
+      }, { passive: true });
+
+      stage.addEventListener('touchend', () => {
+        targetX = 0;
+        targetY = 0;
+        content.style.transform = 'translate3d(0,0,0)';
+        textPreview.style.transform = 'translate3d(0,0,0)';
+      }, { passive: true });
+
+      animateParallax();
+
+      // ---- init ----
+      setDefaultContent();
+      resetAll();
+
+      console.log('📄 PASTE · SAVE — images & text, full-viewport, no fluff');
+    })();
+  </script>
+</body>
+</html>
