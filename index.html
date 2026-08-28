@@ -2,9 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>zack.cx — craft.experience</title>
     <meta name="description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="zack.cx" />
+    <meta property="og:title" content="zack.cx — craft.experience" />
+    <meta property="og:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+    <meta property="og:url" content="https://zack.cx" />
+    <meta property="og:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="zack.cx — craft.experience" />
+    <meta name="twitter:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
     <link rel="icon" type="image/webp" href="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -4653,6 +4663,45 @@
         let caseCineTimer = null;
         const CASE_CINE_INTERVAL = 5000;
 
+        // Shared helper: combine era/tag/headline/body into a single notification
+        // banner. Used by both the case-study cine view and the sector cine view
+        // so the two stay in sync instead of drifting apart.
+        function buildCineBanners(data) {
+            const parts = [];
+            if (data.era) parts.push(`Era: ${data.era}`);
+            if (data.tag) parts.push(`Tag: ${data.tag}`);
+            if (data.headline) parts.push(`Headline: ${data.headline}`);
+            let summaryMessage = parts.join(' · ');
+            if (data.body) {
+                summaryMessage = summaryMessage ? `${summaryMessage} · ${data.body}` : data.body;
+            }
+            const summaryTitle = data.headline || 'Overview';
+            const banners = [];
+            if (summaryMessage) {
+                banners.push({ icon: 'info', iconChar: '📋', title: summaryTitle, message: summaryMessage });
+            }
+            return banners;
+        }
+
+        function renderNotificationBanners(banners, stepAttr) {
+            return banners.map((b, i) => {
+                const hasDetails = b.message && b.message.length > 60;
+                const messageText = hasDetails ? b.message.slice(0, 60) + '…' : b.message;
+                const detailsContent = hasDetails ? `<details class="notification-details"><summary>View details</summary><div class="notification-details-content">${b.message}</div></details>` : '';
+                return `
+                <div class="notification" data-${stepAttr}="${i}" data-dismissed="false">
+                  <div class="notification-icon ${b.icon}">${b.iconChar}</div>
+                  <div class="notification-content">
+                    <div class="notification-title">${b.title}</div>
+                    <div class="notification-message">${messageText}</div>
+                    ${detailsContent}
+                  </div>
+                  <button class="notification-close" data-${stepAttr}="${i}" aria-label="Dismiss">✕</button>
+                </div>
+              `;
+            }).join('');
+        }
+
         function openCaseCine(node) {
             const cine = node.projectMeta && node.projectMeta.cine;
             if (!cine) return;
@@ -4668,38 +4717,8 @@
 
             // Combine era, tag, headline, and body into a single banner per case study.
             // NOTABLY banners (pq / metrics) are omitted entirely.
-            const combinedSummary = [];
-            if (cine.era) combinedSummary.push(`Era: ${cine.era}`);
-            if (cine.tag) combinedSummary.push(`Tag: ${cine.tag}`);
-            if (cine.headline) combinedSummary.push(`Headline: ${cine.headline}`);
-            let summaryMessage = combinedSummary.join(' · ');
-            if (cine.body) {
-                summaryMessage = summaryMessage ? `${summaryMessage} · ${cine.body}` : cine.body;
-            }
-            const summaryTitle = cine.headline || 'Overview';
-
-            const cineBanners = [];
-            // Single combined banner (era + tag + headline + body)
-            if (summaryMessage) {
-                cineBanners.push({ icon: 'info', iconChar: '📋', title: summaryTitle, message: summaryMessage });
-            }
-
-            const bannersHtml = cineBanners.map((b, i) => {
-                const hasDetails = b.message && b.message.length > 60;
-                const messageText = hasDetails ? b.message.slice(0, 60) + '…' : b.message;
-                const detailsContent = hasDetails ? `<details class="notification-details"><summary>View details</summary><div class="notification-details-content">${b.message}</div></details>` : '';
-                return `
-                <div class="notification" data-cine-step="${i}" data-dismissed="false">
-                  <div class="notification-icon ${b.icon}">${b.iconChar}</div>
-                  <div class="notification-content">
-                    <div class="notification-title">${b.title}</div>
-                    <div class="notification-message">${messageText}</div>
-                    ${detailsContent}
-                  </div>
-                  <button class="notification-close" data-cine-step="${i}" aria-label="Dismiss">✕</button>
-                </div>
-              `;
-            }).join('');
+            const cineBanners = buildCineBanners({ era: cine.era, tag: cine.tag, headline: cine.headline, body: cine.body });
+            const bannersHtml = renderNotificationBanners(cineBanners, 'cine-step');
 
             let cineDismissed = new Set();
             caseCineOverlay._cineDismissed = cineDismissed;
@@ -5760,36 +5779,8 @@
                 sectorIdx.textContent = `0${index + 1}`;
                 // Build a single combined notification banner for sector slide.
                 // NOTABLY banners (pq / metrics) are omitted entirely.
-                const sectorBanners = [];
-                const combinedSummary = [];
-                if (slide.era) combinedSummary.push(`Era: ${slide.era}`);
-                if (slide.tag) combinedSummary.push(`Tag: ${slide.tag}`);
-                if (slide.title) combinedSummary.push(`Headline: ${slide.title}`);
-                let summaryMessage = combinedSummary.join(' · ');
-                if (slide.body) {
-                    summaryMessage = summaryMessage ? `${summaryMessage} · ${slide.body}` : slide.body;
-                }
-                const summaryTitle = slide.title || 'Overview';
-                if (summaryMessage) {
-                    sectorBanners.push({ icon: 'info', iconChar: '📋', title: summaryTitle, message: summaryMessage });
-                }
-
-                const bannersHtml = sectorBanners.map((b, i) => {
-                    const hasDetails = b.message && b.message.length > 60;
-                    const messageText = hasDetails ? b.message.slice(0, 60) + '…' : b.message;
-                    const detailsContent = hasDetails ? `<details class="notification-details"><summary>View details</summary><div class="notification-details-content">${b.message}</div></details>` : '';
-                    return `
-                    <div class="notification" data-sector-step="${i}" data-dismissed="false">
-                      <div class="notification-icon ${b.icon}">${b.iconChar}</div>
-                      <div class="notification-content">
-                        <div class="notification-title">${b.title}</div>
-                        <div class="notification-message">${messageText}</div>
-                        ${detailsContent}
-                      </div>
-                      <button class="notification-close" data-sector-step="${i}" aria-label="Dismiss">✕</button>
-                    </div>
-                  `;
-                }).join('');
+                const sectorBanners = buildCineBanners({ era: slide.era, tag: slide.tag, headline: slide.title, body: slide.body });
+                const bannersHtml = renderNotificationBanners(sectorBanners, 'sector-step');
 
                 let sectorDismissed = new Set();
                 sectorOverlay._sectorDismissed = sectorDismissed;
