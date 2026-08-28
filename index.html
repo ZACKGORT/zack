@@ -5569,6 +5569,69 @@
                     1, -1); }
         });
 
+        // ─── Modal focus management ───
+        // Traps Tab navigation inside whichever dialog overlay is open, and
+        // restores focus to the element that opened it on close. Applies
+        // uniformly to every role="dialog" overlay via a class-attribute
+        // observer, so individual open()/close() functions don't each need
+        // their own focus-trap wiring.
+        (function setupOverlayFocusManagement() {
+            const dialogEls = document.querySelectorAll('.overlay, #lightbox');
+            const focusState = new WeakMap();
+            const FOCUSABLE_SELECTOR =
+                'a[href], button:not([disabled]), textarea, input, select, summary, [tabindex]:not([tabindex="-1"])';
+
+            function getFocusable(container) {
+                return Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR))
+                    .filter(el => el.offsetParent !== null);
+            }
+
+            function makeKeydownHandler(container) {
+                return function (e) {
+                    if (e.key !== 'Tab') return;
+                    const focusable = getFocusable(container);
+                    if (!focusable.length) return;
+                    const first = focusable[0];
+                    const last = focusable[focusable.length - 1];
+                    if (e.shiftKey && document.activeElement === first) {
+                        e.preventDefault();
+                        last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
+                        e.preventDefault();
+                        first.focus();
+                    }
+                };
+            }
+
+            dialogEls.forEach((dialogEl) => {
+                const observer = new MutationObserver(() => {
+                    const isOpen = dialogEl.classList.contains('open');
+                    const existing = focusState.get(dialogEl);
+                    if (isOpen && !existing) {
+                        const previousFocus = document.activeElement;
+                        const onKeydown = makeKeydownHandler(dialogEl);
+                        dialogEl.addEventListener('keydown', onKeydown);
+                        focusState.set(dialogEl, { previousFocus, onKeydown });
+                        // Content is often injected async right after the 'open'
+                        // class lands, so defer the initial focus move a tick.
+                        setTimeout(() => {
+                            if (!dialogEl.classList.contains('open')) return;
+                            const focusable = getFocusable(dialogEl);
+                            (focusable[0] || dialogEl).focus({ preventScroll: true });
+                        }, 60);
+                    } else if (!isOpen && existing) {
+                        dialogEl.removeEventListener('keydown', existing.onKeydown);
+                        focusState.delete(dialogEl);
+                        if (existing.previousFocus && document.body.contains(existing.previousFocus)) {
+                            existing.previousFocus.focus({ preventScroll: true });
+                        }
+                    }
+                });
+                observer.observe(dialogEl, { attributes: true, attributeFilter: ['class'] });
+                if (!dialogEl.hasAttribute('tabindex')) dialogEl.setAttribute('tabindex', '-1');
+            });
+        })();
+
         // ─── Profile ───
         const profileAvatar = document.getElementById('profileAvatar');
         const profileOverlay = document.getElementById('profileOverlay');
