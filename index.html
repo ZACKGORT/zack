@@ -941,6 +941,15 @@
             will-change: transform;
             transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        /* Two stacked layers per cine — lets the outgoing frame shrink away
+           while the incoming one slides into place, Codrops "Slideshow
+           Animations" demo 3 style. Managed by createCineTransition(). */
+        .cine-slide-layer {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            will-change: transform;
+        }
         .cine-img {
             position: absolute;
             inset: 0;
@@ -2242,7 +2251,8 @@
             <div class="cine-bg" id="cineBg"></div>
             <div class="cine-aurora" id="cineAurora"></div>
             <div class="cine-img-wrap" id="cineImgWrap">
-                <img class="cine-img" id="cineImg" alt="" />
+                <div class="cine-slide-layer" id="cineLayerA"><img class="cine-img" id="cineImgA" alt="" /></div>
+                <div class="cine-slide-layer" id="cineLayerB"><img class="cine-img" id="cineImgB" alt="" /></div>
             </div>
             <div class="cine-scrim"></div>
             <div class="cine-ambient" id="cineAmbient"></div>
@@ -2268,7 +2278,8 @@
             <div class="cine-bg" id="caseCineBg"></div>
             <div class="cine-aurora" id="caseCineAurora"></div>
             <div class="cine-img-wrap" id="caseCineImgWrap">
-                <img class="cine-img" id="caseCineImg" alt="" />
+                <div class="cine-slide-layer" id="caseCineLayerA"><img class="cine-img" id="caseCineImgA" alt="" /></div>
+                <div class="cine-slide-layer" id="caseCineLayerB"><img class="cine-img" id="caseCineImgB" alt="" /></div>
             </div>
             <div class="cine-scrim"></div>
             <div class="cine-ambient" id="caseCineAmbient"></div>
@@ -3962,7 +3973,6 @@
         const caseCineOverlay = document.getElementById('caseCineOverlay');
         const caseCineClose = document.getElementById('caseCineClose');
         const caseCineBg = document.getElementById('caseCineBg');
-        const caseCineImg = document.getElementById('caseCineImg');
         const caseCineAmbient = document.getElementById('caseCineAmbient');
         const caseCineContent = document.getElementById('caseCineContent');
         const caseCineHotspotPrev = document.getElementById('caseCineHotspotPrev');
@@ -4018,22 +4028,19 @@
             unmountAurora('caseCine');
         }
 
-        function showCaseCineImage(index) {
+        function showCaseCineImage(index, direction) {
             const src = caseCineImages[index];
-            if (!src) { caseCineImg.className = ''; return; }
-            caseCineImg.classList.remove('vis');
-            setTimeout(() => {
-                caseCineImg.src = src;
-                caseCineImg.className = 'cine-img vis';
-            }, 200);
+            if (!src) return;
+            caseCineTransition(src, typeof direction === 'number' ? direction : 1, '0.55');
         }
 
-        function goToCaseCineImage(index) {
+        function goToCaseCineImage(index, direction) {
             if (!caseCineImages.length) return;
+            if (typeof direction !== 'number') direction = index >= caseCineIndex ? 1 : -1;
             if (index < 0) index = caseCineImages.length - 1;
             if (index >= caseCineImages.length) index = 0;
             caseCineIndex = index;
-            showCaseCineImage(caseCineIndex);
+            showCaseCineImage(caseCineIndex, direction);
             updateCaseCineNav();
             startCaseCineAutoplay();
         }
@@ -4052,7 +4059,7 @@
         function startCaseCineAutoplay() {
             stopCaseCineAutoplay();
             if (caseCineImages.length > 1) {
-                caseCineTimer = setInterval(() => goToCaseCineImage(caseCineIndex + 1), CASE_CINE_INTERVAL);
+                caseCineTimer = setInterval(() => goToCaseCineImage(caseCineIndex + 1, 1), CASE_CINE_INTERVAL);
             }
         }
 
@@ -4135,12 +4142,96 @@
             return reset;
         }
 
+        // ─── Shared: cine slide transition ───
+        // Adapted from Codrops "Slideshow Animations" demo 1
+        // (github.com/codrops/SlideshowAnimations, js/demo1/slideshow.js):
+        // outgoing and incoming frames slide past each other in one beat —
+        // the outgoing frame exits opposite the incoming one's entrance,
+        // while each frame's image parallaxes a little slower than its
+        // frame, giving the cut some depth. No scale, no stagger — just
+        // one shared timeline. Two stacked layers per deck stand in for
+        // demo1's stacked .slide elements; direction 1 enters from below
+        // (next), -1 enters from above (prev).
+        function createCineTransition(layerA, imgA, layerB, imgB) {
+            const EASE = 'cubic-bezier(0.86,0,0.07,1)'; // ~ power4.inOut
+            const DUR = 1500;
+            const KEN_BURNS_DUR = 9000;
+            const SETTLE = DUR + 50;
+
+            let showingA = true;
+            let animating = false;
+            let settleTimer = null;
+
+            function park(layer, img) {
+                layer.style.transition = 'none';
+                layer.style.transform = 'translateX(0)';
+                img.style.transition = 'none';
+                img.style.transform = 'translateX(0)';
+            }
+            park(layerA, imgA);
+            park(layerB, imgB);
+            layerA.style.zIndex = '2';
+            layerB.style.zIndex = '1';
+
+            return function show(src, direction, opacity, onMidpoint) {
+                if (settleTimer) clearTimeout(settleTimer);
+                const outLayer = showingA ? layerA : layerB;
+                const outImg = showingA ? imgA : imgB;
+                const inLayer = showingA ? layerB : layerA;
+                const inImg = showingA ? imgB : imgA;
+                showingA = !showingA;
+                animating = true;
+
+                // Park the incoming frame off-screen, image offset the other way
+                inImg.src = src;
+                inImg.className = 'cine-img vis';
+                inImg.style.opacity = opacity || '0.55';
+                inLayer.style.zIndex = '2';
+                outLayer.style.zIndex = '1';
+                inLayer.style.transition = 'none';
+                inLayer.style.transform = `translateX(${direction * 100}%)`;
+                inImg.style.transition = 'none';
+                inImg.style.transform = `translateX(${-direction * 30}%)`;
+                void inLayer.offsetHeight; // flush before animating
+
+                // One shared beat: outgoing exits, incoming enters, both
+                // frames and both inner images move together
+                outLayer.style.transition = `transform ${DUR}ms ${EASE}`;
+                outLayer.style.transform = `translateX(${-direction * 100}%)`;
+                outImg.style.transition = `transform ${DUR}ms ${EASE}`;
+                outImg.style.transform = `translateX(${direction * 30}%)`;
+                inLayer.style.transition = `transform ${DUR}ms ${EASE}`;
+                inLayer.style.transform = 'translateX(0)';
+                inImg.style.transition = `transform ${DUR}ms ${EASE}`;
+                inImg.style.transform = 'translateX(0)';
+                if (onMidpoint) onMidpoint();
+
+                // Settle: park the outgoing frame, ease the incoming image
+                // into a slow cinematic drift for as long as it's on screen
+                settleTimer = setTimeout(() => {
+                    park(outLayer, outImg);
+                    outImg.style.opacity = '0';
+                    inImg.style.transition = 'none';
+                    inImg.style.transform = 'scale(1.08) translateX(0)';
+                    void inImg.offsetHeight;
+                    inImg.style.transition = `transform ${KEN_BURNS_DUR}ms ease`;
+                    inImg.style.transform = 'scale(1) translateX(0)';
+                    animating = false;
+                }, SETTLE);
+            };
+        }
+
+        const caseCineTransition = createCineTransition(
+            document.getElementById('caseCineLayerA'), document.getElementById('caseCineImgA'),
+            document.getElementById('caseCineLayerB'), document.getElementById('caseCineImgB')
+        );
+
         setupHotspotNavigation({
             overlay: caseCineOverlay,
             prevZone: caseCineHotspotPrev,
             nextZone: caseCineHotspotNext,
-            onPrev: () => goToCaseCineImage(caseCineIndex - 1),
-            onNext: () => goToCaseCineImage(caseCineIndex + 1)
+            onPrev: () => goToCaseCineImage(caseCineIndex - 1, -1),
+            onNext: () => goToCaseCineImage(caseCineIndex + 1, 1)
         });
         setupParallax({
             overlay: caseCineOverlay,
@@ -4469,13 +4560,13 @@
                 if (sectorOverlay.classList.contains('open')) { closeSector(); return; }
             }
             if (e.key === 'ArrowRight' && sectorOverlay.classList.contains('open')) { goToSectorSlide(sectorCurrentSlide +
-                    1); }
+                    1, 1); }
             if (e.key === 'ArrowLeft' && sectorOverlay.classList.contains('open')) { goToSectorSlide(sectorCurrentSlide -
-                    1); }
+                    1, -1); }
             if (e.key === 'ArrowRight' && caseCineOverlay.classList.contains('open')) { goToCaseCineImage(caseCineIndex +
-                    1); }
+                    1, 1); }
             if (e.key === 'ArrowLeft' && caseCineOverlay.classList.contains('open')) { goToCaseCineImage(caseCineIndex -
-                    1); }
+                    1, -1); }
         });
 
         // ─── Profile ───
@@ -4626,7 +4717,6 @@
         const sectorSlide = document.getElementById('cineSlide');
         const sectorBg = document.getElementById('cineBg');
         const sectorImgWrap = document.getElementById('cineImgWrap');
-        const sectorImg = document.getElementById('cineImg');
         const sectorAmbient = document.getElementById('cineAmbient');
         const sectorContent = document.getElementById('cineContent');
         const sectorIdx = document.getElementById('cineIdx');
@@ -4639,12 +4729,17 @@
             textLayer: sectorContent
         });
 
+        const sectorCineTransition = createCineTransition(
+            document.getElementById('cineLayerA'), document.getElementById('cineImgA'),
+            document.getElementById('cineLayerB'), document.getElementById('cineImgB')
+        );
+
         setupHotspotNavigation({
             overlay: sectorOverlay,
             prevZone: document.getElementById('sectorHotspotPrev'),
             nextZone: document.getElementById('sectorHotspotNext'),
-            onPrev: () => goToSectorSlide(sectorCurrentSlide - 1),
-            onNext: () => goToSectorSlide(sectorCurrentSlide + 1)
+            onPrev: () => goToSectorSlide(sectorCurrentSlide - 1, -1),
+            onNext: () => goToSectorSlide(sectorCurrentSlide + 1, 1)
         });
 
         function openSector(key) {
@@ -4669,41 +4764,41 @@
             unmountAurora('sector');
         }
 
-        function showSectorSlide(index) {
+        function showSectorSlide(index, direction) {
             const slide = sectorSlidesData[index];
             if (!slide) return;
             sectorSlide.classList.remove('anim');
             resetSectorParallax();
             sectorBg.style.background = '#08070a';
-            const imgEl = sectorImg;
+
+            function swapContent() {
+                sectorAmbient.style.setProperty('--cine-accent', slide.accent || '#c8704a');
+                sectorAmbient.style.background =
+                    `radial-gradient(ellipse 80% 60% at 15% 100%, ${slide.accent || '#c8704a'} 0%, transparent 65%)`;
+                sectorAmbient.style.opacity = '0.5';
+                sectorIdx.textContent = `0${index + 1}`;
+                const metricsHtml = (slide.metrics || []).map(m => `
+                <div>
+                  <div class="cine-dv">${m.value}</div>
+                  <div class="cine-dl">${m.label}</div>
+                </div>
+              `).join('');
+                sectorContent.innerHTML = `
+                <div class="cine-era">${slide.era || ''}</div>
+                <div class="cine-tag" style="color:${slide.accent || '#c8704a'}">${slide.tag || ''}</div>
+                <div class="cine-hl">${slide.title}</div>
+                <div class="cine-body">${slide.body}</div>
+                ${slide.pq ? `<div class="cine-pq">${slide.pq}</div>` : ''}
+                ${metricsHtml ? `<div class="cine-dg">${metricsHtml}</div>` : ''}
+              `;
+                requestAnimationFrame(() => sectorSlide.classList.add('anim'));
+            }
+
             if (slide.img) {
-                imgEl.src = slide.img;
-                imgEl.style.display = 'block';
-                imgEl.className = 'cine-img vis';
-                imgEl.style.opacity = '0.55';
-            } else { imgEl.style.display = 'none';
-                imgEl.className = ''; }
-            sectorAmbient.style.setProperty('--cine-accent', slide.accent || '#c8704a');
-            sectorAmbient.style.background =
-                `radial-gradient(ellipse 80% 60% at 15% 100%, ${slide.accent || '#c8704a'} 0%, transparent 65%)`;
-            sectorAmbient.style.opacity = '0.5';
-            sectorIdx.textContent = `0${index + 1}`;
-            const metricsHtml = (slide.metrics || []).map(m => `
-            <div>
-              <div class="cine-dv">${m.value}</div>
-              <div class="cine-dl">${m.label}</div>
-            </div>
-          `).join('');
-            sectorContent.innerHTML = `
-            <div class="cine-era">${slide.era || ''}</div>
-            <div class="cine-tag" style="color:${slide.accent || '#c8704a'}">${slide.tag || ''}</div>
-            <div class="cine-hl">${slide.title}</div>
-            <div class="cine-body">${slide.body}</div>
-            ${slide.pq ? `<div class="cine-pq">${slide.pq}</div>` : ''}
-            ${metricsHtml ? `<div class="cine-dg">${metricsHtml}</div>` : ''}
-          `;
-            requestAnimationFrame(() => { sectorSlide.classList.add('anim'); if (slide.img) { imgEl.style.opacity =
-                        '0.55'; } });
+                sectorCineTransition(slide.img, typeof direction === 'number' ? direction : 1, '0.55', swapContent);
+            } else {
+                swapContent();
+            }
             updateSectorNav();
         }
 
@@ -4715,11 +4810,12 @@
             if (sectorNumTotal) sectorNumTotal.textContent = totalStr;
         }
 
-        function goToSectorSlide(index) {
+        function goToSectorSlide(index, direction) {
+            if (typeof direction !== 'number') direction = index >= sectorCurrentSlide ? 1 : -1;
             if (index < 0) index = sectorSlidesData.length - 1;
             if (index >= sectorSlidesData.length) index = 0;
             sectorCurrentSlide = index;
-            showSectorSlide(sectorCurrentSlide);
+            showSectorSlide(sectorCurrentSlide, direction);
         }
 
         let folderDragged = false;
