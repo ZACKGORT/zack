@@ -1455,14 +1455,30 @@
             min-width: 0;
         }
 
+        .notification-kicker {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.09em;
+            color: #9aa0a6;
+            margin-bottom: 8px;
+            padding-bottom: 7px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            display: block;
+        }
+
         .notification-title {
             font-family: 'Archivo', sans-serif;
-            font-weight: 700;
-            font-size: 15px;
-            color: #1a1a1a;
-            margin-bottom: 3px;
-            letter-spacing: -0.01em;
-            line-height: 1.3;
+            font-weight: 800;
+            font-size: 19px;
+            color: #16171a;
+            margin-bottom: 5px;
+            letter-spacing: -0.02em;
+            line-height: 1.16;
+            text-align: left;
+            text-wrap: pretty;
+            max-width: 46ch;
         }
 
         .notification-message {
@@ -1566,8 +1582,14 @@
                 height: 28px;
                 font-size: 13px;
             }
+            .notification-kicker {
+                font-size: 9px;
+                margin-bottom: 6px;
+                padding-bottom: 6px;
+            }
             .notification-title {
-                font-size: 13px;
+                font-size: 16px;
+                letter-spacing: -0.015em;
             }
             .notification-message {
                 font-size: 12px;
@@ -1612,8 +1634,15 @@
                 height: 24px;
                 font-size: 11px;
             }
+            .notification-kicker {
+                font-size: 8.5px;
+                letter-spacing: 0.07em;
+                margin-bottom: 5px;
+                padding-bottom: 5px;
+            }
             .notification-title {
-                font-size: 12px;
+                font-size: 14px;
+                line-height: 1.2;
             }
             .notification-message {
                 font-size: 11px;
@@ -1652,8 +1681,12 @@
             padding: 16px 20px 16px 18px;
         }
 
+        .cine-notifications .notification .notification-kicker {
+            color: #8a9099;
+            font-size: 10px;
+        }
         .cine-notifications .notification .notification-title {
-            font-size: 14px;
+            font-size: 17px;
         }
         .cine-notifications .notification .notification-message {
             font-size: 13px;
@@ -1688,8 +1721,14 @@
                 padding: 12px 14px 12px 12px;
                 gap: 10px;
             }
+            .cine-notifications .notification .notification-kicker {
+                font-size: 8.5px;
+                margin-bottom: 5px;
+                padding-bottom: 5px;
+            }
             .cine-notifications .notification .notification-title {
-                font-size: 12px;
+                font-size: 13px;
+                line-height: 1.2;
             }
             .cine-notifications .notification .notification-message {
                 font-size: 11px;
@@ -3210,13 +3249,7 @@
                                             'components'
                                         ], size: '0.8 MB',
                                         thumb: 'https://i.ibb.co/xqz6QDPj/bny2.webp' } },
-                                { id: 'bny-g-video', name: 'field-recording.mp4', type: 'file', size: '18 MB',
-                                    projectMeta: { title: 'Field Recording — Waiting on the World to Change',
-                                        sub: 'guitar cover · 2024', location: '📍 Remote',
-                                        desc: 'A reimagining of John Mayer\'s single-string solo, recorded between BNY workstreams.',
-                                        factoids: ['guitar', 'field recording'], tags: ['video', 'music'],
-                                        size: '18 MB',
-                                        thumb: 'https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4' } }
+
                             ]
                         }]
                     }, {
@@ -4667,18 +4700,15 @@
         // banner. Used by both the case-study cine view and the sector cine view
         // so the two stay in sync instead of drifting apart.
         function buildCineBanners(data) {
-            const parts = [];
-            if (data.era) parts.push(`Era: ${data.era}`);
-            if (data.tag) parts.push(`Tag: ${data.tag}`);
-            if (data.headline) parts.push(`Headline: ${data.headline}`);
-            let summaryMessage = parts.join(' · ');
-            if (data.body) {
-                summaryMessage = summaryMessage ? `${summaryMessage} · ${data.body}` : data.body;
-            }
+            const kickerParts = [];
+            if (data.era) kickerParts.push(`Era: ${data.era}`);
+            if (data.tag) kickerParts.push(`Tag: ${data.tag}`);
+            const kicker = kickerParts.join('   ·   ');
             const summaryTitle = data.headline || 'Overview';
+            const summaryMessage = data.body || '';
             const banners = [];
-            if (summaryMessage) {
-                banners.push({ icon: 'info', iconChar: '📋', title: summaryTitle, message: summaryMessage });
+            if (summaryTitle || summaryMessage) {
+                banners.push({ icon: 'info', iconChar: '📋', kicker, title: summaryTitle, message: summaryMessage });
             }
             return banners;
         }
@@ -4688,10 +4718,12 @@
                 const hasDetails = b.message && b.message.length > 60;
                 const messageText = hasDetails ? b.message.slice(0, 60) + '…' : b.message;
                 const detailsContent = hasDetails ? `<details class="notification-details"><summary>View details</summary><div class="notification-details-content">${b.message}</div></details>` : '';
+                const kickerHtml = b.kicker ? `<div class="notification-kicker">${b.kicker}</div>` : '';
                 return `
                 <div class="notification" data-${stepAttr}="${i}" data-dismissed="false">
                   <div class="notification-icon ${b.icon}">${b.iconChar}</div>
                   <div class="notification-content">
+                    ${kickerHtml}
                     <div class="notification-title">${b.title}</div>
                     <div class="notification-message">${messageText}</div>
                     ${detailsContent}
