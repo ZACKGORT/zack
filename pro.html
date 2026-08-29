@@ -425,12 +425,24 @@ h1 sup {
 
 .prototype-frame-wrap {
   position: relative;
-  height: 34rem;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: #fff;
+}
+
+.prototype-frame-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1512px;
+  height: 945px;
+  transform-origin: top left;
+  pointer-events: auto;
 }
 
 .prototype-frame-wrap iframe {
-  width: 100%;
-  height: 100%;
+  width: 1512px;
+  height: 945px;
   border: 0;
   display: block;
   background: #fff;
@@ -469,12 +481,6 @@ h1 sup {
   color: var(--warm-off-white);
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-@media (max-width: 600px) {
-  .prototype-frame-wrap {
-    height: 26rem;
-  }
 }
 
 /* Profile block, inline in the footer */
@@ -1233,7 +1239,9 @@ function renderPrototypes() {
         </a>
       </div>
       <div class="prototype-frame-wrap">
-        <iframe src="${proto.iframeUrl}" title="${proto.title}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe>
+        <div class="prototype-frame-inner">
+          <iframe src="${proto.iframeUrl}" title="${proto.title}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe>
+        </div>
         <div class="prototype-fallback">
           <p>This may not allow embedding.</p>
           <a href="${proto.iframeUrl}" target="_blank" rel="noopener noreferrer">open ${proto.title} ↗</a>
@@ -1251,6 +1259,37 @@ function renderPrototypes() {
     const fallback = wrap.querySelector(".prototype-fallback");
     iframe.addEventListener("error", () => fallback.classList.add("show"));
   });
+
+  scalePrototypeFrames();
+}
+
+// Each embedded site is rendered inside its iframe at a fixed desktop
+// width (1512px, matching the design's base breakpoint) and then scaled
+// down uniformly to fit the pane. This is what makes the embed read as
+// a properly proportioned "mini desktop" — the site keeps its real
+// desktop layout instead of reflowing into a squashed mobile view.
+const PROTOTYPE_BASE_WIDTH = 1512;
+
+function scalePrototypeFrames() {
+  const wraps = prototypesContainer.querySelectorAll(".prototype-frame-wrap");
+
+  function scaleAll() {
+    wraps.forEach((wrap) => {
+      const inner = wrap.querySelector(".prototype-frame-inner");
+      if (!inner) return;
+      const scale = wrap.clientWidth / PROTOTYPE_BASE_WIDTH;
+      inner.style.transform = `scale(${scale})`;
+    });
+  }
+
+  scaleAll();
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => scaleAll());
+    wraps.forEach((wrap) => ro.observe(wrap));
+  } else {
+    window.addEventListener("resize", scaleAll);
+  }
 }
 
 // Initial prototype panes animation
