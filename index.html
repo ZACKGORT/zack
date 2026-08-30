@@ -201,6 +201,14 @@
             /* all defaults from :root apply */
         }
 
+        /* ── Theme init lock: suppresses all transitions until the very first
+           correct theme has been painted, so the pre-paint correction script
+           below can never itself trigger a visible cross-fade ── */
+        body.theme-init-lock,
+        body.theme-init-lock * {
+            transition: none !important;
+        }
+
         /* ============================================================
            BASE STYLES
            ============================================================ */
@@ -3349,7 +3357,37 @@ body.theme-compliant .context-doc .context-body p {
         }
     </style>
 </head>
-<body>
+<body class="theme-rebellious theme-init-lock">
+    <script>
+        // ─── Pre-paint theme correction ───────────────────────────────
+        // The body already defaults to theme-rebellious (blue) in the markup above,
+        // so first paint is correct with zero JS for new-session visitors — every
+        // fresh session starts blue, regardless of a prior session's choice.
+        // A toggle made earlier in THIS session (sessionStorage) is still honored.
+        // This runs synchronously, before any layout below is parsed, so it can
+        // only ever correct the class *before* the browser paints — never after.
+        // transitions are hard-disabled via .theme-init-lock while this runs, so
+        // even the correction itself can't produce a visible cross-fade.
+        (function () {
+            try {
+                if (sessionStorage.getItem('zackTheme') === 'compliant') {
+                    document.body.classList.remove('theme-rebellious');
+                    document.body.classList.add('theme-compliant');
+                    var metaThemeColor = document.getElementById('metaThemeColor');
+                    if (metaThemeColor) metaThemeColor.setAttribute('content', '#f0f0f2');
+                }
+            } catch (e) {}
+            // Unlock transitions on the next frame, after the corrected theme has
+            // actually been painted once, so later user-triggered toggles still
+            // animate smoothly.
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    document.body.classList.remove('theme-init-lock');
+                });
+            });
+        })();
+    </script>
+
     <div class="scroll-progress" id="scrollProgress" aria-hidden="true"><div class="scroll-progress-fill" id="scrollProgressFill"></div></div>
 
     <a class="skip-link" href="#tree">Skip to index</a>
@@ -3591,17 +3629,26 @@ body.theme-compliant .context-doc .context-body p {
             const themeToggle = document.getElementById('themeToggle');
             const themeToggleLabelFull = document.getElementById('themeToggleLabelFull');
             const themeToggleLabelShort = document.getElementById('themeToggleLabelShort');
-            let currentTheme = localStorage.getItem('zackTheme') || 'rebellious';
+            // currentTheme reflects whatever the pre-paint script (right after <body>)
+            // already applied to body.className — it may differ from localStorage only
+            // in the impossible case storage changed between the two reads.
+            let currentTheme = document.body.classList.contains('theme-compliant') ? 'compliant' : 'rebellious';
+
+            // Updates only the toggle label + mobile browser-chrome color. Never touches
+            // body.className or the aurora instances, so it's safe to call on page load
+            // without re-triggering the theme transition or rebuilding WebGL contexts.
+            function syncThemeUI(theme) {
+                themeToggleLabelFull.textContent = theme === 'compliant' ? 'Clearly Compliant' : 'Rebelliously Blue';
+                themeToggleLabelShort.textContent = theme === 'compliant' ? 'Clear' : 'Blue';
+                const metaThemeColor = document.getElementById('metaThemeColor');
+                if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'compliant' ? '#f0f0f2' : '#3D6BEF');
+            }
 
             function setTheme(theme) {
                 document.body.className = 'theme-' + theme;
                 currentTheme = theme;
-                localStorage.setItem('zackTheme', theme);
-                themeToggleLabelFull.textContent = theme === 'compliant' ? 'Clearly Compliant' : 'Rebelliously Blue';
-                themeToggleLabelShort.textContent = theme === 'compliant' ? 'Clear' : 'Blue';
-                // Keep the mobile browser chrome (Android status bar / iOS Safari bar) in sync with the theme
-                const metaThemeColor = document.getElementById('metaThemeColor');
-                if (metaThemeColor) metaThemeColor.setAttribute('content', theme === 'compliant' ? '#f0f0f2' : '#3D6BEF');
+                sessionStorage.setItem('zackTheme', theme);
+                syncThemeUI(theme);
                 // Update aurora colors if active
                 const activeAuroraKeys = Object.keys(auroraInstances);
                 activeAuroraKeys.forEach(key => {
@@ -6827,9 +6874,11 @@ body.theme-compliant .context-doc .context-body p {
         }
 
         // ─── Init ─────────────────────────────────────────────────────
-        // Apply saved theme (defaults to the blue "original" theme for first-time visitors)
-        const savedTheme = localStorage.getItem('zackTheme') || 'rebellious';
-        setTheme(savedTheme);
+        // Theme (default: blue/"rebellious") is already applied to body.className
+        // pre-paint by the inline script right after <body>. Only sync the toggle
+        // label / meta-theme-color here — do NOT call setTheme(), which would
+        // reassign body.className and rebuild any mounted auroras for no reason.
+        syncThemeUI(currentTheme);
 
         initPressureText(document.querySelector('.hero-name .t-display'), { wght: [300, 900] }, 'hero');
         render();
