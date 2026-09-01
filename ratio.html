@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>neverever.land · statements</title>
+
+    <!-- Satoshi from Fontshare (your design system) -->
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2,3,4,5,6,7,8,9&display=swap" rel="stylesheet" />
+
+    <style>
+        /* ── design system variables (light theme) ── */
+        :root {
+            --bg: #f0f0f2;
+            --card: #ffffff;
+            --card-dark: #1C1C1E;
+            --card-mid: #3A3A3C;
+            --accent: #E5E567;
+            --accent-2: #F5F557;
+            --ink: #1C1C1E;
+            --ink-mid: #3A3A3C;
+            --ink-light: #8e8e93;
+            --ink-lighter: #b0b0b6;
+            --border: #e6e6e8;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.02);
+            --shadow-floating: 0 8px 32px rgba(0, 0, 0, 0.10);
+            --radius: 1.5rem;
+            --radius-sm: 0.65rem;
+            --font: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+            --fs-body: 15px;
+            --fs-display: 54px;
+            --transition: 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --max-width: 1600px;
+            --margin: 16px;
+        }
+
+        @media (min-width: 640px) {
+            :root {
+                --margin: 24px;
+            }
+        }
+        @media (min-width: 1024px) {
+            :root {
+                --margin: 32px;
+            }
+        }
+
+        /* ── base reset ── */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            overflow: hidden;
+            overscroll-behavior: none;
+            height: 100%;
+        }
+
+        body {
+            padding: 0;
+            margin: 0;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: var(--font);
+            font-size: var(--fs-body);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        a {
+            color: var(--ink);
+            text-decoration: none;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: var(--ink);
+        }
+
+        /* ── spiral container ── */
+        .js-spiral {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .js-spiral .js-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            box-sizing: border-box;
+            border-radius: 0;
+            transition: 0.25s border ease-out, 0.3s border-radius ease-out, 0.2s box-shadow ease-out;
+            border: 2px solid var(--bg);
+            cursor: pointer;
+            pointer-events: auto;
+            background: var(--card);
+            box-shadow: var(--shadow);
+            will-change: transform;
+        }
+
+        .js-spiral .js-section:hover {
+            border-radius: var(--radius);
+            border: 8px solid var(--bg);
+            box-shadow: var(--shadow-hover);
+        }
+
+        /* ── panel content ── */
+        .panel {
+            position: absolute;
+            width: 80%;
+            left: 10%;
+            top: 15%;
+            bottom: 15%;
+            pointer-events: none;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .panel-num {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            opacity: 0.5;
+            margin: 0 0 0.3em;
+            text-transform: uppercase;
+            color: var(--ink-light);
+        }
+
+        .panel-title {
+            font-family: var(--font);
+            font-weight: 700;
+            line-height: 1.08;
+            margin: 0 0 0.4em;
+            letter-spacing: -0.02em;
+            color: var(--ink);
+        }
+
+        .panel-line {
+            font-family: var(--font);
+            font-weight: 400;
+            line-height: 1.5;
+            margin: 0 0 0.25em;
+            max-width: 34ch;
+            color: var(--ink-mid);
+            letter-spacing: -0.01em;
+        }
+
+        /* ── density scales ── */
+        .panel.density-sparse .panel-title {
+            font-size: clamp(1.8rem, 4vw, 3.4rem);
+        }
+        .panel.density-sparse .panel-line {
+            font-size: clamp(1rem, 1.6vw, 1.3rem);
+            max-width: 26ch;
+        }
+
+        .panel.density-medium .panel-title {
+            font-size: clamp(1.3rem, 2.6vw, 2.2rem);
+        }
+        .panel.density-medium .panel-line {
+            font-size: clamp(0.85rem, 1.3vw, 1.05rem);
+        }
+
+        .panel.density-dense .panel-title {
+            font-size: clamp(1.15rem, 2.2vw, 1.8rem);
+        }
+        .panel.density-dense .panel-line {
+            font-size: clamp(0.78rem, 1.1vw, 0.92rem);
+            margin-bottom: 0.2em;
+        }
+
+        /* ── custom cursor (design system style) ── */
+        .write-cursor-dot,
+        .write-cursor-ellipse {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            will-change: transform;
+        }
+
+        .write-cursor-dot {
+            width: 6px;
+            height: 6px;
+            margin: -3px 0 0 -3px;
+            border-radius: 50%;
+            background: var(--ink);
+        }
+
+        .write-cursor-ellipse {
+            width: 30px;
+            height: 30px;
+            margin: -15px 0 0 -15px;
+            border-radius: 50%;
+            border: 1.5px solid var(--ink);
+            opacity: 0.25;
+        }
+
+        /* ── scrollbar ── */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--ink-lighter);
+            border-radius: var(--radius-sm);
+        }
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: var(--ink-lighter) transparent;
+        }
+
+        /* ── responsive tweaks ── */
+        @media (max-width: 640px) {
+            .panel {
+                width: 90%;
+                left: 5%;
+                top: 10%;
+                bottom: 10%;
+            }
+            .panel.density-sparse .panel-title {
+                font-size: clamp(1.4rem, 5vw, 2rem);
+            }
+            .panel.density-sparse .panel-line {
+                font-size: clamp(0.9rem, 2vw, 1.1rem);
+            }
+            .panel.density-medium .panel-title {
+                font-size: clamp(1.1rem, 3vw, 1.6rem);
+            }
+            .panel.density-medium .panel-line {
+                font-size: clamp(0.75rem, 1.6vw, 0.9rem);
+            }
+            .panel.density-dense .panel-title {
+                font-size: clamp(0.95rem, 2.6vw, 1.3rem);
+            }
+            .panel.density-dense .panel-line {
+                font-size: clamp(0.65rem, 1.4vw, 0.78rem);
+            }
+            .js-spiral .js-section:hover {
+                border-radius: var(--radius-sm);
+                border-width: 4px;
+            }
+            .panel-num {
+                font-size: 0.6rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .panel {
+                width: 94%;
+                left: 3%;
+                top: 8%;
+                bottom: 8%;
+            }
+            .panel.density-sparse .panel-title {
+                font-size: clamp(1.2rem, 4.5vw, 1.6rem);
+            }
+            .panel.density-sparse .panel-line {
+                font-size: clamp(0.8rem, 1.8vw, 0.95rem);
+                max-width: 22ch;
+            }
+            .panel.density-medium .panel-title {
+                font-size: clamp(0.95rem, 2.8vw, 1.2rem);
+            }
+            .panel.density-medium .panel-line {
+                font-size: clamp(0.65rem, 1.5vw, 0.78rem);
+            }
+            .panel.density-dense .panel-title {
+                font-size: clamp(0.8rem, 2.4vw, 1rem);
+            }
+            .panel.density-dense .panel-line {
+                font-size: clamp(0.55rem, 1.2vw, 0.65rem);
+            }
+            .panel-num {
+                font-size: 0.55rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- custom cursor -->
+    <div class="write-cursor-dot" id="writeCursorDot"></div>
+    <div class="write-cursor-ellipse" id="writeCursorEllipse"></div>
+
+    <!-- spiral container -->
+    <div class="js-spiral" id="spiral"></div>
+
+    <script>
+        (function() {
+
+            // ─── content ──────────────────────────────────────────
+            var PANELS = [{
+                num: "01",
+                title: "neverever.land",
+                density: "sparse",
+                lines: [
+                    "Statements, not posts."
+                ]
+            }, {
+                num: "02",
+                title: "Ethos",
+                density: "medium",
+                lines: [
+                    "Every line you publish is a statement, not a post.",
+                    "No feed to game. No likes. No share counts.",
+                    "What you write stands on its own."
+                ]
+            }, {
+                num: "03",
+                title: "Public, deliberate",
+                density: "medium",
+                lines: [
+                    "Statements are public by default.",
+                    "The interface is built for thoughtful expression — not impulsive broadcasting."
+                ]
+            }, {
+                num: "04",
+                title: "Your words are your work",
+                density: "medium",
+                lines: [
+                    "Whether you're open to work, hiring, or putting a craft idea into words — each statement is part of the record you maintain."
+                ]
+            }, {
+                num: "05",
+                title: "Letters, not a timeline",
+                density: "medium",
+                lines: [
+                    "The interface is a carousel of letters — thematic decks of statements.",
+                    "Flip between perspectives. Don't scroll a feed."
+                ]
+            }, {
+                num: "06",
+                title: "The five letters",
+                density: "dense",
+                lines: [
+                    "The Feed · everything",
+                    "Open to Work · people looking",
+                    "Hiring · roles open",
+                    "Thoughts · untagged signal",
+                    "Archive · muted, not deleted",
+                    "Same motion. Different intent."
+                ]
+            }, {
+                num: "07",
+                title: "Views",
+                density: "medium",
+                lines: [
+                    "List. Grid. Bento.",
+                    "Same statements. Different density.",
+                    "You choose how much surface you need."
+                ]
+            }, {
+                num: "08",
+                title: "The statement",
+                density: "dense",
+                lines: [
+                    "Author. Timestamp. Optional tag. Optional media. Text.",
+                    "Replied to. Edited (with history). Muted. Saved to attention.",
+                    "Nothing vanishes. It only changes place or status."
+                ]
+            }, {
+                num: "09",
+                title: "Profiles as letters",
+                density: "dense",
+                lines: [
+                    "A profile is not a résumé template.",
+                    "Click a name → a new letter, generated on the fly, of that person's original statements.",
+                    "Back is honest. You're a few pivots deep."
+                ]
+            }, {
+                num: "10",
+                title: "Reply & rapid respond",
+                density: "dense",
+                lines: [
+                    "Replies nest. Branches collapse.",
+                    "Right-click / long-press → floating reply.",
+                    "Chips = saved snippets. Low friction. Still a statement."
+                ]
+            }, {
+                num: "11",
+                title: "Attention",
+                density: "dense",
+                lines: [
+                    "Save a person, a company, or a statement.",
+                    "Cap: 20.",
+                    "Peripheral awareness — not a second feed."
+                ]
+            }, {
+                num: "12",
+                title: "Activity half-life",
+                density: "dense",
+                lines: [
+                    "Filter by reply recency, not post date.",
+                    "Today · 7 days · 14 days · 21 days",
+                    "What's alive surfaces. What's merely recent does not."
+                ]
+            }, {
+                num: "13",
+                title: "Intended use",
+                density: "medium",
+                lines: [
+                    "Job seekers — one clear open-to-work statement. Credibility from quality, not network size.",
+                    "Hiring — post the role; people exploring will find it.",
+                    "Craft — share the thought without building a personal brand.",
+                    "Community — small threads that stay on the statement."
+                ]
+            }, {
+                num: "14",
+                title: "Design principles",
+                density: "medium",
+                lines: [
+                    "Minimal. Calm. No doomscroll.",
+                    "Finite loads. Keyboard-first. Mobile-native.",
+                    "Floating HUD, not chrome that competes.",
+                    "No algorithmic ranking — order is what you asked for."
+                ]
+            }, {
+                num: "15",
+                title: "neverever.land",
+                density: "sparse",
+                lines: [
+                    "Statements — as signatures"
+                ]
+            }];
+
+            var spiral = document.getElementById('spiral');
+            var sections = [];
+
+            PANELS.forEach(function(panel) {
+                var section = document.createElement('div');
+                section.className = 'js-section';
+
+                var wrap = document.createElement('div');
+                wrap.className = 'panel density-' + panel.density;
+
+                var num = document.createElement('p');
+                num.className = 'panel-num';
+                num.textContent = panel.num;
+                wrap.appendChild(num);
+
+                var title = document.createElement('p');
+                title.className = 'panel-title';
+                title.textContent = panel.title;
+                wrap.appendChild(title);
+
+                panel.lines.forEach(function(line) {
+                    var p = document.createElement('p');
+                    p.className = 'panel-line';
+                    p.textContent = line;
+                    wrap.appendChild(p);
+                });
+
+                section.appendChild(wrap);
+                spiral.appendChild(section);
+                sections.push(section);
+            });
+
+            var sectionCount = sections.length;
+
+            // ─── scroll lock ──────────────────────────────────────
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+            document.body.style.overscrollBehavior = 'none';
+
+            // ─── spiral mechanics (original logic, untouched) ────
+            var ASPECT = 0.618033;
+            var AXIS = 0.7237;
+
+            var _winW, _winH, smallScreen, landscape, spiralOrigin;
+
+            var rotation = 0;
+            var currentSection = 0;
+            var touchStartY = 0;
+            var touchStartX = 0;
+            var moved = 0;
+            var animRAF;
+            var scrollTimeout;
+
+            var ua = window.navigator.userAgent.toLowerCase();
+            var firefox = ua.indexOf('firefox') !== -1 || ua.indexOf('mozilla') === -1;
+            var ios = /iphone|ipod|ipad/.test(ua);
+            var safari = (ua.indexOf('safari') !== -1 && ua.indexOf('chrome') === -1) || ios;
+            var linux = ua.indexOf('linux') !== -1;
+            var windowsOS = ua.indexOf('windows') !== -1;
+
+            function trimRotation(r) {
+                return Math.max(-1500, Math.min(1200, r));
+            }
+
+            function scrollHandler() {
+                var scale = Math.pow(ASPECT, rotation / 90);
+                currentSection = Math.min(
+                    sectionCount + 2,
+                    Math.max(-sectionCount, Math.floor((rotation - 30) / -90))
+                );
+                spiral.style.transform = 'rotate(' + rotation + 'deg) scale(' + scale + ')';
+                sections.forEach(function(s, i) {
+                    s.classList.toggle('active', i === currentSection);
+                });
+            }
+
+            function animateScroll(targR, startR, speed) {
+                var mySpeed = speed || 0.2;
+                var hasTarget = targR !== undefined && targR !== null;
+                if ((hasTarget && Math.abs(targR - rotation) > 0.1) || Math.abs(moved) > 1) {
+                    if (hasTarget) {
+                        rotation += mySpeed * (targR - rotation);
+                    } else {
+                        moved *= 0.98;
+                        rotation += moved / -10;
+                    }
+                    rotation = trimRotation(rotation);
+                    scrollHandler();
+                    animRAF = requestAnimationFrame(function() {
+                        animateScroll(targR, startR, speed);
+                    });
+                } else if (hasTarget) {
+                    cancelAnimationFrame(animRAF);
+                    rotation = trimRotation(targR);
+                    scrollHandler();
+                }
+            }
+
+            function startScrollTimeout() {
+                clearTimeout(scrollTimeout);
+                if (currentSection > -1 && currentSection < sectionCount) {
+                    scrollTimeout = setTimeout(function() {
+                        cancelAnimationFrame(animRAF);
+                        animateScroll(currentSection * -90, rotation, 0.15);
+                    }, 200);
+                }
+            }
+
+            function buildSpiral() {
+                spiralOrigin = Math.floor(_winW * AXIS) + 'px ' + Math.floor(_winW * ASPECT * AXIS) + 'px';
+                var w = _winW * ASPECT;
+                var h = w;
+
+                if (smallScreen && !landscape) {
+                    spiralOrigin = Math.floor((_winW / ASPECT) * ASPECT * (1 - AXIS)) + 'px ' +
+                        Math.floor((_winW / ASPECT) * AXIS) + 'px ';
+                    w = _winW;
+                    h = _winW;
+                }
+
+                var translate = (safari || firefox) ? 'translate3d(0,0,0)' : '';
+
+                spiral.style.transformOrigin = spiralOrigin;
+                spiral.style.backfaceVisibility = 'hidden';
+
+                sections.forEach(function(s, i) {
+                    var myRot = Math.floor(90 * i);
+                    var scale = Math.pow(ASPECT, i);
+                    s.style.width = w + 'px';
+                    s.style.height = h + 'px';
+                    s.style.transformOrigin = spiralOrigin;
+                    s.style.backfaceVisibility = 'hidden';
+
+                    // light theme gradient using design system
+                    var lightness = 96 - i * 2.5;
+                    s.style.backgroundColor = 'hsl(0, 0%, ' + lightness + '%)';
+                    s.style.transform = 'rotate(' + myRot + 'deg) scale(' + scale + ') ' + translate;
+                });
+
+                scrollHandler();
+            }
+
+            function resizeHandler() {
+                _winW = window.innerWidth / (1000 / window.innerHeight);
+                _winH = window.innerHeight;
+                smallScreen = _winW < 960;
+                landscape = _winH < _winW;
+                buildSpiral();
+            }
+
+            window.addEventListener('resize', resizeHandler);
+
+            window.addEventListener('scroll', function(e) {
+                e.preventDefault();
+            });
+
+            window.addEventListener('wheel', function(e) {
+                var deltaY = -e.deltaY;
+                if (windowsOS || linux) {
+                    deltaY = e.deltaY * 5;
+                }
+                moved = -deltaY || 0;
+                rotation += moved / -10;
+                rotation = trimRotation(rotation);
+                e.preventDefault();
+                startScrollTimeout();
+                cancelAnimationFrame(animRAF);
+                scrollHandler();
+            }, { passive: false });
+
+            window.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                var touch = e.touches[0] || e.changedTouches[0];
+                moved = 0;
+                touchStartX = touch.pageX;
+                touchStartY = touch.pageY;
+                cancelAnimationFrame(animRAF);
+            }, { passive: false });
+
+            window.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                var touch = e.touches[0] || e.changedTouches[0];
+                moved = ((touchStartY - touch.pageY) + (touchStartX - touch.pageX)) * 3;
+                touchStartX = touch.pageX;
+                touchStartY = touch.pageY;
+                rotation += moved / -10;
+                rotation = trimRotation(rotation);
+                startScrollTimeout();
+                cancelAnimationFrame(animRAF);
+                scrollHandler();
+            }, { passive: false });
+
+            window.addEventListener('touchend', function() {
+                animateScroll();
+            });
+
+            window.addEventListener('keydown', function(e) {
+                if (e.keyCode === 39 || e.keyCode === 40 || e.keyCode === 32) {
+                    cancelAnimationFrame(animRAF);
+                    animateScroll((currentSection + 1) * -90, rotation);
+                } else if (e.keyCode === 37 || e.keyCode === 38) {
+                    cancelAnimationFrame(animRAF);
+                    animateScroll((currentSection - 1) * -90, rotation);
+                }
+                scrollHandler();
+            });
+
+            sections.forEach(function(s, i) {
+                s.addEventListener('click', function() {
+                    cancelAnimationFrame(animRAF);
+                    animateScroll(i * -90, rotation);
+                });
+            });
+
+            resizeHandler();
+
+            // ─── custom write cursor ─────────────────────────────
+            (function initWriteCursor() {
+                var dot = document.getElementById('writeCursorDot');
+                var ellipse = document.getElementById('writeCursorEllipse');
+                if (!dot || !ellipse) return;
+
+                var NATIVE_SELECTOR = 'a, button, [role="button"], .js-section';
+                var ELLIPSE_LERP = 0.22;
+                var SPEED_SATURATE = 34;
+                var MAX_STRETCH = 0.6;
+
+                var ptrX = 0,
+                    ptrY = 0;
+                var prevFrameX = 0,
+                    prevFrameY = 0,
+                    frameInit = false;
+                var ellAngle = 0,
+                    ellScaleX = 1,
+                    ellScaleY = 1;
+                var rafId = null;
+
+                function shortAngleLerp(current, target, factor) {
+                    var diff = ((target - current + 540) % 360) - 180;
+                    return current + diff * factor;
+                }
+
+                function step() {
+                    if (!frameInit) {
+                        prevFrameX = ptrX;
+                        prevFrameY = ptrY;
+                        frameInit = true;
+                    }
+                    var dx = ptrX - prevFrameX;
+                    var dy = ptrY - prevFrameY;
+                    prevFrameX = ptrX;
+                    prevFrameY = ptrY;
+
+                    var speed = Math.hypot(dx, dy);
+                    var angleTarget = speed > 0.4 ? Math.atan2(dy, dx) * (180 / Math.PI) : ellAngle;
+                    var stretch = Math.min(speed / SPEED_SATURATE, 1) * MAX_STRETCH;
+
+                    ellAngle = shortAngleLerp(ellAngle, angleTarget, ELLIPSE_LERP);
+                    ellScaleX += ((1 + stretch) - ellScaleX) * ELLIPSE_LERP;
+                    ellScaleY += ((1 - stretch * 0.45) - ellScaleY) * ELLIPSE_LERP;
+
+                    ellipse.style.transform =
+                        'translate(' + ptrX + 'px,' + ptrY + 'px) rotate(' + ellAngle + 'deg) scale(' +
+                        ellScaleX + ',' + ellScaleY + ')';
+
+                    rafId = requestAnimationFrame(step);
+                }
+
+                function startLoop() {
+                    if (!rafId) rafId = requestAnimationFrame(step);
+                }
+
+                function stopLoop() {
+                    if (rafId) { cancelAnimationFrame(rafId);
+                        rafId = null; }
+                }
+
+                function setNativeCursor(isNative) {
+                    dot.style.opacity = isNative ? '0' : '1';
+                    ellipse.style.opacity = isNative ? '0' : '0.25';
+                    document.body.style.cursor = isNative ? '' : 'none';
+                }
+
+                function hideAll() {
+                    dot.style.opacity = '0';
+                    ellipse.style.opacity = '0';
+                    document.body.style.cursor = '';
+                    stopLoop();
+                }
+
+                window.addEventListener('mousemove', function(e) {
+                    var overNative = !!(e.target && e.target.nodeType === 1 && e.target.closest(
+                    NATIVE_SELECTOR));
+                    setNativeCursor(overNative);
+
+                    ptrX = e.clientX;
+                    ptrY = e.clientY;
+
+                    dot.style.transform = 'translate(' + ptrX + 'px,' + ptrY + 'px)';
+                    startLoop();
+                });
+
+                document.addEventListener('mouseleave', hideAll);
+            })();
+
+        })();
+    </script>
+</body>
+</html>
