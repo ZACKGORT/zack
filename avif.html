@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
   <title>Media Tools · AVIF</title>
+  <!-- ─── Yellow favicon ─── -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='12' fill='%23E5E567'/%3E%3Ctext x='40' y='50' font-family='system-ui, -apple-system, sans-serif' font-size='28' font-weight='800' text-anchor='middle' fill='%231C1C1E' letter-spacing='-0.5'%3EAVIF%3C/text%3E%3C/svg%3E" />
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2,3,4,5,6,7,8,9&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -103,6 +105,12 @@
     .btn-danger:hover { background: #a00; border-color: #a00; }
     .btn.small { padding: 3px 8px; font-size: 6px; min-height: 22px; }
     .btn-icon { width: 30px; padding: 0; justify-content: center; font-size: 14px; }
+    .btn-demo {
+      background: var(--accent);
+      color: var(--ink);
+      border-color: var(--accent);
+    }
+    .btn-demo:hover { background: var(--accent-2); border-color: var(--accent-2); color: var(--ink); }
 
     /* ── topbar ── */
     .topbar {
@@ -143,6 +151,21 @@
       color: var(--ink-light);
       letter-spacing: 0.04em;
     }
+    .wordmark .demo-badge {
+      font-family: var(--font-mono);
+      font-size: 7px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: var(--ink);
+      padding: 0.1rem 0.6rem;
+      border-radius: 12px;
+      margin-left: 0.2rem;
+      display: none;
+    }
+    .wordmark .demo-badge.active { display: inline-block; }
+
     .topbar-right {
       display: flex;
       align-items: center;
@@ -734,6 +757,11 @@
       border: 1px solid var(--border);
     }
     .mm-stats .badge span { font-weight: 600; color: var(--ink); }
+    .mm-stats .badge.demo-badge {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--ink);
+    }
 
     .mm-lightbox {
       position: fixed;
@@ -992,9 +1020,12 @@
 
     .empty-state {
       text-align: center;
-      padding: 3rem 0;
+      padding: 2rem 0;
       color: var(--ink-light);
     }
+    .empty-state .icon { font-size: 2.4rem; margin-bottom: 0.5rem; }
+    .empty-state .title { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin-bottom: 0.3rem; }
+    .empty-state .sub { font-size: 0.85rem; color: var(--ink-light); }
 
     @media (max-width: 640px) {
       .letter-card-frame { padding: 16px 14px 28px; border-radius: var(--radius-sm); }
@@ -1031,6 +1062,7 @@
       <div class="wordmark">
         <span>Media Tools</span>
         <span class="count" id="topCount">◈</span>
+        <span class="demo-badge" id="demoBadge">Demo</span>
       </div>
       <div class="topbar-right">
         <button class="btn" id="topResetBtn">↺ Reset</button>
@@ -1146,132 +1178,191 @@
       const MM_LS_KEY = 'media_rename_map';
       const MM_URLS_KEY = 'media_urls';
 
+      // ─── Demo data: your AVIF assets ────────────────────────
+      const DEMO_BASE = 'https://raw.githubusercontent.com/ZACKGORT/never/main/images/avif/';
+      const DEMO_URLS = [
+        DEMO_BASE + '1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.avif',
+        DEMO_BASE + '13.avif',
+        DEMO_BASE + '14.avif',
+        DEMO_BASE + '16.avif',
+        DEMO_BASE + '160over9001.avif',
+        DEMO_BASE + '160over9002.avif',
+        DEMO_BASE + '160over9003.avif',
+        DEMO_BASE + '17.avif',
+        DEMO_BASE + '18.avif',
+        DEMO_BASE + 'SentralLifeStyleHuge.avif',
+        DEMO_BASE + 'africanmask.avif',
+        DEMO_BASE + 'am-browse-pdp.avif',
+        DEMO_BASE + 'am-pdp-wire.avif',
+        DEMO_BASE + 'am1.avif',
+        DEMO_BASE + 'am2.avif',
+        DEMO_BASE + 'am3.avif',
+        DEMO_BASE + 'am4.avif',
+        DEMO_BASE + 'autodidact.avif',
+        DEMO_BASE + 'bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.avif',
+        DEMO_BASE + 'bny1.avif',
+        DEMO_BASE + 'bny2.avif',
+        DEMO_BASE + 'bny3.avif',
+        DEMO_BASE + 'bny4.avif',
+        DEMO_BASE + 'braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.avif',
+        DEMO_BASE + 'cardsagainsthumanity-01.avif',
+        DEMO_BASE + 'codeandtheor02.avif',
+        DEMO_BASE + 'codeandtheor03.avif',
+        DEMO_BASE + 'codeandtheory01.avif',
+        DEMO_BASE + 'dana-foundation.avif',
+        DEMO_BASE + 'dana-geometry.avif',
+        DEMO_BASE + 'dana-mobile-mockup.avif',
+        DEMO_BASE + 'danamobilemockupgtgxr-TPNy-NLPZg-PD.avif',
+        DEMO_BASE + 'danasitemap.avif',
+        DEMO_BASE + 'davinci-01.avif',
+        DEMO_BASE + 'downtown375hudson.avif',
+        DEMO_BASE + 'dropmyinterpretationp-SXi-Ii-YKYBGt.avif',
+        DEMO_BASE + 'dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.avif',
+        DEMO_BASE + 'earlydays01.avif',
+        DEMO_BASE + 'earlydays03.avif',
+        DEMO_BASE + 'finalizednavigationfmb-YVOjfy-CHcf.avif',
+        DEMO_BASE + 'flightpathcommute.avif',
+        DEMO_BASE + 'gnc-case-4.avif',
+        DEMO_BASE + 'gnc-case-A1.avif',
+        DEMO_BASE + 'gnc-case-B1.avif',
+        DEMO_BASE + 'gnc-case-B2.avif',
+        DEMO_BASE + 'gnc-case-B3.avif',
+        DEMO_BASE + 'gnc-case-B5.avif',
+        DEMO_BASE + 'gnc.avif',
+        DEMO_BASE + 'gnccompaudit.avif',
+        DEMO_BASE + 'gnchome.avif',
+        DEMO_BASE + 'gncmobile.avif',
+        DEMO_BASE + 'gncnav.avif',
+        DEMO_BASE + 'gncnotes.avif',
+        DEMO_BASE + 'gncproto.avif',
+        DEMO_BASE + 'gnctitle.avif',
+        DEMO_BASE + 'gncwire4.avif',
+        DEMO_BASE + 'gncwire5.avif',
+        DEMO_BASE + 'gncwire6.avif',
+        DEMO_BASE + 'gncwire7.avif',
+        DEMO_BASE + 'haikuGIF.avif',
+        DEMO_BASE + 'herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.avif',
+        DEMO_BASE + 'huge-sentral-lifestyle.avif',
+        DEMO_BASE + 'kent1.avif',
+        DEMO_BASE + 'kent2.avif',
+        DEMO_BASE + 'kent3.avif',
+        DEMO_BASE + 'kentnav.avif',
+        DEMO_BASE + 'kentstatemockup.avif',
+        DEMO_BASE + 'leadnomics1.avif',
+        DEMO_BASE + 'leadnomics2.avif',
+        DEMO_BASE + 'logosdesign.avif',
+        DEMO_BASE + 'lowvoltagedatatechnician01.avif',
+        DEMO_BASE + 'lowvoltagedatatechnician02.avif',
+        DEMO_BASE + 'lowvoltagedatatechnician03.avif',
+        DEMO_BASE + 'lowvoltagedatatechnician04.avif',
+        DEMO_BASE + 'lowvoltagedatatechnician05.avif',
+        DEMO_BASE + 'manifesto.avif',
+        DEMO_BASE + 'mustang001.avif',
+        DEMO_BASE + 'mustang002.avif',
+        DEMO_BASE + 'mustang003.avif',
+        DEMO_BASE + 'o3worldUX.avif',
+        DEMO_BASE + 'o3worldteam.avif',
+        DEMO_BASE + 'o3worldwire.avif',
+        DEMO_BASE + 'parallelpark2.avif',
+        DEMO_BASE + 'parallelpark3.avif',
+        DEMO_BASE + 'parallelpark4.avif',
+        DEMO_BASE + 'parallelpark5.avif',
+        DEMO_BASE + 'parallelpark6.avif',
+        DEMO_BASE + 'philly-laundry-g35.avif',
+        DEMO_BASE + 'poweranimationloop-YFKh-XZGt-Pkc-UCZ.avif',
+        DEMO_BASE + 'powerhomeremod1.avif',
+        DEMO_BASE + 'powerhomeremod2.avif',
+        DEMO_BASE + 'powerhomeremod3.avif',
+        DEMO_BASE + 'powertransitionloopsec-YQr-St-Ien-Xl.avif',
+        DEMO_BASE + 'publicis001.avif',
+        DEMO_BASE + 'publicis002.avif',
+        DEMO_BASE + 'publicis003.avif',
+        DEMO_BASE + 'publicis004.avif',
+        DEMO_BASE + 'publicissapient01.avif',
+        DEMO_BASE + 'stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.avif',
+        DEMO_BASE + 'switchtodroppdpconceptsyrf-TSes-HS.avif',
+        DEMO_BASE + 'tiktok-proto-gif.avif',
+        DEMO_BASE + 'workareaPM.avif',
+        DEMO_BASE + 'zack-bw-selfie.avif',
+        DEMO_BASE + 'zebra1.avif',
+        DEMO_BASE + 'zebra2.avif',
+        DEMO_BASE + 'zebra3.avif',
+        DEMO_BASE + 'zebra4.avif'
+      ];
+
+      let mmUrls = [];
+      let isDemoLoaded = false;
+
       function loadUrls() {
         try {
           const raw = localStorage.getItem(MM_URLS_KEY);
           if (raw) {
             const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed) && parsed.length) return parsed;
+            if (Array.isArray(parsed) && parsed.length) {
+              mmUrls = parsed;
+              isDemoLoaded = false;
+              return;
+            }
           }
         } catch {}
-        // Default demo list – your AVIF assets
-        const AVIF_BASE = 'https://raw.githubusercontent.com/ZACKGORT/never/main/images/avif/';
-        return [
-          AVIF_BASE + '1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.avif',
-          AVIF_BASE + '13.avif',
-          AVIF_BASE + '14.avif',
-          AVIF_BASE + '16.avif',
-          AVIF_BASE + '160over9001.avif',
-          AVIF_BASE + '160over9002.avif',
-          AVIF_BASE + '160over9003.avif',
-          AVIF_BASE + '17.avif',
-          AVIF_BASE + '18.avif',
-          AVIF_BASE + 'SentralLifeStyleHuge.avif',
-          AVIF_BASE + 'africanmask.avif',
-          AVIF_BASE + 'am-browse-pdp.avif',
-          AVIF_BASE + 'am-pdp-wire.avif',
-          AVIF_BASE + 'am1.avif',
-          AVIF_BASE + 'am2.avif',
-          AVIF_BASE + 'am3.avif',
-          AVIF_BASE + 'am4.avif',
-          AVIF_BASE + 'autodidact.avif',
-          AVIF_BASE + 'bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.avif',
-          AVIF_BASE + 'bny1.avif',
-          AVIF_BASE + 'bny2.avif',
-          AVIF_BASE + 'bny3.avif',
-          AVIF_BASE + 'bny4.avif',
-          AVIF_BASE + 'braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.avif',
-          AVIF_BASE + 'cardsagainsthumanity-01.avif',
-          AVIF_BASE + 'codeandtheor02.avif',
-          AVIF_BASE + 'codeandtheor03.avif',
-          AVIF_BASE + 'codeandtheory01.avif',
-          AVIF_BASE + 'dana-foundation.avif',
-          AVIF_BASE + 'dana-geometry.avif',
-          AVIF_BASE + 'dana-mobile-mockup.avif',
-          AVIF_BASE + 'danamobilemockupgtgxr-TPNy-NLPZg-PD.avif',
-          AVIF_BASE + 'danasitemap.avif',
-          AVIF_BASE + 'davinci-01.avif',
-          AVIF_BASE + 'downtown375hudson.avif',
-          AVIF_BASE + 'dropmyinterpretationp-SXi-Ii-YKYBGt.avif',
-          AVIF_BASE + 'dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.avif',
-          AVIF_BASE + 'earlydays01.avif',
-          AVIF_BASE + 'earlydays03.avif',
-          AVIF_BASE + 'finalizednavigationfmb-YVOjfy-CHcf.avif',
-          AVIF_BASE + 'flightpathcommute.avif',
-          AVIF_BASE + 'gnc-case-4.avif',
-          AVIF_BASE + 'gnc-case-A1.avif',
-          AVIF_BASE + 'gnc-case-B1.avif',
-          AVIF_BASE + 'gnc-case-B2.avif',
-          AVIF_BASE + 'gnc-case-B3.avif',
-          AVIF_BASE + 'gnc-case-B5.avif',
-          AVIF_BASE + 'gnc.avif',
-          AVIF_BASE + 'gnccompaudit.avif',
-          AVIF_BASE + 'gnchome.avif',
-          AVIF_BASE + 'gncmobile.avif',
-          AVIF_BASE + 'gncnav.avif',
-          AVIF_BASE + 'gncnotes.avif',
-          AVIF_BASE + 'gncproto.avif',
-          AVIF_BASE + 'gnctitle.avif',
-          AVIF_BASE + 'gncwire4.avif',
-          AVIF_BASE + 'gncwire5.avif',
-          AVIF_BASE + 'gncwire6.avif',
-          AVIF_BASE + 'gncwire7.avif',
-          AVIF_BASE + 'haikuGIF.avif',
-          AVIF_BASE + 'herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.avif',
-          AVIF_BASE + 'huge-sentral-lifestyle.avif',
-          AVIF_BASE + 'kent1.avif',
-          AVIF_BASE + 'kent2.avif',
-          AVIF_BASE + 'kent3.avif',
-          AVIF_BASE + 'kentnav.avif',
-          AVIF_BASE + 'kentstatemockup.avif',
-          AVIF_BASE + 'leadnomics1.avif',
-          AVIF_BASE + 'leadnomics2.avif',
-          AVIF_BASE + 'logosdesign.avif',
-          AVIF_BASE + 'lowvoltagedatatechnician01.avif',
-          AVIF_BASE + 'lowvoltagedatatechnician02.avif',
-          AVIF_BASE + 'lowvoltagedatatechnician03.avif',
-          AVIF_BASE + 'lowvoltagedatatechnician04.avif',
-          AVIF_BASE + 'lowvoltagedatatechnician05.avif',
-          AVIF_BASE + 'manifesto.avif',
-          AVIF_BASE + 'mustang001.avif',
-          AVIF_BASE + 'mustang002.avif',
-          AVIF_BASE + 'mustang003.avif',
-          AVIF_BASE + 'o3worldUX.avif',
-          AVIF_BASE + 'o3worldteam.avif',
-          AVIF_BASE + 'o3worldwire.avif',
-          AVIF_BASE + 'parallelpark2.avif',
-          AVIF_BASE + 'parallelpark3.avif',
-          AVIF_BASE + 'parallelpark4.avif',
-          AVIF_BASE + 'parallelpark5.avif',
-          AVIF_BASE + 'parallelpark6.avif',
-          AVIF_BASE + 'philly-laundry-g35.avif',
-          AVIF_BASE + 'poweranimationloop-YFKh-XZGt-Pkc-UCZ.avif',
-          AVIF_BASE + 'powerhomeremod1.avif',
-          AVIF_BASE + 'powerhomeremod2.avif',
-          AVIF_BASE + 'powerhomeremod3.avif',
-          AVIF_BASE + 'powertransitionloopsec-YQr-St-Ien-Xl.avif',
-          AVIF_BASE + 'publicis001.avif',
-          AVIF_BASE + 'publicis002.avif',
-          AVIF_BASE + 'publicis003.avif',
-          AVIF_BASE + 'publicis004.avif',
-          AVIF_BASE + 'publicissapient01.avif',
-          AVIF_BASE + 'stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.avif',
-          AVIF_BASE + 'switchtodroppdpconceptsyrf-TSes-HS.avif',
-          AVIF_BASE + 'tiktok-proto-gif.avif',
-          AVIF_BASE + 'workareaPM.avif',
-          AVIF_BASE + 'zack-bw-selfie.avif',
-          AVIF_BASE + 'zebra1.avif',
-          AVIF_BASE + 'zebra2.avif',
-          AVIF_BASE + 'zebra3.avif',
-          AVIF_BASE + 'zebra4.avif'
-        ];
+        // Start empty
+        mmUrls = [];
+        isDemoLoaded = false;
       }
 
-      function saveUrls(urls) {
-        try { localStorage.setItem(MM_URLS_KEY, JSON.stringify(urls)); } catch {}
+      function saveUrls() {
+        try { localStorage.setItem(MM_URLS_KEY, JSON.stringify(mmUrls)); } catch {}
       }
 
-      let mmUrls = loadUrls();
+      function loadDemoData() {
+        mmUrls = [...DEMO_URLS];
+        isDemoLoaded = true;
+        saveUrls();
+        renderMediaLetter();
+        // Update converter
+        if (isConverterInitialized) {
+          convRows = mmUrls.map(url => ({
+            url, originalName: getBaseName(url), newName: getBaseName(url),
+            type: isVideo(url) ? 'video' : 'image', status: 'pending'
+          }));
+          renderConvTable();
+        }
+        updateDemoBadge();
+        updateHudStatus();
+      }
+
+      function clearAllImages() {
+        mmUrls = [];
+        isDemoLoaded = false;
+        mmRenameMap = {};
+        saveMmMapping();
+        saveUrls();
+        renderMediaLetter();
+        if (isConverterInitialized) {
+          convRows = [];
+          renderConvTable();
+        }
+        updateDemoBadge();
+        updateHudStatus();
+      }
+
+      function updateDemoBadge() {
+        const badge = document.getElementById('demoBadge');
+        if (badge) {
+          badge.classList.toggle('active', isDemoLoaded && mmUrls.length > 0);
+        }
+      }
+
+      function updateHudStatus() {
+        const count = document.getElementById('hudStatusCount');
+        const text = document.getElementById('hudStatusText');
+        const imgCount = mmUrls.filter(u => isImage(u)).length;
+        if (count) count.textContent = imgCount;
+        if (text) text.textContent = isDemoLoaded ? `${imgCount} images (demo)` : imgCount > 0 ? `${imgCount} images ready` : 'No images loaded';
+      }
+
+      loadUrls();
+
       const isVideo = (url) => /\.(mp4|mov|webm)(\?.*)?$/i.test(url);
       const isImage = (url) => !isVideo(url);
       const getDomain = (url) => {
@@ -1329,6 +1420,8 @@
         const images = mmUrls.filter(u => isImage(u));
         const videos = mmUrls.filter(u => isVideo(u));
 
+        const demoLabel = isDemoLoaded && total > 0 ? ' <span class="badge demo-badge">Demo</span>' : '';
+
         let html = `
           <div class="mm-upload-area" id="mmUploadArea">
             <div style="font-size:1.2rem;margin-bottom:0.2rem;">📤 Load images</div>
@@ -1338,13 +1431,15 @@
               <button class="btn btn-primary" id="mmLoadBtn">Load images</button>
               <button class="btn" id="mmFileBtn">📂 Upload file</button>
               <input type="file" id="mmFileInput" accept=".txt,.csv" />
-              <span class="badge-count" id="mmUrlCount">${total} loaded</span>
+              <button class="btn btn-demo" id="mmDemoBtn">⭐ Load Demo</button>
+              <span class="badge-count" id="mmUrlCount">${total} loaded${isDemoLoaded ? ' · demo' : ''}</span>
             </div>
           </div>
           <div class="mm-stats">
             <div class="badge">📊 Total: <span>${total}</span></div>
             <div class="badge">🖼️ Images: <span>${images.length}</span></div>
             <div class="badge">🎬 Videos: <span>${videos.length}</span></div>
+            ${isDemoLoaded && total > 0 ? `<div class="badge demo-badge">⭐ Demo data</div>` : ''}
           </div>
           <div class="mm-filter-group">
             <span class="label">Type</span>
@@ -1363,8 +1458,16 @@
           </div>
         `;
 
-        if (filtered.length === 0) {
-          html += `<div class="empty-state">No items match current filters.</div>`;
+        if (total === 0) {
+          html += `
+            <div class="empty-state">
+              <div class="icon">🖼️</div>
+              <div class="title">No images loaded</div>
+              <div class="sub">Paste URLs above, upload a file, or click <strong>Load Demo</strong> to see sample assets.</div>
+            </div>
+          `;
+        } else if (filtered.length === 0) {
+          html += `<div class="empty-state"><div class="sub">No items match current filters.</div></div>`;
         } else {
           html += `<div class="mm-grid">`;
           filtered.forEach(url => {
@@ -1405,6 +1508,7 @@
         const urlInput = content.querySelector('#mmUrlInput');
         const fileBtn = content.querySelector('#mmFileBtn');
         const fileInput = content.querySelector('#mmFileInput');
+        const demoBtn = content.querySelector('#mmDemoBtn');
         const urlCount = content.querySelector('#mmUrlCount');
 
         loadBtn.addEventListener('click', function() {
@@ -1412,18 +1516,16 @@
           if (!text) { alert('Paste some URLs first.'); return; }
           const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l && (l.startsWith('http://') || l.startsWith('https://')));
           if (lines.length === 0) { alert('No valid URLs found.'); return; }
-          // Merge with existing, deduplicate
           const existing = new Set(mmUrls);
           let added = 0;
           lines.forEach(url => {
             if (!existing.has(url)) { existing.add(url); added++; }
           });
           mmUrls = Array.from(existing);
-          saveUrls(mmUrls);
-          // Reset the textarea
+          isDemoLoaded = false;
+          saveUrls();
           urlInput.value = lines.join('\n');
           renderMediaLetter();
-          // Also update converter if initialized
           if (isConverterInitialized) {
             convRows = mmUrls.map(url => ({
               url, originalName: getBaseName(url), newName: getBaseName(url),
@@ -1431,6 +1533,8 @@
             }));
             renderConvTable();
           }
+          updateDemoBadge();
+          updateHudStatus();
         });
 
         fileBtn.addEventListener('click', () => fileInput.click());
@@ -1445,6 +1549,11 @@
           };
           reader.readAsText(file);
           this.value = '';
+        });
+
+        demoBtn.addEventListener('click', function() {
+          if (mmUrls.length > 0 && !confirm('Load demo data? This will replace your current image list.')) return;
+          loadDemoData();
         });
 
         // Filters
@@ -1502,24 +1611,13 @@
         const clearAll = content.querySelector('#mmClearAll');
         if (clearAll) clearAll.addEventListener('click', function() {
           if (confirm('Remove all images from the list?')) {
-            mmUrls = [];
-            saveUrls(mmUrls);
-            mmRenameMap = {};
-            saveMmMapping();
-            renderMediaLetter();
-            if (isConverterInitialized) {
-              convRows = [];
-              renderConvTable();
-            }
-            const hudCount = document.getElementById('hudStatusCount');
-            if (hudCount) hudCount.textContent = '0';
-            const hudText = document.getElementById('hudStatusText');
-            if (hudText) hudText.textContent = 'Ready';
+            clearAllImages();
           }
         });
 
-        // Update count badge
-        if (urlCount) urlCount.textContent = `${mmUrls.length} loaded`;
+        if (urlCount) urlCount.textContent = `${mmUrls.length} loaded${isDemoLoaded ? ' · demo' : ''}`;
+        updateDemoBadge();
+        updateHudStatus();
       }
 
       // ── Media Lightbox ──────────────────────────────────────
@@ -2229,10 +2327,8 @@
             if (convTimerInterval) { clearInterval(convTimerInterval); convTimerInterval = null; }
             renderLetter(0);
             renderLetter(1);
-            const hudStatusCount = document.getElementById('hudStatusCount');
-            if (hudStatusCount) hudStatusCount.textContent = '0';
-            const hudStatusText = document.getElementById('hudStatusText');
-            if (hudStatusText) hudStatusText.textContent = 'Ready';
+            updateHudStatus();
+            updateDemoBadge();
           }
         });
 
@@ -2304,10 +2400,8 @@
         // ── Initial render ──
         renderLetter(0);
         renderLetter(1);
-        const hudStatusCount = document.getElementById('hudStatusCount');
-        if (hudStatusCount) hudStatusCount.textContent = convRows.filter(r => r.type === 'image').length;
-        const hudStatusText = document.getElementById('hudStatusText');
-        if (hudStatusText) hudStatusText.textContent = `${convRows.filter(r => r.type === 'image').length} images ready`;
+        updateHudStatus();
+        updateDemoBadge();
       });
     })();
   </script>
