@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-  <title>AVIF Converter · craft</title>
+  <title>Media Manager + AVIF Converter</title>
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2,3,4,5,6,7,8,9&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <style>
-    /* ── design system (stripped) ── */
+    /* ── design system ── */
     :root {
       --bg: #f0f0f2;
       --card: #ffffff;
@@ -39,20 +39,10 @@
       --scrollbar-height: 3px;
     }
     @media (min-width: 640px) {
-      :root {
-        --margin: 24px;
-        --topbar-height: 64px;
-        --hud-height: 70px;
-        --hud-top-height: 48px;
-      }
+      :root { --margin: 24px; --topbar-height: 64px; --hud-height: 70px; --hud-top-height: 48px; }
     }
     @media (min-width: 1024px) {
-      :root {
-        --margin: 32px;
-        --topbar-height: 72px;
-        --hud-height: 76px;
-        --hud-top-height: 52px;
-      }
+      :root { --margin: 32px; --topbar-height: 72px; --hud-height: 76px; --hud-top-height: 52px; }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
@@ -107,11 +97,12 @@
     .btn:active { transform: scale(0.96); }
     .btn.ghost { border-color: var(--border); color: var(--ink-light); }
     .btn.ghost:hover { background: var(--ink); color: var(--card); border-color: var(--ink); }
-    .btn.small { padding: 3px 8px; font-size: 6px; min-height: 22px; }
     .btn-primary { background: var(--ink); color: var(--card); border-color: var(--ink); }
     .btn-primary:hover { background: var(--ink-mid); border-color: var(--ink-mid); }
     .btn-danger { background: #d43a3a; color: #fff; border-color: #d43a3a; }
     .btn-danger:hover { background: #a00; border-color: #a00; }
+    .btn.small { padding: 3px 8px; font-size: 6px; min-height: 22px; }
+    .btn-icon { width: 30px; padding: 0; justify-content: center; font-size: 14px; }
 
     /* ── topbar ── */
     .topbar {
@@ -599,7 +590,210 @@
       .bento-overlay.rollout.open .bento-panel { transform: translateY(0); }
     }
 
-    /* ── converter ── */
+    /* ── Media Manager (from media.html) ── */
+    .mm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .mm-item {
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .mm-item:hover { transform: translateY(-2px); border-color: var(--ink); }
+    .mm-item .mm-media-wrap {
+      position: relative;
+      width: 100%;
+      padding-top: 75%;
+      background: var(--card-dark);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .mm-item .mm-media-wrap img,
+    .mm-item .mm-media-wrap video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .mm-item .mm-info {
+      padding: 0.3rem 0.6rem 0.1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .mm-item .mm-info .type {
+      text-transform: uppercase;
+      font-weight: 600;
+      font-size: 0.55rem;
+      letter-spacing: 0.04em;
+      background: var(--bg);
+      padding: 0.1rem 0.5rem;
+      border-radius: 12px;
+      color: var(--ink-light);
+    }
+    .mm-item .mm-info .domain {
+      font-size: 0.55rem;
+      opacity: 0.6;
+      max-width: 100px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mm-item .mm-rename {
+      padding: 0.3rem 0.6rem 0.5rem;
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .mm-item .mm-rename label {
+      font-size: 0.6rem;
+      color: var(--ink-light);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .mm-item .mm-rename input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.2rem 0.4rem;
+      color: var(--ink);
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      outline: none;
+      transition: border 0.2s, background 0.2s;
+      min-width: 0;
+    }
+    .mm-item .mm-rename input:focus {
+      border-color: var(--ink);
+      background: var(--card);
+    }
+    .mm-item .mm-rename .ext-hint {
+      font-size: 0.6rem;
+      color: var(--ink-light);
+      white-space: nowrap;
+    }
+
+    .mm-filter-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.3rem 0.6rem;
+      margin: 0.5rem 0 1rem;
+    }
+    .mm-filter-group .label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-light);
+    }
+    .mm-filter-group button {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--ink-mid);
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: 0.2s;
+    }
+    .mm-filter-group button.active {
+      background: var(--ink);
+      color: var(--card);
+      border-color: var(--ink);
+    }
+    .mm-filter-group button:hover { border-color: var(--ink); color: var(--ink); }
+    .mm-filter-group button.active:hover { background: var(--ink-mid); border-color: var(--ink-mid); }
+
+    .mm-stats {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin: 0.5rem 0;
+    }
+    .mm-stats .badge {
+      background: var(--bg);
+      padding: 0.2rem 1rem;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+    }
+    .mm-stats .badge span { font-weight: 600; color: var(--ink); }
+
+    .mm-lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      padding: 2rem;
+    }
+    .mm-lightbox.open { opacity: 1; pointer-events: auto; }
+    .mm-lightbox img, .mm-lightbox video {
+      max-width: 90vw;
+      max-height: 85vh;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      object-fit: contain;
+    }
+    .mm-lightbox .close {
+      position: fixed;
+      top: 1.5rem;
+      right: 2rem;
+      font-size: 2rem;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      opacity: 0.6;
+      transition: 0.2s;
+    }
+    .mm-lightbox .close:hover { opacity: 1; }
+    .mm-lightbox .caption {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      padding: 0.4rem 1.2rem;
+      border-radius: 30px;
+      font-size: 0.75rem;
+      color: #ccc;
+      max-width: 80vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .mm-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      margin: 0.5rem 0;
+    }
+
+    /* ── Converter (from avif.html) ── */
     .converter-upload {
       border: 2px dashed var(--border);
       border-radius: var(--radius-sm);
@@ -747,41 +941,23 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 640px) {
-      .letter-card-frame { padding: 16px 14px 28px; border-radius: var(--radius-sm); }
-      .converter-upload { padding: 1.5rem; }
-      .converter-stats .badge { font-size: 0.7rem; }
-      .converter-table-wrap { max-height: 200px; }
-      .converter-table-wrap th, .converter-table-wrap td { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
-      .converter-table-wrap td .url { max-width: 120px; }
-    }
-    @media (max-width: 480px) {
-      .converter-controls .btn { font-size: 7px; padding: 4px 8px; min-height: 24px; }
+    .empty-state {
+      text-align: center;
+      padding: 3rem 0;
+      color: var(--ink-light);
     }
 
-    /* ── info letter ── */
-    .info-letter-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1px;
-      background: rgba(28,28,30,0.15);
-      border: 1px solid rgba(28,28,30,0.15);
-      border-radius: var(--radius-sm);
-      overflow: hidden;
+    @media (max-width: 640px) {
+      .letter-card-frame { padding: 16px 14px 28px; border-radius: var(--radius-sm); }
+      .mm-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.7rem; }
+      .converter-upload { padding: 1.5rem; }
+      .converter-table-wrap { max-height: 200px; }
+      .converter-table-wrap th, .converter-table-wrap td { padding: 0.3rem 0.5rem; font-size: 0.65rem; }
     }
-    .info-letter-grid .cell {
-      background: var(--bg);
-      padding: 1.25rem 1.4rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 10px;
-      min-height: 90px;
-      color: var(--ink);
+    @media (max-width: 480px) {
+      .mm-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .converter-controls .btn { font-size: 7px; padding: 4px 8px; min-height: 24px; }
     }
-    .info-letter-grid .cell .label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-light); font-weight: 500; }
-    .info-letter-grid .cell .value { font-family: var(--font); font-size: calc(var(--fs-body) * 0.95); font-weight: 500; color: var(--ink); }
-    .info-letter-grid .cell.span-2 { grid-column: span 2; }
   </style>
 </head>
 <body>
@@ -803,12 +979,11 @@
   <div class="topbar">
     <div class="wrap">
       <div class="wordmark">
-        <span>AVIF Converter</span>
-        <span class="count" id="topCount">⚡</span>
+        <span>Media Tools</span>
+        <span class="count" id="topCount">◈</span>
       </div>
       <div class="topbar-right">
-        <button class="btn" id="topMappingBtn">📋 Mapping</button>
-        <button class="btn ghost" id="topResetBtn">↺ Reset</button>
+        <button class="btn" id="topResetBtn">↺ Reset</button>
       </div>
     </div>
   </div>
@@ -819,7 +994,7 @@
     <span class="hud-nav-counter" id="hudNavCounter" role="status" aria-live="polite">1/2</span>
     <button class="btn btn-icon" id="hudNext" title="Next" aria-label="Next letter">›</button>
     <div class="hud-divider"></div>
-    <span class="hud-label">Status</span>
+    <span class="hud-label">Letter</span>
     <span class="filter-count" id="hudStatusCount">0</span>
     <span style="font-size:0.75rem;color:var(--ink-light);" id="hudStatusText">Ready</span>
   </div>
@@ -835,13 +1010,14 @@
 
   <!-- ─── BOTTOM HUD ─── -->
   <div class="hud hud-bottom" id="hud">
-    <button class="btn btn-primary" id="hudConvertBtn">⚡ Convert</button>
-    <button class="btn" id="hudMappingBtn">📋 Mapping</button>
+    <span class="hud-label">Jump</span>
+    <button class="btn" id="hudJumpMedia">📁 Media</button>
+    <button class="btn" id="hudJumpConverter">⚡ Convert</button>
     <div class="hud-divider"></div>
     <span style="font-size:0.75rem;color:var(--ink-light);" id="hudBottomStatus">Ready</span>
   </div>
 
-  <!-- ─── MAPPING MODAL ─── -->
+  <!-- ─── MAPPING MODAL (for converter) ─── -->
   <div class="bento-overlay rollout" id="converterMappingModal">
     <div class="bento-panel">
       <div class="bento-header">
@@ -854,12 +1030,24 @@
     </div>
   </div>
 
+  <!-- ─── MAPPING MODAL (for media renaming) ─── -->
+  <div class="bento-overlay rollout" id="mediaMappingModal">
+    <div class="bento-panel">
+      <div class="bento-header">
+        <h2>📋 Old → New Name Mapping</h2>
+        <button class="close-btn" id="mediaMappingClose">✕</button>
+      </div>
+      <div class="bento-body" id="mediaMappingBody">
+        <p style="color:var(--ink-light);padding:1rem 0;">No data loaded.</p>
+      </div>
+    </div>
+  </div>
+
   <script>
     (function() {
       'use strict';
 
       // ── Helpers ──────────────────────────────────────────────
-      const uid = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4);
       const escapeHtml = (s) => (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
       const closestSafe = (node, selector) => node && node.nodeType===1 && node.closest ? node.closest(selector) : null;
 
@@ -903,23 +1091,131 @@
       // ── Carousel state ──────────────────────────────────────
       let letterData = [];
       let activeIndex = 0;
-      let isConverterInitialized = false;
 
-      // ── Converter state ─────────────────────────────────────
-      let convRows = [];
-      let convIsConverting = false;
-      let convCancelRequested = false;
-      let convStartTime = 0;
-      let convTimerInterval = null;
-
-      // ── DOM refs (will be set after render) ────────────────
-      let convContainer = null;
-
-      // ── Converter helpers ──────────────────────────────────
-      function isVideoUrl(url) { return /\.(mp4|mov|webm)(\?.*)?$/i.test(url); }
-      function isImageUrl(url) { return !isVideoUrl(url); }
-
-      function getBaseName(url) {
+      // ── Media Manager state ──────────────────────────────────
+      const MM_LS_KEY = 'media_rename_map';
+      const mmUrls = [
+        "https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp",
+        "https://raw.githubusercontent.com/ZACKGORT/zack/refs/heads/main/media/Group%201597880951.png",
+        "https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp",
+        "https://i.ibb.co/DDs2vRhB/downtown375hudson.webp",
+        "https://i.ibb.co/wZY2bhKF/bny4.png",
+        "https://i.ibb.co/xS49C07B/bny3.png",
+        "https://i.ibb.co/vvMZmq94/bny2.png",
+        "https://i.ibb.co/XkM2hn8n/bny1.png",
+        "https://i.ibb.co/FJNG1jC/14.jpg",
+        "https://i.ibb.co/fxjgcYD/18.png",
+        "https://i.ibb.co/gtQLYJQ/17.jpg",
+        "https://i.ibb.co/Fgxcqj0/16.jpg",
+        "https://i.ibb.co/dcXH5fn/13.jpg",
+        "https://i.ibb.co/ZR7Tb6YW/1-b-Q-s-X24b-Qk-Utx50-Q5j-MZNg.webp",
+        "https://i.ibb.co/XfXGRWZ5/1-RTEI5a-Ccw31fj-Fzqj-Bg-FEg.webp",
+        "https://i.ibb.co/fdvw7XLN/1-PGk-VR2s-OAfc-Kk5kk-Trn-Qdw.webp",
+        "https://i.ibb.co/sJkpkV9Q/1-l4jg-O1-4g-Ey-Wy-IBEQZho0g.webp",
+        "https://i.ibb.co/xqz6QDPj/bny2.webp",
+        "https://i.ibb.co/7N2rDqrN/8.webp",
+        "https://i.ibb.co/cSQCgNQY/work1.webp",
+        "https://i.ibb.co/pBMMxY1Z/11.webp",
+        "https://i.ibb.co/vx76zjgf/10.webp",
+        "https://i.ibb.co/rft2bf0T/9.webp",
+        "https://i.ibb.co/ynjWYqv8/2.webp",
+        "https://i.ibb.co/spHgPH6N/1.webp",
+        "https://i.ibb.co/cXg5Phdc/3.webp",
+        "https://i.ibb.co/99h2bQMh/6.webp",
+        "https://i.ibb.co/gZ58PKyk/4.webp",
+        "https://i.ibb.co/Y7pGqJ69/5.webp",
+        "https://i.ibb.co/yB4RwkTf/7.webp",
+        "https://i.ibb.co/0pSDhFCY/gnc-case-B1.jpg",
+        "https://i.ibb.co/Mx7fHWMk/gnc-case-A1.jpg",
+        "https://i.ibb.co/sdTzVgC7/gnc-case-B3.jpg",
+        "https://i.ibb.co/PGgr4fd7/gnc-case-B2.jpg",
+        "https://i.ibb.co/d0pdvvD4/gnc-case-B5.jpg",
+        "https://i.ibb.co/xqNy0qPJ/gnc-case-4.png",
+        "https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp",
+        "https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp",
+        "https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp",
+        "https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp",
+        "https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp",
+        "https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp",
+        "https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp",
+        "https://i.ibb.co/jk49XvQS/braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.webp",
+        "https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp",
+        "https://i.ibb.co/XT67Rx9/dana-foundation.png",
+        "https://i.ibb.co/hFkwLZv9/imageassetwXMKOVHrYCxydoJjBBTdWp.webp",
+        "https://i.ibb.co/XxsVsPRp/dana-geometry.png",
+        "https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp",
+        "https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp",
+        "https://i.ibb.co/0VmJ708g/work3.webp",
+        "https://i.ibb.co/MrFyzRt/work3.webp",
+        "https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp",
+        "https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp",
+        "https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp",
+        "https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif",
+        "https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif",
+        "https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif",
+        "https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp",
+        "https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp",
+        "https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp",
+        "https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp",
+        "https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp",
+        "https://i.ibb.co/4RksMzw/Browse-Location-List.png",
+        "https://i.ibb.co/BHKQwjNL/life.webp",
+        "https://i.ibb.co/ZzdZ0kyx/zebra1.webp",
+        "https://i.ibb.co/d49fwjK2/zebra3.webp",
+        "https://i.ibb.co/V0FXtQzf/zebra5.webp",
+        "https://i.ibb.co/KxTJNsBB/zebra6.webp",
+        "https://i.ibb.co/5hJTV5sh/philly-laundry-g35.jpg",
+        "https://i.ibb.co/fdyYsYKy/parallelpark2.webp",
+        "https://i.ibb.co/Hfmt3S8p/parallelpark3.webp",
+        "https://i.ibb.co/tf52zLw/parallelpark4.webp",
+        "https://i.ibb.co/DHJDpkQY/parallelpark5.webp",
+        "https://i.ibb.co/cSyb2bfd/parallelpark6.webp",
+        "https://i.ibb.co/7t3rDbHx/bny2.webp",
+        "https://i.ibb.co/Z1tjz0t9/14.webp",
+        "https://i.ibb.co/9qFzTQH/tiktok-proto-gif.gif",
+        "https://i.ibb.co/NtWgd7T/dana-mobile-mockup.jpg",
+        "https://miro.medium.com/v2/resize:fit:4466/format:webp/1*mZdgz7yElh7nWKuuS8XZ2g.png",
+        "https://miro.medium.com/v2/resize:fit:4466/format:webp/1*kY6yg0chz7Puu-WgrlYNMA.jpeg",
+        "https://miro.medium.com/v2/resize:fit:2000/format:webp/1*b7R1BbD3knTIbl_LyMZdXg.png",
+        "https://miro.medium.com/v2/resize:fit:4096/format:webp/1*ZpyOMlmzMa0rPlNY--3KXA.png",
+        "https://miro.medium.com/v2/resize:fit:1400/format:webp/1*h9ljVOzzRT-IrakgaDSWvQ.png",
+        "https://miro.medium.com/v2/resize:fit:1400/format:webp/1*puHZ09ELFPd-AaMK0HAxqQ.png",
+        "https://miro.medium.com/v2/resize:fit:1400/format:webp/1*lm5BUxr0dDq73bWoi3vy4w.png",
+        "https://miro.medium.com/v2/resize:fit:4000/format:webp/1*dtGgrSm7amTRi_5jQMVeIw.png",
+        "https://miro.medium.com/v2/resize:fit:1100/format:webp/1*FYtVicHKjLDPLW2rcnJ1uA.png",
+        "https://miro.medium.com/v2/resize:fit:1100/format:webp/1*GFvd_ywApPELXmtrFbxVug.png",
+        "https://miro.medium.com/v2/resize:fit:2000/format:webp/1*m7HfhuQO4Ugr1VteZf6itA.png",
+        "https://miro.medium.com/v2/resize:fit:4800/format:webp/1*6CxwkYwhhn5Z-FHINfdpWA.png",
+        "https://miro.medium.com/v2/resize:fit:1400/format:webp/1*HI1bKbZmFYVgs3My-H3wvg.png",
+        "https://miro.medium.com/v2/resize:fit:1200/format:webp/1*BNs_Ch8k1bcljKMu1KN_-g.gif",
+        "https://miro.medium.com/v2/resize:fit:4096/format:webp/1*mnDJgS7abSiPjlzk2BxkTA.png",
+        "https://miro.medium.com/v2/resize:fit:750/format:webp/1*aQOvTWfvAwf6m7-oyZyGyA.png",
+        "https://miro.medium.com/v2/resize:fit:750/format:webp/1*pch6xhEpFoXxliAGbNnr7Q.png",
+        "https://miro.medium.com/v2/resize:fit:3962/format:webp/1*TutCePQB0bSCoMfMTWJb-Q.png",
+        "https://miro.medium.com/v2/resize:fit:882/format:webp/1*7wEKA8duSccOZwImA_6jSQ.png",
+        "https://miro.medium.com/v2/resize:fit:1120/format:webp/1*I_nHQKs7BIXoY0onfNxnOg.png",
+        "https://miro.medium.com/v2/resize:fit:3044/format:webp/1*lEJetjUt85CTbb24dBTFkA.png",
+        "https://miro.medium.com/v2/resize:fit:4800/format:webp/1*XT2eaL5pv1yb49r_oJqAoA.png",
+        "https://miro.medium.com/v2/resize:fit:1100/format:webp/1*RTEI5aCcw31fjFzqjBgFEg.png",
+        "https://miro.medium.com/v2/resize:fit:4000/format:webp/1*xQoqrV021PFk0sxts5AWAg.png",
+        "https://miro.medium.com/v2/resize:fit:1100/format:webp/1*1gjrEffBioJYoEAvMWHfKQ.png",
+        "https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png",
+        "https://miro.medium.com/v2/resize:fit:1400/format:webp/1*UATKEet6VtcLkA8rYspjFQ.png",
+        "https://miro.medium.com/v2/resize:fit:720/format:webp/1*KF8S3mjG-LyygktGkM10Kg.jpeg",
+        "https://miro.medium.com/v2/resize:fit:720/format:webp/1*iP-y0X1WqN9WLw_Y-w-evQ.jpeg",
+        "https://miro.medium.com/v2/resize:fit:720/format:webp/1*fQX6x7lVSHT4XJxpApkBfg.jpeg",
+        "https://miro.medium.com/v2/resize:fit:720/format:webp/1*Fpw92LFkhtWU0eFuRAKqVg.jpeg",
+        "https://miro.medium.com/v2/resize:fit:720/format:webp/1*O3ydblRDwhoq24nxcOKolw.jpeg",
+        "https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4",
+        "https://raw.githubusercontent.com/ZACKGORT/ifimaybefrank/main/mp4/nothingelsematterswolfgang720.mp4"
+      ];
+      const mmUniqueUrls = [...new Set(mmUrls)];
+      const isVideo = (url) => /\.(mp4|mov|webm)(\?.*)?$/i.test(url);
+      const isImage = (url) => !isVideo(url);
+      const getDomain = (url) => {
+        try { const host = new URL(url).hostname; return host; } catch { return 'unknown'; }
+      };
+      const getBaseName = (url) => {
         try {
           const path = new URL(url).pathname;
           let name = path.split('/').pop() || 'file';
@@ -931,86 +1227,300 @@
           if (!name) name = 'asset';
           return name;
         } catch { return 'asset'; }
-      }
+      };
 
-      function parseCSV(text) {
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
-        if (lines.length < 2) return [];
-        const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-        const urlIdx = header.indexOf('Original URL');
-        const origIdx = header.indexOf('Original Filename');
-        const newIdx = header.indexOf('New Filename (no ext)');
-        if (urlIdx === -1 || newIdx === -1) {
-          alert('CSV missing required columns: "Original URL" and "New Filename (no ext)"');
-          return [];
-        }
-        const result = [];
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i];
-          const cols = [];
-          let inQuotes = false, current = '';
-          for (let ch of line) {
-            if (ch === '"') { inQuotes = !inQuotes; continue; }
-            if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = ''; continue; }
-            current += ch;
-          }
-          cols.push(current.trim());
-          if (cols.length <= Math.max(urlIdx, newIdx)) continue;
-          const url = cols[urlIdx].replace(/^"|"$/g, '').trim();
-          const newName = cols[newIdx].replace(/^"|"$/g, '').trim();
-          if (!url || !newName) continue;
-          result.push({
-            url, originalName: cols[origIdx] ? cols[origIdx].replace(/^"|"$/g, '').trim() : '',
-            newName, type: isVideoUrl(url) ? 'video' : 'image', status: 'pending'
+      let mmRenameMap = {};
+      function loadMmMapping() {
+        try { const raw = localStorage.getItem(MM_LS_KEY); mmRenameMap = raw ? JSON.parse(raw) : {}; } catch { mmRenameMap = {}; }
+      }
+      function saveMmMapping() {
+        try { localStorage.setItem(MM_LS_KEY, JSON.stringify(mmRenameMap)); } catch {}
+      }
+      loadMmMapping();
+
+      let mmCurrentType = 'all';
+      let mmCurrentSource = 'all';
+
+      // ── Converter state ──────────────────────────────────────
+      let convRows = [];
+      let convIsConverting = false;
+      let convCancelRequested = false;
+      let convStartTime = 0;
+      let convTimerInterval = null;
+      let isConverterInitialized = false;
+
+      // ── Render functions ────────────────────────────────────
+      function renderMediaLetter() {
+        const panel = document.querySelector('.letter-panel[data-letter="media"]');
+        if (!panel) return;
+        const content = panel.querySelector('.letter-content');
+        if (!content) return;
+
+        const filtered = mmUniqueUrls.filter(url => {
+          if (mmCurrentType === 'image' && !isImage(url)) return false;
+          if (mmCurrentType === 'video' && !isVideo(url)) return false;
+          if (mmCurrentSource !== 'all' && getDomain(url) !== mmCurrentSource) return false;
+          return true;
+        });
+
+        const total = mmUniqueUrls.length;
+        const images = mmUniqueUrls.filter(u => isImage(u));
+        const videos = mmUniqueUrls.filter(u => isVideo(u));
+
+        let html = `
+          <div class="mm-stats">
+            <div class="badge">📊 Total: <span>${total}</span></div>
+            <div class="badge">🖼️ Images: <span>${images.length}</span></div>
+            <div class="badge">🎬 Videos: <span>${videos.length}</span></div>
+          </div>
+          <div class="mm-filter-group">
+            <span class="label">Type</span>
+            <button class="${mmCurrentType === 'all' ? 'active' : ''}" data-mm-type="all">All</button>
+            <button class="${mmCurrentType === 'image' ? 'active' : ''}" data-mm-type="image">Images</button>
+            <button class="${mmCurrentType === 'video' ? 'active' : ''}" data-mm-type="video">Videos</button>
+            <span style="width:0.5rem;"></span>
+            <span class="label">Source</span>
+            <button class="${mmCurrentSource === 'all' ? 'active' : ''}" data-mm-source="all">All</button>
+            <button class="${mmCurrentSource === 'i.ibb.co' ? 'active' : ''}" data-mm-source="i.ibb.co">ImageBB</button>
+            <button class="${mmCurrentSource === 'miro.medium.com' ? 'active' : ''}" data-mm-source="miro.medium.com">Miro</button>
+            <button class="${mmCurrentSource === 'raw.githubusercontent.com' ? 'active' : ''}" data-mm-source="raw.githubusercontent.com">GitHub</button>
+          </div>
+          <div class="mm-actions">
+            <button class="btn" id="mmShowMapping">📋 Mapping</button>
+            <button class="btn" id="mmClearNames">✕ Clear renames</button>
+          </div>
+        `;
+
+        if (filtered.length === 0) {
+          html += `<div class="empty-state">No items match current filters.</div>`;
+        } else {
+          html += `<div class="mm-grid">`;
+          filtered.forEach(url => {
+            const isVideoFile = isVideo(url);
+            const domain = getDomain(url);
+            const type = isVideoFile ? 'video' : 'image';
+            const baseName = getBaseName(url);
+            const currentNewName = mmRenameMap[url] || baseName;
+            const shortDomain = domain.replace('.medium.com', '').replace('.githubusercontent.com', '');
+
+            html += `
+              <div class="mm-item" data-url="${escapeHtml(url)}">
+                <div class="mm-media-wrap" data-url="${escapeHtml(url)}" data-type="${type}">
+                  ${isVideoFile ?
+                    `<video src="${escapeHtml(url)}" muted playsinline preload="metadata" controls></video>` :
+                    `<img src="${escapeHtml(url)}" loading="lazy" alt="" />`}
+                </div>
+                <div class="mm-info">
+                  <span class="type">${type}</span>
+                  <span class="domain">${escapeHtml(shortDomain)}</span>
+                </div>
+                <div class="mm-rename">
+                  <label>→</label>
+                  <input type="text" value="${escapeHtml(currentNewName)}" placeholder="${escapeHtml(baseName)}" spellcheck="false" data-url="${escapeHtml(url)}" />
+                  <span class="ext-hint">.avif</span>
+                </div>
+              </div>
+            `;
           });
+          html += `</div>`;
         }
-        return result;
-      }
 
-      function getFileExtension(url) {
-        const path = url.split('?')[0];
-        const ext = path.split('.').pop() || '';
-        return ext.toLowerCase();
-      }
+        content.innerHTML = html;
 
-      function isImageExt(ext) {
-        return ['jpg','jpeg','png','webp','gif','bmp','ico','svg','tiff','tif'].includes(ext);
-      }
-
-      function fetchWithAbort(url, signal) {
-        return fetch(url, { mode: 'cors', signal });
-      }
-
-      function convertBlobToAvif(blob, quality = 0.5) {
-        return new Promise((resolve, reject) => {
-          const url = URL.createObjectURL(blob);
-          const img = new Image();
-          img.onload = function() {
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0);
-              canvas.toBlob(blob => {
-                URL.revokeObjectURL(url);
-                if (blob) resolve(blob);
-                else reject(new Error('toBlob returned null'));
-              }, 'image/avif', quality);
-            } catch (err) {
-              URL.revokeObjectURL(url);
-              reject(err);
+        // ── Wire events for media letter ──
+        content.querySelectorAll('.mm-filter-group button').forEach(btn => {
+          btn.addEventListener('click', function() {
+            if (this.dataset.mmType) {
+              mmCurrentType = this.dataset.mmType;
+              renderMediaLetter();
             }
-          };
-          img.onerror = function() {
-            URL.revokeObjectURL(url);
-            reject(new Error('Failed to load image'));
-          };
-          img.src = url;
+            if (this.dataset.mmSource) {
+              mmCurrentSource = this.dataset.mmSource;
+              renderMediaLetter();
+            }
+          });
+        });
+
+        content.querySelectorAll('.mm-rename input').forEach(inp => {
+          inp.addEventListener('input', function() {
+            const url = this.dataset.url;
+            const val = this.value.trim();
+            if (val && val !== '') {
+              mmRenameMap[url] = val;
+            } else {
+              delete mmRenameMap[url];
+            }
+            saveMmMapping();
+          });
+        });
+
+        content.querySelectorAll('.mm-media-wrap').forEach(wrap => {
+          wrap.addEventListener('click', function() {
+            const url = this.dataset.url;
+            const type = this.dataset.type;
+            openMediaLightbox(url, type);
+          });
+        });
+
+        const showMapping = content.querySelector('#mmShowMapping');
+        if (showMapping) showMapping.addEventListener('click', openMediaMappingModal);
+
+        const clearNames = content.querySelector('#mmClearNames');
+        if (clearNames) clearNames.addEventListener('click', function() {
+          if (confirm('Clear all custom names?')) {
+            mmRenameMap = {};
+            saveMmMapping();
+            renderMediaLetter();
+          }
         });
       }
 
-      // ── Render converter UI ────────────────────────────────
+      // ── Media Lightbox ──────────────────────────────────────
+      function openMediaLightbox(url, type) {
+        const lightbox = document.getElementById('mmLightbox');
+        if (!lightbox) {
+          // create if not exists
+          const lb = document.createElement('div');
+          lb.id = 'mmLightbox';
+          lb.className = 'mm-lightbox';
+          lb.innerHTML = `
+            <button class="close" id="mmLightboxClose">✕</button>
+            <div id="mmLightboxContent"></div>
+            <div class="caption" id="mmLightboxCaption"></div>
+          `;
+          document.body.appendChild(lb);
+          lb.addEventListener('click', function(e) {
+            if (e.target === this || e.target.closest('.close')) closeMediaLightbox();
+          });
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeMediaLightbox();
+          });
+        }
+        const lb = document.getElementById('mmLightbox');
+        const content = document.getElementById('mmLightboxContent');
+        const caption = document.getElementById('mmLightboxCaption');
+        content.innerHTML = '';
+        if (type === 'video') {
+          const vid = document.createElement('video');
+          vid.src = url;
+          vid.controls = true;
+          vid.autoplay = true;
+          vid.muted = false;
+          vid.style.maxWidth = '90vw';
+          vid.style.maxHeight = '85vh';
+          vid.style.borderRadius = '8px';
+          content.appendChild(vid);
+        } else {
+          const img = document.createElement('img');
+          img.src = url;
+          img.alt = url.split('/').pop();
+          content.appendChild(img);
+        }
+        caption.textContent = url;
+        lb.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeMediaLightbox() {
+        const lb = document.getElementById('mmLightbox');
+        if (lb) {
+          lb.classList.remove('open');
+          document.body.style.overflow = '';
+          const vid = lb.querySelector('video');
+          if (vid) vid.pause();
+          const content = document.getElementById('mmLightboxContent');
+          if (content) content.innerHTML = '';
+        }
+      }
+
+      // ── Media Mapping Modal ─────────────────────────────────
+      function renderMediaMappingModal() {
+        const body = document.getElementById('mediaMappingBody');
+        if (!body) return;
+        const entries = mmUniqueUrls.map(url => {
+          const base = getBaseName(url);
+          const newName = mmRenameMap[url] || base;
+          return { url, base, newName };
+        });
+        if (entries.length === 0) {
+          body.innerHTML = '<p style="color:var(--ink-light);padding:1rem 0;">No assets found.</p>';
+          return;
+        }
+        let html = `<table><thead><tr><th>Original URL</th><th>Old name</th><th>New name</th><th>.avif</th></tr></thead><tbody>`;
+        entries.forEach(({ url, base, newName }) => {
+          const displayUrl = url.length > 60 ? url.slice(0,55)+'…' : url;
+          const shortDomain = getDomain(url).replace('.medium.com', '').replace('.githubusercontent.com', '');
+          html += `<tr>
+            <td><span class="url" title="${url}">${displayUrl}</span> <span class="badge">${shortDomain}</span></td>
+            <td><code>${base}</code></td>
+            <td><code class="new-name">${newName}</code></td>
+            <td><code class="new-name">${newName}.avif</code></td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+        body.innerHTML = html;
+      }
+
+      function openMediaMappingModal() {
+        const overlay = document.getElementById('mediaMappingModal');
+        renderMediaMappingModal();
+        positionRolloutPanel('mediaMappingModal', document.getElementById('mmShowMapping') || document.getElementById('topResetBtn'));
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeMediaMappingModal() {
+        document.getElementById('mediaMappingModal').classList.remove('open');
+        document.body.style.overflow = '';
+      }
+
+      // ── Converter rendering ──────────────────────────────────
+      function renderConverterLetter() {
+        const panel = document.querySelector('.letter-panel[data-letter="converter"]');
+        if (!panel) return;
+        const content = panel.querySelector('.letter-content');
+        if (!content) return;
+
+        content.innerHTML = `
+          <div class="converter-upload" id="converterUpload">
+            <div class="icon">📁</div>
+            <div class="label"><strong>Click or drag</strong> your <code>media-rename-map.csv</code> here</div>
+            <input type="file" id="converterFileInput" accept=".csv" />
+          </div>
+          <div class="converter-stats" id="converterStats" style="display:none;">
+            <div class="badge">📊 Total: <span id="convTotal">0</span></div>
+            <div class="badge">🖼️ Images: <span id="convImages">0</span></div>
+            <div class="badge">🎬 Videos: <span id="convVideos">0</span></div>
+          </div>
+          <div class="converter-table-wrap" id="converterTableWrap" style="display:none;">
+            <table><thead><tr><th style="width:40%;">Original URL</th><th style="width:20%;">New name</th><th style="width:15%;">Type</th><th style="width:15%;">Status</th></tr></thead>
+            <tbody id="converterTableBody"></tbody></table>
+          </div>
+          <div class="converter-controls" id="converterControls" style="display:none;">
+            <button class="btn btn-primary" id="convConvertBtn">⚡ Convert all</button>
+            <button class="btn btn-danger" id="convCancelBtn" disabled>⏹ Cancel</button>
+            <button class="btn" id="convExportCsvBtn">📋 Export CSV</button>
+            <button class="btn" id="convMappingBtn">📋 Mapping</button>
+            <span style="color:var(--ink-light);font-size:0.75rem;margin-left:auto;" id="convProgressText">Ready</span>
+          </div>
+          <div class="converter-progress-wrap" id="convProgressWrap">
+            <div class="converter-progress-bar" id="convProgressBar"></div>
+          </div>
+          <div class="converter-status-bar" id="convStatusBar" style="display:none;">
+            <span class="current" id="convCurrentStatus">⏳ Initializing…</span>
+            <span class="elapsed" id="convElapsedTime">⏱️ 0s</span>
+          </div>
+          <div class="converter-log" id="convLog"></div>
+        `;
+
+        if (!isConverterInitialized) {
+          initConverter(content);
+        } else {
+          renderConvTable();
+        }
+      }
+
+      // ── Converter logic ──────────────────────────────────────
       function renderConvTable() {
         const tableBody = document.getElementById('converterTableBody');
         if (!tableBody) return;
@@ -1037,8 +1547,10 @@
         const wrap = document.getElementById('converterTableWrap'); if (wrap) wrap.style.display = 'block';
         const controls = document.getElementById('converterControls'); if (controls) controls.style.display = 'flex';
         const progressText = document.getElementById('convProgressText'); if (progressText) progressText.textContent = `${img} images ready`;
-        const hudStatusCount = document.getElementById('hudStatusCount'); if (hudStatusCount) hudStatusCount.textContent = img;
-        const hudStatusText = document.getElementById('hudStatusText'); if (hudStatusText) hudStatusText.textContent = `${img} images ready`;
+        const hudStatusCount = document.getElementById('hudStatusCount');
+        if (hudStatusCount) hudStatusCount.textContent = img;
+        const hudStatusText = document.getElementById('hudStatusText');
+        if (hudStatusText) hudStatusText.textContent = `${img} images ready`;
       }
 
       function updateConvStatusRow(index, status) {
@@ -1097,6 +1609,70 @@
         }
         const progText = document.getElementById('convProgressText');
         if (progText) progText.textContent = enabled ? 'Ready' : 'Converting…';
+      }
+
+      function parseCSV(text) {
+        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        if (lines.length < 2) return [];
+        const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        const urlIdx = header.indexOf('Original URL');
+        const origIdx = header.indexOf('Original Filename');
+        const newIdx = header.indexOf('New Filename (no ext)');
+        if (urlIdx === -1 || newIdx === -1) return [];
+        const result = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i];
+          const cols = [];
+          let inQuotes = false, current = '';
+          for (let ch of line) {
+            if (ch === '"') { inQuotes = !inQuotes; continue; }
+            if (ch === ',' && !inQuotes) { cols.push(current.trim()); current = ''; continue; }
+            current += ch;
+          }
+          cols.push(current.trim());
+          if (cols.length <= Math.max(urlIdx, newIdx)) continue;
+          const url = cols[urlIdx].replace(/^"|"$/g, '').trim();
+          const newName = cols[newIdx].replace(/^"|"$/g, '').trim();
+          if (!url || !newName) continue;
+          result.push({
+            url, originalName: cols[origIdx] ? cols[origIdx].replace(/^"|"$/g, '').trim() : '',
+            newName, type: isVideo(url) ? 'video' : 'image', status: 'pending'
+          });
+        }
+        return result;
+      }
+
+      function fetchWithAbort(url, signal) {
+        return fetch(url, { mode: 'cors', signal });
+      }
+
+      function convertBlobToAvif(blob, quality = 0.5) {
+        return new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(blob);
+          const img = new Image();
+          img.onload = function() {
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob(blob => {
+                URL.revokeObjectURL(url);
+                if (blob) resolve(blob);
+                else reject(new Error('toBlob returned null'));
+              }, 'image/avif', quality);
+            } catch (err) {
+              URL.revokeObjectURL(url);
+              reject(err);
+            }
+          };
+          img.onerror = function() {
+            URL.revokeObjectURL(url);
+            reject(new Error('Failed to load image'));
+          };
+          img.src = url;
+        });
       }
 
       async function convStartConversion() {
@@ -1227,7 +1803,7 @@
       function convOpenMappingModal(trigger) {
         const overlay = document.getElementById('converterMappingModal');
         convRenderMappingModal();
-        positionRolloutPanel('converterMappingModal', trigger || document.getElementById('topMappingBtn'));
+        positionRolloutPanel('converterMappingModal', trigger || document.getElementById('topResetBtn'));
         overlay.classList.add('open');
         document.body.style.overflow = 'hidden';
       }
@@ -1240,9 +1816,7 @@
       function initConverter(container) {
         if (isConverterInitialized) return;
         isConverterInitialized = true;
-        convContainer = container;
 
-        // ── Default demo URLs ──
         const defaultUrls = [
           'https://i.ibb.co/B2V4Skt5/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp',
           'https://i.ibb.co/DDs2vRhB/downtown375hudson.webp',
@@ -1359,7 +1933,7 @@
 
         convRows = defaultUrls.map(url => ({
           url, originalName: getBaseName(url), newName: getBaseName(url),
-          type: isVideoUrl(url) ? 'video' : 'image', status: 'pending'
+          type: isVideo(url) ? 'video' : 'image', status: 'pending'
         }));
         renderConvTable();
         convClearLog();
@@ -1411,28 +1985,31 @@
         document.getElementById('convMappingBtn').addEventListener('click', (e) => convOpenMappingModal(e.currentTarget));
       }
 
-      // ── Carousel rendering ──────────────────────────────────
+      // ── Carousel build ──────────────────────────────────────
       function buildLetterPanel(index, data) {
         const panel = document.createElement('div');
         panel.className = 'letter-panel' + (index === 0 ? ' active' : '');
         panel.dataset.index = String(index);
+        panel.dataset.letter = data.letterId || '';
 
         const frame = document.createElement('div');
         frame.className = 'letter-card-frame';
 
         const cover = document.createElement('div');
         cover.className = 'letter-cover';
-        const label = data.isConverter ? 'TOOL' : 'LETTER ' + String(index+1).padStart(2,'0');
-        cover.innerHTML = `<span class="letter-cover-kicker">${label}</span>
+        const label = data.isSpecial ? data.specialLabel || 'SPECIAL' : 'LETTER ' + String(index+1).padStart(2,'0');
+        cover.innerHTML = `
+          <span class="letter-cover-kicker">${label}</span>
           <h2 class="letter-cover-name">${escapeHtml(data.title)}</h2>
-          <p class="letter-cover-deck">${escapeHtml(data.deck || '')}</p>`;
+          <p class="letter-cover-deck">${escapeHtml(data.deck || '')}</p>
+        `;
         frame.appendChild(cover);
 
         const toolbar = document.createElement('div');
         toolbar.className = 'letter-toolbar';
         const countEl = document.createElement('span');
         countEl.className = 'letter-count';
-        countEl.textContent = data.isConverter ? 'converter' : 'info';
+        countEl.textContent = data.letterId || 'info';
         toolbar.appendChild(countEl);
         frame.appendChild(toolbar);
 
@@ -1462,89 +2039,18 @@
         const content = frame.querySelector('.letter-content');
         if (!content) return;
 
-        content.innerHTML = '';
-
-        if (data.isConverter) {
-          // Build converter UI
-          content.innerHTML = `
-            <div class="converter-upload" id="converterUpload">
-              <div class="icon">📁</div>
-              <div class="label"><strong>Click or drag</strong> your <code>media-rename-map.csv</code> here</div>
-              <input type="file" id="converterFileInput" accept=".csv" />
-            </div>
-            <div class="converter-stats" id="converterStats" style="display:none;">
-              <div class="badge">📊 Total: <span id="convTotal">0</span></div>
-              <div class="badge">🖼️ Images: <span id="convImages">0</span></div>
-              <div class="badge">🎬 Videos: <span id="convVideos">0</span></div>
-            </div>
-            <div class="converter-table-wrap" id="converterTableWrap" style="display:none;">
-              <table><thead><tr><th style="width:40%;">Original URL</th><th style="width:20%;">New name</th><th style="width:15%;">Type</th><th style="width:15%;">Status</th></tr></thead>
-              <tbody id="converterTableBody"></tbody></table>
-            </div>
-            <div class="converter-controls" id="converterControls" style="display:none;">
-              <button class="btn btn-primary" id="convConvertBtn">⚡ Convert all</button>
-              <button class="btn btn-danger" id="convCancelBtn" disabled>⏹ Cancel</button>
-              <button class="btn" id="convExportCsvBtn">📋 Export CSV</button>
-              <button class="btn" id="convMappingBtn">📋 Mapping</button>
-              <span style="color:var(--ink-light);font-size:0.75rem;margin-left:auto;" id="convProgressText">Ready</span>
-            </div>
-            <div class="converter-progress-wrap" id="convProgressWrap">
-              <div class="converter-progress-bar" id="convProgressBar"></div>
-            </div>
-            <div class="converter-status-bar" id="convStatusBar" style="display:none;">
-              <span class="current" id="convCurrentStatus">⏳ Initializing…</span>
-              <span class="elapsed" id="convElapsedTime">⏱️ 0s</span>
-            </div>
-            <div class="converter-log" id="convLog"></div>
-          `;
-          // Re-init converter if not done
-          if (!isConverterInitialized) {
-            initConverter(content);
-          } else {
-            // Refresh table if already initialized
-            renderConvTable();
-          }
+        if (data.letterId === 'media') {
+          renderMediaLetter();
+        } else if (data.letterId === 'converter') {
+          renderConverterLetter();
         } else {
-          // Info letter
-          content.innerHTML = `
-            <div class="info-letter-grid">
-              <div class="cell span-2">
-                <span class="label">Purpose</span>
-                <span class="value">Batch convert images to .avif with full control</span>
-              </div>
-              <div class="cell">
-                <span class="label">Formats</span>
-                <span class="value">jpg, png, webp, gif → avif</span>
-              </div>
-              <div class="cell">
-                <span class="label">Output</span>
-                <span class="value">ZIP download</span>
-              </div>
-              <div class="cell span-2">
-                <span class="label">How to use</span>
-                <span class="value">Upload your CSV mapping, review the table, then click Convert. All images are converted in your browser and packed into a ZIP.</span>
-              </div>
-              <div class="cell">
-                <span class="label">Images ready</span>
-                <span class="value" id="infoImageCount">0</span>
-              </div>
-              <div class="cell">
-                <span class="label">Status</span>
-                <span class="value" id="infoStatus">Ready</span>
-              </div>
-            </div>
-          `;
-          // Update info card with converter stats
-          const imgCount = document.getElementById('infoImageCount');
-          const status = document.getElementById('infoStatus');
-          if (imgCount) imgCount.textContent = convRows.filter(r => r.type === 'image').length || '0';
-          if (status) status.textContent = convIsConverting ? 'Converting…' : 'Ready';
+          content.innerHTML = `<div class="sample-letter"><p>This letter is empty.</p></div>`;
         }
 
         if (index === activeIndex) {
           updateProgressBar();
-          const hudStatusCount = document.getElementById('hudStatusCount');
-          if (hudStatusCount) hudStatusCount.textContent = convRows.filter(r => r.type === 'image').length;
+          const counter = document.getElementById('hudNavCounter');
+          if (counter) counter.textContent = `${activeIndex+1}/${letterData.length}`;
         }
       }
 
@@ -1654,8 +2160,8 @@
 
       // ── Init ──────────────────────────────────────────────────
       letterData = [
-        { title: 'AVIF Converter', deck: 'Upload a CSV mapping to convert images to .avif.' },
-        { title: 'Tool', deck: 'Batch conversion interface.', isConverter: true },
+        { title: 'Media Manager', deck: 'Preview, rename, and map assets.', letterId: 'media' },
+        { title: 'AVIF Converter', deck: 'Convert images to .avif from a CSV mapping.', letterId: 'converter' },
       ];
 
       document.addEventListener('DOMContentLoaded', function() {
@@ -1668,56 +2174,47 @@
         document.getElementById('letterHotspotPrev').addEventListener('click', () => activatePanel(activeIndex - 1));
         document.getElementById('letterHotspotNext').addEventListener('click', () => activatePanel(activeIndex + 1));
 
-        document.getElementById('hudConvertBtn').addEventListener('click', () => {
-          const idx = letterData.findIndex(d => d.isConverter);
+        document.getElementById('hudJumpMedia').addEventListener('click', () => {
+          const idx = letterData.findIndex(d => d.letterId === 'media');
           if (idx >= 0) activatePanel(idx);
-          setTimeout(() => {
-            const btn = document.getElementById('convConvertBtn');
-            if (btn) btn.click();
-          }, 300);
+        });
+        document.getElementById('hudJumpConverter').addEventListener('click', () => {
+          const idx = letterData.findIndex(d => d.letterId === 'converter');
+          if (idx >= 0) activatePanel(idx);
         });
 
-        document.getElementById('hudMappingBtn').addEventListener('click', (e) => {
-          const idx = letterData.findIndex(d => d.isConverter);
-          if (idx >= 0) activatePanel(idx);
-          setTimeout(() => {
-            convOpenMappingModal(e.currentTarget);
-          }, 300);
-        });
-
-        document.getElementById('topMappingBtn').addEventListener('click', (e) => {
-          const idx = letterData.findIndex(d => d.isConverter);
-          if (idx >= 0) activatePanel(idx);
-          setTimeout(() => convOpenMappingModal(e.currentTarget), 300);
-        });
-
-        document.getElementById('topResetBtn').addEventListener('click', () => {
-          if (!confirm('Reset the converter demo data?')) return;
-          isConverterInitialized = false;
-          convRows = [];
-          convIsConverting = false;
-          convCancelRequested = false;
-          if (convTimerInterval) { clearInterval(convTimerInterval); convTimerInterval = null; }
-          const panel = document.querySelector('.letter-panel[data-index="1"]');
-          if (panel) {
-            const frame = panel.querySelector('.letter-card-frame');
-            const content = frame.querySelector('.letter-content');
-            if (content) {
-              content.innerHTML = '';
-              renderLetter(1);
-            }
+        document.getElementById('topResetBtn').addEventListener('click', function() {
+          if (confirm('Reset all data? This will clear media renames and converter demo data.')) {
+            mmRenameMap = {};
+            saveMmMapping();
+            isConverterInitialized = false;
+            convRows = [];
+            convIsConverting = false;
+            convCancelRequested = false;
+            if (convTimerInterval) { clearInterval(convTimerInterval); convTimerInterval = null; }
+            renderLetter(0);
+            renderLetter(1);
+            const hudStatusCount = document.getElementById('hudStatusCount');
+            if (hudStatusCount) hudStatusCount.textContent = '0';
+            const hudStatusText = document.getElementById('hudStatusText');
+            if (hudStatusText) hudStatusText.textContent = 'Ready';
           }
-          const hudCount = document.getElementById('hudStatusCount'); if (hudCount) hudCount.textContent = '0';
-          const hudText = document.getElementById('hudStatusText'); if (hudText) hudText.textContent = 'Ready';
         });
 
+        // ── Mapping modal close ──
         document.getElementById('converterMappingClose').addEventListener('click', convCloseMappingModal);
         document.getElementById('converterMappingModal').addEventListener('click', (e) => {
           if (e.target === e.currentTarget) convCloseMappingModal();
         });
+        document.getElementById('mediaMappingClose').addEventListener('click', closeMediaMappingModal);
+        document.getElementById('mediaMappingModal').addEventListener('click', (e) => {
+          if (e.target === e.currentTarget) closeMediaMappingModal();
+        });
         document.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
             if (document.getElementById('converterMappingModal').classList.contains('open')) convCloseMappingModal();
+            if (document.getElementById('mediaMappingModal').classList.contains('open')) closeMediaMappingModal();
+            if (document.getElementById('mmLightbox')?.classList.contains('open')) closeMediaLightbox();
           }
           if (e.key === 'ArrowLeft') { activatePanel(activeIndex - 1); e.preventDefault(); }
           if (e.key === 'ArrowRight') { activatePanel(activeIndex + 1); e.preventDefault(); }
@@ -1728,7 +2225,7 @@
         let isDragging = false, dragStartX = 0, dragStartScroll = 0;
         track.addEventListener('pointerdown', (e) => {
           if (e.pointerType === 'touch') return;
-          if (closestSafe(e.target, 'button, a, input, .converter-upload, .converter-table-wrap')) return;
+          if (closestSafe(e.target, 'button, a, input, .converter-upload, .converter-table-wrap, .mm-item')) return;
           isDragging = true;
           dragStartX = e.clientX;
           dragStartScroll = track.scrollLeft;
@@ -1769,13 +2266,13 @@
           }, 150);
         }, { passive: true });
 
-        // ── Update info card periodically ──
-        setInterval(() => {
-          const infoStatus = document.getElementById('infoStatus');
-          if (infoStatus) infoStatus.textContent = convIsConverting ? 'Converting…' : 'Ready';
-          const infoCount = document.getElementById('infoImageCount');
-          if (infoCount) infoCount.textContent = convRows.filter(r => r.type === 'image').length || '0';
-        }, 500);
+        // ── Initial render ──
+        renderLetter(0);
+        renderLetter(1);
+        const hudStatusCount = document.getElementById('hudStatusCount');
+        if (hudStatusCount) hudStatusCount.textContent = convRows.filter(r => r.type === 'image').length;
+        const hudStatusText = document.getElementById('hudStatusText');
+        if (hudStatusText) hudStatusText.textContent = `${convRows.filter(r => r.type === 'image').length} images ready`;
       });
     })();
   </script>
