@@ -1935,6 +1935,28 @@
             let isConverterInitialized = false;
             let convQuality = 0.5;
 
+            // ── Helper: load CSV data into converter ────────────────
+            function loadCsvData(text) {
+                const parsed = parseCSV(text);
+                if (parsed.length === 0) {
+                    alert('No valid rows found. Make sure your CSV has "Original URL" and "New Filename (no ext)" columns.');
+                    return false;
+                }
+                convRows = parsed;
+                renderConvTable();
+                convClearLog();
+                convLog(`📋 Loaded ${convRows.length} entries (${convRows.filter(r=>r.type==='image').length} images, ${convRows.filter(r=>r.type==='video').length} videos)`,
+                    'info');
+                const imgC = convRows.filter(r => r.type === 'image').length;
+                const convertBtn = document.getElementById('convConvertBtn');
+                if (convertBtn) convertBtn.disabled = (imgC === 0);
+                const hudCount = document.getElementById('hudStatusCount');
+                if (hudCount) hudCount.textContent = imgC;
+                const hudText = document.getElementById('hudStatusText');
+                if (hudText) hudText.textContent = `${imgC} images ready`;
+                return true;
+            }
+
             // ── Sync: push all media-manager URLs into converter ──
             function syncConverterFromMedia() {
                 const newRows = mmUrls.map(url => ({
@@ -2908,22 +2930,10 @@
                         if (!file) return;
                         const reader = new FileReader();
                         reader.onload = function(ev) {
-                            const parsed = parseCSV(ev.target.result);
-                            if (parsed.length === 0) { alert('No valid rows found.'); return; }
-                            convRows = parsed;
-                            renderConvTable();
-                            convClearLog();
-                            convLog(
-                                `📋 Loaded ${convRows.length} entries (${convRows.filter(r=>r.type==='image').length} images, ${convRows.filter(r=>r.type==='video').length} videos)`,
-                                'info');
-                            const imgC = convRows.filter(r => r.type === 'image').length;
-                            if (convertBtn) convertBtn.disabled = (imgC === 0);
-                            const hudCount = document.getElementById('hudStatusCount');
-                            if (hudCount) hudCount.textContent = imgC;
-                            const hudText = document.getElementById('hudStatusText');
-                            if (hudText) hudText.textContent = `${imgC} images ready`;
+                            loadCsvData(ev.target.result);
                         };
                         reader.readAsText(file);
+                        this.value = ''; // allow re-upload of same file
                     });
                 }
 
@@ -2936,9 +2946,13 @@
                         e.preventDefault();
                         upload.style.borderColor = 'var(--border)';
                         const files = e.dataTransfer.files;
-                        if (files.length > 0 && fileInput) {
-                            fileInput.files = files;
-                            fileInput.dispatchEvent(new Event('change'));
+                        if (files.length > 0) {
+                            const file = files[0];
+                            const reader = new FileReader();
+                            reader.onload = function(ev) {
+                                loadCsvData(ev.target.result);
+                            };
+                            reader.readAsText(file);
                         }
                     });
                 }
