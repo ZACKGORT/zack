@@ -564,16 +564,26 @@
             }
         }
 
-        /* --- hidden paste catcher (mobile fallback) --- */
+        /* --- hidden paste catcher (contenteditable) --- */
         #paste-catcher {
             position: fixed;
-            opacity: 0;
-            pointer-events: none;
+            left: -9999px;
+            top: -9999px;
             width: 1px;
             height: 1px;
-            left: -100px;
-            top: -100px;
-            z-index: -1;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -9999;
+            overflow: hidden;
+            contenteditable: true;
+            font-size: 1px;
+            color: transparent;
+            background: transparent;
+            border: none;
+            outline: none;
+            box-shadow: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* --- responsive overrides --- */
@@ -865,8 +875,8 @@
     <!-- desktop hint -->
     <div id="paste-hint"><kbd>⌘V</kbd> or <kbd>Ctrl+V</kbd> · drag &amp; drop</div>
 
-    <!-- hidden paste catcher (mobile fallback) -->
-    <textarea id="paste-catcher" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+    <!-- hidden paste catcher (contenteditable) -->
+    <div id="paste-catcher" contenteditable="true"></div>
 
     <script>
         // ---- detect mobile ----
@@ -1218,7 +1228,7 @@
                 }
                 isSaving = false;
                 // reset catcher
-                catcher.value = '';
+                catcher.innerHTML = '';
                 catcher.blur();
             }
 
@@ -1347,7 +1357,7 @@
             }
 
             // ---- paste handler (clipboardData) ----
-            async function handlePaste(clipboardData) {
+            async function handlePasteData(clipboardData) {
                 if (!clipboardData) return false;
 
                 const items = clipboardData.items;
@@ -1394,43 +1404,43 @@
                 return false;
             }
 
-            // ---- MOBILE PASTE: use hidden catcher + system paste ----
+            // ---- MOBILE PASTE: use contenteditable catcher ----
             function mobilePasteWithCatcher() {
-                // Focus the hidden textarea so the system paste menu appears
-                catcher.style.position = 'fixed';
-                catcher.style.opacity = '0';
-                catcher.style.pointerEvents = 'none';
-                catcher.style.width = '1px';
-                catcher.style.height = '1px';
-                catcher.style.left = '-100px';
-                catcher.style.top = '-100px';
-                catcher.style.zIndex = '-1';
-                catcher.focus();
-
-                // We'll listen for a paste event on the catcher
                 return new Promise((resolve, reject) => {
+                    // Clear catcher and focus
+                    catcher.innerHTML = '';
+                    catcher.focus();
+
+                    // Set a timeout in case user doesn't paste
                     const timeout = setTimeout(() => {
+                        catcher.removeEventListener('paste', pasteHandler);
+                        catcher.blur();
                         reject(new Error('paste timeout'));
-                    }, 10000); // 10 seconds timeout
+                    }, 15000); // 15 seconds
 
                     const pasteHandler = async (e) => {
+                        e.preventDefault();
+                        clearTimeout(timeout);
+
+                        // Try to get clipboard data from the event
                         const clipboardData = e.clipboardData || e.originalEvent?.clipboardData;
                         if (clipboardData) {
-                            const success = await handlePaste(clipboardData);
+                            const success = await handlePasteData(clipboardData);
+                            catcher.removeEventListener('paste', pasteHandler);
+                            catcher.blur();
                             if (success) {
-                                clearTimeout(timeout);
-                                catcher.removeEventListener('paste', pasteHandler);
-                                catcher.blur();
                                 resolve(true);
                             } else {
-                                clearTimeout(timeout);
-                                catcher.removeEventListener('paste', pasteHandler);
-                                catcher.blur();
                                 reject(new Error('no valid content'));
                             }
-                        } else {
-                            // try reading via navigator.clipboard as fallback
-                            try {
+                            return;
+                        }
+
+                        // Fallback: try reading from catcher's innerHTML for images (if any)
+                        // but images are not stored as innerHTML, they are files.
+                        // We'll try navigator.clipboard as fallback
+                        try {
+                            if (navigator.clipboard && navigator.clipboard.read) {
                                 const items = await navigator.clipboard.read();
                                 let found = false;
                                 for (const item of items) {
@@ -1457,22 +1467,20 @@
                                     }
                                 }
                                 if (found) {
-                                    clearTimeout(timeout);
                                     catcher.removeEventListener('paste', pasteHandler);
                                     catcher.blur();
                                     resolve(true);
-                                } else {
-                                    clearTimeout(timeout);
-                                    catcher.removeEventListener('paste', pasteHandler);
-                                    catcher.blur();
-                                    reject(new Error('no content in clipboard'));
+                                    return;
                                 }
-                            } catch (err) {
-                                clearTimeout(timeout);
-                                catcher.removeEventListener('paste', pasteHandler);
-                                catcher.blur();
-                                reject(err);
                             }
+                            // If we reach here, no content
+                            catcher.removeEventListener('paste', pasteHandler);
+                            catcher.blur();
+                            reject(new Error('no content in clipboard'));
+                        } catch (err) {
+                            catcher.removeEventListener('paste', pasteHandler);
+                            catcher.blur();
+                            reject(err);
                         }
                     };
 
@@ -1490,7 +1498,8 @@
             // ---- mobile paste entry point ----
             async function mobilePaste() {
                 try {
-                    statusEl.textContent = '📋 opening clipboard...';
+                    statusEl.textContent = '📋 tap "Paste" from menu...';
+
                     // First try the modern Clipboard API (with user gesture already present)
                     if (navigator.clipboard && navigator.clipboard.read) {
                         try {
@@ -1521,12 +1530,11 @@
                             if (found) {
                                 statusEl.textContent = '✓ pasted!';
                                 return;
-                            } else {
-                                // fallback to catcher
-                                statusEl.textContent = '⏎ no content, try manual paste';
-                                await mobilePasteWithCatcher();
-                                return;
                             }
+                            // If no content, fallback to catcher
+                            statusEl.textContent = '⏎ no content, try manual paste';
+                            await mobilePasteWithCatcher();
+                            return;
                         } catch (clipErr) {
                             console.warn('Clipboard API read failed, falling back to catcher', clipErr);
                             // fallback to catcher
@@ -1599,7 +1607,7 @@
 
             // ---- desktop paste event ----
             document.addEventListener('paste', async (e) => {
-                const success = await handlePaste(e.clipboardData);
+                const success = await handlePasteData(e.clipboardData);
                 if (success) e.preventDefault();
             });
 
@@ -1730,7 +1738,7 @@
             setState('empty');
             resetAll();
 
-            console.log('📄 /PASTED — mobile-optimized with fallback paste catcher');
+            console.log('📄 /PASTED — mobile-optimized with contenteditable paste catcher');
         })();
     </script>
 </body>
