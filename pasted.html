@@ -1355,86 +1355,99 @@
                 }
             }
 
-            // ---- parse HTML for embedded image (data URI or content URI) ----
-            async function extractImageFromHTML(html) {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const img = doc.querySelector('img');
-                if (!img) return null;
-                const src = img.getAttribute('src');
-                if (!src) return null;
-
-                // If it's a data URI
-                if (src.startsWith('data:image/')) {
-                    const response = await fetch(src);
-                    const blob = await response.blob();
-                    return blob;
-                }
-
-                // If it's a content:// URI (Android) – try to fetch it
-                if (src.startsWith('content://')) {
+            // ---- paste handler: try multiple sources ----
+            async function extractImageFromElement(el) {
+                // Check for img inside the element
+                const imgs = el.querySelectorAll('img');
+                for (const img of imgs) {
+                    const src = img.getAttribute('src');
+                    if (!src) continue;
+                    // Try fetching the image
                     try {
                         const response = await fetch(src);
-                        const blob = await response.blob();
-                        if (blob.type.startsWith('image/')) {
-                            return blob;
+                        if (response.ok) {
+                            const blob = await response.blob();
+                            if (blob.type.startsWith('image/')) {
+                                return blob;
+                            }
                         }
                     } catch (_) { /* ignore */ }
                 }
-
-                // If it's a blob: or other, try fetch
-                if (src.startsWith('blob:') || src.startsWith('http')) {
-                    try {
-                        const response = await fetch(src);
-                        const blob = await response.blob();
-                        if (blob.type.startsWith('image/')) {
-                            return blob;
-                        }
-                    } catch (_) { /* ignore */ }
-                }
-
                 return null;
             }
 
-            // ---- paste handler (clipboardData) ----
-            async function handlePasteData(clipboardData) {
-                if (!clipboardData) return false;
-
-                // 1. Check for image in items
-                const items = clipboardData.items;
-                let imageBlob = null;
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i];
-                    if (item.type.startsWith('image/')) {
-                        imageBlob = item.getAsFile();
-                        break;
+            async function handlePasteData(clipboardData, catcherElement) {
+                // 1. Check items for image
+                if (clipboardData) {
+                    const items = clipboardData.items;
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (item.type.startsWith('image/')) {
+                            const blob = item.getAsFile();
+                            if (blob) {
+                                const meta = { accent: '#b8a2d4' };
+                                const url = URL.createObjectURL(blob);
+                                setImage(url, blob, meta);
+                                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                return true;
+                            }
+                        }
                     }
-                }
-                if (imageBlob) {
-                    const meta = { accent: '#b8a2d4' };
-                    const url = URL.createObjectURL(imageBlob);
-                    setImage(url, imageBlob, meta);
-                    setTimeout(() => URL.revokeObjectURL(url), 5000);
-                    return true;
-                }
-
-                // 2. Check files
-                if (clipboardData.files) {
-                    for (const file of clipboardData.files) {
-                        if (file.type.startsWith('image/')) {
+                    // Check files
+                    if (clipboardData.files) {
+                        for (const file of clipboardData.files) {
+                            if (file.type.startsWith('image/')) {
+                                const meta = { accent: '#b8a2d4' };
+                                const url = URL.createObjectURL(file);
+                                setImage(url, file, meta);
+                                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                return true;
+                            }
+                        }
+                    }
+                    // Check HTML for embedded images
+                    const html = clipboardData.getData('text/html');
+                    if (html) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const blob = await extractImageFromElement(doc.body);
+                        if (blob) {
                             const meta = { accent: '#b8a2d4' };
-                            const url = URL.createObjectURL(file);
-                            setImage(url, file, meta);
+                            const url = URL.createObjectURL(blob);
+                            setImage(url, blob, meta);
                             setTimeout(() => URL.revokeObjectURL(url), 5000);
                             return true;
                         }
                     }
+                    // Try plain text
+                    let text = '';
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type === 'text/plain') {
+                            text = await new Promise((resolve) => {
+                                items[i].getAsString(resolve);
+                            });
+                            break;
+                        }
+                    }
+                    if (!text) {
+                        for (let i = 0; i < items.length; i++) {
+                            if (items[i].type === 'text/uri-list') {
+                                text = await new Promise((resolve) => {
+                                    items[i].getAsString(resolve);
+                                });
+                                break;
+                            }
+                        }
+                    }
+                    if (text && text.trim().length > 0) {
+                        setText(text.trim());
+                        return true;
+                    }
                 }
 
-                // 3. Check for HTML content (for images embedded as data URI or content URI)
-                const html = clipboardData.getData('text/html');
-                if (html) {
-                    const blob = await extractImageFromHTML(html);
+                // 2. If we have a catcher element, check its innerHTML for images
+                if (catcherElement) {
+                    const blob = await extractImageFromElement(catcherElement);
                     if (blob) {
                         const meta = { accent: '#b8a2d4' };
                         const url = URL.createObjectURL(blob);
@@ -1442,116 +1455,111 @@
                         setTimeout(() => URL.revokeObjectURL(url), 5000);
                         return true;
                     }
-                }
-
-                // 4. Try plain text
-                let text = '';
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type === 'text/plain') {
-                        text = await new Promise((resolve) => {
-                            items[i].getAsString(resolve);
-                        });
-                        break;
+                    // Also check for plain text inside the catcher (if any)
+                    const text = catcherElement.textContent.trim();
+                    if (text.length > 0) {
+                        setText(text);
+                        return true;
                     }
-                }
-                if (!text) {
-                    for (let i = 0; i < items.length; i++) {
-                        if (items[i].type === 'text/uri-list') {
-                            text = await new Promise((resolve) => {
-                                items[i].getAsString(resolve);
-                            });
-                            break;
-                        }
-                    }
-                }
-                if (text && text.trim().length > 0) {
-                    setText(text.trim());
-                    return true;
                 }
 
                 return false;
             }
 
-            // ---- MOBILE PASTE: use contenteditable catcher ----
+            // ---- MOBILE PASTE: use contenteditable catcher with mutation observer ----
             function mobilePasteWithCatcher() {
                 return new Promise((resolve, reject) => {
                     catcher.innerHTML = '';
                     catcher.focus();
 
+                    let resolved = false;
                     const timeout = setTimeout(() => {
-                        catcher.removeEventListener('paste', pasteHandler);
-                        catcher.blur();
-                        reject(new Error('paste timeout'));
+                        if (!resolved) {
+                            cleanup();
+                            reject(new Error('paste timeout'));
+                        }
                     }, 15000);
+
+                    const cleanup = () => {
+                        clearTimeout(timeout);
+                        catcher.removeEventListener('paste', pasteHandler);
+                        if (observer) observer.disconnect();
+                        catcher.blur();
+                    };
+
+                    // Mutation observer to detect inserted images
+                    const observer = new MutationObserver(async () => {
+                        const blob = await extractImageFromElement(catcher);
+                        if (blob) {
+                            resolved = true;
+                            cleanup();
+                            const meta = { accent: '#b8a2d4' };
+                            const url = URL.createObjectURL(blob);
+                            setImage(url, blob, meta);
+                            setTimeout(() => URL.revokeObjectURL(url), 5000);
+                            resolve(true);
+                            return;
+                        }
+                        // Check for text content
+                        const text = catcher.textContent.trim();
+                        if (text.length > 0) {
+                            resolved = true;
+                            cleanup();
+                            setText(text);
+                            resolve(true);
+                            return;
+                        }
+                    });
+                    observer.observe(catcher, { childList: true, subtree: true, characterData: true });
 
                     const pasteHandler = async (e) => {
                         e.preventDefault();
-                        clearTimeout(timeout);
-
                         const clipboardData = e.clipboardData || e.originalEvent?.clipboardData;
+                        // Let mutation observer handle the image insertion; but if clipboardData has image, we can use it directly
                         if (clipboardData) {
-                            const success = await handlePasteData(clipboardData);
-                            catcher.removeEventListener('paste', pasteHandler);
-                            catcher.blur();
+                            // Try to handle data directly
+                            const success = await handlePasteData(clipboardData, null);
                             if (success) {
+                                resolved = true;
+                                cleanup();
                                 resolve(true);
-                            } else {
-                                reject(new Error('no valid content'));
+                                return;
                             }
-                            return;
                         }
-
-                        // Fallback: try navigator.clipboard
-                        try {
-                            if (navigator.clipboard && navigator.clipboard.read) {
-                                const items = await navigator.clipboard.read();
-                                let found = false;
-                                for (const item of items) {
-                                    if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item
-                                        .types.includes('image/webp')) {
-                                        const blob = await item.getType(item.types.find(t => t.startsWith(
-                                        'image/')));
-                                        if (blob) {
-                                            const meta = { accent: '#b8a2d4' };
-                                            const url = URL.createObjectURL(blob);
-                                            setImage(url, blob, meta);
-                                            setTimeout(() => URL.revokeObjectURL(url), 5000);
-                                            found = true;
-                                            break;
-                                        }
-                                    }
-                                    if (item.types.includes('text/plain')) {
-                                        const text = await item.getType('text/plain').then(r => r.text());
-                                        if (text && text.trim().length > 0) {
-                                            setText(text.trim());
-                                            found = true;
-                                            break;
-                                        }
-                                    }
+                        // If not handled, let observer take over (it will detect inserted content)
+                        // However, we also want to check after a short delay in case observer doesn't fire
+                        setTimeout(async () => {
+                            if (!resolved) {
+                                // Check catcher again
+                                const blob = await extractImageFromElement(catcher);
+                                if (blob) {
+                                    resolved = true;
+                                    cleanup();
+                                    const meta = { accent: '#b8a2d4' };
+                                    const url = URL.createObjectURL(blob);
+                                    setImage(url, blob, meta);
+                                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                    resolve(true);
+                                    return;
                                 }
-                                if (found) {
-                                    catcher.removeEventListener('paste', pasteHandler);
-                                    catcher.blur();
+                                const text = catcher.textContent.trim();
+                                if (text.length > 0) {
+                                    resolved = true;
+                                    cleanup();
+                                    setText(text);
                                     resolve(true);
                                     return;
                                 }
                             }
-                            catcher.removeEventListener('paste', pasteHandler);
-                            catcher.blur();
-                            reject(new Error('no content in clipboard'));
-                        } catch (err) {
-                            catcher.removeEventListener('paste', pasteHandler);
-                            catcher.blur();
-                            reject(err);
-                        }
+                        }, 300);
                     };
 
                     catcher.addEventListener('paste', pasteHandler);
 
-                    // Try to trigger paste via execCommand (works on some browsers)
+                    // Also try to trigger paste via execCommand
                     try {
                         if (document.execCommand('paste')) {
-                            // might have already triggered
+                            // might have triggered
                         }
                     } catch (_) { /* ignore */ }
                 });
@@ -1560,7 +1568,7 @@
             // ---- mobile paste entry point ----
             async function mobilePaste() {
                 try {
-                    statusEl.textContent = '📋 reading clipboard...';
+                    statusEl.textContent = '📋 preparing paste...';
 
                     // First: try modern Clipboard API
                     if (navigator.clipboard && navigator.clipboard.read) {
@@ -1568,7 +1576,6 @@
                             const items = await navigator.clipboard.read();
                             let found = false;
                             for (const item of items) {
-                                // Try image types
                                 if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item.types
                                     .includes('image/webp')) {
                                     const blob = await item.getType(item.types.find(t => t.startsWith('image/')));
@@ -1581,7 +1588,6 @@
                                         break;
                                     }
                                 }
-                                // Try text/plain
                                 if (item.types.includes('text/plain')) {
                                     const text = await item.getType('text/plain').then(r => r.text());
                                     if (text && text.trim().length > 0) {
@@ -1595,18 +1601,17 @@
                                 statusEl.textContent = '✓ pasted!';
                                 return;
                             }
-                            // If no content, fallback to catcher
-                            statusEl.textContent = '⏎ no content, try manual paste';
+                            // fallback to catcher
+                            statusEl.textContent = '⏎ tap "Paste" from menu';
                             await mobilePasteWithCatcher();
                             return;
                         } catch (clipErr) {
-                            console.warn('Clipboard API read failed, falling back to catcher', clipErr);
+                            console.warn('Clipboard API failed, falling back to catcher', clipErr);
                             statusEl.textContent = '⏎ tap "Paste" from menu';
                             await mobilePasteWithCatcher();
                             return;
                         }
                     } else {
-                        // no API, use catcher
                         statusEl.textContent = '⏎ tap "Paste" from menu';
                         await mobilePasteWithCatcher();
                         return;
@@ -1670,7 +1675,7 @@
 
             // ---- desktop paste event ----
             document.addEventListener('paste', async (e) => {
-                const success = await handlePasteData(e.clipboardData);
+                const success = await handlePasteData(e.clipboardData, null);
                 if (success) e.preventDefault();
             });
 
@@ -1801,7 +1806,7 @@
             setState('empty');
             resetAll();
 
-            console.log('📄 /PASTED — mobile with full image paste support (API + HTML + files)');
+            console.log('📄 /PASTED — mobile with robust image paste (catcher + observer)');
         })();
     </script>
 </body>
