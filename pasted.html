@@ -1,1259 +1,1756 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>🗍</title>
-  <style>
-    /* --- reset: full-viewport, brutalist, no chrome --- */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      background: #0c0b0e;
-      font-family: 'Archivo', 'Helvetica Neue', sans-serif;
-      font-weight: 600;
-      color: #f0ece2;
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>🗍 · paste</title>
+    <style>
+        /* --- reset: full-viewport, brutalist, no chrome --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html,
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0b0e;
+            font-family: 'Archivo', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+            font-weight: 600;
+            color: #f0ece2;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-    /* --- full-screen stage: paste zone + canvas --- */
-    #paste-stage {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #0c0b0e;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: crosshair;
-    }
+        /* --- full-screen stage --- */
+        #paste-stage {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #0c0b0e;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: crosshair;
+            touch-action: none;
+        }
 
-    /* --- aurora background layer --- */
-    #aurora-bg {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-    }
+        /* --- aurora background layer --- */
+        #aurora-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+        #aurora-bg canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: auto;
+        }
 
-    #aurora-bg canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
+        /* --- image layer (parallax) --- */
+        #paste-img-wrap {
+            position: absolute;
+            inset: -6%;
+            will-change: transform;
+            transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+            z-index: 1;
+            pointer-events: none;
+        }
+        #paste-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            opacity: 0;
+            transition: opacity 1.2s ease, transform 0.3s ease;
+            transform: scale(1.02);
+            filter: blur(0px) saturate(1.2);
+            will-change: transform, opacity, filter;
+        }
+        #paste-img.visible {
+            opacity: 0.65;
+            transform: scale(1);
+        }
 
-    /* --- image layer (parallax) --- */
-    #paste-img-wrap {
-      position: absolute;
-      inset: -6%;
-      will-change: transform;
-      transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1);
-      z-index: 1;
-      pointer-events: none;
-    }
+        /* --- CRISP THUMBNAIL PREVIEW --- */
+        #paste-thumb {
+            position: fixed;
+            bottom: 90px;
+            right: 16px;
+            z-index: 15;
+            max-width: 200px;
+            max-height: 150px;
+            width: auto;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid rgba(240, 236, 226, 0.12);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            transform: scale(0.92) translateY(8px);
+            pointer-events: none;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+        }
+        #paste-thumb.visible {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        #paste-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            image-rendering: auto;
+        }
 
-    #paste-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      opacity: 0;
-      transition: opacity 1.2s ease, transform 0.3s ease;
-      transform: scale(1.02);
-      filter: blur(0px) saturate(1.2);
-      will-change: transform, opacity, filter;
-    }
+        /* --- CENTERED PROMPT — dual label state machine --- */
+        #paste-prompt {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform, opacity;
+        }
+        #paste-prompt.hidden {
+            opacity: 0;
+            transform: scale(0.96);
+            pointer-events: none;
+        }
 
-    #paste-img.visible {
-      opacity: 0.65;
-      transform: scale(1);
-    }
+        .prompt-dual {
+            display: flex;
+            align-items: baseline;
+            gap: clamp(12px, 4vw, 32px);
+            font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            line-height: 1;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
 
-    /* --- CRISP THUMBNAIL PREVIEW --- */
-    #paste-thumb {
-      position: fixed;
-      bottom: 80px;
-      right: 24px;
-      z-index: 15;
-      max-width: 320px;
-      max-height: 240px;
-      width: auto;
-      height: auto;
-      border-radius: 6px;
-      border: 1px solid rgba(240,236,226,0.12);
-      background: rgba(0,0,0,0.5);
-      backdrop-filter: blur(4px);
-      overflow: hidden;
-      opacity: 0;
-      transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-                  transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-      transform: scale(0.92) translateY(8px);
-      pointer-events: none;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
-    }
+        .prompt-label {
+            transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            user-select: none;
+            -webkit-user-select: none;
+        }
 
-    #paste-thumb.visible {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
+        .prompt-label.paste {
+            font-size: clamp(36px, 14vw, 120px);
+            color: #f0ece2;
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+        .prompt-label.paste.pasted {
+            font-size: clamp(20px, 6vw, 60px);
+            color: rgba(240, 236, 226, 0.25);
+            opacity: 0.4;
+            transform: translateX(clamp(12px, 3vw, 40px)) scale(0.85);
+        }
 
-    #paste-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      display: block;
-      image-rendering: auto;
-    }
+        .prompt-label.save {
+            font-size: clamp(20px, 6vw, 60px);
+            color: rgba(240, 236, 226, 0.25);
+            opacity: 0.4;
+            transform: translateX(clamp(-12px, -3vw, -40px)) scale(0.85);
+        }
+        .prompt-label.save.active {
+            font-size: clamp(36px, 14vw, 120px);
+            color: #f0ece2;
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+        .prompt-label.save.saved {
+            font-size: clamp(24px, 7vw, 72px);
+            color: rgba(240, 236, 226, 0.3);
+            opacity: 0.5;
+            transform: translateX(0) scale(0.9);
+        }
+        .prompt-label.save.saved::after {
+            content: ' ✓';
+            color: #b8a2d4;
+            opacity: 0.8;
+        }
 
-    /* --- CENTERED PROMPT — dual label state machine --- */
-    #paste-prompt {
-      position: absolute;
-      inset: 0;
-      z-index: 4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
-                  transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
-    }
+        .prompt-sub {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: clamp(9px, 1.4vw, 14px);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.35);
+            margin-top: clamp(6px, 1.5vh, 12px);
+            transition: opacity 0.4s ease;
+            text-align: center;
+            padding: 0 16px;
+        }
+        .prompt-sub.hidden-sub {
+            opacity: 0;
+        }
 
-    #paste-prompt.hidden {
-      opacity: 0;
-      transform: scale(0.96);
-      pointer-events: none;
-    }
+        /* --- text preview --- */
+        #paste-text-preview {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8vh 8vw;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        #paste-text-preview.visible {
+            opacity: 1;
+        }
+        #paste-text-preview pre {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: clamp(12px, 2.2vw, 28px);
+            line-height: 1.6;
+            color: #f0ece2;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            border: 1px solid rgba(240, 236, 226, 0.08);
+            max-width: 92vw;
+            max-height: 60vh;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+            -webkit-overflow-scrolling: touch;
+        }
+        #paste-text-preview pre::-webkit-scrollbar {
+            width: 4px;
+            background: transparent;
+        }
+        #paste-text-preview pre::-webkit-scrollbar-thumb {
+            background: rgba(240, 236, 226, 0.2);
+            border-radius: 4px;
+        }
 
-    /* --- dual label container --- */
-    .prompt-dual {
-      display: flex;
-      align-items: baseline;
-      gap: 32px;
-      font-family: 'Archivo', sans-serif;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      line-height: 1;
-      transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    }
+        /* --- scrim + ambient --- */
+        .paste-scrim {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background: linear-gradient(145deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.15) 45%, rgba(0, 0, 0, 0.55) 100%);
+            pointer-events: none;
+        }
+        #paste-ambient {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.6;
+            transition: background 0.8s ease, opacity 0.8s ease;
+            background: radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%);
+        }
 
-    .prompt-label {
-      transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-      user-select: none;
-    }
+        /* --- corner markers --- */
+        .paste-corner {
+            position: absolute;
+            width: clamp(20px, 4vw, 32px);
+            height: clamp(20px, 4vw, 32px);
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.2;
+        }
+        .paste-corner.tl {
+            top: clamp(12px, 3%, 4%);
+            left: clamp(12px, 3%, 4%);
+            border-top: 1px solid #f0ece2;
+            border-left: 1px solid #f0ece2;
+        }
+        .paste-corner.br {
+            bottom: clamp(12px, 3%, 4%);
+            right: clamp(12px, 3%, 4%);
+            border-bottom: 1px solid #f0ece2;
+            border-right: 1px solid #f0ece2;
+        }
 
-    .prompt-label.paste {
-      font-size: clamp(48px, 12vw, 120px);
-      color: #f0ece2;
-      opacity: 1;
-      transform: translateX(0) scale(1);
-    }
+        /* --- status badge --- */
+        #paste-status {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 20;
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: clamp(7px, 1.2vw, 9px);
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.25);
+            background: rgba(12, 11, 14, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 5px 12px;
+            border-radius: 40px;
+            border: 1px solid rgba(240, 236, 226, 0.06);
+            pointer-events: none;
+            transition: color 0.3s ease, border-color 0.3s ease;
+            max-width: calc(100vw - 80px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #paste-status.ready {
+            color: rgba(240, 236, 226, 0.7);
+            border-color: rgba(240, 236, 226, 0.15);
+        }
 
-    .prompt-label.paste.pasted {
-      font-size: clamp(28px, 6vw, 60px);
-      color: rgba(240,236,226,0.25);
-      opacity: 0.4;
-      transform: translateX(40px) scale(0.85);
-    }
+        /* --- INFO ICON (top-left) --- */
+        #info-toggle {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 30;
+            background: rgba(12, 11, 14, 0.5);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(240, 236, 226, 0.08);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(240, 236, 226, 0.4);
+            cursor: pointer;
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        #info-toggle:hover,
+        #info-toggle:active {
+            background: rgba(240, 236, 226, 0.1);
+            border-color: rgba(240, 236, 226, 0.2);
+            color: #f0ece2;
+        }
+        #info-toggle.active {
+            color: #f0ece2;
+            border-color: rgba(240, 236, 226, 0.3);
+        }
 
-    .prompt-label.save {
-      font-size: clamp(28px, 6vw, 60px);
-      color: rgba(240,236,226,0.25);
-      opacity: 0.4;
-      transform: translateX(-40px) scale(0.85);
-    }
+        /* --- INFO PANEL --- */
+        #info-panel {
+            position: fixed;
+            top: 60px;
+            left: 12px;
+            z-index: 29;
+            background: rgba(12, 11, 14, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(240, 236, 226, 0.1);
+            border-radius: 8px;
+            padding: 20px 22px;
+            max-width: 320px;
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+            pointer-events: none;
+            transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+        }
+        #info-panel.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        #info-panel .brand {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.3);
+            margin-bottom: 6px;
+        }
+        #info-panel h2 {
+            font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+            font-weight: 900;
+            font-size: 20px;
+            letter-spacing: -0.02em;
+            color: #f0ece2;
+            margin-bottom: 4px;
+        }
+        #info-panel .tagline {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #b8a2d4;
+            margin-bottom: 10px;
+        }
+        #info-panel .desc {
+            font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+            font-weight: 400;
+            font-size: 12px;
+            line-height: 1.6;
+            color: rgba(240, 236, 226, 0.65);
+            margin-bottom: 10px;
+        }
+        #info-panel .divider {
+            border: none;
+            border-top: 1px solid rgba(240, 236, 226, 0.06);
+            margin: 8px 0;
+        }
+        #info-panel .metrics {
+            display: flex;
+            gap: 16px;
+        }
+        #info-panel .metric-value {
+            font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+            font-weight: 800;
+            font-size: 18px;
+            color: #b8a2d4;
+            line-height: 1;
+        }
+        #info-panel .metric-label {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 7px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.3);
+        }
+        #info-panel .close-hint {
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 7px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.2);
+            margin-top: 10px;
+            text-align: right;
+        }
 
-    .prompt-label.save.active {
-      font-size: clamp(48px, 12vw, 120px);
-      color: #f0ece2;
-      opacity: 1;
-      transform: translateX(0) scale(1);
-    }
+        /* --- CONTROLS (bottom) --- */
+        #paste-controls {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(12, 11, 14, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 6px 10px;
+            border-radius: 60px;
+            border: 1px solid rgba(240, 236, 226, 0.15);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            pointer-events: auto;
+            flex-wrap: nowrap;
+            max-width: calc(100vw - 32px);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #paste-controls button {
+            background: transparent;
+            border: none;
+            color: #f0ece2;
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: clamp(9px, 1.4vw, 11px);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 8px 14px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: rgba(240, 236, 226, 0.04);
+            border: 1px solid rgba(240, 236, 226, 0.08);
+            font-weight: 600;
+            min-height: 40px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #paste-controls button:active {
+            transform: scale(0.94);
+            background: rgba(240, 236, 226, 0.08);
+        }
+        #paste-controls button:hover {
+            background: rgba(240, 236, 226, 0.12);
+            border-color: rgba(240, 236, 226, 0.3);
+        }
+        #paste-controls .btn-primary {
+            background: #b8a2d4;
+            color: #0c0b0e;
+            border-color: #b8a2d4;
+        }
+        #paste-controls .btn-primary:active {
+            background: #d0bcf0;
+            border-color: #d0bcf0;
+        }
+        #paste-controls .btn-primary:disabled {
+            opacity: 0.25;
+            pointer-events: none;
+            filter: grayscale(0.8);
+        }
+        #paste-controls .btn-clear {
+            background: transparent;
+            color: rgba(240, 236, 226, 0.5);
+            border-color: rgba(240, 236, 226, 0.08);
+        }
+        #paste-controls .btn-clear:active {
+            color: #f0ece2;
+            border-color: rgba(240, 236, 226, 0.3);
+        }
+        #paste-controls .btn-clear:disabled {
+            opacity: 0.2;
+            pointer-events: none;
+        }
 
-    .prompt-label.save.saved {
-      font-size: clamp(32px, 7vw, 72px);
-      color: rgba(240,236,226,0.3);
-      opacity: 0.5;
-      transform: translateX(0) scale(0.9);
-    }
+        /* --- mobile-specific: paste input (hidden) --- */
+        #paste-file-input {
+            position: fixed;
+            opacity: 0;
+            pointer-events: none;
+            width: 0.1px;
+            height: 0.1px;
+            z-index: -1;
+        }
 
-    .prompt-label.save.saved::after {
-      content: ' ✓';
-      color: #b8a2d4;
-      opacity: 0.8;
-    }
+        /* --- keyboard hint (desktop only) --- */
+        #paste-hint {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            z-index: 10;
+            font-family: 'IBM Plex Mono', 'SF Mono', monospace;
+            font-size: 7px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(240, 236, 226, 0.15);
+            pointer-events: none;
+            text-align: right;
+            line-height: 1.6;
+        }
+        #paste-hint kbd {
+            background: rgba(240, 236, 226, 0.04);
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(240, 236, 226, 0.06);
+            font-family: inherit;
+        }
+        @media (max-width: 640px) {
+            #paste-hint {
+                display: none;
+            }
+        }
 
-    .prompt-sub {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: clamp(10px, 1.2vw, 14px);
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.35);
-      margin-top: 12px;
-      transition: opacity 0.4s ease;
-      text-align: center;
-    }
+        /* --- responsive overrides --- */
+        @media (max-width: 640px) {
+            #paste-thumb {
+                max-width: 140px;
+                max-height: 105px;
+                bottom: 76px;
+                right: 10px;
+                border-radius: 4px;
+            }
+            #paste-controls {
+                bottom: 12px;
+                padding: 4px 8px;
+                gap: 4px;
+                border-radius: 40px;
+            }
+            #paste-controls button {
+                font-size: 8px;
+                padding: 6px 10px;
+                min-height: 36px;
+                min-width: 36px;
+                border-radius: 30px;
+            }
+            #paste-status {
+                top: 10px;
+                right: 10px;
+                font-size: 6px;
+                padding: 4px 10px;
+                max-width: calc(100vw - 70px);
+            }
+            #info-toggle {
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                min-height: 36px;
+                top: 10px;
+                left: 10px;
+                font-size: 14px;
+            }
+            #info-panel {
+                max-width: 280px;
+                padding: 16px 18px;
+                left: 10px;
+                top: 54px;
+            }
+            #info-panel h2 {
+                font-size: 17px;
+            }
+            #info-panel .desc {
+                font-size: 11px;
+            }
+            .prompt-dual {
+                gap: 8px;
+            }
+            .prompt-label.paste {
+                font-size: clamp(28px, 13vw, 48px);
+            }
+            .prompt-label.paste.pasted {
+                font-size: clamp(16px, 5vw, 28px);
+                transform: translateX(clamp(8px, 2vw, 20px)) scale(0.85);
+            }
+            .prompt-label.save {
+                font-size: clamp(16px, 5vw, 28px);
+                transform: translateX(clamp(-8px, -2vw, -20px)) scale(0.85);
+            }
+            .prompt-label.save.active {
+                font-size: clamp(28px, 13vw, 48px);
+                transform: translateX(0) scale(1);
+            }
+            .prompt-label.save.saved {
+                font-size: clamp(18px, 6vw, 32px);
+            }
+            #paste-text-preview {
+                padding: 4vh 4vw;
+            }
+            #paste-text-preview pre {
+                font-size: clamp(11px, 2.8vw, 16px);
+                padding: 1rem 1.2rem;
+                max-height: 50vh;
+                max-width: 96vw;
+            }
+            .paste-corner {
+                width: 16px;
+                height: 16px;
+                opacity: 0.15;
+            }
+            .paste-corner.tl {
+                top: 8px;
+                left: 8px;
+            }
+            .paste-corner.br {
+                bottom: 8px;
+                right: 8px;
+            }
+        }
 
-    .prompt-sub.hidden-sub {
-      opacity: 0;
-    }
+        @media (max-width: 400px) {
+            #paste-controls button {
+                font-size: 7px;
+                padding: 4px 8px;
+                min-height: 32px;
+                min-width: 32px;
+            }
+            #paste-controls {
+                gap: 3px;
+                padding: 4px 6px;
+            }
+            #paste-thumb {
+                max-width: 100px;
+                max-height: 75px;
+                bottom: 64px;
+                right: 6px;
+            }
+            .prompt-label.paste {
+                font-size: clamp(22px, 12vw, 36px);
+            }
+            .prompt-label.save.active {
+                font-size: clamp(22px, 12vw, 36px);
+            }
+            .prompt-label.paste.pasted {
+                font-size: clamp(14px, 4vw, 20px);
+            }
+            .prompt-label.save {
+                font-size: clamp(14px, 4vw, 20px);
+            }
+            .prompt-label.save.saved {
+                font-size: clamp(16px, 5vw, 24px);
+            }
+            #paste-status {
+                font-size: 5px;
+                padding: 3px 8px;
+                top: 8px;
+                right: 8px;
+                max-width: calc(100vw - 60px);
+            }
+            #info-toggle {
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+                min-height: 32px;
+                top: 8px;
+                left: 8px;
+                font-size: 12px;
+            }
+            #info-panel {
+                max-width: 220px;
+                padding: 12px 14px;
+                left: 8px;
+                top: 48px;
+            }
+            #info-panel h2 {
+                font-size: 15px;
+            }
+            #info-panel .desc {
+                font-size: 10px;
+            }
+        }
 
-    /* --- INFO ICON (top-left) --- */
-    #info-toggle {
-      position: fixed;
-      top: 20px;
-      left: 24px;
-      z-index: 30;
-      background: rgba(12,11,14,0.5);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(240,236,226,0.08);
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(240,236,226,0.4);
-      cursor: pointer;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 16px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      pointer-events: auto;
-      user-select: none;
-    }
+        @media (max-height: 500px) and (orientation: landscape) {
+            #paste-thumb {
+                max-width: 100px;
+                max-height: 75px;
+                bottom: 60px;
+                right: 10px;
+            }
+            #paste-text-preview {
+                padding: 2vh 4vw;
+            }
+            #paste-text-preview pre {
+                font-size: clamp(10px, 1.6vw, 14px);
+                padding: 0.6rem 1rem;
+                max-height: 40vh;
+            }
+            .prompt-dual {
+                gap: 8px;
+            }
+            .prompt-label.paste {
+                font-size: clamp(20px, 8vw, 40px);
+            }
+            .prompt-label.paste.pasted {
+                font-size: clamp(12px, 4vw, 22px);
+                transform: translateX(clamp(6px, 2vw, 16px)) scale(0.85);
+            }
+            .prompt-label.save {
+                font-size: clamp(12px, 4vw, 22px);
+                transform: translateX(clamp(-6px, -2vw, -16px)) scale(0.85);
+            }
+            .prompt-label.save.active {
+                font-size: clamp(20px, 8vw, 40px);
+                transform: translateX(0) scale(1);
+            }
+            .prompt-label.save.saved {
+                font-size: clamp(14px, 5vw, 28px);
+            }
+            .prompt-sub {
+                font-size: clamp(7px, 1vw, 10px);
+                margin-top: 4px;
+            }
+            #paste-controls {
+                bottom: 8px;
+                padding: 4px 8px;
+            }
+            #paste-controls button {
+                font-size: 7px;
+                padding: 4px 8px;
+                min-height: 28px;
+                min-width: 28px;
+            }
+            #paste-status {
+                top: 8px;
+                right: 8px;
+                font-size: 5px;
+                padding: 3px 8px;
+            }
+            .paste-corner {
+                width: 12px;
+                height: 12px;
+            }
+            .paste-corner.tl {
+                top: 6px;
+                left: 6px;
+            }
+            .paste-corner.br {
+                bottom: 6px;
+                right: 6px;
+            }
+        }
 
-    #info-toggle:hover {
-      background: rgba(240,236,226,0.1);
-      border-color: rgba(240,236,226,0.2);
-      color: #f0ece2;
-    }
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.001ms !important;
+                transition-duration: 0.001ms !important;
+            }
+        }
 
-    #info-toggle.active {
-      color: #f0ece2;
-      border-color: rgba(240,236,226,0.3);
-    }
-
-    /* --- INFO PANEL --- */
-    #info-panel {
-      position: fixed;
-      top: 68px;
-      left: 24px;
-      z-index: 29;
-      background: rgba(12,11,14,0.92);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(240,236,226,0.1);
-      border-radius: 8px;
-      padding: 24px 28px;
-      max-width: 360px;
-      opacity: 0;
-      transform: translateY(-8px) scale(0.96);
-      pointer-events: none;
-      transition: opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-                  transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-      box-shadow: 0 12px 48px rgba(0,0,0,0.6);
-    }
-
-    #info-panel.open {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: auto;
-    }
-
-    #info-panel .brand {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.3);
-      margin-bottom: 8px;
-    }
-
-    #info-panel h2 {
-      font-family: 'Archivo', sans-serif;
-      font-weight: 900;
-      font-size: 24px;
-      letter-spacing: -0.02em;
-      color: #f0ece2;
-      margin-bottom: 6px;
-    }
-
-    #info-panel .tagline {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: #b8a2d4;
-      margin-bottom: 12px;
-    }
-
-    #info-panel .desc {
-      font-family: 'Archivo', sans-serif;
-      font-weight: 400;
-      font-size: 13px;
-      line-height: 1.6;
-      color: rgba(240,236,226,0.65);
-      margin-bottom: 12px;
-    }
-
-    #info-panel .divider {
-      border: none;
-      border-top: 1px solid rgba(240,236,226,0.06);
-      margin: 10px 0;
-    }
-
-    #info-panel .metrics {
-      display: flex;
-      gap: 20px;
-    }
-
-    #info-panel .metric {
-      text-align: left;
-    }
-
-    #info-panel .metric-value {
-      font-family: 'Archivo', sans-serif;
-      font-weight: 800;
-      font-size: 20px;
-      color: #b8a2d4;
-      line-height: 1;
-    }
-
-    #info-panel .metric-label {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.3);
-    }
-
-    #info-panel .close-hint {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.2);
-      margin-top: 12px;
-      text-align: right;
-    }
-
-    /* --- text preview (for pasted text) --- */
-    #paste-text-preview {
-      position: absolute;
-      inset: 0;
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10vh 10vw;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    #paste-text-preview.visible {
-      opacity: 1;
-    }
-
-    #paste-text-preview pre {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: clamp(14px, 2vw, 28px);
-      line-height: 1.6;
-      color: #f0ece2;
-      background: rgba(0,0,0,0.3);
-      backdrop-filter: blur(8px);
-      padding: 2rem 3rem;
-      border-radius: 8px;
-      border: 1px solid rgba(240,236,226,0.08);
-      max-width: 90vw;
-      max-height: 70vh;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      text-shadow: 0 2px 12px rgba(0,0,0,0.6);
-    }
-
-    #paste-text-preview pre::-webkit-scrollbar {
-      width: 4px;
-      background: transparent;
-    }
-    #paste-text-preview pre::-webkit-scrollbar-thumb {
-      background: rgba(240,236,226,0.2);
-      border-radius: 4px;
-    }
-
-    /* --- scrim + ambient glow --- */
-    .paste-scrim {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      background: linear-gradient(145deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0.55) 100%);
-      pointer-events: none;
-    }
-
-    #paste-ambient {
-      position: absolute;
-      inset: 0;
-      z-index: 2;
-      pointer-events: none;
-      opacity: 0.6;
-      transition: background 0.8s ease, opacity 0.8s ease;
-      background: radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%);
-    }
-
-    /* --- controls --- */
-    #paste-controls {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      display: flex;
-      gap: 12px;
-      background: rgba(12, 11, 14, 0.7);
-      backdrop-filter: blur(16px);
-      padding: 8px 14px;
-      border-radius: 60px;
-      border: 1px solid rgba(240,236,226,0.15);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-      pointer-events: auto;
-    }
-
-    #paste-controls button {
-      background: transparent;
-      border: none;
-      color: #f0ece2;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 8px 18px;
-      border-radius: 40px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      background: rgba(240,236,226,0.04);
-      border: 1px solid rgba(240,236,226,0.08);
-      font-weight: 600;
-    }
-
-    #paste-controls button:hover {
-      background: rgba(240,236,226,0.12);
-      border-color: rgba(240,236,226,0.3);
-    }
-
-    #paste-controls button:active {
-      transform: scale(0.96);
-    }
-
-    #paste-controls .btn-primary {
-      background: #b8a2d4;
-      color: #0c0b0e;
-      border-color: #b8a2d4;
-    }
-
-    #paste-controls .btn-primary:hover {
-      background: #d0bcf0;
-      border-color: #d0bcf0;
-    }
-
-    #paste-controls .btn-primary:disabled {
-      opacity: 0.25;
-      pointer-events: none;
-      filter: grayscale(0.8);
-    }
-
-    #paste-controls .btn-clear {
-      background: transparent;
-      color: rgba(240,236,226,0.5);
-      border-color: rgba(240,236,226,0.08);
-    }
-
-    #paste-controls .btn-clear:hover {
-      color: #f0ece2;
-      border-color: rgba(240,236,226,0.3);
-    }
-
-    /* --- status badge --- */
-    #paste-status {
-      position: fixed;
-      top: 20px;
-      right: 24px;
-      z-index: 20;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 9px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.25);
-      background: rgba(12,11,14,0.5);
-      backdrop-filter: blur(8px);
-      padding: 6px 14px;
-      border-radius: 40px;
-      border: 1px solid rgba(240,236,226,0.06);
-      pointer-events: none;
-      transition: color 0.3s ease, border-color 0.3s ease;
-    }
-
-    #paste-status.ready {
-      color: rgba(240,236,226,0.7);
-      border-color: rgba(240,236,226,0.15);
-    }
-
-    /* --- keyboard hint --- */
-    #paste-hint {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 10;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 8px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: rgba(240,236,226,0.15);
-      pointer-events: none;
-      text-align: right;
-      line-height: 1.6;
-    }
-
-    #paste-hint kbd {
-      background: rgba(240,236,226,0.04);
-      padding: 2px 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(240,236,226,0.06);
-      font-family: inherit;
-    }
-
-    /* --- corner markers --- */
-    .paste-corner {
-      position: absolute;
-      width: 32px;
-      height: 32px;
-      z-index: 5;
-      pointer-events: none;
-      opacity: 0.25;
-    }
-    .paste-corner.tl { top: 4%; left: 4%; border-top: 1px solid #f0ece2; border-left: 1px solid #f0ece2; }
-    .paste-corner.br { bottom: calc(4% + 70px); right: 4%; border-bottom: 1px solid #f0ece2; border-right: 1px solid #f0ece2; }
-
-    /* --- responsive --- */
-    @media (max-width: 600px) {
-      #paste-text-preview { padding: 4vh 4vw; }
-      #paste-text-preview pre { font-size: clamp(12px, 3vw, 16px); padding: 1rem 1.5rem; max-height: 60vh; }
-      #paste-thumb { max-width: 200px; max-height: 150px; bottom: 72px; right: 12px; }
-      .prompt-dual { gap: 16px; }
-      .prompt-label.paste { font-size: clamp(32px, 12vw, 48px); }
-      .prompt-label.paste.pasted { font-size: clamp(18px, 5vw, 28px); transform: translateX(20px) scale(0.85); }
-      .prompt-label.save { font-size: clamp(18px, 5vw, 28px); transform: translateX(-20px) scale(0.85); }
-      .prompt-label.save.active { font-size: clamp(32px, 12vw, 48px); transform: translateX(0) scale(1); }
-      .prompt-label.save.saved { font-size: clamp(22px, 6vw, 32px); }
-      #info-panel { max-width: 300px; padding: 18px 20px; left: 12px; top: 60px; }
-      #info-toggle { top: 12px; left: 12px; width: 36px; height: 36px; font-size: 14px; }
-      #paste-controls { bottom: 16px; padding: 6px 10px; gap: 6px; }
-      #paste-controls button { font-size: 9px; padding: 6px 12px; }
-      #paste-status { top: 12px; right: 12px; font-size: 7px; padding: 4px 10px; }
-      #paste-hint { display: none; }
-    }
-
-    @media (max-height: 480px) and (orientation: landscape) {
-      #paste-text-preview { padding: 2vh 4vw; }
-      #paste-text-preview pre { font-size: clamp(10px, 1.8vw, 14px); padding: 0.8rem 1.2rem; max-height: 50vh; }
-      #paste-thumb { max-width: 140px; max-height: 105px; bottom: 64px; right: 12px; }
-      .prompt-dual { gap: 16px; }
-      .prompt-label.paste { font-size: clamp(24px, 8vw, 40px); }
-      .prompt-label.paste.pasted { font-size: clamp(14px, 4vw, 22px); transform: translateX(16px) scale(0.85); }
-      .prompt-label.save { font-size: clamp(14px, 4vw, 22px); transform: translateX(-16px) scale(0.85); }
-      .prompt-label.save.active { font-size: clamp(24px, 8vw, 40px); transform: translateX(0) scale(1); }
-      .prompt-label.save.saved { font-size: clamp(16px, 5vw, 28px); }
-      .prompt-sub { font-size: clamp(8px, 1vw, 11px); margin-top: 6px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-    }
-  </style>
+        /* --- disable text selection on UI --- */
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
 </head>
 <body>
 
-  <!-- FULL-VIEWPORT STAGE -->
-  <div id="paste-stage">
-    <!-- aurora background -->
-    <div id="aurora-bg"></div>
+    <!-- FULL-VIEWPORT STAGE -->
+    <div id="paste-stage">
+        <!-- aurora background -->
+        <div id="aurora-bg"></div>
 
-    <!-- image layer (parallax) -->
-    <div id="paste-img-wrap">
-      <img id="paste-img" src="" alt="pasted image" />
+        <!-- image layer (parallax) -->
+        <div id="paste-img-wrap">
+            <img id="paste-img" src="" alt="pasted image" />
+        </div>
+
+        <!-- CRISP THUMBNAIL PREVIEW -->
+        <div id="paste-thumb">
+            <img id="paste-thumb-img" src="" alt="thumbnail preview" />
+        </div>
+
+        <!-- CENTERED PROMPT — dual label state machine -->
+        <div id="paste-prompt">
+            <div class="prompt-dual">
+                <span class="prompt-label paste" id="labelPaste">Paste</span>
+                <span class="prompt-label save" id="labelSave">Save</span>
+            </div>
+            <div class="prompt-sub" id="promptSub">tap · paste · share</div>
+        </div>
+
+        <!-- text preview -->
+        <div id="paste-text-preview">
+            <pre id="paste-text-content"></pre>
+        </div>
+
+        <!-- scrim + ambient -->
+        <div class="paste-scrim"></div>
+        <div id="paste-ambient"></div>
+
+        <!-- corner markers -->
+        <div class="paste-corner tl"></div>
+        <div class="paste-corner br"></div>
     </div>
 
-    <!-- CRISP THUMBNAIL PREVIEW -->
-    <div id="paste-thumb">
-      <img id="paste-thumb-img" src="" alt="thumbnail preview" />
+    <!-- hidden file input -->
+    <input type="file" id="paste-file-input" accept="image/*,text/plain" multiple />
+
+    <!-- INFO TOGGLE -->
+    <button id="info-toggle" aria-label="Toggle info panel">ⓘ</button>
+
+    <!-- INFO PANEL -->
+    <div id="info-panel">
+        <div class="brand">/PASTED</div>
+        <h2>Bookmark this shit.</h2>
+        <div class="tagline">Paste images or text, save instantly.</div>
+        <div class="desc">Images → .png · Text → .txt.<br />No fluff, no plugins, no privacy issues.</div>
+        <hr class="divider" />
+        <div class="metrics">
+            <div class="metric"><div class="metric-value">∞</div><div class="metric-label">images</div></div>
+            <div class="metric"><div class="metric-value">∞</div><div class="metric-label">text files</div></div>
+        </div>
+        <div class="close-hint">tap ⓘ to close</div>
     </div>
 
-    <!-- CENTERED PROMPT — dual label state machine -->
-    <div id="paste-prompt">
-      <div class="prompt-dual">
-        <span class="prompt-label paste" id="labelPaste">Paste</span>
-        <span class="prompt-label save" id="labelSave">Save</span>
-      </div>
-      <div class="prompt-sub" id="promptSub">ctrl+v or drag &amp; drop</div>
+    <!-- status badge -->
+    <div id="paste-status">⏎ paste image or text</div>
+
+    <!-- controls -->
+    <div id="paste-controls">
+        <button class="btn-clear" id="clearBtn" disabled>clear</button>
+        <button class="btn-primary" id="saveBtn" disabled>save</button>
     </div>
 
-    <!-- text preview (for pasted text) -->
-    <div id="paste-text-preview">
-      <pre id="paste-text-content"></pre>
-    </div>
+    <!-- hint (desktop) -->
+    <div id="paste-hint"><kbd>⌘V</kbd> or <kbd>Ctrl+V</kbd> · drag &amp; drop</div>
 
-    <!-- scrim + ambient glow -->
-    <div class="paste-scrim"></div>
-    <div id="paste-ambient"></div>
+    <script>
+        // ---- detect mobile ----
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+            window.innerWidth < 768;
 
-    <!-- corner markers -->
-    <div class="paste-corner tl"></div>
-    <div class="paste-corner br"></div>
-  </div>
+        // ---- Aurora background (vanilla WebGL2) ----
+        function AuroraEffect(container, opts) {
+            const {
+                colorStops = ["#f00e8c", "#da1884", "#3D6BEF"],
+                    amplitude = 1.0,
+                    blend = 1.0,
+                    speed = 1.0,
+                    quality = 1.0
+            } = opts || {};
 
-  <!-- INFO TOGGLE -->
-  <button id="info-toggle" aria-label="Toggle info panel">ⓘ</button>
+            const canvas = document.createElement('canvas');
+            container.appendChild(canvas);
 
-  <!-- INFO PANEL -->
-  <div id="info-panel">
-    <div class="brand">/PASTED</div>
-    <h2>Bookmark this shit.</h2>
-    <div class="tagline">Paste images or text, save instantly.</div>
-    <div class="desc">Images → .png · Text → .txt.<br>No fluff, no plugins, no privacy issues.</div>
-    <hr class="divider" />
-    <div class="metrics">
-      <div class="metric"><div class="metric-value">∞</div><div class="metric-label">images</div></div>
-      <div class="metric"><div class="metric-value">∞</div><div class="metric-label">text files</div></div>
-    </div>
-    <div class="close-hint">click ⓘ to close</div>
-  </div>
+            const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false });
+            if (!gl) {
+                console.warn('WebGL2 not supported, skipping aurora');
+                return { destroy: () => {} };
+            }
 
-  <!-- status badge -->
-  <div id="paste-status">⏎ paste image or text (ctrl+v)</div>
+            const vertexShaderSrc = `#version 300 es
+            in vec2 position;
+            void main() {
+              gl_Position = vec4(position, 0.0, 1.0);
+            }
+          `;
 
-  <!-- controls -->
-  <div id="paste-controls">
-    <button class="btn-clear" id="clearBtn" disabled>clear</button>
-    <button class="btn-primary" id="saveBtn" disabled>save</button>
-  </div>
+            const fragmentShaderSrc = `#version 300 es
+            precision highp float;
 
-  <!-- hint -->
-  <div id="paste-hint"><kbd>⌘V</kbd> or <kbd>Ctrl+V</kbd> · drag &amp; drop</div>
+            uniform float uTime;
+            uniform float uAmplitude;
+            uniform vec3 uColorStops[3];
+            uniform vec2 uResolution;
+            uniform float uBlend;
 
-  <script>
-    // ---- Aurora background (vanilla WebGL2, no deps) ----
-    function AuroraEffect(container, {
-      colorStops = ["#5227FF", "#7cff67", "#5227FF"],
-      amplitude = 1.0,
-      blend = 0.5,
-      speed = 1.0
-    } = {}) {
-      const canvas = document.createElement('canvas');
-      container.appendChild(canvas);
+            out vec4 fragColor;
 
-      const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: false });
-      if (!gl) {
-        console.error('WebGL2 not supported');
-        return;
-      }
+            vec3 permute(vec3 x) {
+              return mod(((x * 34.0) + 1.0) * x, 289.0);
+            }
 
-      const vertexShaderSrc = `#version 300 es
-        in vec2 position;
-        void main() {
-          gl_Position = vec4(position, 0.0, 1.0);
-        }
-      `;
+            float snoise(vec2 v){
+              const vec4 C = vec4(
+                0.211324865405187, 0.366025403784439,
+                -0.577350269189626, 0.024390243902439
+              );
+              vec2 i  = floor(v + dot(v, C.yy));
+              vec2 x0 = v - i + dot(i, C.xx);
+              vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+              vec4 x12 = x0.xyxy + C.xxzz;
+              x12.xy -= i1;
+              i = mod(i, 289.0);
 
-      const fragmentShaderSrc = `#version 300 es
-        precision highp float;
+              vec3 p = permute(
+                permute(i.y + vec3(0.0, i1.y, 1.0))
+                + i.x + vec3(0.0, i1.x, 1.0)
+              );
 
-        uniform float uTime;
-        uniform float uAmplitude;
-        uniform vec3 uColorStops[3];
-        uniform vec2 uResolution;
-        uniform float uBlend;
-
-        out vec4 fragColor;
-
-        vec3 permute(vec3 x) {
-          return mod(((x * 34.0) + 1.0) * x, 289.0);
-        }
-
-        float snoise(vec2 v){
-          const vec4 C = vec4(
-              0.211324865405187, 0.366025403784439,
-              -0.577350269189626, 0.024390243902439
-          );
-          vec2 i  = floor(v + dot(v, C.yy));
-          vec2 x0 = v - i + dot(i, C.xx);
-          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-          vec4 x12 = x0.xyxy + C.xxzz;
-          x12.xy -= i1;
-          i = mod(i, 289.0);
-
-          vec3 p = permute(
-              permute(i.y + vec3(0.0, i1.y, 1.0))
-            + i.x + vec3(0.0, i1.x, 1.0)
-          );
-
-          vec3 m = max(
-              0.5 - vec3(
+              vec3 m = max(
+                0.5 - vec3(
                   dot(x0, x0),
                   dot(x12.xy, x12.xy),
                   dot(x12.zw, x12.zw)
-              ),
-              0.0
-          );
-          m = m * m;
-          m = m * m;
+                ),
+                0.0
+              );
+              m = m * m;
+              m = m * m;
 
-          vec3 x = 2.0 * fract(p * C.www) - 1.0;
-          vec3 h = abs(x) - 0.5;
-          vec3 ox = floor(x + 0.5);
-          vec3 a0 = x - ox;
-          m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
+              vec3 x = 2.0 * fract(p * C.www) - 1.0;
+              vec3 h = abs(x) - 0.5;
+              vec3 ox = floor(x + 0.5);
+              vec3 a0 = x - ox;
+              m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);
 
-          vec3 g;
-          g.x  = a0.x  * x0.x  + h.x  * x0.y;
-          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-          return 130.0 * dot(m, g);
+              vec3 g;
+              g.x  = a0.x  * x0.x  + h.x  * x0.y;
+              g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+              return 130.0 * dot(m, g);
+            }
+
+            struct ColorStop {
+              vec3 color;
+              float position;
+            };
+
+            #define COLOR_RAMP(colors, factor, finalColor) {              \\
+              int index = 0;                                              \\
+              for (int i = 0; i < 2; i++) {                                \\
+                ColorStop currentColor = colors[i];                      \\
+                bool isInBetween = currentColor.position <= factor;       \\
+                index = isInBetween ? i : index;                          \\
+              }                                                             \\
+              ColorStop currentColor = colors[index];                      \\
+              ColorStop nextColor = colors[index + 1];                     \\
+              float range = nextColor.position - currentColor.position;    \\
+              float lerpFactor = (factor - currentColor.position) / max(range, 0.0001); \\
+              finalColor = mix(currentColor.color, nextColor.color, clamp(lerpFactor, 0.0, 1.0)); \\
+            }
+
+            void main() {
+              vec2 uv = gl_FragCoord.xy / uResolution.xy;
+
+              ColorStop colors[3];
+              colors[0] = ColorStop(uColorStops[0], 0.0);
+              colors[1] = ColorStop(uColorStops[1], 0.5);
+              colors[2] = ColorStop(uColorStops[2], 1.0);
+
+              vec3 rampColor;
+              COLOR_RAMP(colors, uv.x, rampColor);
+
+              float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
+              height = exp(height);
+              height = (uv.y * 2.0 - height + 0.2);
+              float intensity = 0.6 * height;
+
+              float midPoint = 0.20;
+              float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
+
+              vec3 auroraColor = intensity * rampColor;
+
+              fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
+            }
+          `;
+
+            function compileShader(type, source) {
+                const shader = gl.createShader(type);
+                gl.shaderSource(shader, source);
+                gl.compileShader(shader);
+                if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                    console.warn(gl.getShaderInfoLog(shader));
+                    gl.deleteShader(shader);
+                    return null;
+                }
+                return shader;
+            }
+
+            const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSrc);
+            const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSrc);
+
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.warn(gl.getProgramInfoLog(program));
+            }
+            gl.useProgram(program);
+
+            const positions = new Float32Array([-1, -1, 3, -1, -1, 3]);
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+
+            const positionLoc = gl.getAttribLocation(program, 'position');
+            gl.enableVertexAttribArray(positionLoc);
+            gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+            const uTimeLoc = gl.getUniformLocation(program, 'uTime');
+            const uAmplitudeLoc = gl.getUniformLocation(program, 'uAmplitude');
+            const uColorStopsLoc = gl.getUniformLocation(program, 'uColorStops');
+            const uResolutionLoc = gl.getUniformLocation(program, 'uResolution');
+            const uBlendLoc = gl.getUniformLocation(program, 'uBlend');
+
+            function hexToRgb(hex) {
+                const c = hex.replace('#', '');
+                const r = parseInt(c.substring(0, 2), 16) / 255;
+                const g = parseInt(c.substring(2, 4), 16) / 255;
+                const b = parseInt(c.substring(4, 6), 16) / 255;
+                return [r, g, b];
+            }
+
+            const colorStopsFlat = colorStops.flatMap(hexToRgb);
+
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            let animId;
+            let startTime = performance.now();
+
+            function resize() {
+                const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 2);
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                canvas.width = width * dpr * quality;
+                canvas.height = height * dpr * quality;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                gl.viewport(0, 0, canvas.width, canvas.height);
+            }
+
+            const resizeObserver = new ResizeObserver(resize);
+            resizeObserver.observe(container);
+            resize();
+
+            function render() {
+                const now = (performance.now() - startTime) * 0.001 * speed;
+
+                gl.useProgram(program);
+                gl.uniform1f(uTimeLoc, now);
+                gl.uniform1f(uAmplitudeLoc, amplitude);
+                gl.uniform3fv(uColorStopsLoc, new Float32Array(colorStopsFlat));
+                gl.uniform2f(uResolutionLoc, canvas.width, canvas.height);
+                gl.uniform1f(uBlendLoc, blend);
+
+                gl.clearColor(0, 0, 0, 0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+                animId = requestAnimationFrame(render);
+            }
+            render();
+
+            return {
+                destroy() {
+                    cancelAnimationFrame(animId);
+                    resizeObserver.disconnect();
+                    gl.deleteProgram(program);
+                    gl.deleteShader(vertexShader);
+                    gl.deleteShader(fragmentShader);
+                    gl.deleteBuffer(positionBuffer);
+                    if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+                }
+            };
         }
 
-        struct ColorStop {
-          vec3 color;
-          float position;
-        };
+        // ---- init aurora with mobile-friendly settings ----
+        const aurora = AuroraEffect(document.getElementById('aurora-bg'), {
+            colorStops: ["#f00e8c", "#da1884", "#3D6BEF"],
+            blend: 1.0,
+            amplitude: 1.0,
+            speed: 1.0,
+            quality: isMobile ? 0.5 : 1.0
+        });
 
-        #define COLOR_RAMP(colors, factor, finalColor) {              \\
-          int index = 0;                                              \\
-          for (int i = 0; i < 2; i++) {                                \\
-             ColorStop currentColor = colors[i];                      \\
-             bool isInBetween = currentColor.position <= factor;       \\
-             index = isInBetween ? i : index;                          \\
-          }                                                             \\
-          ColorStop currentColor = colors[index];                      \\
-          ColorStop nextColor = colors[index + 1];                     \\
-          float range = nextColor.position - currentColor.position;    \\
-          float lerpFactor = (factor - currentColor.position) / max(range, 0.0001); \\
-          finalColor = mix(currentColor.color, nextColor.color, clamp(lerpFactor, 0.0, 1.0)); \\
-        }
+        // ---- main app ----
+        (function() {
+            // ---- DOM refs ----
+            const stage = document.getElementById('paste-stage');
+            const imgWrap = document.getElementById('paste-img-wrap');
+            const imgEl = document.getElementById('paste-img');
+            const thumb = document.getElementById('paste-thumb');
+            const thumbImg = document.getElementById('paste-thumb-img');
+            const ambient = document.getElementById('paste-ambient');
+            const prompt = document.getElementById('paste-prompt');
+            const labelPaste = document.getElementById('labelPaste');
+            const labelSave = document.getElementById('labelSave');
+            const promptSub = document.getElementById('promptSub');
+            const statusEl = document.getElementById('paste-status');
+            const saveBtn = document.getElementById('saveBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const textPreview = document.getElementById('paste-text-preview');
+            const textContent = document.getElementById('paste-text-content');
+            const infoToggle = document.getElementById('info-toggle');
+            const infoPanel = document.getElementById('info-panel');
+            const fileInput = document.getElementById('paste-file-input');
 
-        void main() {
-          vec2 uv = gl_FragCoord.xy / uResolution.xy;
+            // ---- state ----
+            let hasImage = false;
+            let hasText = false;
+            let imageBlob = null;
+            let imageSrc = null;
+            let textString = '';
+            let infoOpen = false;
+            let saveTimeout = null;
+            let isSaving = false;
 
-          ColorStop colors[3];
-          colors[0] = ColorStop(uColorStops[0], 0.0);
-          colors[1] = ColorStop(uColorStops[1], 0.5);
-          colors[2] = ColorStop(uColorStops[2], 1.0);
-
-          vec3 rampColor;
-          COLOR_RAMP(colors, uv.x, rampColor);
-
-          float height = snoise(vec2(uv.x * 2.0 + uTime * 0.1, uTime * 0.25)) * 0.5 * uAmplitude;
-          height = exp(height);
-          height = (uv.y * 2.0 - height + 0.2);
-          float intensity = 0.6 * height;
-
-          float midPoint = 0.20;
-          float auroraAlpha = smoothstep(midPoint - uBlend * 0.5, midPoint + uBlend * 0.5, intensity);
-
-          vec3 auroraColor = intensity * rampColor;
-
-          fragColor = vec4(auroraColor * auroraAlpha, auroraAlpha);
-        }
-      `;
-
-      function compileShader(type, source) {
-        const shader = gl.createShader(type);
-        gl.shaderSource(shader, source);
-        gl.compileShader(shader);
-        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-          console.error(gl.getShaderInfoLog(shader));
-          gl.deleteShader(shader);
-          return null;
-        }
-        return shader;
-      }
-
-      const vertexShader = compileShader(gl.VERTEX_SHADER, vertexShaderSrc);
-      const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSrc);
-
-      const program = gl.createProgram();
-      gl.attachShader(program, vertexShader);
-      gl.attachShader(program, fragmentShader);
-      gl.linkProgram(program);
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.error(gl.getProgramInfoLog(program));
-      }
-      gl.useProgram(program);
-
-      const positions = new Float32Array([
-        -1, -1,
-         3, -1,
-        -1,  3
-      ]);
-      const positionBuffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-
-      const positionLoc = gl.getAttribLocation(program, 'position');
-      gl.enableVertexAttribArray(positionLoc);
-      gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-
-      const uTimeLoc = gl.getUniformLocation(program, 'uTime');
-      const uAmplitudeLoc = gl.getUniformLocation(program, 'uAmplitude');
-      const uColorStopsLoc = gl.getUniformLocation(program, 'uColorStops');
-      const uResolutionLoc = gl.getUniformLocation(program, 'uResolution');
-      const uBlendLoc = gl.getUniformLocation(program, 'uBlend');
-
-      function hexToRgb(hex) {
-        const c = hex.replace('#', '');
-        const r = parseInt(c.substring(0, 2), 16) / 255;
-        const g = parseInt(c.substring(2, 4), 16) / 255;
-        const b = parseInt(c.substring(4, 6), 16) / 255;
-        return [r, g, b];
-      }
-
-      const colorStopsFlat = colorStops.flatMap(hexToRgb);
-
-      gl.enable(gl.BLEND);
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-      let animId;
-      let startTime = performance.now();
-
-      function resize() {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.width = width + 'px';
-        canvas.style.height = height + 'px';
-        gl.viewport(0, 0, canvas.width, canvas.height);
-      }
-
-      const resizeObserver = new ResizeObserver(resize);
-      resizeObserver.observe(container);
-      resize();
-
-      function render() {
-        const now = (performance.now() - startTime) * 0.001 * speed;
-
-        gl.useProgram(program);
-        gl.uniform1f(uTimeLoc, now);
-        gl.uniform1f(uAmplitudeLoc, amplitude);
-        gl.uniform3fv(uColorStopsLoc, new Float32Array(colorStopsFlat));
-        gl.uniform2f(uResolutionLoc, canvas.width, canvas.height);
-        gl.uniform1f(uBlendLoc, blend);
-
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-        animId = requestAnimationFrame(render);
-      }
-      render();
-
-      return {
-        destroy() {
-          cancelAnimationFrame(animId);
-          resizeObserver.disconnect();
-          gl.deleteProgram(program);
-          gl.deleteShader(vertexShader);
-          gl.deleteShader(fragmentShader);
-          gl.deleteBuffer(positionBuffer);
-          if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-        }
-      };
-    }
-
-    AuroraEffect(document.getElementById('aurora-bg'), {
-      colorStops: ["#f00e8c", "#da1884", "#3D6BEF"],
-      blend: 1,
-      amplitude: 1.0,
-      speed: 1
-    });
-
-    (function() {
-      // ---- DOM refs ----
-      const stage = document.getElementById('paste-stage');
-      const imgWrap = document.getElementById('paste-img-wrap');
-      const imgEl = document.getElementById('paste-img');
-      const thumb = document.getElementById('paste-thumb');
-      const thumbImg = document.getElementById('paste-thumb-img');
-      const ambient = document.getElementById('paste-ambient');
-      const prompt = document.getElementById('paste-prompt');
-      const labelPaste = document.getElementById('labelPaste');
-      const labelSave = document.getElementById('labelSave');
-      const promptSub = document.getElementById('promptSub');
-      const statusEl = document.getElementById('paste-status');
-      const saveBtn = document.getElementById('saveBtn');
-      const clearBtn = document.getElementById('clearBtn');
-      const textPreview = document.getElementById('paste-text-preview');
-      const textContent = document.getElementById('paste-text-content');
-      const infoToggle = document.getElementById('info-toggle');
-      const infoPanel = document.getElementById('info-panel');
-
-      // ---- state ----
-      let hasImage = false;
-      let hasText = false;
-      let imageBlob = null;
-      let imageSrc = null;
-      let textString = '';
-      let infoOpen = false;
-      let saveTimeout = null;
-
-      // ---- info toggle ----
-      infoToggle.addEventListener('click', () => {
-        infoOpen = !infoOpen;
-        infoPanel.classList.toggle('open', infoOpen);
-        infoToggle.classList.toggle('active', infoOpen);
-      });
-
-      // ---- state machine: update labels ----
-      function setState(state) {
-        // state: 'empty' | 'loaded' | 'saved'
-        labelPaste.classList.remove('pasted');
-        labelSave.classList.remove('active', 'saved');
-
-        switch(state) {
-          case 'empty':
-            labelPaste.textContent = 'Paste';
-            labelPaste.className = 'prompt-label paste';
-            labelSave.textContent = 'Save';
-            labelSave.className = 'prompt-label save';
-            promptSub.classList.remove('hidden-sub');
-            promptSub.textContent = 'ctrl+v or drag & drop';
-            prompt.classList.remove('hidden');
-            break;
-          case 'loaded':
-            labelPaste.textContent = 'Pasted';
-            labelPaste.className = 'prompt-label paste pasted';
-            labelSave.textContent = 'Save';
-            labelSave.className = 'prompt-label save active';
-            promptSub.classList.add('hidden-sub');
-            prompt.classList.remove('hidden');
-            break;
-          case 'saved':
-            labelPaste.textContent = 'Pasted';
-            labelPaste.className = 'prompt-label paste pasted';
-            labelSave.textContent = 'Saved';
-            labelSave.className = 'prompt-label save saved';
-            promptSub.classList.add('hidden-sub');
-            prompt.classList.remove('hidden');
-            break;
-          default:
-            break;
-        }
-      }
-
-      // ---- reset everything ----
-      function resetAll() {
-        // hide image
-        imgEl.className = 'paste-img';
-        imgEl.src = '';
-        // hide thumbnail
-        thumb.classList.remove('visible');
-        thumbImg.src = '';
-        // hide text preview
-        textPreview.classList.remove('visible');
-        textContent.textContent = '';
-        // reset state
-        hasImage = false;
-        hasText = false;
-        imageBlob = null;
-        imageSrc = null;
-        textString = '';
-        // reset UI
-        statusEl.textContent = '⏎ paste image or text (ctrl+v)';
-        statusEl.classList.remove('ready');
-        saveBtn.disabled = true;
-        clearBtn.disabled = true;
-        // set state to empty
-        setState('empty');
-        // reset ambient
-        ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
-        ambient.style.opacity = '0.6';
-        // reset parallax
-        imgWrap.style.transform = 'translate3d(0,0,0)';
-        if (saveTimeout) {
-          clearTimeout(saveTimeout);
-          saveTimeout = null;
-        }
-      }
-
-      // ---- set image ----
-      function setImage(src, blob, meta) {
-        const img = new Image();
-        img.onload = () => {
-          imgEl.src = src;
-          imgEl.className = 'paste-img visible';
-          thumbImg.src = src;
-          thumb.classList.add('visible');
-          
-          hasImage = true;
-          hasText = false;
-          imageBlob = blob;
-          imageSrc = src;
-          textPreview.classList.remove('visible');
-          statusEl.textContent = '✓ image ready · save as .png';
-          statusEl.classList.add('ready');
-          saveBtn.disabled = false;
-          clearBtn.disabled = false;
-          
-          // set state to loaded (Paste → Pasted, Save becomes active)
-          setState('loaded');
-          
-          if (meta && meta.accent) {
-            ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
-            ambient.style.opacity = '0.6';
-          }
-          imgWrap.style.transform = 'translate3d(0,0,0)';
-        };
-        img.onerror = () => {
-          // fallback
-          imgEl.src = src;
-          imgEl.className = 'paste-img visible';
-          thumbImg.src = src;
-          thumb.classList.add('visible');
-          hasImage = true;
-          hasText = false;
-          imageBlob = blob;
-          imageSrc = src;
-          textPreview.classList.remove('visible');
-          statusEl.textContent = '✓ image ready · save as .png';
-          statusEl.classList.add('ready');
-          saveBtn.disabled = false;
-          clearBtn.disabled = false;
-          setState('loaded');
-          if (meta && meta.accent) {
-            ambient.style.background = `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
-            ambient.style.opacity = '0.6';
-          }
-        };
-        img.src = src;
-      }
-
-      // ---- set text ----
-      function setText(text) {
-        hasText = true;
-        hasImage = false;
-        textString = text;
-        textContent.textContent = text;
-        textPreview.classList.add('visible');
-        imgEl.className = 'paste-img';
-        imgEl.src = '';
-        thumb.classList.remove('visible');
-        thumbImg.src = '';
-        statusEl.textContent = '✓ text ready · save as .txt';
-        statusEl.classList.add('ready');
-        saveBtn.disabled = false;
-        clearBtn.disabled = false;
-        setState('loaded');
-        ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
-        ambient.style.opacity = '0.6';
-      }
-
-      // ---- save handler ----
-      function handleSave() {
-        if (hasImage && imageBlob) {
-          const blob = imageBlob;
-          const ext = blob.type.split('/')[1] || 'png';
-          const name = 'screenshot-' + Date.now() + '.' + ext;
-          const link = document.createElement('a');
-          const url = URL.createObjectURL(blob);
-          link.href = url;
-          link.download = name;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-          
-          // set state to saved
-          setState('saved');
-          
-          // after 2.5s, reset to empty
-          if (saveTimeout) clearTimeout(saveTimeout);
-          saveTimeout = setTimeout(() => {
-            resetAll();
-            saveTimeout = null;
-          }, 2500);
-          
-        } else if (hasText && textString) {
-          const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
-          const name = 'paste-' + Date.now() + '.txt';
-          const link = document.createElement('a');
-          const url = URL.createObjectURL(blob);
-          link.href = url;
-          link.download = name;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-          
-          setState('saved');
-          
-          if (saveTimeout) clearTimeout(saveTimeout);
-          saveTimeout = setTimeout(() => {
-            resetAll();
-            saveTimeout = null;
-          }, 2500);
-        }
-      }
-
-      // ---- paste handler ----
-      async function handlePaste(clipboardData) {
-        if (!clipboardData) return false;
-
-        const items = clipboardData.items;
-        let imageBlob = null;
-
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].type.startsWith('image/')) {
-            imageBlob = items[i].getAsFile();
-            break;
-          }
-        }
-        if (imageBlob) {
-          const meta = { accent: '#b8a2d4' };
-          const url = URL.createObjectURL(imageBlob);
-          setImage(url, imageBlob, meta);
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-          return true;
-        }
-
-        let text = '';
-        for (let i = 0; i < items.length; i++) {
-          if (items[i].type === 'text/plain') {
-            text = await new Promise((resolve) => {
-              items[i].getAsString(resolve);
+            // ---- info toggle ----
+            infoToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                infoOpen = !infoOpen;
+                infoPanel.classList.toggle('open', infoOpen);
+                infoToggle.classList.toggle('active', infoOpen);
             });
-            break;
-          }
-        }
-        if (!text) {
-          for (let i = 0; i < items.length; i++) {
-            if (items[i].type === 'text/uri-list') {
-              text = await new Promise((resolve) => {
-                items[i].getAsString(resolve);
-              });
-              break;
+
+            // close info on outside tap (mobile friendly)
+            document.addEventListener('click', (e) => {
+                if (infoOpen && !infoPanel.contains(e.target) && e.target !== infoToggle) {
+                    infoOpen = false;
+                    infoPanel.classList.remove('open');
+                    infoToggle.classList.remove('active');
+                }
+            });
+
+            // ---- state machine ----
+            function setState(state) {
+                labelPaste.classList.remove('pasted');
+                labelSave.classList.remove('active', 'saved');
+
+                switch (state) {
+                    case 'empty':
+                        labelPaste.textContent = 'Paste';
+                        labelPaste.className = 'prompt-label paste';
+                        labelSave.textContent = 'Save';
+                        labelSave.className = 'prompt-label save';
+                        promptSub.classList.remove('hidden-sub');
+                        promptSub.textContent = isMobile ? 'tap · paste · share' : 'ctrl+v or drag & drop';
+                        prompt.classList.remove('hidden');
+                        break;
+                    case 'loaded':
+                        labelPaste.textContent = 'Pasted';
+                        labelPaste.className = 'prompt-label paste pasted';
+                        labelSave.textContent = 'Save';
+                        labelSave.className = 'prompt-label save active';
+                        promptSub.classList.add('hidden-sub');
+                        prompt.classList.remove('hidden');
+                        break;
+                    case 'saved':
+                        labelPaste.textContent = 'Pasted';
+                        labelPaste.className = 'prompt-label paste pasted';
+                        labelSave.textContent = 'Saved';
+                        labelSave.className = 'prompt-label save saved';
+                        promptSub.classList.add('hidden-sub');
+                        prompt.classList.remove('hidden');
+                        break;
+                    default:
+                        break;
+                }
             }
-          }
-        }
-        if (text && text.trim().length > 0) {
-          setText(text.trim());
-          return true;
-        }
 
-        return false;
-      }
-
-      // ---- drag & drop ----
-      stage.addEventListener('dragover', (e) => { e.preventDefault(); });
-      stage.addEventListener('drop', async (e) => {
-        e.preventDefault();
-        const files = e.dataTransfer.files;
-        if (files.length === 0) return;
-
-        let blob = null;
-        for (let i = 0; i < files.length; i++) {
-          if (files[i].type.startsWith('image/')) {
-            blob = files[i];
-            break;
-          }
-        }
-        if (blob) {
-          const meta = { accent: '#b8a2d4' };
-          const url = URL.createObjectURL(blob);
-          setImage(url, blob, meta);
-          setTimeout(() => URL.revokeObjectURL(url), 5000);
-          return;
-        }
-
-        for (let i = 0; i < files.length; i++) {
-          if (files[i].type === 'text/plain' || files[i].name.endsWith('.txt')) {
-            const text = await files[i].text();
-            if (text && text.trim().length > 0) {
-              setText(text.trim());
-              return;
+            // ---- reset ----
+            function resetAll() {
+                imgEl.className = 'paste-img';
+                imgEl.src = '';
+                thumb.classList.remove('visible');
+                thumbImg.src = '';
+                textPreview.classList.remove('visible');
+                textContent.textContent = '';
+                hasImage = false;
+                hasText = false;
+                imageBlob = null;
+                imageSrc = null;
+                textString = '';
+                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                statusEl.classList.remove('ready');
+                saveBtn.disabled = true;
+                clearBtn.disabled = true;
+                setState('empty');
+                ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
+                ambient.style.opacity = '0.6';
+                imgWrap.style.transform = 'translate3d(0,0,0)';
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                    saveTimeout = null;
+                }
+                isSaving = false;
+                // reset file input
+                fileInput.value = '';
             }
-          }
-        }
 
-        statusEl.textContent = '⚠️ unsupported file type';
-        setTimeout(() => {
-          if (!hasImage && !hasText) {
-            statusEl.textContent = '⏎ paste image or text (ctrl+v)';
-          }
-        }, 3000);
-      });
+            // ---- set image ----
+            function setImage(src, blob, meta) {
+                const img = new Image();
+                const onLoad = () => {
+                    imgEl.src = src;
+                    imgEl.className = 'paste-img visible';
+                    thumbImg.src = src;
+                    thumb.classList.add('visible');
 
-      // ---- event listeners ----
-      saveBtn.addEventListener('click', handleSave);
-      clearBtn.addEventListener('click', resetAll);
+                    hasImage = true;
+                    hasText = false;
+                    imageBlob = blob;
+                    imageSrc = src;
+                    textPreview.classList.remove('visible');
+                    statusEl.textContent = '✓ image ready · save as .png';
+                    statusEl.classList.add('ready');
+                    saveBtn.disabled = false;
+                    clearBtn.disabled = false;
 
-      document.addEventListener('paste', async (e) => {
-        const success = await handlePaste(e.clipboardData);
-        if (success) e.preventDefault();
-      });
+                    setState('loaded');
 
-      // ---- CURSOR PARALLAX ----
-      let targetX = 0, targetY = 0;
-      let smoothX = 0, smoothY = 0;
+                    if (meta && meta.accent) {
+                        ambient.style.background =
+                            `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
+                        ambient.style.opacity = '0.6';
+                    }
+                    imgWrap.style.transform = 'translate3d(0,0,0)';
+                };
+                img.onload = onLoad;
+                img.onerror = () => {
+                    // fallback: try to show anyway
+                    imgEl.src = src;
+                    imgEl.className = 'paste-img visible';
+                    thumbImg.src = src;
+                    thumb.classList.add('visible');
+                    hasImage = true;
+                    hasText = false;
+                    imageBlob = blob;
+                    imageSrc = src;
+                    textPreview.classList.remove('visible');
+                    statusEl.textContent = '✓ image ready · save as .png';
+                    statusEl.classList.add('ready');
+                    saveBtn.disabled = false;
+                    clearBtn.disabled = false;
+                    setState('loaded');
+                    if (meta && meta.accent) {
+                        ambient.style.background =
+                            `radial-gradient(ellipse 70% 50% at 20% 80%, ${meta.accent} 0%, transparent 70%)`;
+                        ambient.style.opacity = '0.6';
+                    }
+                };
+                img.src = src;
+            }
 
-      function updateParallax(clientX, clientY) {
-        const rect = stage.getBoundingClientRect();
-        const nx = ((clientX - rect.left) / rect.width - 0.5) * 2;
-        const ny = ((clientY - rect.top) / rect.height - 0.5) * 2;
+            // ---- set text ----
+            function setText(text) {
+                hasText = true;
+                hasImage = false;
+                textString = text;
+                textContent.textContent = text;
+                textPreview.classList.add('visible');
+                imgEl.className = 'paste-img';
+                imgEl.src = '';
+                thumb.classList.remove('visible');
+                thumbImg.src = '';
+                statusEl.textContent = '✓ text ready · save as .txt';
+                statusEl.classList.add('ready');
+                saveBtn.disabled = false;
+                clearBtn.disabled = false;
+                setState('loaded');
+                ambient.style.background = 'radial-gradient(ellipse 70% 50% at 20% 80%, #6d4c9a 0%, transparent 70%)';
+                ambient.style.opacity = '0.6';
+            }
 
-        targetX = nx * -8;
-        targetY = ny * -6;
-        prompt.style.transform = `translate3d(${nx * 4}px, ${ny * 3}px, 0)`;
-      }
+            // ---- save ----
+            function handleSave() {
+                if (isSaving) return;
+                if (hasImage && imageBlob) {
+                    isSaving = true;
+                    const blob = imageBlob;
+                    const ext = blob.type.split('/')[1] || 'png';
+                    const name = 'paste-' + Date.now() + '.' + ext;
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.href = url;
+                    link.download = name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-      function animateParallax() {
-        smoothX += (targetX - smoothX) * 0.08;
-        smoothY += (targetY - smoothY) * 0.08;
-        imgWrap.style.transform = `translate3d(${smoothX}px, ${smoothY}px, 0)`;
-        requestAnimationFrame(animateParallax);
-      }
+                    setState('saved');
 
-      stage.addEventListener('mousemove', (e) => {
-        updateParallax(e.clientX, e.clientY);
-      });
+                    if (saveTimeout) clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        resetAll();
+                        saveTimeout = null;
+                        isSaving = false;
+                    }, 2500);
 
-      stage.addEventListener('mouseleave', () => {
-        targetX = 0;
-        targetY = 0;
-        prompt.style.transform = 'translate3d(0,0,0)';
-      });
+                } else if (hasText && textString) {
+                    isSaving = true;
+                    const blob = new Blob([textString], { type: 'text/plain;charset=utf-8' });
+                    const name = 'paste-' + Date.now() + '.txt';
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.href = url;
+                    link.download = name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
 
-      stage.addEventListener('touchmove', (e) => {
-        const t = e.touches[0];
-        if (t) updateParallax(t.clientX, t.clientY);
-      }, { passive: true });
+                    setState('saved');
 
-      stage.addEventListener('touchend', () => {
-        targetX = 0;
-        targetY = 0;
-        prompt.style.transform = 'translate3d(0,0,0)';
-      }, { passive: true });
+                    if (saveTimeout) clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(() => {
+                        resetAll();
+                        saveTimeout = null;
+                        isSaving = false;
+                    }, 2500);
+                }
+            }
 
-      animateParallax();
+            // ---- paste handler (clipboard) ----
+            async function handlePaste(clipboardData) {
+                if (!clipboardData) return false;
 
-      // ---- init ----
-      setState('empty');
-      resetAll();
+                const items = clipboardData.items;
+                let imageBlob = null;
 
-      console.log('📄 /PASTED — Paste → Pasted → Save → Saved state machine');
-    })();
-  </script>
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.startsWith('image/')) {
+                        imageBlob = items[i].getAsFile();
+                        break;
+                    }
+                }
+                if (imageBlob) {
+                    const meta = { accent: '#b8a2d4' };
+                    const url = URL.createObjectURL(imageBlob);
+                    setImage(url, imageBlob, meta);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    return true;
+                }
+
+                let text = '';
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type === 'text/plain') {
+                        text = await new Promise((resolve) => {
+                            items[i].getAsString(resolve);
+                        });
+                        break;
+                    }
+                }
+                if (!text) {
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type === 'text/uri-list') {
+                            text = await new Promise((resolve) => {
+                                items[i].getAsString(resolve);
+                            });
+                            break;
+                        }
+                    }
+                }
+                if (text && text.trim().length > 0) {
+                    setText(text.trim());
+                    return true;
+                }
+
+                return false;
+            }
+
+            // ---- mobile: paste from clipboard via navigator.clipboard ----
+            async function mobilePaste() {
+                try {
+                    if (!navigator.clipboard || !navigator.clipboard.read) {
+                        statusEl.textContent = '⚠️ clipboard read not supported';
+                        setTimeout(() => {
+                            if (!hasImage && !hasText) {
+                                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                            }
+                        }, 3000);
+                        return;
+                    }
+
+                    const items = await navigator.clipboard.read();
+                    let found = false;
+
+                    for (const item of items) {
+                        if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item.types.includes(
+                                'image/webp')) {
+                            const blob = await item.getType(item.types.find(t => t.startsWith('image/')));
+                            if (blob) {
+                                const meta = { accent: '#b8a2d4' };
+                                const url = URL.createObjectURL(blob);
+                                setImage(url, blob, meta);
+                                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (item.types.includes('text/plain')) {
+                            const text = await item.getType('text/plain').then(r => r.text());
+                            if (text && text.trim().length > 0) {
+                                setText(text.trim());
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!found) {
+                        statusEl.textContent = '⚠️ no image or text in clipboard';
+                        setTimeout(() => {
+                            if (!hasImage && !hasText) {
+                                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                            }
+                        }, 3000);
+                    }
+                } catch (err) {
+                    console.warn('clipboard read error:', err);
+                    statusEl.textContent = '⚠️ clipboard access denied';
+                    setTimeout(() => {
+                        if (!hasImage && !hasText) {
+                            statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                        }
+                    }, 3000);
+                }
+            }
+
+            // ---- file input handler ----
+            fileInput.addEventListener('change', async (e) => {
+                const files = e.target.files;
+                if (!files || files.length === 0) return;
+
+                let blob = null;
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith('image/')) {
+                        blob = files[i];
+                        break;
+                    }
+                }
+                if (blob) {
+                    const meta = { accent: '#b8a2d4' };
+                    const url = URL.createObjectURL(blob);
+                    setImage(url, blob, meta);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    fileInput.value = '';
+                    return;
+                }
+
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type === 'text/plain' || files[i].name.endsWith('.txt')) {
+                        const text = await files[i].text();
+                        if (text && text.trim().length > 0) {
+                            setText(text.trim());
+                            fileInput.value = '';
+                            return;
+                        }
+                    }
+                }
+
+                statusEl.textContent = '⚠️ unsupported file type';
+                setTimeout(() => {
+                    if (!hasImage && !hasText) {
+                        statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                    }
+                }, 3000);
+                fileInput.value = '';
+            });
+
+            // ---- drag & drop (also mobile friendly via file input) ----
+            stage.addEventListener('dragover', (e) => { e.preventDefault(); });
+            stage.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                const files = e.dataTransfer.files;
+                if (files.length === 0) return;
+
+                let blob = null;
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith('image/')) {
+                        blob = files[i];
+                        break;
+                    }
+                }
+                if (blob) {
+                    const meta = { accent: '#b8a2d4' };
+                    const url = URL.createObjectURL(blob);
+                    setImage(url, blob, meta);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    return;
+                }
+
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type === 'text/plain' || files[i].name.endsWith('.txt')) {
+                        const text = await files[i].text();
+                        if (text && text.trim().length > 0) {
+                            setText(text.trim());
+                            return;
+                        }
+                    }
+                }
+
+                statusEl.textContent = '⚠️ unsupported file type';
+                setTimeout(() => {
+                    if (!hasImage && !hasText) {
+                        statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                    }
+                }, 3000);
+            });
+
+            // ---- event listeners ----
+            saveBtn.addEventListener('click', handleSave);
+            clearBtn.addEventListener('click', resetAll);
+
+            // ---- paste event (desktop) ----
+            document.addEventListener('paste', async (e) => {
+                const success = await handlePaste(e.clipboardData);
+                if (success) e.preventDefault();
+            });
+
+            // ---- mobile: tap on stage triggers paste or file picker ----
+            let tapTimer = null;
+            stage.addEventListener('click', (e) => {
+                // if there's a selection, don't interfere
+                if (window.getSelection && window.getSelection().toString()) return;
+
+                // if we have content, tapping does nothing special
+                if (hasImage || hasText) return;
+
+                // on mobile: offer paste or file picker
+                if (isMobile) {
+                    // try clipboard paste first
+                    if (navigator.clipboard && navigator.clipboard.read) {
+                        mobilePaste();
+                    } else {
+                        // fallback: file picker
+                        fileInput.click();
+                    }
+                }
+            });
+
+            // ---- long press on stage → file picker (mobile) ----
+            let longPressTimer = null;
+            stage.addEventListener('touchstart', (e) => {
+                if (hasImage || hasText) return;
+                longPressTimer = setTimeout(() => {
+                    // long press → file picker
+                    if (!hasImage && !hasText) {
+                        fileInput.click();
+                        // vibrate if available
+                        if (navigator.vibrate) navigator.vibrate(20);
+                    }
+                    longPressTimer = null;
+                }, 500);
+            }, { passive: true });
+
+            stage.addEventListener('touchend', () => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }, { passive: true });
+
+            stage.addEventListener('touchmove', () => {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }, { passive: true });
+
+            // ---- mobile: add a "paste" button to controls if clipboard API available ----
+            if (isMobile && navigator.clipboard && navigator.clipboard.read) {
+                const pasteBtn = document.createElement('button');
+                pasteBtn.className = 'btn-paste';
+                pasteBtn.textContent = '📋 paste';
+                pasteBtn.style.cssText = `
+              background: rgba(240,236,226,0.06);
+              border: 1px solid rgba(240,236,226,0.08);
+              color: #f0ece2;
+              font-family: 'IBM Plex Mono','SF Mono',monospace;
+              font-size: clamp(9px,1.4vw,11px);
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              padding: 8px 14px;
+              border-radius: 40px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              min-height: 40px;
+              min-width: 44px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              white-space: nowrap;
+              touch-action: manipulation;
+              font-weight: 600;
+            `;
+                pasteBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!hasImage && !hasText) {
+                        mobilePaste();
+                    } else {
+                        // if we have content, just re-paste (replace)
+                        mobilePaste();
+                    }
+                });
+                // insert before clear btn
+                const controls = document.getElementById('paste-controls');
+                controls.insertBefore(pasteBtn, controls.firstChild);
+            }
+
+            // ---- mobile: add file picker button ----
+            if (isMobile) {
+                const fileBtn = document.createElement('button');
+                fileBtn.className = 'btn-file';
+                fileBtn.textContent = '🖼️ file';
+                fileBtn.style.cssText = `
+              background: rgba(240,236,226,0.06);
+              border: 1px solid rgba(240,236,226,0.08);
+              color: #f0ece2;
+              font-family: 'IBM Plex Mono','SF Mono',monospace;
+              font-size: clamp(9px,1.4vw,11px);
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              padding: 8px 14px;
+              border-radius: 40px;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              min-height: 40px;
+              min-width: 44px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              white-space: nowrap;
+              touch-action: manipulation;
+              font-weight: 600;
+            `;
+                fileBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    fileInput.click();
+                });
+                const controls = document.getElementById('paste-controls');
+                controls.insertBefore(fileBtn, controls.firstChild);
+            }
+
+            // ---- CURSOR / TOUCH PARALLAX ----
+            let targetX = 0,
+                targetY = 0;
+            let smoothX = 0,
+                smoothY = 0;
+            let isTouching = false;
+
+            function updateParallax(clientX, clientY) {
+                const rect = stage.getBoundingClientRect();
+                const nx = ((clientX - rect.left) / rect.width - 0.5) * 2;
+                const ny = ((clientY - rect.top) / rect.height - 0.5) * 2;
+
+                targetX = nx * -8;
+                targetY = ny * -6;
+                prompt.style.transform = `translate3d(${nx * 4}px, ${ny * 3}px, 0)`;
+            }
+
+            function animateParallax() {
+                smoothX += (targetX - smoothX) * 0.08;
+                smoothY += (targetY - smoothY) * 0.08;
+                imgWrap.style.transform = `translate3d(${smoothX}px, ${smoothY}px, 0)`;
+                requestAnimationFrame(animateParallax);
+            }
+
+            // mouse
+            stage.addEventListener('mousemove', (e) => {
+                if (!isTouching) updateParallax(e.clientX, e.clientY);
+            });
+            stage.addEventListener('mouseleave', () => {
+                if (!isTouching) {
+                    targetX = 0;
+                    targetY = 0;
+                    prompt.style.transform = 'translate3d(0,0,0)';
+                }
+            });
+
+            // touch
+            stage.addEventListener('touchstart', (e) => {
+                isTouching = true;
+                const t = e.touches[0];
+                if (t) updateParallax(t.clientX, t.clientY);
+            }, { passive: true });
+
+            stage.addEventListener('touchmove', (e) => {
+                const t = e.touches[0];
+                if (t) updateParallax(t.clientX, t.clientY);
+            }, { passive: true });
+
+            stage.addEventListener('touchend', () => {
+                isTouching = false;
+                targetX = 0;
+                targetY = 0;
+                prompt.style.transform = 'translate3d(0,0,0)';
+            }, { passive: true });
+
+            stage.addEventListener('touchcancel', () => {
+                isTouching = false;
+                targetX = 0;
+                targetY = 0;
+                prompt.style.transform = 'translate3d(0,0,0)';
+            }, { passive: true });
+
+            animateParallax();
+
+            // ---- init ----
+            setState('empty');
+            resetAll();
+
+            console.log('📄 /PASTED — mobile-optimized · Paste → Pasted → Save → Saved');
+        })();
+    </script>
 </body>
 </html>
