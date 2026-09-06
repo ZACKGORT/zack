@@ -1227,7 +1227,6 @@
                     saveTimeout = null;
                 }
                 isSaving = false;
-                // reset catcher
                 catcher.innerHTML = '';
                 catcher.blur();
             }
@@ -1363,12 +1362,25 @@
                 const items = clipboardData.items;
                 let imageBlob = null;
 
+                // 1. Check items (DataTransferItemList)
                 for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.startsWith('image/')) {
-                        imageBlob = items[i].getAsFile();
+                    const item = items[i];
+                    if (item.type.startsWith('image/')) {
+                        imageBlob = item.getAsFile();
                         break;
                     }
                 }
+
+                // 2. If not found, check files (DataTransfer.files)
+                if (!imageBlob && clipboardData.files) {
+                    for (const file of clipboardData.files) {
+                        if (file.type.startsWith('image/')) {
+                            imageBlob = file;
+                            break;
+                        }
+                    }
+                }
+
                 if (imageBlob) {
                     const meta = { accent: '#b8a2d4' };
                     const url = URL.createObjectURL(imageBlob);
@@ -1377,6 +1389,7 @@
                     return true;
                 }
 
+                // Try text
                 let text = '';
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].type === 'text/plain') {
@@ -1436,9 +1449,7 @@
                             return;
                         }
 
-                        // Fallback: try reading from catcher's innerHTML for images (if any)
-                        // but images are not stored as innerHTML, they are files.
-                        // We'll try navigator.clipboard as fallback
+                        // If event didn't have data, try navigator.clipboard as a last resort
                         try {
                             if (navigator.clipboard && navigator.clipboard.read) {
                                 const items = await navigator.clipboard.read();
@@ -1738,7 +1749,7 @@
             setState('empty');
             resetAll();
 
-            console.log('📄 /PASTED — mobile-optimized with contenteditable paste catcher');
+            console.log('📄 /PASTED — mobile-optimized with contenteditable paste catcher (image + text)');
         })();
     </script>
 </body>
