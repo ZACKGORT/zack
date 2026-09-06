@@ -529,15 +529,13 @@
             opacity: 0.2;
             pointer-events: none;
         }
-
-        /* --- mobile-specific: paste input (hidden) --- */
-        #paste-file-input {
-            position: fixed;
-            opacity: 0;
-            pointer-events: none;
-            width: 0.1px;
-            height: 0.1px;
-            z-index: -1;
+        /* paste button (mobile) */
+        .btn-paste {
+            background: rgba(184, 162, 212, 0.15) !important;
+            border-color: rgba(184, 162, 212, 0.3) !important;
+        }
+        .btn-paste:active {
+            background: rgba(184, 162, 212, 0.25) !important;
         }
 
         /* --- keyboard hint (desktop only) --- */
@@ -832,7 +830,7 @@
                 <span class="prompt-label paste" id="labelPaste">Paste</span>
                 <span class="prompt-label save" id="labelSave">Save</span>
             </div>
-            <div class="prompt-sub" id="promptSub">tap · paste · share</div>
+            <div class="prompt-sub" id="promptSub">long press or tap 📋 to paste</div>
         </div>
 
         <!-- text preview -->
@@ -848,9 +846,6 @@
         <div class="paste-corner tl"></div>
         <div class="paste-corner br"></div>
     </div>
-
-    <!-- hidden file input -->
-    <input type="file" id="paste-file-input" accept="image/*,text/plain" multiple />
 
     <!-- INFO TOGGLE -->
     <button id="info-toggle" aria-label="Toggle info panel">ⓘ</button>
@@ -870,7 +865,7 @@
     </div>
 
     <!-- status badge -->
-    <div id="paste-status">⏎ paste image or text</div>
+    <div id="paste-status">⏎ long press or tap 📋 to paste</div>
 
     <!-- controls -->
     <div id="paste-controls">
@@ -1141,7 +1136,6 @@
             const textContent = document.getElementById('paste-text-content');
             const infoToggle = document.getElementById('info-toggle');
             const infoPanel = document.getElementById('info-panel');
-            const fileInput = document.getElementById('paste-file-input');
 
             // ---- state ----
             let hasImage = false;
@@ -1161,7 +1155,6 @@
                 infoToggle.classList.toggle('active', infoOpen);
             });
 
-            // close info on outside tap (mobile friendly)
             document.addEventListener('click', (e) => {
                 if (infoOpen && !infoPanel.contains(e.target) && e.target !== infoToggle) {
                     infoOpen = false;
@@ -1182,7 +1175,7 @@
                         labelSave.textContent = 'Save';
                         labelSave.className = 'prompt-label save';
                         promptSub.classList.remove('hidden-sub');
-                        promptSub.textContent = isMobile ? 'tap · paste · share' : 'ctrl+v or drag & drop';
+                        promptSub.textContent = isMobile ? 'long press or tap 📋 to paste' : 'ctrl+v or drag & drop';
                         prompt.classList.remove('hidden');
                         break;
                     case 'loaded':
@@ -1219,7 +1212,7 @@
                 imageBlob = null;
                 imageSrc = null;
                 textString = '';
-                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' : '⏎ paste image or text (ctrl+v)';
                 statusEl.classList.remove('ready');
                 saveBtn.disabled = true;
                 clearBtn.disabled = true;
@@ -1232,8 +1225,6 @@
                     saveTimeout = null;
                 }
                 isSaving = false;
-                // reset file input
-                fileInput.value = '';
             }
 
             // ---- set image ----
@@ -1266,7 +1257,7 @@
                 };
                 img.onload = onLoad;
                 img.onerror = () => {
-                    // fallback: try to show anyway
+                    // fallback
                     imgEl.src = src;
                     imgEl.className = 'paste-img visible';
                     thumbImg.src = src;
@@ -1415,7 +1406,8 @@
                         statusEl.textContent = '⚠️ clipboard read not supported';
                         setTimeout(() => {
                             if (!hasImage && !hasText) {
-                                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                                statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
+                                    '⏎ paste image or text (ctrl+v)';
                             }
                         }, 3000);
                         return;
@@ -1451,7 +1443,8 @@
                         statusEl.textContent = '⚠️ no image or text in clipboard';
                         setTimeout(() => {
                             if (!hasImage && !hasText) {
-                                statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                                statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
+                                    '⏎ paste image or text (ctrl+v)';
                             }
                         }, 3000);
                     }
@@ -1460,54 +1453,14 @@
                     statusEl.textContent = '⚠️ clipboard access denied';
                     setTimeout(() => {
                         if (!hasImage && !hasText) {
-                            statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                            statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
+                                '⏎ paste image or text (ctrl+v)';
                         }
                     }, 3000);
                 }
             }
 
-            // ---- file input handler ----
-            fileInput.addEventListener('change', async (e) => {
-                const files = e.target.files;
-                if (!files || files.length === 0) return;
-
-                let blob = null;
-                for (let i = 0; i < files.length; i++) {
-                    if (files[i].type.startsWith('image/')) {
-                        blob = files[i];
-                        break;
-                    }
-                }
-                if (blob) {
-                    const meta = { accent: '#b8a2d4' };
-                    const url = URL.createObjectURL(blob);
-                    setImage(url, blob, meta);
-                    setTimeout(() => URL.revokeObjectURL(url), 5000);
-                    fileInput.value = '';
-                    return;
-                }
-
-                for (let i = 0; i < files.length; i++) {
-                    if (files[i].type === 'text/plain' || files[i].name.endsWith('.txt')) {
-                        const text = await files[i].text();
-                        if (text && text.trim().length > 0) {
-                            setText(text.trim());
-                            fileInput.value = '';
-                            return;
-                        }
-                    }
-                }
-
-                statusEl.textContent = '⚠️ unsupported file type';
-                setTimeout(() => {
-                    if (!hasImage && !hasText) {
-                        statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
-                    }
-                }, 3000);
-                fileInput.value = '';
-            });
-
-            // ---- drag & drop (also mobile friendly via file input) ----
+            // ---- drag & drop ----
             stage.addEventListener('dragover', (e) => { e.preventDefault(); });
             stage.addEventListener('drop', async (e) => {
                 e.preventDefault();
@@ -1542,7 +1495,8 @@
                 statusEl.textContent = '⚠️ unsupported file type';
                 setTimeout(() => {
                     if (!hasImage && !hasText) {
-                        statusEl.textContent = isMobile ? '⏎ tap paste or share' : '⏎ paste image or text (ctrl+v)';
+                        statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
+                            '⏎ paste image or text (ctrl+v)';
                     }
                 }, 3000);
             });
@@ -1557,36 +1511,15 @@
                 if (success) e.preventDefault();
             });
 
-            // ---- mobile: tap on stage triggers paste or file picker ----
-            let tapTimer = null;
-            stage.addEventListener('click', (e) => {
-                // if there's a selection, don't interfere
-                if (window.getSelection && window.getSelection().toString()) return;
-
-                // if we have content, tapping does nothing special
-                if (hasImage || hasText) return;
-
-                // on mobile: offer paste or file picker
-                if (isMobile) {
-                    // try clipboard paste first
-                    if (navigator.clipboard && navigator.clipboard.read) {
-                        mobilePaste();
-                    } else {
-                        // fallback: file picker
-                        fileInput.click();
-                    }
-                }
-            });
-
-            // ---- long press on stage → file picker (mobile) ----
+            // ---- mobile: long press on stage → paste ----
             let longPressTimer = null;
             stage.addEventListener('touchstart', (e) => {
+                // only if no content already
                 if (hasImage || hasText) return;
                 longPressTimer = setTimeout(() => {
-                    // long press → file picker
+                    // long press → trigger paste
                     if (!hasImage && !hasText) {
-                        fileInput.click();
-                        // vibrate if available
+                        mobilePaste();
                         if (navigator.vibrate) navigator.vibrate(20);
                     }
                     longPressTimer = null;
@@ -1607,14 +1540,14 @@
                 }
             }, { passive: true });
 
-            // ---- mobile: add a "paste" button to controls if clipboard API available ----
+            // ---- mobile: add a "paste" button to controls ----
             if (isMobile && navigator.clipboard && navigator.clipboard.read) {
                 const pasteBtn = document.createElement('button');
                 pasteBtn.className = 'btn-paste';
                 pasteBtn.textContent = '📋 paste';
                 pasteBtn.style.cssText = `
-              background: rgba(240,236,226,0.06);
-              border: 1px solid rgba(240,236,226,0.08);
+              background: rgba(184,162,212,0.15);
+              border: 1px solid rgba(184,162,212,0.3);
               color: #f0ece2;
               font-family: 'IBM Plex Mono','SF Mono',monospace;
               font-size: clamp(9px,1.4vw,11px);
@@ -1635,50 +1568,12 @@
             `;
                 pasteBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    if (!hasImage && !hasText) {
-                        mobilePaste();
-                    } else {
-                        // if we have content, just re-paste (replace)
-                        mobilePaste();
-                    }
+                    // if content already exists, we can replace it by pasting again (reset not needed)
+                    // but we allow re-paste to replace content
+                    mobilePaste();
                 });
-                // insert before clear btn
                 const controls = document.getElementById('paste-controls');
                 controls.insertBefore(pasteBtn, controls.firstChild);
-            }
-
-            // ---- mobile: add file picker button ----
-            if (isMobile) {
-                const fileBtn = document.createElement('button');
-                fileBtn.className = 'btn-file';
-                fileBtn.textContent = '🖼️ file';
-                fileBtn.style.cssText = `
-              background: rgba(240,236,226,0.06);
-              border: 1px solid rgba(240,236,226,0.08);
-              color: #f0ece2;
-              font-family: 'IBM Plex Mono','SF Mono',monospace;
-              font-size: clamp(9px,1.4vw,11px);
-              letter-spacing: 0.08em;
-              text-transform: uppercase;
-              padding: 8px 14px;
-              border-radius: 40px;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              min-height: 40px;
-              min-width: 44px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              white-space: nowrap;
-              touch-action: manipulation;
-              font-weight: 600;
-            `;
-                fileBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    fileInput.click();
-                });
-                const controls = document.getElementById('paste-controls');
-                controls.insertBefore(fileBtn, controls.firstChild);
             }
 
             // ---- CURSOR / TOUCH PARALLAX ----
@@ -1705,7 +1600,6 @@
                 requestAnimationFrame(animateParallax);
             }
 
-            // mouse
             stage.addEventListener('mousemove', (e) => {
                 if (!isTouching) updateParallax(e.clientX, e.clientY);
             });
@@ -1717,7 +1611,6 @@
                 }
             });
 
-            // touch
             stage.addEventListener('touchstart', (e) => {
                 isTouching = true;
                 const t = e.touches[0];
