@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>🗍 · paste</title>
     <style>
-        /* --- reset: full-viewport, brutalist, no chrome --- */
+        /* --- reset & base --- */
         * {
             margin: 0;
             padding: 0;
@@ -24,7 +24,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* --- full-screen stage --- */
+        /* --- stage --- */
         #paste-stage {
             position: fixed;
             inset: 0;
@@ -39,7 +39,7 @@
             touch-action: none;
         }
 
-        /* --- aurora background layer --- */
+        /* --- aurora --- */
         #aurora-bg {
             position: absolute;
             inset: 0;
@@ -53,7 +53,7 @@
             image-rendering: auto;
         }
 
-        /* --- image layer (parallax) --- */
+        /* --- image layer --- */
         #paste-img-wrap {
             position: absolute;
             inset: -6%;
@@ -80,7 +80,7 @@
             transform: scale(1);
         }
 
-        /* --- CRISP THUMBNAIL PREVIEW --- */
+        /* --- thumbnail --- */
         #paste-thumb {
             position: fixed;
             bottom: 90px;
@@ -115,7 +115,7 @@
             image-rendering: auto;
         }
 
-        /* --- CENTERED PROMPT — dual label state machine --- */
+        /* --- prompt dual label --- */
         #paste-prompt {
             position: absolute;
             inset: 0;
@@ -248,7 +248,7 @@
             border-radius: 4px;
         }
 
-        /* --- scrim + ambient --- */
+        /* --- scrim & ambient --- */
         .paste-scrim {
             position: absolute;
             inset: 0;
@@ -317,7 +317,7 @@
             border-color: rgba(240, 236, 226, 0.15);
         }
 
-        /* --- INFO ICON (top-left) --- */
+        /* --- info --- */
         #info-toggle {
             position: fixed;
             top: 12px;
@@ -357,7 +357,6 @@
             border-color: rgba(240, 236, 226, 0.3);
         }
 
-        /* --- INFO PANEL --- */
         #info-panel {
             position: fixed;
             top: 60px;
@@ -447,7 +446,7 @@
             text-align: right;
         }
 
-        /* --- CONTROLS (bottom) --- */
+        /* --- controls --- */
         #paste-controls {
             position: fixed;
             bottom: 16px;
@@ -529,7 +528,6 @@
             opacity: 0.2;
             pointer-events: none;
         }
-        /* paste button (mobile) */
         .btn-paste {
             background: rgba(184, 162, 212, 0.15) !important;
             border-color: rgba(184, 162, 212, 0.3) !important;
@@ -538,7 +536,7 @@
             background: rgba(184, 162, 212, 0.25) !important;
         }
 
-        /* --- keyboard hint (desktop only) --- */
+        /* --- hint --- */
         #paste-hint {
             position: fixed;
             bottom: 16px;
@@ -564,6 +562,18 @@
             #paste-hint {
                 display: none;
             }
+        }
+
+        /* --- hidden paste catcher (mobile fallback) --- */
+        #paste-catcher {
+            position: fixed;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+            left: -100px;
+            top: -100px;
+            z-index: -1;
         }
 
         /* --- responsive overrides --- */
@@ -799,32 +809,19 @@
                 transition-duration: 0.001ms !important;
             }
         }
-
-        /* --- disable text selection on UI --- */
-        .no-select {
-            user-select: none;
-            -webkit-user-select: none;
-        }
     </style>
 </head>
 <body>
 
     <!-- FULL-VIEWPORT STAGE -->
     <div id="paste-stage">
-        <!-- aurora background -->
         <div id="aurora-bg"></div>
-
-        <!-- image layer (parallax) -->
         <div id="paste-img-wrap">
             <img id="paste-img" src="" alt="pasted image" />
         </div>
-
-        <!-- CRISP THUMBNAIL PREVIEW -->
         <div id="paste-thumb">
             <img id="paste-thumb-img" src="" alt="thumbnail preview" />
         </div>
-
-        <!-- CENTERED PROMPT — dual label state machine -->
         <div id="paste-prompt">
             <div class="prompt-dual">
                 <span class="prompt-label paste" id="labelPaste">Paste</span>
@@ -832,25 +829,17 @@
             </div>
             <div class="prompt-sub" id="promptSub">long press or tap 📋 to paste</div>
         </div>
-
-        <!-- text preview -->
         <div id="paste-text-preview">
             <pre id="paste-text-content"></pre>
         </div>
-
-        <!-- scrim + ambient -->
         <div class="paste-scrim"></div>
         <div id="paste-ambient"></div>
-
-        <!-- corner markers -->
         <div class="paste-corner tl"></div>
         <div class="paste-corner br"></div>
     </div>
 
     <!-- INFO TOGGLE -->
     <button id="info-toggle" aria-label="Toggle info panel">ⓘ</button>
-
-    <!-- INFO PANEL -->
     <div id="info-panel">
         <div class="brand">/PASTED</div>
         <h2>Bookmark this shit.</h2>
@@ -864,7 +853,7 @@
         <div class="close-hint">tap ⓘ to close</div>
     </div>
 
-    <!-- status badge -->
+    <!-- status -->
     <div id="paste-status">⏎ long press or tap 📋 to paste</div>
 
     <!-- controls -->
@@ -873,15 +862,18 @@
         <button class="btn-primary" id="saveBtn" disabled>save</button>
     </div>
 
-    <!-- hint (desktop) -->
+    <!-- desktop hint -->
     <div id="paste-hint"><kbd>⌘V</kbd> or <kbd>Ctrl+V</kbd> · drag &amp; drop</div>
+
+    <!-- hidden paste catcher (mobile fallback) -->
+    <textarea id="paste-catcher" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 
     <script>
         // ---- detect mobile ----
         const isMobile = /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
             window.innerWidth < 768;
 
-        // ---- Aurora background (vanilla WebGL2) ----
+        // ---- Aurora background (WebGL2) ----
         function AuroraEffect(container, opts) {
             const {
                 colorStops = ["#f00e8c", "#da1884", "#3D6BEF"],
@@ -906,7 +898,6 @@
               gl_Position = vec4(position, 0.0, 1.0);
             }
           `;
-
             const fragmentShaderSrc = `#version 300 es
             precision highp float;
 
@@ -1107,7 +1098,7 @@
             };
         }
 
-        // ---- init aurora with mobile-friendly settings ----
+        // ---- init aurora ----
         const aurora = AuroraEffect(document.getElementById('aurora-bg'), {
             colorStops: ["#f00e8c", "#da1884", "#3D6BEF"],
             blend: 1.0,
@@ -1136,6 +1127,7 @@
             const textContent = document.getElementById('paste-text-content');
             const infoToggle = document.getElementById('info-toggle');
             const infoPanel = document.getElementById('info-panel');
+            const catcher = document.getElementById('paste-catcher');
 
             // ---- state ----
             let hasImage = false;
@@ -1225,6 +1217,9 @@
                     saveTimeout = null;
                 }
                 isSaving = false;
+                // reset catcher
+                catcher.value = '';
+                catcher.blur();
             }
 
             // ---- set image ----
@@ -1351,7 +1346,7 @@
                 }
             }
 
-            // ---- paste handler (clipboard) ----
+            // ---- paste handler (clipboardData) ----
             async function handlePaste(clipboardData) {
                 if (!clipboardData) return false;
 
@@ -1399,64 +1394,161 @@
                 return false;
             }
 
-            // ---- mobile: paste from clipboard via navigator.clipboard ----
+            // ---- MOBILE PASTE: use hidden catcher + system paste ----
+            function mobilePasteWithCatcher() {
+                // Focus the hidden textarea so the system paste menu appears
+                catcher.style.position = 'fixed';
+                catcher.style.opacity = '0';
+                catcher.style.pointerEvents = 'none';
+                catcher.style.width = '1px';
+                catcher.style.height = '1px';
+                catcher.style.left = '-100px';
+                catcher.style.top = '-100px';
+                catcher.style.zIndex = '-1';
+                catcher.focus();
+
+                // We'll listen for a paste event on the catcher
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('paste timeout'));
+                    }, 10000); // 10 seconds timeout
+
+                    const pasteHandler = async (e) => {
+                        const clipboardData = e.clipboardData || e.originalEvent?.clipboardData;
+                        if (clipboardData) {
+                            const success = await handlePaste(clipboardData);
+                            if (success) {
+                                clearTimeout(timeout);
+                                catcher.removeEventListener('paste', pasteHandler);
+                                catcher.blur();
+                                resolve(true);
+                            } else {
+                                clearTimeout(timeout);
+                                catcher.removeEventListener('paste', pasteHandler);
+                                catcher.blur();
+                                reject(new Error('no valid content'));
+                            }
+                        } else {
+                            // try reading via navigator.clipboard as fallback
+                            try {
+                                const items = await navigator.clipboard.read();
+                                let found = false;
+                                for (const item of items) {
+                                    if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item
+                                        .types.includes('image/webp')) {
+                                        const blob = await item.getType(item.types.find(t => t.startsWith(
+                                        'image/')));
+                                        if (blob) {
+                                            const meta = { accent: '#b8a2d4' };
+                                            const url = URL.createObjectURL(blob);
+                                            setImage(url, blob, meta);
+                                            setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                    if (item.types.includes('text/plain')) {
+                                        const text = await item.getType('text/plain').then(r => r.text());
+                                        if (text && text.trim().length > 0) {
+                                            setText(text.trim());
+                                            found = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (found) {
+                                    clearTimeout(timeout);
+                                    catcher.removeEventListener('paste', pasteHandler);
+                                    catcher.blur();
+                                    resolve(true);
+                                } else {
+                                    clearTimeout(timeout);
+                                    catcher.removeEventListener('paste', pasteHandler);
+                                    catcher.blur();
+                                    reject(new Error('no content in clipboard'));
+                                }
+                            } catch (err) {
+                                clearTimeout(timeout);
+                                catcher.removeEventListener('paste', pasteHandler);
+                                catcher.blur();
+                                reject(err);
+                            }
+                        }
+                    };
+
+                    catcher.addEventListener('paste', pasteHandler);
+
+                    // Also try to trigger paste via execCommand (works on some browsers)
+                    try {
+                        if (document.execCommand('paste')) {
+                            // it might have already triggered the paste event
+                        }
+                    } catch (_) { /* ignore */ }
+                });
+            }
+
+            // ---- mobile paste entry point ----
             async function mobilePaste() {
                 try {
-                    if (!navigator.clipboard || !navigator.clipboard.read) {
-                        statusEl.textContent = '⚠️ clipboard read not supported';
-                        setTimeout(() => {
-                            if (!hasImage && !hasText) {
-                                statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
-                                    '⏎ paste image or text (ctrl+v)';
+                    statusEl.textContent = '📋 opening clipboard...';
+                    // First try the modern Clipboard API (with user gesture already present)
+                    if (navigator.clipboard && navigator.clipboard.read) {
+                        try {
+                            const items = await navigator.clipboard.read();
+                            let found = false;
+                            for (const item of items) {
+                                if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item.types
+                                    .includes('image/webp')) {
+                                    const blob = await item.getType(item.types.find(t => t.startsWith('image/')));
+                                    if (blob) {
+                                        const meta = { accent: '#b8a2d4' };
+                                        const url = URL.createObjectURL(blob);
+                                        setImage(url, blob, meta);
+                                        setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (item.types.includes('text/plain')) {
+                                    const text = await item.getType('text/plain').then(r => r.text());
+                                    if (text && text.trim().length > 0) {
+                                        setText(text.trim());
+                                        found = true;
+                                        break;
+                                    }
+                                }
                             }
-                        }, 3000);
+                            if (found) {
+                                statusEl.textContent = '✓ pasted!';
+                                return;
+                            } else {
+                                // fallback to catcher
+                                statusEl.textContent = '⏎ no content, try manual paste';
+                                await mobilePasteWithCatcher();
+                                return;
+                            }
+                        } catch (clipErr) {
+                            console.warn('Clipboard API read failed, falling back to catcher', clipErr);
+                            // fallback to catcher
+                            statusEl.textContent = '⏎ tap "Paste" from menu';
+                            await mobilePasteWithCatcher();
+                            return;
+                        }
+                    } else {
+                        // no API, use catcher
+                        statusEl.textContent = '⏎ tap "Paste" from menu';
+                        await mobilePasteWithCatcher();
                         return;
                     }
-
-                    const items = await navigator.clipboard.read();
-                    let found = false;
-
-                    for (const item of items) {
-                        if (item.types.includes('image/png') || item.types.includes('image/jpeg') || item.types.includes(
-                                'image/webp')) {
-                            const blob = await item.getType(item.types.find(t => t.startsWith('image/')));
-                            if (blob) {
-                                const meta = { accent: '#b8a2d4' };
-                                const url = URL.createObjectURL(blob);
-                                setImage(url, blob, meta);
-                                setTimeout(() => URL.revokeObjectURL(url), 5000);
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (item.types.includes('text/plain')) {
-                            const text = await item.getType('text/plain').then(r => r.text());
-                            if (text && text.trim().length > 0) {
-                                setText(text.trim());
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!found) {
-                        statusEl.textContent = '⚠️ no image or text in clipboard';
-                        setTimeout(() => {
-                            if (!hasImage && !hasText) {
-                                statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
-                                    '⏎ paste image or text (ctrl+v)';
-                            }
-                        }, 3000);
-                    }
                 } catch (err) {
-                    console.warn('clipboard read error:', err);
-                    statusEl.textContent = '⚠️ clipboard access denied';
+                    console.error('Paste error:', err);
+                    statusEl.textContent = '⚠️ paste failed: ' + (err.message || 'unknown');
                     setTimeout(() => {
                         if (!hasImage && !hasText) {
                             statusEl.textContent = isMobile ? '⏎ long press or tap 📋 to paste' :
                                 '⏎ paste image or text (ctrl+v)';
                         }
-                    }, 3000);
+                    }, 4000);
                 }
             }
 
@@ -1505,19 +1597,17 @@
             saveBtn.addEventListener('click', handleSave);
             clearBtn.addEventListener('click', resetAll);
 
-            // ---- paste event (desktop) ----
+            // ---- desktop paste event ----
             document.addEventListener('paste', async (e) => {
                 const success = await handlePaste(e.clipboardData);
                 if (success) e.preventDefault();
             });
 
-            // ---- mobile: long press on stage → paste ----
+            // ---- mobile: long press on stage -> paste ----
             let longPressTimer = null;
             stage.addEventListener('touchstart', (e) => {
-                // only if no content already
                 if (hasImage || hasText) return;
                 longPressTimer = setTimeout(() => {
-                    // long press → trigger paste
                     if (!hasImage && !hasText) {
                         mobilePaste();
                         if (navigator.vibrate) navigator.vibrate(20);
@@ -1540,8 +1630,8 @@
                 }
             }, { passive: true });
 
-            // ---- mobile: add a "paste" button to controls ----
-            if (isMobile && navigator.clipboard && navigator.clipboard.read) {
+            // ---- mobile: add paste button ----
+            if (isMobile) {
                 const pasteBtn = document.createElement('button');
                 pasteBtn.className = 'btn-paste';
                 pasteBtn.textContent = '📋 paste';
@@ -1568,8 +1658,6 @@
             `;
                 pasteBtn.addEventListener('click', (e) => {
                     e.preventDefault();
-                    // if content already exists, we can replace it by pasting again (reset not needed)
-                    // but we allow re-paste to replace content
                     mobilePaste();
                 });
                 const controls = document.getElementById('paste-controls');
@@ -1642,7 +1730,7 @@
             setState('empty');
             resetAll();
 
-            console.log('📄 /PASTED — mobile-optimized · Paste → Pasted → Save → Saved');
+            console.log('📄 /PASTED — mobile-optimized with fallback paste catcher');
         })();
     </script>
 </body>
