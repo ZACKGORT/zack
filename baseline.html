@@ -7,8 +7,6 @@
 
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='12' fill='%23E5E567'/%3E%3Ctext x='40' y='50' font-family='system-ui, -apple-system, sans-serif' font-size='28' font-weight='800' text-anchor='middle' fill='%231C1C1E' letter-spacing='-0.5'%3ECX%3C/text%3E%3C/svg%3E" />
 
-
-    
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2,3,4,5,6,7,8,9&display=swap" rel="stylesheet" />
     <style>
         /* ── design system ── */
@@ -40,6 +38,18 @@
             --hud-height: 64px;
             --hud-top-height: 44px;
             --scrollbar-height: 3px;
+
+            /* ── Swiss grid vars ── */
+            --swiss-columns: 12;
+            --swiss-gap: 24px;
+            --swiss-container-max: 1200px;
+            --swiss-padding: 0px;
+
+            /* ── Grid outline colors (Figma style) ── */
+            --grid-outline: rgba(0, 160, 255, 0.45);
+            --grid-fill: rgba(0, 160, 255, 0.06);
+            --grid-gutter: rgba(0, 160, 255, 0.10);
+            --grid-label-bg: rgba(0, 160, 255, 0.12);
         }
         @media (min-width: 640px) {
             :root {
@@ -78,6 +88,7 @@
             min-height: 100dvh;
             padding-bottom: calc(var(--hud-height) + 20px + var(--scrollbar-height));
             overflow-x: hidden;
+            transition: background 0.2s ease;
         }
         ::selection {
             background: var(--accent);
@@ -96,7 +107,6 @@
             scrollbar-color: var(--ink-lighter) transparent;
         }
 
-        /* ── hide scrollbar on .letters-track ── */
         .letters-track::-webkit-scrollbar {
             display: none;
         }
@@ -159,6 +169,40 @@
         .btn-primary:hover {
             background: var(--ink-mid);
             border-color: var(--ink-mid);
+        }
+        .btn-grid {
+            font-size: 9px;
+            letter-spacing: 0.06em;
+            min-height: 32px;
+            padding: 4px 10px;
+            border-color: var(--border);
+            color: var(--ink-light);
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .btn-grid.active {
+            background: var(--grid-outline);
+            border-color: var(--grid-outline);
+            color: white;
+            box-shadow: 0 0 0 1px var(--grid-outline);
+        }
+        .btn-grid.active:hover {
+            background: rgba(0, 160, 255, 0.7);
+            border-color: rgba(0, 160, 255, 0.7);
+            color: white;
+        }
+        .btn-grid .dot-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: 0.4;
+            transition: opacity 0.2s ease;
+        }
+        .btn-grid.active .dot-indicator {
+            opacity: 1;
+            background: white;
         }
 
         /* ── topbar ── */
@@ -270,7 +314,6 @@
             cursor: grab;
             user-select: none;
             box-sizing: border-box;
-            /* scrollbar hidden (above) */
         }
         .letters-track.dragging {
             cursor: grabbing;
@@ -369,12 +412,6 @@
         }
 
         /* ── Swiss Grid System ── */
-        :root {
-            --swiss-columns: 12;
-            --swiss-gap: 24px;
-            --swiss-container-max: 1200px;
-            --swiss-padding: 0px;
-        }
         .swiss-container {
             max-width: var(--swiss-container-max);
             margin: 0 auto;
@@ -386,9 +423,12 @@
             grid-template-columns: repeat(var(--swiss-columns), 1fr);
             gap: var(--swiss-gap);
             width: 100%;
+            position: relative;
         }
         .swiss-col {
             grid-column: span 1;
+            position: relative;
+            transition: outline 0.2s ease, background 0.2s ease;
         }
         .swiss-col-span-2 {
             grid-column: span 2;
@@ -501,7 +541,95 @@
             padding-top: 1rem;
         }
 
-        /* ── sample content cards (fallback) ── */
+        /* ── FIGMA-STYLE GRID OUTLINES ── */
+        body.show-grid .swiss-col {
+            outline: 1px solid var(--grid-outline);
+            outline-offset: -1px;
+            background: var(--grid-fill);
+            border-radius: 0;
+            transition: outline 0.15s ease, background 0.15s ease;
+        }
+
+        body.show-grid .swiss-col:hover {
+            background: rgba(0, 160, 255, 0.12);
+        }
+
+        /* Gutter indicators — subtle vertical lines between columns */
+        body.show-grid .swiss-grid::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            background:
+                repeating-linear-gradient(90deg,
+                    transparent 0px,
+                    transparent calc(var(--swiss-gap) / 2 - 0.5px),
+                    var(--grid-gutter) calc(var(--swiss-gap) / 2 - 0.5px),
+                    var(--grid-gutter) calc(var(--swiss-gap) / 2 + 0.5px),
+                    transparent calc(var(--swiss-gap) / 2 + 0.5px),
+                    transparent var(--swiss-gap));
+        }
+
+        /* Column number labels (Figma-style "measure" overlay) */
+        body.show-grid .swiss-col::after {
+            content: attr(data-col-label);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-family: var(--font-mono);
+            font-size: 6px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
+            color: rgba(0, 160, 255, 0.5);
+            background: var(--grid-label-bg);
+            padding: 0 4px;
+            border-radius: 2px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            line-height: 1.4;
+            z-index: 6;
+        }
+        body.show-grid .swiss-col:hover::after {
+            opacity: 1;
+        }
+
+        /* Grid info badge (shows column count + gap) */
+        .grid-info-badge {
+            display: none;
+            position: fixed;
+            bottom: calc(var(--hud-height) + 24px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 90;
+            font-family: var(--font-mono);
+            font-size: 7px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-light);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 4px 12px;
+            box-shadow: var(--shadow-floating);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            transform: translateX(-50%) translateY(8px);
+        }
+        body.show-grid .grid-info-badge {
+            display: block;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .grid-info-badge span {
+            opacity: 0.6;
+        }
+
+        /* ── sample content cards ── */
         .sample-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -877,6 +1005,23 @@
                 width: 4px !important;
                 height: 4px !important;
             }
+            body.show-grid .swiss-col::after {
+                font-size: 5px;
+                top: 1px;
+                left: 1px;
+                padding: 0 3px;
+            }
+        }
+        @media (max-width: 480px) {
+            .btn-grid {
+                font-size: 7px;
+                padding: 2px 6px;
+                min-height: 26px;
+            }
+            .btn-grid .dot-indicator {
+                width: 4px;
+                height: 4px;
+            }
         }
     </style>
 </head>
@@ -908,6 +1053,11 @@
                 <span class="count" id="topCount">◈</span>
             </div>
             <div class="topbar-right">
+                <!-- GRID TOGGLE -->
+                <button class="btn btn-grid" id="gridToggle" aria-label="Toggle grid outlines">
+                    <span class="dot-indicator"></span>
+                    Grid
+                </button>
                 <div class="topbar-appearance-wrapper">
                     <button class="btn" id="appearanceTrigger">Aa</button>
                 </div>
@@ -944,6 +1094,11 @@
         <span style="font-size:0.75rem;color:var(--ink-light);" id="hudStatusText">Ready</span>
         <div class="hud-divider"></div>
         <button class="btn" id="hudNew">+ New</button>
+    </div>
+
+    <!-- ─── GRID INFO BADGE ─── -->
+    <div class="grid-info-badge" id="gridInfoBadge">
+        12 cols · <span id="gridInfoGap">24px</span> gap
     </div>
 
     <!-- ─── APPEARANCE DROPDOWN ─── -->
@@ -1050,10 +1205,10 @@
                 const label = data.isSpecial ? data.specialLabel || 'SPECIAL' : 'LETTER ' + String(index + 1).padStart(2,
                     '0');
                 cover.innerHTML = `
-                    <span class="letter-cover-kicker">${label}</span>
-                    <h2 class="letter-cover-name">${escapeHtml(data.title)}</h2>
-                    <p class="letter-cover-deck">${escapeHtml(data.deck || '')}</p>
-                `;
+                        <span class="letter-cover-kicker">${label}</span>
+                        <h2 class="letter-cover-name">${escapeHtml(data.title)}</h2>
+                        <p class="letter-cover-deck">${escapeHtml(data.deck || '')}</p>
+                    `;
                 frame.appendChild(cover);
 
                 const toolbar = document.createElement('div');
@@ -1099,6 +1254,9 @@
                         `<div class="sample-letter"><p>This letter is empty. Edit <code>letterData[${index}]</code> to add content.</p></div>`;
                 }
 
+                // ── After rendering, assign column labels for grid toggle ──
+                assignColumnLabels();
+
                 if (index === activeIndex) {
                     updateBorderProgress();
                     const counter = document.getElementById('hudNavCounter');
@@ -1106,6 +1264,19 @@
                     const statusCount = document.getElementById('hudStatusCount');
                     if (statusCount) statusCount.textContent = String(letterData.length);
                 }
+            }
+
+            function assignColumnLabels() {
+                // Give each .swiss-col a data-col-label with its column number
+                document.querySelectorAll('.swiss-grid').forEach(grid => {
+                    const cols = grid.querySelectorAll('.swiss-col');
+                    cols.forEach((col, i) => {
+                        const span = col.className.match(/swiss-col-span-(\d+)/);
+                        const spanNum = span ? parseInt(span[1]) : 1;
+                        const label = `${i+1}–${i+spanNum}`;
+                        col.setAttribute('data-col-label', label);
+                    });
+                });
             }
 
             function renderTrack() {
@@ -1116,6 +1287,7 @@
                 updateBorderProgress();
                 const counter = document.getElementById('hudNavCounter');
                 if (counter) counter.textContent = `1/${letterData.length}`;
+                assignColumnLabels();
             }
 
             function activatePanel(newIndex) {
@@ -1287,6 +1459,36 @@
                 });
             }
 
+            // ── Grid toggle ─────────────────────────────────────────────
+            function setupGridToggle() {
+                const toggle = document.getElementById('gridToggle');
+                const badge = document.getElementById('gridInfoBadge');
+                const gapSpan = document.getElementById('gridInfoGap');
+                if (!toggle) return;
+
+                // Read current gap from CSS
+                const rootStyles = getComputedStyle(document.documentElement);
+                const gapVal = rootStyles.getPropertyValue('--swiss-gap').trim() || '24px';
+                if (gapSpan) gapSpan.textContent = gapVal;
+
+                // Check if grid is already active (from previous session)
+                const isActive = document.body.classList.contains('show-grid');
+                if (isActive) toggle.classList.add('active');
+
+                toggle.addEventListener('click', () => {
+                    const currentlyActive = document.body.classList.contains('show-grid');
+                    if (currentlyActive) {
+                        document.body.classList.remove('show-grid');
+                        toggle.classList.remove('active');
+                    } else {
+                        document.body.classList.add('show-grid');
+                        toggle.classList.add('active');
+                        // Re-assign labels just in case
+                        assignColumnLabels();
+                    }
+                });
+            }
+
             // ── Reset ──────────────────────────────────────────────────
             function resetDemo() {
                 const startData = getDefaultLetterData();
@@ -1294,6 +1496,10 @@
                 renderTrack();
                 activeIndex = 0;
                 activatePanel(0);
+                // If grid is active, re-assign labels
+                if (document.body.classList.contains('show-grid')) {
+                    assignColumnLabels();
+                }
             }
 
             // ── Default letter data ──────────────────────────────────
@@ -1303,51 +1509,51 @@
                     deck: 'Est, last week, 09/26 · by zack.cx',
                     viewMode: 'grid',
                     staticContent: `
-                            <div class="swiss-container">
-                                <div class="swiss-grid" style="margin-bottom: 1.5rem;">
-                                    <div class="swiss-col swiss-col-span-12 swiss-meta">No. 01 / 06</div>
-                                </div>
-                                <div class="swiss-grid" style="margin-bottom: 0.5rem;">
-                                    <div class="swiss-col swiss-col-span-12">
-                                        <h1 class="swiss-title">NVRVRLND</h1>
+                                <div class="swiss-container">
+                                    <div class="swiss-grid" style="margin-bottom: 1.5rem;">
+                                        <div class="swiss-col swiss-col-span-12 swiss-meta">No. 01 / 06</div>
+                                    </div>
+                                    <div class="swiss-grid" style="margin-bottom: 0.5rem;">
+                                        <div class="swiss-col swiss-col-span-12">
+                                            <h1 class="swiss-title">NVRVRLND</h1>
+                                        </div>
+                                    </div>
+                                    <div class="swiss-grid" style="margin-bottom: 2.5rem;">
+                                        <div class="swiss-col swiss-col-span-12 swiss-subtitle">prose for purpose · statements as your signature</div>
+                                    </div>
+                                    <div class="swiss-grid" style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                                        <div class="swiss-col swiss-col-span-6 swiss-body">NEVEREVERLAND · NVRVRLND · nvrvr.lnd</div>
+                                        <div class="swiss-col swiss-col-span-6" style="text-align: right;">
+                                            <span class="swiss-large">NVR².ⳑ</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="swiss-grid" style="margin-bottom: 2.5rem;">
-                                    <div class="swiss-col swiss-col-span-12 swiss-subtitle">prose for purpose · statements as your signature</div>
-                                </div>
-                                <div class="swiss-grid" style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
-                                    <div class="swiss-col swiss-col-span-6 swiss-body">NEVEREVERLAND · NVRVRLND · nvrvr.lnd</div>
-                                    <div class="swiss-col swiss-col-span-6" style="text-align: right;">
-                                        <span class="swiss-large">NVR².ⳑ</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `
+                            `
                 }, {
                     title: 'swiss-grid & bento',
                     deck: 'A simple grid layout.',
                     viewMode: 'grid',
                     staticContent: `
-                            <div class="sample-grid">
-                                <div class="cell span-2"><span class="label">Purpose</span><span class="value">Letter‑based navigation shell</span></div>
-                                <div class="cell"><span class="label">Fonts</span><span class="value">Satoshi + monospace</span></div>
-                                <div class="cell"><span class="label">Cursor</span><span class="value">Custom dot + ellipse</span></div>
-                                <div class="cell span-2"><span class="label">HUD</span><span class="value">Top + bottom, always accessible</span></div>
-                                <div class="cell"><span class="label">State</span><span class="value">Ready</span></div>
-                                <div class="cell"><span class="label">Letters</span><span class="value" id="sampleCount">3</span></div>
-                            </div>
-                        `
+                                <div class="sample-grid">
+                                    <div class="cell span-2"><span class="label">Purpose</span><span class="value">Letter‑based navigation shell</span></div>
+                                    <div class="cell"><span class="label">Fonts</span><span class="value">Satoshi + monospace</span></div>
+                                    <div class="cell"><span class="label">Cursor</span><span class="value">Custom dot + ellipse</span></div>
+                                    <div class="cell span-2"><span class="label">HUD</span><span class="value">Top + bottom, always accessible</span></div>
+                                    <div class="cell"><span class="label">State</span><span class="value">Ready</span></div>
+                                    <div class="cell"><span class="label">Letters</span><span class="value" id="sampleCount">3</span></div>
+                                </div>
+                            `
                 }, {
                     title: 'Index',
                     deck: 'Jump to any letter.',
                     viewMode: 'list',
                     staticContent: `
-                            <div class="sample-index" id="sampleIndex">
-                                <a class="idx-row" data-jump="0"><span class="idx-num">01</span><span class="idx-title">Architecture</span></a>
-                                <a class="idx-row" data-jump="1"><span class="idx-num">02</span><span class="idx-title">Sample Grid</span></a>
-                                <a class="idx-row" data-jump="2"><span class="idx-num">03</span><span class="idx-title">Index</span></a>
-                            </div>
-                        `
+                                <div class="sample-index" id="sampleIndex">
+                                    <a class="idx-row" data-jump="0"><span class="idx-num">01</span><span class="idx-title">Architecture</span></a>
+                                    <a class="idx-row" data-jump="1"><span class="idx-num">02</span><span class="idx-title">Sample Grid</span></a>
+                                    <a class="idx-row" data-jump="2"><span class="idx-num">03</span><span class="idx-title">Index</span></a>
+                                </div>
+                            `
                 }];
             }
 
@@ -1357,6 +1563,7 @@
             document.addEventListener('DOMContentLoaded', function() {
                 setupViewportBlur();
                 setupAppearanceDropdown();
+                setupGridToggle();
 
                 renderTrack();
 
@@ -1470,6 +1677,12 @@
                         const drop = document.getElementById('appearanceDropdown');
                         if (drop.classList.contains('open')) drop.classList.remove('open');
                     }
+                    // G for grid toggle
+                    if (e.key === 'g' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        const toggle = document.getElementById('gridToggle');
+                        if (toggle) toggle.click();
+                        e.preventDefault();
+                    }
                 });
 
                 // Update sample count
@@ -1481,6 +1694,17 @@
                 if (statusCount) statusCount.textContent = String(letterData.length);
                 const statusText = document.getElementById('hudStatusText');
                 if (statusText) statusText.textContent = `${letterData.length} letters`;
+
+                // ── Re-assign column labels on resize ──
+                let resizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => {
+                        if (document.body.classList.contains('show-grid')) {
+                            assignColumnLabels();
+                        }
+                    }, 200);
+                });
             });
         })();
     </script>
