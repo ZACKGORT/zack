@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zack.cx — Tagging Tool</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;background:#07070a;color:#d4d4d4;
+    font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased;overflow:hidden}
+
+  .app{display:flex;flex-direction:column;height:100vh}
+
+  /* ---- Top bar ---- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;
+    padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.09);
+    flex-shrink:0;background:#07070a;z-index:5}
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand .logo{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.01em}
+  .brand .tag{font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;
+    color:#4a4a4a;font-weight:500}
+  .progress{display:flex;align-items:center;gap:12px;font-size:10px;
+    letter-spacing:.2em;text-transform:uppercase;color:#4a4a4a}
+  .progress .bar{width:180px;height:2px;background:rgba(255,255,255,.06);position:relative;overflow:hidden}
+  .progress .bar i{position:absolute;top:0;left:0;height:100%;background:#fff;
+    transition:width .5s cubic-bezier(.16,1,.3,1)}
+  .progress b{color:#fff;font-weight:700}
+  .actions{display:flex;gap:8px}
+  .btn{background:transparent;border:1px solid rgba(255,255,255,.12);color:#d4d4d4;
+    padding:7px 14px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    font-weight:600;cursor:pointer;font-family:inherit;transition:all .25s ease}
+  .btn:hover{color:#fff;border-color:rgba(255,255,255,.4)}
+  .btn.primary{background:#fff;color:#000;border-color:#fff}
+  .btn.primary:hover{background:#e0e0e0}
+  .btn:disabled{opacity:.3;cursor:not-allowed}
+
+  /* ---- Body ---- */
+  .body{display:flex;flex:1;min-height:0}
+
+  /* ---- List column ---- */
+  .listcol{flex:1;min-width:0;display:flex;flex-direction:column;
+    border-right:1px solid rgba(255,255,255,.09)}
+  .listhead{padding:14px 22px 10px;border-bottom:1px solid rgba(255,255,255,.06);
+    display:flex;gap:12px;align-items:center;flex-shrink:0}
+  .searchbox{flex:1;display:flex;align-items:center;gap:8px;
+    border:1px solid rgba(255,255,255,.08);padding:7px 10px;
+    background:rgba(255,255,255,.015);transition:border-color .25s}
+  .searchbox:focus-within{border-color:rgba(255,255,255,.35)}
+  .searchbox svg{flex-shrink:0;opacity:.35}
+  .searchbox input{background:transparent;border:none;outline:none;
+    color:#fff;font-family:inherit;font-size:11.5px;width:100%}
+  .searchbox input::placeholder{color:#3a3a3a}
+  .filters{display:flex;gap:6px}
+  .chip{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    padding:6px 10px;border:1px solid rgba(255,255,255,.1);color:#6a6a6a;
+    cursor:pointer;font-weight:600;transition:all .2s}
+  .chip:hover{color:#fff;border-color:rgba(255,255,255,.35)}
+  .chip.on{background:#fff;color:#000;border-color:#fff}
+
+  .list{flex:1;overflow-y:auto;padding:6px 0}
+  .list::-webkit-scrollbar{width:8px}
+  .list::-webkit-scrollbar-thumb{background:#1e1e1e}
+  .list::-webkit-scrollbar-thumb:hover{background:#2e2e2e}
+
+  .row{display:flex;gap:12px;padding:11px 22px;border-bottom:1px solid rgba(255,255,255,.04);
+    cursor:pointer;transition:background .15s ease;position:relative;align-items:flex-start}
+  .row:hover{background:rgba(255,255,255,.025)}
+  .row.sel{background:rgba(120,150,255,.07)}
+  .row.sel::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#fff}
+  .row.editing{background:rgba(255,255,255,.04)}
+  .row.editing::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#7a96ff}
+
+  .row .chk{width:14px;height:14px;flex-shrink:0;margin-top:2px;
+    border:1px solid rgba(255,255,255,.2);display:flex;align-items:center;
+    justify-content:center;transition:all .15s;cursor:pointer}
+  .row .chk:hover{border-color:rgba(255,255,255,.5)}
+  .row .chk.on{background:#fff;border-color:#fff}
+  .row .chk.on::after{content:'✓';color:#000;font-size:10px;font-weight:700;line-height:1}
+
+  .row .main{flex:1;min-width:0}
+  .row .name{font-size:13px;font-weight:600;color:#e6e6e6;line-height:1.3;
+    display:flex;align-items:center;gap:8px}
+  .row .name .verify{font-size:9px;letter-spacing:.15em;text-transform:uppercase;
+    color:#4a4a4a;font-weight:500;padding:2px 6px;border:1px solid rgba(255,255,255,.08)}
+  .row.verified .name .verify{color:#7ad47a;border-color:rgba(122,212,122,.3)}
+  .row .meta{margin-top:3px;font-size:10.5px;color:#5a5a5a;
+    display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .row .meta .kind{color:#8a8a8a;font-weight:600;letter-spacing:.05em}
+  .row .meta .sep{color:#2a2a2a}
+  .row .meta .ind{color:#5a5a5a}
+  .row .meta.empty .warn{color:#c47a4a;font-style:italic;font-weight:500}
+  .row .meta .parent{color:#7a96ff;font-size:10px}
+
+  /* ---- Editor column ---- */
+  .editcol{width:440px;flex-shrink:0;display:flex;flex-direction:column;
+    background:#0a0a0e;overflow:hidden}
+  .edithead{padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.09);
+    display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+  .edithead .ttl{font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;
+    color:#4a4a4a;font-weight:600}
+  .edithead .count{font-size:11px;color:#fff;font-weight:600}
+  .editbody{flex:1;overflow-y:auto;padding:22px}
+  .editbody::-webkit-scrollbar{width:8px}
+  .editbody::-webkit-scrollbar-thumb{background:#1e1e1e}
+
+  .empty{color:#3a3a3a;text-align:center;padding:60px 20px;font-size:11px;
+    letter-spacing:.2em;text-transform:uppercase;line-height:1.8}
+
+  .field{margin-bottom:20px}
+  .field label{display:block;font-size:9.5px;letter-spacing:.28em;
+    text-transform:uppercase;color:#4a4a4a;margin-bottom:8px;font-weight:600}
+  .field .brandname{font-size:16px;font-weight:700;color:#fff;
+    letter-spacing:-.005em;line-height:1.3}
+  .field input[type=text],.field textarea,.field select{
+    width:100%;background:rgba(255,255,255,.02);
+    border:1px solid rgba(255,255,255,.1);color:#fff;
+    font-family:inherit;font-size:12px;padding:8px 10px;outline:none;
+    transition:border-color .2s;border-radius:0}
+  .field input[type=text]:focus,.field textarea:focus,.field select:focus{
+    border-color:rgba(255,255,255,.4)}
+  .field textarea{resize:vertical;min-height:80px;line-height:1.6}
+  .field select{cursor:pointer;-webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat;background-position:right 10px center;
+    padding-right:30px}
+  .field select option{background:#0a0a0e;color:#fff}
+
+  .kindrow{display:flex;flex-wrap:wrap;gap:6px}
+  .kindbtn{padding:7px 12px;border:1px solid rgba(255,255,255,.1);
+    background:transparent;color:#8a8a8a;font-size:10.5px;cursor:pointer;
+    font-family:inherit;letter-spacing:.03em;transition:all .2s}
+  .kindbtn:hover{color:#fff;border-color:rgba(255,255,255,.35)}
+  .kindbtn.on{background:#fff;color:#000;border-color:#fff;font-weight:600}
+
+  .indgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .indbtn{display:flex;align-items:center;gap:8px;padding:7px 10px;
+    border:1px solid rgba(255,255,255,.08);background:transparent;
+    color:#8a8a8a;font-size:10.5px;cursor:pointer;font-family:inherit;
+    text-align:left;transition:all .2s;line-height:1.3}
+  .indbtn:hover{color:#fff;border-color:rgba(255,255,255,.3)}
+  .indbtn .box{width:11px;height:11px;border:1px solid rgba(255,255,255,.25);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .indbtn.on{color:#fff;border-color:rgba(255,255,255,.4)}
+  .indbtn.on .box{background:#fff;border-color:#fff}
+  .indbtn.on .box::after{content:'✓';color:#000;font-size:9px;font-weight:700;line-height:1}
+
+  .verifyrow{display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border:1px solid rgba(255,255,255,.1);
+    background:rgba(122,212,122,.04);cursor:pointer;
+    transition:all .2s;user-select:none}
+  .verifyrow:hover{border-color:rgba(122,212,122,.4)}
+  .verifyrow .box{width:13px;height:13px;border:1px solid rgba(255,255,255,.3);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .verifyrow.on{background:rgba(122,212,122,.08);border-color:rgba(122,212,122,.5)}
+  .verifyrow.on .box{background:#7ad47a;border-color:#7ad47a}
+  .verifyrow.on .box::after{content:'✓';color:#000;font-size:10px;font-weight:700}
+  .verifyrow span{font-size:11px;color:#8a8a8a;letter-spacing:.05em}
+  .verifyrow.on span{color:#7ad47a;font-weight:600}
+
+  /* ---- Bulk bar ---- */
+  .bulkbar{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+    background:rgba(10,10,14,.96);backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,.15);padding:12px 14px;
+    display:flex;gap:14px;align-items:center;z-index:50;
+    box-shadow:0 12px 40px rgba(0,0,0,.7);border-radius:0}
+  .bulkbar .label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;
+    color:#8a8a8a;padding-right:12px;border-right:1px solid rgba(255,255,255,.1);
+    font-weight:600}
+  .bulkbar .label b{color:#fff}
+  .bulkbar select{background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.12);color:#fff;font-family:inherit;
+    font-size:11px;padding:6px 24px 6px 10px;outline:none;cursor:pointer;
+    -webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+  .bulkbar select option{background:#0a0a0e;color:#fff}
+  .bulkbar .btn{padding:6px 12px}
+
+  /* ---- Export modal ---- */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);
+    backdrop-filter:blur(8px);z-index:100;display:flex;
+    align-items:center;justify-content:center;padding:40px}
+  .modal .inner{background:#0a0a0e;border:1px solid rgba(255,255,255,.12);
+    max-width:800px;width:100%;max-height:80vh;display:flex;flex-direction:column}
+  .modal .mhead{padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.09);
+    display:flex;justify-content:space-between;align-items:center}
+  .modal .mhead h3{font-size:13px;font-weight:700;color:#fff;letter-spacing:.02em}
+  .modal .mbody{flex:1;overflow:hidden;padding:16px 22px}
+  .modal pre{background:#050508;border:1px solid rgba(255,255,255,.06);
+    padding:14px;font-family:'SF Mono',Monaco,Menlo,Consolas,monospace;
+    font-size:11px;line-height:1.6;color:#a8b8e0;overflow:auto;
+    height:100%;white-space:pre;max-height:calc(80vh - 160px)}
+  .modal .mfoot{padding:14px 22px;border-top:1px solid rgba(255,255,255,.09);
+    display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .modal .mfoot .hint{font-size:10px;color:#4a4a4a;letter-spacing:.1em}
+  .toast{position:fixed;top:22px;left:50%;transform:translateX(-50%);
+    background:#fff;color:#000;padding:9px 18px;font-size:11px;
+    letter-spacing:.1em;font-weight:600;z-index:200;
+    animation:slideDown .35s cubic-bezier(.16,1,.3,1)}
+  @keyframes slideDown{from{opacity:0;transform:translate(-50%,-10px)}
+    to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useRef, useEffect, useCallback } = React;
+
+/* =========================================================
+   CONSTANTS
+   ========================================================= */
+const KINDS = ["Agency","Client","In-House","Platform","Independent","Personal"];
+
+const INDUSTRIES = [
+  "Advertising & Media",
+  "Automotive",
+  "Beauty & Fashion",
+  "Building & Industrial",
+  "Consumer Packaged Goods",
+  "Education",
+  "Financial Services",
+  "Food & Beverage",
+  "Healthcare & Pharma",
+  "Home Services",
+  "Insurance",
+  "Real Estate",
+  "Retail & E-commerce",
+  "Sports & Entertainment",
+  "Technology & SaaS",
+  "Telecom"
+];
+
+/* =========================================================
+   INITIAL DATA — pre-filled with best-guess categorization
+   ========================================================= */
+const INITIAL_BRANDS = [
+  { name:"Miller Designworks", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"Design studio — early-career foundation." },
+  { name:"CertainTeed", kind:"Client", industries:["Building & Industrial"], parent:"Saint-Gobain", role:"", years:"", notes:"" },
+  { name:"Hotwire Communications", kind:"Client", industries:["Telecom"], parent:"", role:"", years:"", notes:"" },
+  { name:"Xoxide / Turn5", kind:"In-House", industries:["Retail & E-commerce","Automotive"], parent:"", role:"", years:"", notes:"Parent company of Turn5 portfolio." },
+  { name:"AmericanMuscle.com", kind:"In-House", industries:["Automotive","Retail & E-commerce"], parent:"Turn5", role:"", years:"", notes:"" },
+  { name:"AmericanTrucks.com", kind:"In-House", industries:["Automotive","Retail & E-commerce"], parent:"Turn5", role:"", years:"", notes:"" },
+  { name:"CorvetteGuys.com", kind:"In-House", industries:["Automotive","Retail & E-commerce"], parent:"Turn5", role:"", years:"", notes:"" },
+  { name:"Xoxide", kind:"In-House", industries:["Retail & E-commerce","Technology & SaaS"], parent:"Turn5", role:"", years:"", notes:"PC modding / enthusiast hardware." },
+  { name:"Hana Salon", kind:"Client", industries:["Beauty & Fashion"], parent:"", role:"", years:"", notes:"" },
+  { name:"Raxiom", kind:"In-House", industries:["Automotive"], parent:"Turn5", role:"", years:"", notes:"In-house lighting brand." },
+  { name:"Stack Racing", kind:"In-House", industries:["Automotive"], parent:"Turn5", role:"", years:"", notes:"" },
+  { name:"'Bama Tuning", kind:"In-House", industries:["Automotive"], parent:"Turn5", role:"", years:"", notes:"ECU tuning brand." },
+  { name:"Leadnomics", kind:"In-House", industries:["Financial Services"], parent:"", role:"", years:"", notes:"Performance marketing / lead gen." },
+  { name:"160OVER90", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"" },
+  { name:"Mount St. Mary University", kind:"Client", industries:["Education"], parent:"", role:"", years:"", notes:"" },
+  { name:"Centro University", kind:"Client", industries:["Education"], parent:"", role:"", years:"", notes:"" },
+  { name:"Texas A&M", kind:"Client", industries:["Education"], parent:"", role:"", years:"", notes:"" },
+  { name:"Kent State University", kind:"Client", industries:["Education"], parent:"", role:"", years:"", notes:"" },
+  { name:"University of Wisconsin-Madison", kind:"Client", industries:["Education"], parent:"", role:"", years:"", notes:"" },
+  { name:"Comcast Spectacor", kind:"Client", industries:["Sports & Entertainment","Telecom"], parent:"Comcast", role:"", years:"", notes:"" },
+  { name:"Comcast", kind:"Client", industries:["Telecom","Advertising & Media"], parent:"", role:"", years:"", notes:"" },
+  { name:"Philadelphia Eagles", kind:"Client", industries:["Sports & Entertainment"], parent:"NFL", role:"", years:"", notes:"" },
+  { name:"Power Home Remodeling Group", kind:"Client", industries:["Home Services"], parent:"", role:"", years:"", notes:"" },
+  { name:"O3 World", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"Philadelphia digital product agency." },
+  { name:"Vertex SMB", kind:"Client", industries:["Financial Services","Technology & SaaS"], parent:"", role:"", years:"", notes:"Tax technology for SMB firms." },
+  { name:"SEIC", kind:"Client", industries:["Financial Services"], parent:"", role:"", years:"", notes:"SEI Investments." },
+  { name:"La Colombe", kind:"Client", industries:["Food & Beverage"], parent:"", role:"", years:"", notes:"" },
+  { name:"WOVN (iOS)", kind:"Platform", industries:["Technology & SaaS"], parent:"", role:"", years:"", notes:"Localization SDK — iOS integration." },
+  { name:"WebLinc", kind:"Agency", industries:["Retail & E-commerce"], parent:"", role:"", years:"", notes:"E-commerce agency / platform." },
+  { name:"Workarea (SaaS)", kind:"Platform", industries:["Technology & SaaS","Retail & E-commerce"], parent:"", role:"", years:"", notes:"Commerce platform spun out of WebLinc." },
+  { name:"Rachel Roy", kind:"Client", industries:["Beauty & Fashion"], parent:"", role:"", years:"", notes:"" },
+  { name:"Century 21", kind:"Client", industries:["Real Estate"], parent:"", role:"", years:"", notes:"" },
+  { name:"Worldwide Stereo", kind:"Client", industries:["Retail & E-commerce"], parent:"", role:"", years:"", notes:"" },
+  { name:"LimeCrime", kind:"Client", industries:["Beauty & Fashion"], parent:"", role:"", years:"", notes:"" },
+  { name:"FlightPath", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"NY digital agency." },
+  { name:"Merck (US)", kind:"Client", industries:["Healthcare & Pharma"], parent:"", role:"", years:"", notes:"" },
+  { name:"Goya", kind:"Client", industries:["Food & Beverage"], parent:"", role:"", years:"", notes:"" },
+  { name:"Organic Girl", kind:"Client", industries:["Food & Beverage"], parent:"", role:"", years:"", notes:"" },
+  { name:"PFSweb, LiveArea", kind:"Agency", industries:["Retail & E-commerce"], parent:"", role:"", years:"", notes:"Commerce experience agency." },
+  { name:"Hardinge LLC", kind:"Client", industries:["Building & Industrial"], parent:"", role:"", years:"", notes:"Precision machine tools." },
+  { name:"Simpson Strong-Tie", kind:"Client", industries:["Building & Industrial"], parent:"", role:"", years:"", notes:"" },
+  { name:"Aquasana", kind:"Client", industries:["Consumer Packaged Goods"], parent:"", role:"", years:"", notes:"" },
+  { name:"YETI", kind:"Client", industries:["Consumer Packaged Goods"], parent:"", role:"", years:"", notes:"" },
+  { name:"West Marine", kind:"Client", industries:["Retail & E-commerce"], parent:"", role:"", years:"", notes:"" },
+  { name:"HUGE", kind:"Agency", industries:["Advertising & Media"], parent:"IPG", role:"", years:"", notes:"Global digital experience agency." },
+  { name:"Sentral Lifestyle Apartments", kind:"Client", industries:["Real Estate"], parent:"", role:"", years:"", notes:"" },
+  { name:"Elva Design Group", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"" },
+  { name:"GNC (General Nutrition Centers)", kind:"Client", industries:["Retail & E-commerce"], parent:"", role:"", years:"", notes:"" },
+  { name:"Code & Theory", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"" },
+  { name:"TikTok For Business", kind:"Client", industries:["Technology & SaaS","Advertising & Media"], parent:"ByteDance", role:"", years:"", notes:"" },
+  { name:"Publicis Sapient", kind:"Agency", industries:["Advertising & Media"], parent:"Publicis Groupe", role:"", years:"", notes:"" },
+  { name:"BNY Mellon — Pershing X", kind:"Client", industries:["Financial Services"], parent:"BNY Mellon", role:"", years:"", notes:"Next-gen wealth management platform." },
+  { name:"Brave People", kind:"Agency", industries:["Advertising & Media"], parent:"", role:"", years:"", notes:"" },
+  { name:"GEICO", kind:"Client", industries:["Insurance"], parent:"Berkshire Hathaway", role:"", years:"", notes:"" },
+  { name:"Phenom (A.I.)", kind:"Platform", industries:["Technology & SaaS"], parent:"", role:"", years:"", notes:"AI talent experience platform." },
+  { name:"Wolfgang & Co. (independent)", kind:"Independent", industries:[], parent:"", role:"", years:"", notes:"Independent practice." }
+];
+
+/* =========================================================
+   STORAGE
+   ========================================================= */
+const LS_KEY = "zackcx-tagger-v1";
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].name) return parsed;
+  } catch(e){}
+  return null;
+}
+
+function saveToStorage(brands) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(brands)); } catch(e){}
+}
+
+/* =========================================================
+   MAIN APP
+   ========================================================= */
+function App(){
+  const [brands, setBrands] = useState(() => loadFromStorage() || INITIAL_BRANDS);
+  const [selected, setSelected] = useState(() => new Set());
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all"); // all | unverified | verified | untagged
+  const [toast, setToast] = useState(null);
+  const [showExport, setShowExport] = useState(false);
+
+  /* Auto-save */
+  useEffect(() => { saveToStorage(brands); }, [brands]);
+
+  /* Toast helper */
+  const flash = useCallback((msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 1800);
+  }, []);
+
+  /* ---- Derived ---- */
+  const verifiedCount = brands.filter(b => b.verified).length;
+  const untaggedCount = brands.filter(b => !b.kind || b.industries.length === 0).length;
+
+  const filteredBrands = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return brands.map((b, i) => ({ b, i })).filter(({b}) => {
+      if (filter === "verified" && !b.verified) return false;
+      if (filter === "unverified" && b.verified) return false;
+      if (filter === "untagged" && b.kind && b.industries.length > 0) return false;
+      if (!q) return true;
+      return (
+        b.name.toLowerCase().includes(q) ||
+        (b.kind||"").toLowerCase().includes(q) ||
+        (b.parent||"").toLowerCase().includes(q) ||
+        b.industries.some(i => i.toLowerCase().includes(q))
+      );
+    });
+  }, [brands, search, filter]);
+
+  /* ---- Actions ---- */
+  const updateBrand = useCallback((idx, patch) => {
+    setBrands(prev => prev.map((b, i) => i === idx ? { ...b, ...patch } : b));
+  }, []);
+
+  const toggleIndustry = useCallback((idx, ind) => {
+    setBrands(prev => prev.map((b, i) => {
+      if (i !== idx) return b;
+      const has = b.industries.includes(ind);
+      return { ...b, industries: has
+        ? b.industries.filter(x => x !== ind)
+        : [...b.industries, ind] };
+    }));
+  }, []);
+
+  const toggleSelect = useCallback((idx) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelected(new Set()), []);
+
+  const bulkApplyKind = useCallback((kind) => {
+    setBrands(prev => prev.map((b, i) => selected.has(i) ? { ...b, kind } : b));
+    flash(`Set kind to "${kind}" for ${selected.size} brands`);
+  }, [selected, flash]);
+
+  const bulkAddIndustry = useCallback((ind) => {
+    setBrands(prev => prev.map((b, i) => {
+      if (!selected.has(i)) return b;
+      if (b.industries.includes(ind)) return b;
+      return { ...b, industries: [...b.industries, ind] };
+    }));
+    flash(`Added "${ind}" to ${selected.size} brands`);
+  }, [selected, flash]);
+
+  const bulkRemoveIndustry = useCallback((ind) => {
+    setBrands(prev => prev.map((b, i) => {
+      if (!selected.has(i)) return b;
+      return { ...b, industries: b.industries.filter(x => x !== ind) };
+    }));
+    flash(`Removed "${ind}" from ${selected.size} brands`);
+  }, [selected, flash]);
+
+  const bulkVerify = useCallback((val) => {
+    setBrands(prev => prev.map((b, i) => selected.has(i) ? { ...b, verified: val } : b));
+    flash(`Marked ${selected.size} brands as ${val ? "verified" : "unverified"}`);
+  }, [selected, flash]);
+
+  const bulkClearIndustries = useCallback(() => {
+    setBrands(prev => prev.map((b, i) => selected.has(i) ? { ...b, industries: [] } : b));
+    flash(`Cleared industries for ${selected.size} brands`);
+  }, [selected, flash]);
+
+  const resetAll = useCallback(() => {
+    if (!confirm("Reset all edits? This will restore the initial pre-filled data.")) return;
+    setBrands(INITIAL_BRANDS);
+    clearSelection();
+    setEditingIdx(null);
+    flash("Reset to initial data");
+  }, [clearSelection, flash]);
+
+  /* ---- Export ---- */
+  const exportJSON = useMemo(() => {
+    const clean = brands.map(b => {
+      const out = {
+        name: b.name,
+        kind: b.kind || "Client",
+        industries: b.industries || []
+      };
+      if (b.parent) out.parent = b.parent;
+      if (b.role) out.role = b.role;
+      if (b.years) out.years = b.years;
+      if (b.notes) out.notes = b.notes;
+      return out;
+    });
+    return JSON.stringify(clean, null, 2);
+  }, [brands]);
+
+  const copyExport = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(exportJSON);
+      flash("Copied to clipboard");
+    } catch(e) {
+      flash("Copy failed — select manually");
+    }
+  }, [exportJSON, flash]);
+
+  /* ---- Keyboard shortcuts ---- */
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+      if (e.key === "Escape") {
+        if (showExport) setShowExport(false);
+        else if (selected.size > 0) clearSelection();
+        else setEditingIdx(null);
+      }
+      if (e.key === "e" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setShowExport(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showExport, selected, clearSelection]);
+
+  const progressPct = (verifiedCount / brands.length) * 100;
+  const editing = editingIdx != null ? brands[editingIdx] : null;
+
+  return (
+    <div className="app">
+      {/* TOP BAR */}
+      <div className="topbar">
+        <div className="brand">
+          <div className="logo">zack.cx</div>
+          <div className="tag">Tagging Tool</div>
+          <div className="progress">
+            <span><b>{verifiedCount}</b> / {brands.length} verified</span>
+            <div className="bar"><i style={{width: progressPct + "%"}}/></div>
+            {untaggedCount > 0 && (
+              <span style={{color:"#c47a4a"}}>{untaggedCount} incomplete</span>
+            )}
+          </div>
+        </div>
+        <div className="actions">
+          <button className="btn" onClick={resetAll}>Reset</button>
+          <button className="btn primary" onClick={() => setShowExport(true)}>Export</button>
+        </div>
+      </div>
+
+      {/* BODY */}
+      <div className="body">
+        {/* LEFT — LIST */}
+        <div className="listcol">
+          <div className="listhead">
+            <div className="searchbox">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input placeholder="Search brands, kinds, industries…"
+                value={search} onChange={e => setSearch(e.target.value)}/>
+            </div>
+            <div className="filters">
+              {[
+                {k:"all", l:"All"},
+                {k:"unverified", l:"Todo"},
+                {k:"verified", l:"Done"},
+                {k:"untagged", l:"Incomplete"}
+              ].map(f => (
+                <button key={f.k}
+                  className={"chip" + (filter === f.k ? " on" : "")}
+                  onClick={() => setFilter(f.k)}>{f.l}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="list">
+            {filteredBrands.map(({b, i}) => {
+              const isEmpty = !b.kind || b.industries.length === 0;
+              return (
+                <div key={b.name}
+                  className={"row" + (selected.has(i) ? " sel" : "") +
+                    (editingIdx === i ? " editing" : "") +
+                    (b.verified ? " verified" : "")}
+                  onClick={() => setEditingIdx(i)}>
+                  <div className={"chk" + (selected.has(i) ? " on" : "")}
+                    onClick={(e) => { e.stopPropagation(); toggleSelect(i); }}/>
+                  <div className="main">
+                    <div className="name">
+                      <span>{b.name}</span>
+                      {b.verified && <span className="verify">verified</span>}
+                    </div>
+                    <div className={"meta" + (isEmpty ? " empty" : "")}>
+                      {isEmpty ? (
+                        <span className="warn">— needs tagging</span>
+                      ) : (
+                        <>
+                          <span className="kind">{b.kind}</span>
+                          {b.parent && <><span className="sep">·</span>
+                            <span className="parent">{b.parent}</span></>}
+                          {b.industries.length > 0 && (
+                            <>
+                              <span className="sep">·</span>
+                              <span className="ind">{b.industries.join(" / ")}</span>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredBrands.length === 0 && (
+              <div className="empty">No brands match</div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT — EDITOR */}
+        <div className="editcol">
+          <div className="edithead">
+            <div className="ttl">{editing ? "Editing" : "Select a brand"}</div>
+            {editing && <div className="count">{(editingIdx + 1)} / {brands.length}</div>}
+          </div>
+          <div className="editbody">
+            {!editing ? (
+              <div className="empty">
+                Click any brand on the left<br/>to tag it
+              </div>
+            ) : (
+              <>
+                <div className="field">
+                  <label>Brand</label>
+                  <div className="brandname">{editing.name}</div>
+                </div>
+
+                <div className="field">
+                  <label>Engagement type</label>
+                  <div className="kindrow">
+                    {KINDS.map(k => (
+                      <button key={k}
+                        className={"kindbtn" + (editing.kind === k ? " on" : "")}
+                        onClick={() => updateBrand(editingIdx, {kind: k})}>
+                        {k}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Parent / Context</label>
+                  <input type="text" value={editing.parent || ""}
+                    onChange={e => updateBrand(editingIdx, {parent: e.target.value})}
+                    placeholder="e.g. Turn5, Comcast, IPG…"/>
+                </div>
+
+                <div className="field">
+                  <label>Industries</label>
+                  <div className="indgrid">
+                    {INDUSTRIES.map(ind => {
+                      const on = editing.industries.includes(ind);
+                      return (
+                        <button key={ind}
+                          className={"indbtn" + (on ? " on" : "")}
+                          onClick={() => toggleIndustry(editingIdx, ind)}>
+                          <span className="box"></span>
+                          <span>{ind}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Role</label>
+                  <input type="text" value={editing.role || ""}
+                    onChange={e => updateBrand(editingIdx, {role: e.target.value})}
+                    placeholder="e.g. Lead Designer, Art Director…"/>
+                </div>
+
+                <div className="field">
+                  <label>Years</label>
+                  <input type="text" value={editing.years || ""}
+                    onChange={e => updateBrand(editingIdx, {years: e.target.value})}
+                    placeholder="e.g. 2019 – 2021"/>
+                </div>
+
+                <div className="field">
+                  <label>Notes</label>
+                  <textarea value={editing.notes || ""}
+                    onChange={e => updateBrand(editingIdx, {notes: e.target.value})}
+                    placeholder="Contribution summary, deliverables, outcomes…"/>
+                </div>
+
+                <div className={"verifyrow" + (editing.verified ? " on" : "")}
+                  onClick={() => updateBrand(editingIdx, {verified: !editing.verified})}>
+                  <span className="box"></span>
+                  <span>Mark as verified / complete</span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BULK BAR */}
+      {selected.size > 0 && (
+        <div className="bulkbar">
+          <div className="label"><b>{selected.size}</b> selected</div>
+          <select onChange={e => { if (e.target.value) { bulkApplyKind(e.target.value); e.target.value=""; }}} defaultValue="">
+            <option value="" disabled>Set kind…</option>
+            {KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+          </select>
+          <select onChange={e => { if (e.target.value) { bulkAddIndustry(e.target.value); e.target.value=""; }}} defaultValue="">
+            <option value="" disabled>Add industry…</option>
+            {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+          <select onChange={e => { if (e.target.value) { bulkRemoveIndustry(e.target.value); e.target.value=""; }}} defaultValue="">
+            <option value="" disabled>Remove industry…</option>
+            {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+          <button className="btn" onClick={() => bulkVerify(true)}>Verify</button>
+          <button className="btn" onClick={bulkClearIndustries}>Clear tags</button>
+          <button className="btn" onClick={clearSelection}>Deselect</button>
+        </div>
+      )}
+
+      {/* EXPORT MODAL */}
+      {showExport && (
+        <div className="modal" onClick={(e) => { if (e.target.className === "modal") setShowExport(false); }}>
+          <div className="inner">
+            <div className="mhead">
+              <h3>Export — brand data</h3>
+              <button className="btn" onClick={() => setShowExport(false)}>Close</button>
+            </div>
+            <div className="mbody">
+              <pre>{exportJSON}</pre>
+            </div>
+            <div className="mfoot">
+              <div className="hint">Paste this back to update zack.cx</div>
+              <div style={{display:"flex",gap:"8px"}}>
+                <button className="btn" onClick={copyExport}>Copy JSON</button>
+                <button className="btn primary" onClick={() => {
+                  const blob = new Blob([exportJSON], {type:"application/json"});
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url; a.download = "zackcx-brands.json";
+                  a.click(); URL.revokeObjectURL(url);
+                }}>Download .json</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
