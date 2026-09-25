@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
+<link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/ZACKGORT/WOLFLIFE/main/wolfielife.svg">
 <title>help.zack</title>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1,2,3,4,5,6,7,8,9&display=swap" rel="stylesheet" />
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -136,6 +137,18 @@ ul{list-style:none;margin:0;padding:0}
 .spk:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .spk svg{display:block}
 .st{font-weight:400;white-space:pre-wrap;overflow-wrap:break-word;max-width:100%}
+.st a{
+  color:inherit;
+  text-decoration:underline;
+  text-decoration-thickness:1px;
+  text-underline-offset:3px;
+  text-decoration-color:color-mix(in srgb,currentColor 40%,transparent);
+  transition:text-decoration-color .15s;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.st a:hover{text-decoration-color:currentColor}
+.row.s .st a,.row.g .st a{-webkit-text-fill-color:currentColor;text-decoration-color:color-mix(in srgb,currentColor 50%,transparent)}
 textarea{display:block;width:100%;max-width:100%;min-width:3ch;font:inherit;font-weight:400;line-height:inherit;color:inherit;caret-color:currentColor;background:transparent;border:0;outline:0;padding:0;margin:0;resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word}
 @supports (field-sizing:content){textarea{field-sizing:content;width:auto}}
 textarea::placeholder{color:var(--mute);-webkit-text-fill-color:var(--mute)}
@@ -1225,7 +1238,9 @@ const SEED_DATA = {
             { "text": "hold ⇧ to open the category wheel", "color": null, "shiny": false, "collapsed": false },
             { "text": "cmd / ctrl + z → undo · + shift → redo", "color": null, "shiny": false, "collapsed": false },
             { "text": "import & export json whenever you like", "color": null, "shiny": false, "collapsed": false },
-            { "text": "drop a url and it embeds as an iframe", "color": null, "shiny": false, "collapsed": false }
+            { "text": "wrap a url in parens → text link, not iframe", "color": null, "shiny": false, "collapsed": false },
+            { "text": "drop a url and it embeds as an iframe", "color": null, "shiny": false, "collapsed": false },
+            { "text": "type an email and it becomes mailto:", "color": null, "shiny": false, "collapsed": false }
           ]
         },
         {
@@ -1247,6 +1262,7 @@ const SEED_DATA = {
           "text": "That's it.",
           "color": "#8e8e93", "shiny": false, "collapsed": false,
           "children": [
+            { "text": "email me for direct Q&A: zckgrt@gmail.com", "color": null, "shiny": false, "collapsed": false },
             { "text": "Say something new or say something else.", "color": "linear-gradient(90deg,#5227FF,#FF9FFC,#B497CF)", "shiny": true, "collapsed": false }
           ]
         }
@@ -1516,6 +1532,37 @@ const isVid = t => VID.test(t.trim());
 const isUrl = t => URL_RE.test(t.trim());
 const isFrame = t => isUrl(t) && !isImg(t) && !isVid(t);
 
+/* ── RICH TEXT ──
+   Splits a plain text string into text nodes + <a> elements for emails
+   and (parenthesized) URLs. Bare URLs in text are left alone — use
+   parens to make them clickable, or paste a bare URL alone to embed. */
+const EMAIL_RE = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
+const RICH_RE  = /(\(https?:\/\/[^\s)]+\)|[\w.+-]+@[\w-]+(?:\.[\w-]+)+)/g;
+const PAREN_URL_RE = /^\((https?:\/\/[^\s)]+)\)$/;
+
+function renderRich(st, text){
+  const parts = text.split(RICH_RE);
+  for(const p of parts){
+    if(!p) continue;
+    const pm = p.match(PAREN_URL_RE);
+    if(pm){
+      const a = document.createElement('a');
+      a.href = pm[1];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = pm[1];
+      st.appendChild(a);
+    } else if(EMAIL_RE.test(p) && p === p.match(EMAIL_RE)[0]){
+      const a = document.createElement('a');
+      a.href = 'mailto:' + p;
+      a.textContent = p;
+      st.appendChild(a);
+    } else {
+      st.appendChild(document.createTextNode(p));
+    }
+  }
+}
+
 const vio = new IntersectionObserver(es => es.forEach(e => {
   const v = e.target;
   if(e.isIntersecting){
@@ -1645,7 +1692,7 @@ function buildNode(n, d){
     li.tabIndex = 0;
     li.onkeydown = e => navKey(e, n, li);
 
-    const txt = () => { const s = document.createElement('div'); s.className = 'st'; s.textContent = n.t; return s };
+    const txt = () => { const s = document.createElement('div'); s.className = 'st'; renderRich(s, n.t); return s };
     if(isImg(n.t) || isVid(n.t)){
       row.classList.add('im');
       const v = isVid(n.t), im = document.createElement(v ? 'video' : 'img');
@@ -2097,7 +2144,7 @@ function navKey(e, n, li){
 
 $('app').addEventListener('mousedown', e => {
   if(Date.now() < lpUntil) return;
-  if(e.target.tagName === 'TEXTAREA' || e.target.closest('.tools,header,.tw,.spk,#menu,.cat-bar,.tree-lines')) return;
+  if(e.target.tagName === 'TEXTAREA' || e.target.closest('a,.tools,header,.tw,.spk,#menu,.cat-bar,.tree-lines')) return;
   e.preventDefault();
 
   const row = e.target.closest('.row');
@@ -2200,6 +2247,7 @@ menu.addEventListener('keydown', e => {
 });
 
 document.addEventListener('contextmenu', e => {
+  if(e.target.closest('a')) return;
   const row = e.target.closest('.row');
   if(!row){ hide(); return }
   e.preventDefault();
