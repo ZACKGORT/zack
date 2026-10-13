@@ -2,8 +2,6 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<script>/* GitHub Pages deep-link restore: 404.html sends /@/work here as /?p=%2F%40%2Fwork */
-(function(){try{var m=/^\?p=([^&]*)/.exec(location.search);if(m){var p=decodeURIComponent(m[1]);if(p.charAt(0)==='/'&&p.charAt(1)!=='/')history.replaceState(null,'',p+location.hash)}}catch(e){}})();</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>zack.cx — craft.experience</title>
 <meta name="description" content="zack.cx — Zack Gort's portfolio: work, life, balance and R&amp;D. Built on Frankly, part of the craft.experience brand.">
@@ -1306,7 +1304,7 @@ n.k.length?{l:n.z?'expand branch':'collapse branch',f:()=>{n.z=!n.z;const li=QR(
 
 const foldMenu=f=>[
 {l:'rename',f:()=>rename(f)},
-{l:'copy link',f:()=>copy(linkFor(V,f))},
+...(ROUTING?[{l:'copy link',f:()=>copy(linkFor(V,f))}]:[]),
 {l:'new line',f:()=>{const m=mk();f.tree.push(m);rr(f,m.id,0)}},
 {l:'focus mode',k:mod==='⌘'?'⌘⇧F':'Ctrl+Shift+F',f:()=>openFocus(f)},{l:'node mode',k:mod==='⌘'?'⌘⌥N':'Ctrl+Alt+N',f:()=>openNode(f)},{l:'reader',k:mod==='⌘'?'⌘⌥R':'Ctrl+Alt+R',f:()=>openRead(f)},lvOn()?null:{l:'zoom to folder',f:()=>fly(view(f))},'-',
 {l:'collapse all lines',f:()=>{setZ(f.tree,true);rr(f)}},
@@ -1317,7 +1315,7 @@ f.w?{l:'reset width',f:()=>{delete f.w;const e=fel(f.id);if(e)e.style.width='';s
 
 const catMenu=c=>[
 {l:'open',f:()=>openCat(c)},
-{l:'copy link',f:()=>copy(linkFor(c))},
+...(ROUTING?[{l:'copy link',f:()=>copy(linkFor(c))}]:[]),
 {l:'rename',f:()=>{openCat(c);setTimeout(()=>{$('cn').focus();$('cn').select()},0)}},'-',
 {l:'delete category',danger:true,f:async()=>{const ok=await confirmModal('Delete "'+(c.name||'untitled')+'"?',{title:'Delete category?',ok:'Delete',danger:1});if(!ok)return;C=C.filter(x=>x!==c);if(lastCat===c.id)lastCat=null;cur=null;renderAll();save();toast('Category deleted')}}];
 
@@ -1390,12 +1388,30 @@ const sg=s=>String(s||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLow
 const slugKey=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const slugOf=(list,item)=>{const seen={};for(const x of list){const b=sg(x.name),n=seen[b]=(seen[b]||0)+1,u=n>1?b+'-'+n:b;if(x===item)return u}return sg(item&&item.name)};
 const bySlug=(list,u)=>list.find(x=>slugKey(slugOf(list,x))===slugKey(u));
+const ROUTING=false; /* URL slugs (/@/work, #/work) off while this is a self-contained site; set true when the platform/product environment needs deep links */
+if(!ROUTING)document.querySelectorAll('[data-a="link"]').forEach(b=>b.remove());
 const BASE=location.pathname.replace(/\/@(\/.*)?$/,'').replace(/\/$/,'');
 const PM=/^https?:$/.test(location.protocol)&&!/\.html?$/i.test(BASE);
 const urlFor=(c,f)=>{const u=c?slugOf(C,c)+(f?'/'+slugOf(c.trees,f):''):'';return PM?location.origin+BASE+'/@/'+u:location.href.split('#')[0]+'#/'+u};
 const linkFor=urlFor;
 let routing=0;
-function syncHash(rep){if(routing)return;
+const HNAV=true;       /* in-page history: Back/Forward move between views, URL never changes (so refresh can't 404) */
+const BACK_GUARD=true; /* Back / swipe-back at the first view stays on the page instead of leaving the site */
+if('scrollRestoration' in history){try{history.scrollRestoration='manual'}catch(_){}}
+const hState=()=>({fk:'v',c:V?slugOf(C,V):null});
+function hSync(rep){
+  if(!HNAV)return;
+  const s=hState(),cur=history.state;
+  try{
+    if(!cur||!cur.fk){ if(BACK_GUARD){history.replaceState({fk:'base'},'',location.href);if(s.c!=null)history.pushState({fk:'v',c:null},'',location.href);history.pushState(s,'',location.href)}else history.replaceState(s,'',location.href); return }
+    if(cur.fk==='v'&&cur.c===s.c)return;
+    history[rep?'replaceState':'pushState'](s,'',location.href);
+  }catch(_){}
+}
+/* Browsers only honour history entries made after a user gesture, so plant the guard on the first one. */
+if(BACK_GUARD&&HNAV){const plant=()=>{removeEventListener('pointerup',plant,true);removeEventListener('keydown',plant,true);if(!ROUTING&&!(history.state&&history.state.fk))hSync()};
+  addEventListener('pointerup',plant,true);addEventListener('keydown',plant,true)}
+function syncHash(rep){if(routing)return;if(!ROUTING){hSync(rep);return}
   const cur=PM?location.pathname:location.hash;
   const want=V?(PM?BASE+'/@/'+slugOf(C,V):'#/'+slugOf(C,V)):(PM?(BASE||'/'):'');
   if(cur===want||(!V&&!PM&&!location.hash))return;
@@ -1404,6 +1420,12 @@ function routeParts(){
   const m=location.pathname.match(/\/@\/(.+)$/);
   return (m?m[1]:location.hash.replace(/^#\/?/,'')).split('/').filter(Boolean).map(x=>{try{return decodeURIComponent(x)}catch(_){return x}})}
 function applyRoute(){
+  if(!ROUTING){ /* restore the view recorded in the current history entry (Back/Forward, or a refresh) */
+    const s=history.state;routing=1;
+    try{ if(s&&s.fk==='v'&&s.c){const c=bySlug(C,s.c);if(c){if(V!==c)openCat(c);return true}}
+      if(V)closeCat();return false }
+    finally{routing=0}
+  }
   const p=routeParts();
   routing=1;
   try{
@@ -1415,7 +1437,7 @@ function applyRoute(){
     return true;
   }finally{routing=0}
 }
-addEventListener('popstate',applyRoute);
+addEventListener('popstate',e=>{if(!ROUTING&&BACK_GUARD&&e.state&&e.state.fk==='base'){try{history.go(1)}catch(_){}return}applyRoute()});
 
 
 /* VIEW HUD — one floating tab, re-used by whichever tree is hover-focused */
