@@ -1454,7 +1454,8 @@ Object.keys(G).forEach(k=>{const b=document.createElement('button');b.type='butt
  b.innerHTML='<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">'+G[k]+'</svg><span>'+k+'</span>';hud.append(b)});
 document.body.append(hud);
 let el=null,raf=0,hideT=0;
-const busy=()=>{try{return !!(FX||RD||NM)||lvOn()}catch(_){return true}};
+const on=(t,f)=>{world.addEventListener(t,f);ltk.addEventListener(t,f)};
+const busy=()=>{try{return !!(FX||RD||NM)}catch(_){return true}};
 function off(){clearTimeout(hideT);cancelAnimationFrame(raf);raf=0;el=null;hud.dataset.on='0'}
 function place(){
  raf=0;
@@ -1464,7 +1465,14 @@ function place(){
  if(dragging||r.bottom<top0||r.top>innerHeight||r.right<0||r.left>innerWidth){hud.dataset.on='0';raf=requestAnimationFrame(place);return}
  const w=hud.offsetWidth,hh=hud.offsetHeight,G=6;
  let side=null,x=0,y=0;
- if(r.top-G-hh>=top0){side='top';x=r.left;y=r.top-G-hh}
+ const lg=lvOn()?(el.closest('.lp')||document).querySelector('.lg'):null;
+ if(lg){
+  if(r.top-G-hh>=top0){const rg=document.createRange();rg.selectNodeContents(lg);const t=rg.getBoundingClientRect();side='top';x=clamp(t.right+14,8,Math.max(8,innerWidth-w-8));y=r.top-G-hh}
+  else if(r.right+G+w<=innerWidth-8){side='right';x=r.right+G;y=clamp(r.top,top0,bot0-hh)}
+  else if(r.left-G-w>=8){side='left';x=r.left-G-w;y=clamp(r.top,top0,bot0-hh)}
+  else{side='top';x=clamp(r.left,8,Math.max(8,innerWidth-w-8));y=top0}
+ }
+ else if(r.top-G-hh>=top0){side='top';x=r.left;y=r.top-G-hh}
  else if(r.bottom+G+hh<=bot0){side='bottom';x=r.left;y=r.bottom+G}
  else if(r.right+G+w<=innerWidth-8){side='right';x=r.right+G;y=clamp(r.top,top0,bot0-hh)}
  else if(r.left-G-w>=8){side='left';x=r.left-G-w;y=clamp(r.top,top0,bot0-hh)}
@@ -1479,11 +1487,11 @@ function show(t){
  if(el!==t){el=t;cancelAnimationFrame(raf);raf=0}
  if(!raf)raf=requestAnimationFrame(place)}
 const sched=()=>{clearTimeout(hideT);hideT=setTimeout(()=>{if(el&&el.matches(':focus-within'))return;off()},180)};
-world.addEventListener('pointerover',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(t)show(t)});
-world.addEventListener('pointerout',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(!t||t!==el)return;const to=e.relatedTarget;if(to&&(t.contains(to)||hud.contains(to)))return;sched()});
+on('pointerover',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(t)show(t)});
+on('pointerout',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(!t||t!==el)return;const to=e.relatedTarget;if(to&&(t.contains(to)||hud.contains(to)))return;sched()});
 const kf=b=>{hud.querySelectorAll('.kf').forEach(x=>x.classList.remove('kf'));if(b){const m=hud.querySelector('[data-m="'+b.textContent+'"]');if(m)m.classList.add('kf')}};
-world.addEventListener('focusin',e=>{const t=e.target.closest&&e.target.closest('.fold');if(t)show(t);kf(e.target.closest&&e.target.closest('.fd[data-vt]'))});
-world.addEventListener('focusout',e=>{kf(null);const t=e.target.closest&&e.target.closest('.fold');if(t&&t===el)sched()});
+on('focusin',e=>{const t=e.target.closest&&e.target.closest('.fold');if(t)show(t);kf(e.target.closest&&e.target.closest('.fd[data-vt]'))});
+on('focusout',e=>{kf(null);const t=e.target.closest&&e.target.closest('.fold');if(t&&t===el)sched()});
 hud.addEventListener('pointerenter',()=>clearTimeout(hideT));
 hud.addEventListener('pointerleave',e=>{if(el&&e.relatedTarget&&el.contains(e.relatedTarget))return;sched()});
 hud.addEventListener('pointerdown',e=>e.stopPropagation());
