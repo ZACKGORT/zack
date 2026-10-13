@@ -24,7 +24,7 @@
 :root[data-theme=dark]{--bg:#232325;--cv:#1c1c1e;--ink:#fff;--line:rgba(255,255,255,.12)}
 :root[data-theme=material]{--bg:#2b2926;--cv:var(--bg);--ink:#f3efe6;--line:color-mix(in srgb,var(--ink) 22%,var(--bg))}
 ::selection{background:var(--accent);color:#1c1c1e}
-:root[data-theme=material] :is(.fold,.cp){--bg:#fffdf8;--ink:#1c1b19;--line:color-mix(in srgb,#1c1b19 14%,#fffdf8);--mute:color-mix(in srgb,#1c1b19 52%,#fffdf8);color:#1c1b19}
+:root[data-theme=material] :is(.fold,.cp,#vh){--bg:#fffdf8;--ink:#1c1b19;--line:color-mix(in srgb,#1c1b19 14%,#fffdf8);--mute:color-mix(in srgb,#1c1b19 52%,#fffdf8);color:#1c1b19}
 :root[data-theme=material] .cat{--bg:#f2c230;--ink:#1c1b19;--line:color-mix(in srgb,#1c1b19 38%,#f2c230);--mute:color-mix(in srgb,#1c1b19 62%,#f2c230);color:#1c1b19}
 :root[data-theme=material] :is(.b,#sf,#zg,.cpi){--bg:#fffdf8;--ink:#1c1b19;--line:color-mix(in srgb,#1c1b19 20%,#fffdf8);--mute:color-mix(in srgb,#1c1b19 55%,#fffdf8);color:#1c1b19}
 :root[data-theme=material] .cpi{background:#fffdf8}
@@ -115,6 +115,21 @@ body.grab .fold.cur,.fold.rzg{box-shadow:var(--s3)}body.grab .cat.cur .cb{box-sh
 .fn:not([readonly]){pointer-events:auto;cursor:text}
 .fd{border:0;background:none;padding:8px 0 8px 8px;font:300 10px/1 var(--mono);color:var(--mute);cursor:pointer;opacity:0;transition:opacity .2s,color .2s}
 .fold:hover .fd,.fold:focus-within .fd{opacity:1}.fd:hover{color:var(--ink)}
+
+/* VIEW HUD — read / nodes / focus rest outside the hover-focused tree, never over its text */
+#vh{position:fixed;left:0;top:0;z-index:6;display:flex;align-items:stretch;box-sizing:border-box;height:22px;padding:0 2px;background:color-mix(in srgb,var(--bg) 84%,transparent);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);color:var(--ink);border:1px solid var(--line);border-radius:11px;box-shadow:var(--s1);opacity:0;visibility:hidden;translate:0 2px;pointer-events:none;transition:opacity .14s,translate .14s cubic-bezier(.23,1,.32,1),visibility 0s .14s;will-change:transform;user-select:none;-webkit-user-select:none}
+#vh[data-on='1']{opacity:1;visibility:visible;translate:0 0;pointer-events:auto;transition:opacity .14s,translate .14s cubic-bezier(.23,1,.32,1),visibility 0s}
+#vh::after{content:'';position:absolute}
+#vh[data-side='top']::after{left:0;right:0;top:100%;height:8px}
+#vh[data-side='bottom']::after{left:0;right:0;bottom:100%;height:8px}
+#vh[data-side='right']::after{top:0;bottom:0;right:100%;width:8px}
+#vh[data-side='left']::after{top:0;bottom:0;left:100%;width:8px}
+#vh button{display:flex;align-items:center;gap:5px;margin:2px 0;padding:0 8px;border:0;border-radius:9px;background:none;font:300 10px/1 var(--mono);color:var(--mute);cursor:pointer;transition:color .15s,background .15s}
+#vh button:hover,#vh button:focus-visible,#vh button.kf{color:var(--ink);background:color-mix(in srgb,var(--ink) 8%,transparent)}
+#vh button:focus-visible,#vh button.kf{outline:1px solid var(--ink);outline-offset:-1px}
+#vh svg{flex:none;width:10px;height:10px;opacity:.85}
+@media(hover:hover) and (pointer:fine){.fu .fd[data-vt]{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none}}
+@media(prefers-reduced-motion:reduce){#vh,#vh[data-on='1']{translate:none;transition:opacity .01s,visibility 0s}}
 
 /* TREE CONNECTORS */
 .kids{list-style:none;margin:0;padding:0;position:relative;--ind:22px;--trunk:max(2px, calc(var(--ind) * 0.36))}
@@ -2110,7 +2125,7 @@ nm.oninput=()=>{if(/\n/.test(nm.value))nm.value=nm.value.replace(/\n+/g,' ');fv(
 nm.onkeydown=e=>{if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();nm.blur()}};
 nm.onblur=()=>{nm.readOnly=true;f.name=nm.value.trim();fv();save();updateBC()};
 del.onclick=async()=>{const ok=await confirmModal('Delete this folder and everything in it?',{title:'Delete folder?',ok:'Delete',danger:1});if(!ok)return;V.trees=F=F.filter(x=>x!==f);el.remove();save();lvOn()&&lvRender();toast('Folder deleted')};
-const fx=h('button','fd','focus');fx.title='focus mode';fx.onclick=e=>{e.stopPropagation();openFocus(f)};const rb=h('button','fd','read');rb.title='reader';rb.onclick=e=>{e.stopPropagation();openRead(f)};const nb=h('button','fd','nodes');nb.title='node mode';nb.onclick=e=>{e.stopPropagation();openNode(f)};fw.append(nm);fu.append(rb,nb,fx,del);hd.append(grip,fw,fu);
+const fx=h('button','fd','focus');fx.title='focus mode';fx.onclick=e=>{e.stopPropagation();openFocus(f)};const rb=h('button','fd','read');rb.title='reader';rb.onclick=e=>{e.stopPropagation();openRead(f)};const nb=h('button','fd','nodes');nb.title='node mode';nb.onclick=e=>{e.stopPropagation();openNode(f)};fw.append(nm);rb.dataset.vt=nb.dataset.vt=fx.dataset.vt='1';fu.append(rb,nb,fx,del);hd.append(grip,fw,fu);
 const body=h('div','fbody');body.append(rList(f.tree));
 const rz=h('div','rz');
 rz.addEventListener('pointerdown',e=>{
@@ -2495,6 +2510,58 @@ function applyRoute(){
 }
 addEventListener('popstate',applyRoute);
 
+
+/* VIEW HUD — one floating tab, re-used by whichever tree is hover-focused */
+(()=>{
+const fine=matchMedia('(hover:hover) and (pointer:fine)');
+const G={
+ read:'<path d="M2 3h8M2 6h8M2 9h5"/>',
+ nodes:'<circle cx="3" cy="3" r="1.3"/><circle cx="3" cy="9" r="1.3"/><circle cx="9.2" cy="6" r="1.3"/><path d="M3 4.3v3.4M3 6h4.9"/>',
+ focus:'<path d="M2 4.5V2h2.5M7.5 2H10v2.5M10 7.5V10H7.5M4.5 10H2V7.5"/>'};
+const TIP={read:'reader',nodes:'node mode',focus:'focus mode'};
+const OPEN={read:f=>openRead(f),nodes:f=>openNode(f),focus:f=>openFocus(f)};
+const hud=document.createElement('div');hud.id='vh';hud.dataset.on='0';hud.setAttribute('role','toolbar');hud.setAttribute('aria-label','View modes');
+Object.keys(G).forEach(k=>{const b=document.createElement('button');b.type='button';b.dataset.m=k;b.title=TIP[k];
+ b.innerHTML='<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">'+G[k]+'</svg><span>'+k+'</span>';hud.append(b)});
+document.body.append(hud);
+let el=null,raf=0,hideT=0;
+const busy=()=>{try{return !!(FX||RD||NM)||lvOn()}catch(_){return true}};
+function off(){clearTimeout(hideT);cancelAnimationFrame(raf);raf=0;el=null;hud.dataset.on='0'}
+function place(){
+ raf=0;
+ if(!el||!el.isConnected||busy()){off();return}
+ const dragging=document.body.classList.contains('grab')||el.classList.contains('rzg');
+ const r=el.getBoundingClientRect(),top0=$('hd').getBoundingClientRect().bottom+6,bot0=innerHeight-8;
+ if(dragging||r.bottom<top0||r.top>innerHeight||r.right<0||r.left>innerWidth){hud.dataset.on='0';raf=requestAnimationFrame(place);return}
+ const w=hud.offsetWidth,hh=hud.offsetHeight,G=6;
+ let side=null,x=0,y=0;
+ if(r.top-G-hh>=top0){side='top';x=r.left;y=r.top-G-hh}
+ else if(r.bottom+G+hh<=bot0){side='bottom';x=r.left;y=r.bottom+G}
+ else if(r.right+G+w<=innerWidth-8){side='right';x=r.right+G;y=clamp(r.top,top0,bot0-hh)}
+ else if(r.left-G-w>=8){side='left';x=r.left-G-w;y=clamp(r.top,top0,bot0-hh)}
+ if(!side){hud.dataset.on='0';raf=requestAnimationFrame(place);return}
+ if(side==='top'||side==='bottom')x=clamp(x,8,Math.max(8,innerWidth-w-8));
+ hud.style.transform='translate('+Math.round(x)+'px,'+Math.round(y)+'px)';
+ hud.dataset.side=side;hud.dataset.on='1';
+ raf=requestAnimationFrame(place)}
+function show(t){
+ if(!fine.matches||busy())return;
+ clearTimeout(hideT);
+ if(el!==t){el=t;cancelAnimationFrame(raf);raf=0}
+ if(!raf)raf=requestAnimationFrame(place)}
+const sched=()=>{clearTimeout(hideT);hideT=setTimeout(()=>{if(el&&el.matches(':focus-within'))return;off()},180)};
+world.addEventListener('pointerover',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(t)show(t)});
+world.addEventListener('pointerout',e=>{if(e.pointerType==='touch')return;const t=e.target.closest&&e.target.closest('.fold');if(!t||t!==el)return;const to=e.relatedTarget;if(to&&(t.contains(to)||hud.contains(to)))return;sched()});
+const kf=b=>{hud.querySelectorAll('.kf').forEach(x=>x.classList.remove('kf'));if(b){const m=hud.querySelector('[data-m="'+b.textContent+'"]');if(m)m.classList.add('kf')}};
+world.addEventListener('focusin',e=>{const t=e.target.closest&&e.target.closest('.fold');if(t)show(t);kf(e.target.closest&&e.target.closest('.fd[data-vt]'))});
+world.addEventListener('focusout',e=>{kf(null);const t=e.target.closest&&e.target.closest('.fold');if(t&&t===el)sched()});
+hud.addEventListener('pointerenter',()=>clearTimeout(hideT));
+hud.addEventListener('pointerleave',e=>{if(el&&e.relatedTarget&&el.contains(e.relatedTarget))return;sched()});
+hud.addEventListener('pointerdown',e=>e.stopPropagation());
+hud.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||!el)return;e.stopPropagation();const f=fobj(el.dataset.id);if(!f)return;const k=b.dataset.m;off();OPEN[k](f)});
+fine.addEventListener&&fine.addEventListener('change',off);
+addEventListener('blur',off);
+})();
 paintTheme();chrome();renderAll();apply();
 applyRoute();
 if(needFit){const bs=()=>{V?autoSpace():autoSpaceF();fit()};bs();document.fonts&&document.fonts.ready.then(bs)}
@@ -6382,7 +6449,7 @@ try { navigator.storage && navigator.storage.persist && navigator.storage.persis
 
 coarse.addEventListener('change', setHint);
 render();
-</script>
+<\/script>
 </body>
 </html>
 </script>
