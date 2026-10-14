@@ -860,14 +860,15 @@ const B=[
 
 const C={mode:'spotlight',mobileMode:'swap',breakpoint:560,orient:'horizontal',speed:55,dir:'forward',gap:96,size:30,
  itemStyle:'bare',fill:'#ffffff14',border:'#ffffff2e',radius:14,pad:12,highlight:false,accent:'#c9c8ae',onAccent:'#2e2d2e',
- colour:'tint',tint:'#c9c8ae',bg:'#2e2d2e',focus:24,rest:.28,fade:22,hover:true,drag:true,scrollPush:1,slots:0,every:2.6,tooltips:true};
+ colour:'tint',tint:'#c9c8ae',bg:'#2e2d2e',focus:24,rest:.28,fade:22,hover:true,drag:true,scrollPush:1,slots:0,every:2.6,tooltips:true,
+ hoverBlur:.15};
 
 const MODES=['marquee','spotlight','depth','swap','wave'];
 const SCHEMA=[
 ['Motion',[['mode','Mode','sel',MODES],['mobileMode','Narrow-screen mode','sel',MODES],['breakpoint','Narrow below px','rng',[240,900,10]],['orient','Axis','sel',['horizontal','vertical']],['dir','Travel','sel',['forward','reverse']],['speed','Speed','rng',[0,300,5]],['focus','Focus zone %','rng',[8,70,1]],['rest','Resting opacity','rng',[0,1,.01]],['slots','Swap slots (0 auto)','rng',[0,10,1]],['every','Swap every s','rng',[.8,6,.1]]]],
 ['Items',[['itemStyle','Style','sel',['bare','chip','card']],['gap','Gap','rng',[0,200,1]],['size','Logo size','rng',[14,64,1]],['pad','Padding','rng',[0,32,1]],['radius','Radius','rng',[0,32,1]],['fill','Fill','col'],['border','Border','col'],['highlight','Highlight focus','chk'],['accent','Accent','col'],['onAccent','On accent','col']]],
 ['Colour & page',[['colour','Colour','sel',['original','grayscale','tint']],['tint','Tint','col'],['bg','Background','col'],['fade','Edge fade %','rng',[0,40,1]]]],
-['Behaviour',[['hover','Pause on hover','chk'],['drag','Drag + momentum','chk'],['scrollPush','Scroll push','rng',[0,4,.1]],['tooltips','Name tooltip','chk']]]];
+['Behaviour',[['hover','Pause on hover','chk'],['drag','Drag + momentum','chk'],['scrollPush','Scroll push','rng',[0,4,.1]],['tooltips','Name tooltip','chk'],['hoverBlur','Hover sharpness','rng',[0,1,.01]]]]];
 
 const $=s=>document.querySelector(s),stage=$('#stage'),track=$('#track'),tip=$('#tip');
 let items=[],pos0=[],sz=[],cs=[],L=1,maxS=0,len=1,H=true,mode='',off=0,inertia=0,clock=0,hoverF=1,dragging=false,moved=0,vel=0,raf=0,visible=true,timers=[],glide=null,hov=null;
@@ -876,6 +877,8 @@ let pointerCaptured=false;
 let prevHov=null, prevCi=-1;
 /* pinned hover during drag — tooltip meta persists while dragging */
 let dragHov=null;
+/* per-element eased blur state — hovered out-of-focus items sharpen smoothly */
+const _blurState=new WeakMap();
 const mod=(a,n)=>((a%n)+n)%n,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sm=x=>x*x*(3-2*x);
 
 (function initPressureMark(){
@@ -991,6 +994,19 @@ function update(){
   else if(mode==='wave'){const a=t*7+clock*1.5+k*.8;cr+=Math.sin(a)*16;rot=Math.sin(a+1.2)*3.5;hl=f}
   else if(mode==='depth'){z=-520+900*t;cr-=(1-t)*18;bl=(1-f)*4;op=(C.rest+(1-C.rest)*f)*(1-sm(clamp((t-.82)/.18,0,1)))*sm(clamp(t/.12,0,1));hl=f}
   if(!C.highlight||mode==='marquee')hl=0;
+  /* Sharpen the hovered logo — ease its blur down toward C.hoverBlur× the
+     computed value so out-of-focus items become legible under the cursor
+     without popping. Per-element WeakMap keeps the transition smooth when
+     the pointer moves between items. */
+  const isHover=(hov===el || dragHov===el);
+  if(bl>0){
+    const targetBl=isHover?bl*C.hoverBlur:bl;
+    const prevBl=_blurState.get(el);
+    bl=(prevBl===undefined)?targetBl:prevBl+(targetBl-prevBl)*0.18;
+    _blurState.set(el,bl);
+  } else {
+    _blurState.delete(el);
+  }
   const tx=H?p:cr,ty=H?cr:p;
   el.style.transform=`translate3d(${tx.toFixed(1)}px,${ty.toFixed(1)}px,${z.toFixed(0)}px) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
   el.style.opacity=op.toFixed(3);el.style.filter=bl>.05?`blur(${bl.toFixed(2)}px)`:'none';el.style.setProperty('--hl',hl.toFixed(3));
@@ -1019,7 +1035,7 @@ function place(){
   //   f = 1 (in focus)      => 0.15 (nearly off)
   //   f = 0 (out of focus)  => 0.85 (heavy)
   const f = el._f ?? 1;
-  const ci = 0.15 + 0.70 * (1 - f);
+  const ci = (0.15 + 0.70 * (1 - f)) * C.hoverBlur;
   if(Math.abs(ci - prevCi) > 0.02){
     setChroma(el, ci);
     prevCi = ci;
@@ -1033,7 +1049,7 @@ function place(){
     tip.querySelector('.tip-cat').textContent=b[4];
     tip._i=el._i;
   }
-  const blur=(1-f)*3;
+  const blur=((1-f)*3)*C.hoverBlur;
   tip.style.filter=blur>.05?`blur(${blur.toFixed(2)}px)`:'none';
   const tw=tip.offsetWidth;
   tip.style.transform=`translate(${clamp(r.left+r.width/2-tw/2,8,innerWidth-tw-8).toFixed(0)}px,${(r.top-tip.offsetHeight-16).toFixed(0)}px)`;
