@@ -625,7 +625,24 @@ body.in #ct,body:has(#ov.on) #ct,body:has(#cm:not([hidden])) #ct{opacity:0;visib
 #ct button{flex:none;border:0;background:none;padding:6px 2px;font:300 10px/1 var(--mono);color:var(--mute);cursor:pointer}
 #ct button:hover{color:var(--ink)}
 :root[data-theme=material] #ct{--bg:#fffdf8;--ink:#1c1b19;--line:color-mix(in srgb,#1c1b19 20%,#fffdf8);--mute:color-mix(in srgb,#1c1b19 55%,#fffdf8);color:#1c1b19}
-@media(max-width:520px){#ct{width:auto;max-width:calc(100vw - 100px)}}
+@media(min-width:768px){
+#ct{cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none}
+#ct.drag{cursor:grabbing;box-shadow:var(--s3);transition:none}
+#ct h4{position:relative}
+#ct h4::after{content:'';position:absolute;right:0;top:50%;width:10px;height:10px;transform:translateY(-50%);background-image:radial-gradient(currentColor 1px,transparent 1.3px);background-size:4px 4px;opacity:.45}
+#ct:hover h4::after{opacity:.85}
+}
+@media(max-width:767px){
+#ct{left:0;right:0;bottom:0;width:auto;max-width:none;height:calc(42px + env(safe-area-inset-bottom,0px));box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:0;padding:0 calc(env(safe-area-inset-right,0px) + 18px) env(safe-area-inset-bottom,0px) calc(env(safe-area-inset-left,0px) + 18px);border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none;overflow:hidden;z-index:6}
+#ct:hover,#ct:focus-within{box-shadow:none;border-color:var(--line)}
+#ct h4,#ct a span:first-child{display:none}
+#ct .r{min-height:0;flex:none}
+#ct .r+.r{border-top:0;gap:10px;padding-left:0}
+#ct a{flex:none;padding:12px 0}
+#ct button{padding:12px 0 12px 4px}
+body.hm:not(.in) #hint{bottom:calc(env(safe-area-inset-bottom,0px) + 52px)}
+body.hm:not(.in) #hm{height:calc(100% - env(safe-area-inset-top,0px) - 66px - 42px - env(safe-area-inset-bottom,0px))}
+}
 </style>
 </head>
 <body>
@@ -648,8 +665,8 @@ body.in #ct,body:has(#ov.on) #ct,body:has(#cm:not([hidden])) #ct{opacity:0;visib
 <div id="hint" role="status"></div>
 <div id="ct" role="complementary" aria-label="Contact">
   <h4>contact</h4>
-  <div class="r"><a href="https://www.linkedin.com/in/zackgort" target="_blank" rel="noopener noreferrer"><span>linkedin</span><span>in/zackgort</span></a></div>
-  <div class="r"><a href="mailto:zckgrt@gmail.com"><span>email</span><span>zckgrt@gmail.com</span></a><button type="button" id="ctc" aria-label="Copy email address">copy</button></div>
+  <div class="r"><a href="https://www.linkedin.com/in/zackgort" target="_blank" rel="noopener noreferrer" draggable="false" aria-label="LinkedIn: in/zackgort"><span>linkedin</span><span>in/zackgort</span></a></div>
+  <div class="r"><a href="mailto:zckgrt@gmail.com" draggable="false" aria-label="Email: zckgrt@gmail.com"><span>email</span><span>zckgrt@gmail.com</span></a><button type="button" id="ctc" aria-label="Copy email address">copy</button></div>
 </div>
 <div id="zg" role="slider" tabindex="0" aria-label="Zoom" aria-orientation="vertical" aria-valuemin="12" aria-valuemax="250" title="drag to zoom · double-click for 100%"></div>
 <div id="tb"></div>
@@ -2215,6 +2232,15 @@ addEventListener('error',e=>{if(e&&/ResizeObserver|Script error/i.test(e.message
    ═══════════════════════════════════════════════════════════════ */
 
 (function(){const b=document.getElementById('ctc');if(!b)return;b.addEventListener('click',async e=>{e.stopPropagation();const m='zckgrt@gmail.com';try{await navigator.clipboard.writeText(m);b.textContent='copied';setTimeout(()=>{b.textContent='copy'},1400)}catch(_){location.href='mailto:'+m}})})();
+
+(function(){const el=document.getElementById('ct');if(!el)return;const mq=matchMedia('(min-width:768px)'),K='zcx:ct';let pos=null,st=null,moved=false,sup=false;try{pos=JSON.parse(localStorage.getItem(K)||'null')}catch(_){}
+function place(){if(!mq.matches||!pos){el.style.left=el.style.top=el.style.bottom='';return}const r=el.getBoundingClientRect(),x=Math.max(8,Math.min(innerWidth-r.width-8,pos.x)),y=Math.max(8,Math.min(innerHeight-r.height-8,pos.y));el.style.left=x+'px';el.style.top=y+'px';el.style.bottom='auto'}
+function mv(e){if(!st)return;const dx=e.clientX-st.x,dy=e.clientY-st.y;if(!moved){if(Math.hypot(dx,dy)<5)return;moved=true;el.classList.add('drag');try{el.setPointerCapture(e.pointerId)}catch(_){}}pos={x:st.ox+dx,y:st.oy+dy};place();e.preventDefault()}
+function up(e){removeEventListener('pointermove',mv);removeEventListener('pointerup',up);removeEventListener('pointercancel',up);if(moved){sup=true;setTimeout(()=>{sup=false},0);el.classList.remove('drag');try{localStorage.setItem(K,JSON.stringify(pos))}catch(_){}}st=null;moved=false}
+el.addEventListener('pointerdown',e=>{if(!mq.matches||e.button!==0)return;const r=el.getBoundingClientRect();st={x:e.clientX,y:e.clientY,ox:r.left,oy:r.top};addEventListener('pointermove',mv);addEventListener('pointerup',up);addEventListener('pointercancel',up)});
+el.addEventListener('click',e=>{if(sup){e.preventDefault();e.stopPropagation()}},true);
+el.addEventListener('dblclick',e=>{if(!mq.matches||e.target.closest('a,button'))return;pos=null;try{localStorage.removeItem(K)}catch(_){}place()});
+addEventListener('resize',place);(mq.addEventListener?mq.addEventListener('change',place):mq.addListener(place));place()})();
 </script>
 <script type="text/plain" id="ns-src"><!DOCTYPE html>
 <html lang="en">
