@@ -1,28 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>zack.cx — craft.experience</title>
-  <meta name="description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="zack.cx" />
-  <meta property="og:title" content="zack.cx — craft.experience" />
-  <meta property="og:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
-  <meta property="og:url" content="https://zack.cx" />
-  <meta property="og:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="zack.cx — craft.experience" />
-  <meta name="twitter:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
-  <meta name="twitter:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
-  <link rel="icon" type="image/webp" href="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>zack.cx — craft.experience</title>
+<meta name="description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="zack.cx" />
+<meta property="og:title" content="zack.cx — craft.experience" />
+<meta property="og:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+<meta property="og:url" content="https://zack.cx" />
+<meta property="og:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="zack.cx — craft.experience" />
+<meta name="twitter:description" content="Zack Gort — Staff/Principal Product &amp; UX Designer. Enterprise UX, navigation systems, and design systems work across fintech, e-commerce, and SaaS." />
+<meta name="twitter:image" content="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
+<link rel="icon" type="image/webp" href="https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/favicon.webp" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&display=swap" rel="stylesheet">
 <style>
-/* ════════ THEME TOKENS ════════ */
 :root{
   color-scheme:dark;
   --glass:#000000f2;
@@ -44,6 +42,9 @@
 html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font:14px/1.5 Inter,system-ui,-apple-system,sans-serif;color:var(--fg);-webkit-font-smoothing:antialiased}
 #stage{position:fixed;inset:0;touch-action:pan-y;cursor:grab}
 #track{position:absolute;inset:0;perspective:800px}
+#canvasLayer{position:fixed;inset:0;z-index:5;pointer-events:none}
+#canvasLayer .it{pointer-events:auto}
+
 .it{position:absolute;left:0;top:0;display:flex;cursor:pointer;white-space:nowrap;text-decoration:none;user-select:none;-webkit-user-drag:none;will-change:transform,opacity,filter;outline:none;
  background:color-mix(in srgb,var(--acc) calc(var(--hl,0)*100%),var(--fill));color:color-mix(in srgb,var(--onacc) calc(var(--hl,0)*100%),var(--ink));
  border:1px solid var(--bd);border-radius:var(--r);padding:var(--pad);font-size:var(--fs);transition:background .5s,color .5s}
@@ -55,7 +56,56 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font:14px/1.
 .slot{position:relative;flex:none}
 .slot .it{left:50%;top:50%;transform:translate(-50%,-50%);transition:opacity .6s,background .5s,color .5s}
 
-/* Chromatic aberration */
+.drag-grip{
+  position:absolute;
+  bottom:-22px;
+  left:50%;
+  transform:translateX(-50%) translateY(-4px);
+  width:24px;height:14px;
+  display:grid;place-items:center;
+  color:var(--mut);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease, color .18s ease;
+  cursor:grab;
+}
+.drag-grip::before{
+  content:"";
+  width:18px;height:2px;border-radius:1px;
+  background:currentColor;
+}
+.it.is-focus-settled .drag-grip{opacity:.55;transform:translateX(-50%) translateY(0)}
+.it.is-focus-settled:hover .drag-grip{opacity:1;color:var(--fg)}
+.it.is-pulling .drag-grip{opacity:1;color:var(--fg);transform:translateX(-50%) translateY(0)}
+.it.is-detached{cursor:grab}
+.it.is-detached:active{cursor:grabbing}
+.it.is-detached .drag-grip{display:none}
+
+.park-close{
+  position:absolute;top:-8px;right:-8px;width:22px;height:22px;
+  border-radius:50%;background:var(--bg);border:1px solid var(--line);
+  color:var(--mut);display:none;place-items:center;cursor:pointer;
+  padding:0;font-family:inherit;
+  transition:color .18s, background .18s, opacity .2s;
+  opacity:0;
+}
+.park-close::before,.park-close::after{
+  content:"";position:absolute;top:50%;left:50%;
+  width:9px;height:1px;background:currentColor;
+  transform:translate(-50%,-50%) rotate(45deg);
+}
+.park-close::after{transform:translate(-50%,-50%) rotate(-45deg)}
+.it.is-detached .park-close{display:grid}
+.it.is-detached:hover .park-close{opacity:1}
+.park-close:hover{color:var(--fg);background:color-mix(in srgb, var(--fg) 8%, var(--bg))}
+
+#railGhost{
+  position:fixed;z-index:4;pointer-events:none;
+  background:var(--fg);opacity:0;
+  transition:opacity .18s ease;
+}
+#railGhost.on{opacity:.5}
+
 @keyframes chroma-r{0%,100%{transform:translate(-0.09em,0)}22%{transform:translate(-0.15em,0.03em)}48%{transform:translate(-0.07em,-0.03em)}74%{transform:translate(-0.13em,0.02em)}}
 @keyframes chroma-g{0%,100%{transform:translate(0.01em,0)}32%{transform:translate(0.02em,-0.025em)}66%{transform:translate(-0.01em,0.025em)}}
 @keyframes chroma-b{0%,100%{transform:translate(0.09em,0)}22%{transform:translate(0.15em,-0.03em)}48%{transform:translate(0.07em,0.03em)}74%{transform:translate(0.13em,-0.02em)}}
@@ -141,7 +191,6 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);font:14px/1.
 #lightbox .lb-close::after{transform:translate(-50%,-50%) rotate(-45deg)}
 #lightbox .lb-close:hover{background:color-mix(in srgb, var(--fg) 12%, transparent);transform:scale(1.05)}
 
-/* Controls cluster */
 #cw{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));z-index:40;display:flex;flex-direction:column;gap:8px}
 #themeToggle,#gear{all:unset;cursor:pointer;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb, var(--fg) 5%, transparent);border:1px solid var(--line);color:var(--mut);transition:.2s;backdrop-filter:blur(10px)}
 #themeToggle:hover,#gear:hover,#cw.open #gear{color:var(--fg);background:color-mix(in srgb, var(--fg) 9%, transparent)}
@@ -164,7 +213,6 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
 .row input[type=checkbox]{accent-color:var(--k);width:16px;height:16px}
 .rv{display:flex;align-items:center;gap:6px}
 
-/* ════════ MOBILE ════════ */
 #mobileWrap{display:none}
 
 @media (max-width: 767px) {
@@ -175,7 +223,7 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
     overscroll-behavior-y: auto;
     -webkit-text-size-adjust: 100%;
   }
-  #stage, #tip, #zackMark, #notifStack, #cw { display: none !important; }
+  #stage, #tip, #zackMark, #notifStack, #cw, #canvasLayer, #railGhost { display: none !important; }
   #lightbox { padding: 20px; }
   #lightbox .lb-close { top: 14px; right: 14px; width: 36px; height: 36px; }
 
@@ -232,8 +280,6 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
     color: var(--body); font-weight: 400;
   }
 
-  /* ─── Marquee ───────────────────────────────────────────────
-     Symmetric 50vw pseudo-spacers let ANY item center perfectly. */
   .m-marquee-wrap { position: relative; margin: 0 0 clamp(32px, 8vw, 56px); }
 
   .m-marquee {
@@ -446,7 +492,6 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
 }
 </style>
 <script>
-/* Set theme before paint to avoid flash */
 (function(){
   try{
     var saved = localStorage.getItem('theme');
@@ -460,6 +505,8 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
 </head>
 <body>
 <div id="stage"><div id="track"></div></div>
+<div id="canvasLayer" aria-label="Parked logos"></div>
+<div id="railGhost" aria-hidden="true"></div>
 
 <div id="tip">
   <b class="tip-name"></b>
@@ -514,212 +561,280 @@ summary::after{content:"+"}details[open] summary::after{content:"–"}
 </div>
 
 <script>
-const IMG_BASE='https://raw.githubusercontent.com/ZACKGORT/never/main/images/avif/';
-const img=f=>IMG_BASE+f;
-
+/* ══════════════════════════════════════════════════════════════
+   DATA — B[N] = [name, tint, glyph, accent, category, span, notifs]
+   ─ Work brands (BNY, GNC, Hardinge, Dana, Power Home, Kent State,
+     AmericanMuscle) rebuilt from the Frankly JSON export.
+   ─ Life brands (Leadnomics, 160over90, O3 World, Workarea,
+     FlightPath, HUGE, Code & Theory, Publicis Sapient) preserved.
+   ══════════════════════════════════════════════════════════════ */
 const B=[
 ['BNY Mellon','b','hex','#4f8cff','Fintech · Pershing X','2023—24',[
-  { kind:'info', kicker:'Role · 2023–24',
-    title:'Wove. — an industry-first advisory platform.',
-    message:'Senior UX Designer, Product Design Lead (IA/flows). Publicis Sapient × BNY Mellon — Pershing X.',
-    image:img('1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.avif'),
+  { kind:'info', kicker:'Client · Agency · Role',
+    title:'Wove.',
+    message:'Design systems, dashboards, data, & due diligence.',
+    image:'https://raw.githubusercontent.com/ZACKGORT/never/main/images/avif/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.avif',
     imageTag:'Wove · Dashboard',
-    details:'A single dashboard. A client\'s full financial picture in one place. Work moves across modules without re-entry.' },
+    details:'Client: BNY Mellon — Pershing X\n\nAgency: Publicis Sapient\n\nRole: Senior UX Designer, Product Design Lead (IA / flows)' },
   { kind:'success', kicker:'The problem',
     title:'Simple to state. Brutal to solve.',
-    message:'Advisors worked across a tangle of disconnected tools. Context was lost at every handoff. Data had to be re-keyed, again and again.',
-    image:img('bny4.avif'),
-    imageTag:'BNY · Data Re-Org' },
+    message:'Advisors worked across a tangle of disconnected tools. Context was lost at every handoff. Data had to be re-entered, again and again.',
+    details:'So we flattened it.\n\nOne dashboard. Interconnected.\n\nA client\'s full financial picture in one place.\n\nWork moves across modules without re-entry.' },
   { kind:'warning', kicker:'My piece',
-    title:'Information architecture & flows.',
-    message:'IA, task and flow mapping, cross-module navigation, and component patterns that keep data alive across steps.',
-    image:img('bny2.avif'),
-    imageTag:'Design System',
-    details:'I owned the connective tissue between modules — the discipline that turns "a suite of apps" into "a platform."' },
-  { kind:'insight', kicker:'The room',
-    title:'62nd Floor. World One Trade Center Tower.',
-    message:'Downtown Manhattan. The scale of the institution is part of the design brief.',
-    image:img('downtown375hudson.avif'),
-    imageTag:'375 Hudson St' },
-  { kind:'highlight', kicker:'No AI here',
-    title:'This was 2023 into 2024.',
-    message:'Before the buzzword craze and the subsequent hype. AI had zero part in any of this.',
-    images:[img('14.avif'),img('18.avif'),img('17.avif'),img('16.avif'),img('13.avif'),img('bny3.avif')],
-    details:'It was human blood, sweat, and copious amounts of caffeine. We analyzed every individual legacy application. Mapped it. Socialized it with the team. Shipped it.' }
+    title:'Information architecture.',
+    message:'Task and flow mapping. Cross-module navigation. Component patterns that keep data alive across steps.',
+    details:'That\'s Wove.\n\nAn industry-first platform.\n\nBuilt with BNY Mellon power, scale, and security.\n\nAdvisors work faster. They serve more clients.' },
+  { kind:'highlight', kicker:'No Artificial Intelligence Here',
+    title:'This was 2023 into 2024. Before the buzzword craze and the subsequent hype.',
+    message:'The world was getting distracted by the wow-factor of AI developments. AI had ZERO part in any of this. It was human blood, sweat, and copious amounts of caffeine.',
+    details:'We analyzed every individual legacy application. Mapped it. Socialized it with the team. Shipped it.\n\nA viable, modernized financial product ecosystem. To one of the largest banking entities in the world.' },
+  { kind:'insight', kicker:'The screens',
+    title:'Account Opening, and the Wove UI.',
+    images:[
+      'https://i.ibb.co/HGv7ymj/4.jpg',
+      'https://i.ibb.co/XkM2hn8n/bny1.png',
+      'https://i.ibb.co/vvMZmq94/bny2.png',
+      'https://i.ibb.co/xS49C07B/bny3.png',
+      'https://i.ibb.co/wZY2bhKF/bny4.png'
+    ],
+    details:'Account Opening\n\nBNY 1\n\nBNY 2\n\nBNY 3\n\nBNY 4' }
 ]],
 
 ['GNC','b','sun','#e5484d','Retail · Wellness','2021',[
-  { kind:'info', kicker:'Role · 2021 · via Elva',
+  { kind:'info', kicker:'Client · Agency · Role',
     title:'This is the Whey.',
-    message:'Lead UX Designer, engaged through Elva Design Group — a boutique West Coast Shopify Plus agency. Post-bankruptcy, every decision carried real weight.',
-    image:img('gnctitle.avif'),
-    imageTag:'GNC · 2021' },
-  { kind:'success', kicker:'The brief',
-    title:'A total overhaul. On Shopify Plus.',
-    message:'A modern, modular e-commerce solution — a ground-up build on the Shopify platform.',
-    image:img('gnchome.avif'),
-    imageTag:'Homepage',
-    details:'Market research, client-supplied user data, wireframe feature prototyping, and a modular component-based design system optimized for continued optimization.' },
-  { kind:'warning', kicker:'Timeline',
-    title:'12-week engagement.',
-    message:'Tight cadence. Fast-on-our-feet design + strategy. Weekly exec reviews.',
-    image:img('gncnotes.avif'),
-    imageTag:'Working notes' },
-  { kind:'insight', kicker:'What shipped',
+    message:'A total overhaul. A modern, modular e-commerce solution. A ground-up build on the Shopify platform.',
+    image:'https://i.ibb.co/7N2rDqrN/8.webp',
+    imageTag:'GNC · Hero',
+    details:'Client: General Nutrition Centers (GNC)\n\nAgency: Elva Design Group\n\nRole: Senior UX Designer' },
+  { kind:'warning', kicker:'The context',
+    title:'The brief was simple. The context was not.',
+    message:'GNC had just come through a bankruptcy. They asked us to shake things up.',
+    details:'{We} dove deep.\n\nMarket research.\n\n[Client-supplied] user data.\n\nWireframe feature prototyping.\n\nA modular, component-based design system — optimized for continued optimization.' },
+  { kind:'success', kicker:'What we shipped',
     title:'A modern, mobile-first navigation schema.',
-    message:'A retail taxonomy strategy that separated GNC from its competition — and from the whole e-retail space.',
-    images:[img('gncnav.avif'),img('gncmobile.avif'),img('gncproto.avif')] },
+    message:'A retail taxonomy strategy that separated GNC from its competition — not just from its competition, but from the whole e-retail space.',
+    details:'Heavy lift. Huge gains.\n\nLead UX: IA, UI prototypes, design systems.\n\nPaired with PM, Dev Lead, Design Team, Client-Side Stakeholders.\n\n12-week engagement. Tight cadence. Fast-on-our-feet design + strategy. Weekly exec reviews.' },
   { kind:'highlight', kicker:'The result',
-    title:'~$500M in annual revenue reclaimed.',
-    message:'Heavy lift. Huge gains.',
-    image:img('gnc-case-4.avif'),
-    imageTag:'Full system view',
-    details:'If the bar ain\'t bending, you\'re just pretending.' }
+    title:'GNC reclaimed ~$500M in annual revenue.',
+    message:'if the bar ain\'t bending, you\'re just pretending.',
+    details:'The result helped GNC reclaim ~$500M in annual revenue.' },
+  { kind:'insight', kicker:'The screens',
+    title:'Handheld. Mobile. Desktop. Rewards.',
+    images:[
+      'https://i.ibb.co/cSQCgNQY/work1.webp',
+      'https://i.ibb.co/pBMMxY1Z/11.webp',
+      'https://i.ibb.co/vx76zjgf/10.webp',
+      'https://i.ibb.co/rft2bf0T/9.webp',
+      'https://i.ibb.co/cXg5Phdc/3.webp',
+      'https://i.ibb.co/99h2bQMh/6.webp',
+      'https://i.ibb.co/yB4RwkTf/7.webp',
+      'https://i.ibb.co/spHgPH6N/1.webp'
+    ],
+    details:'Handheld\n\nMobile Overview\n\nMobile Closeup\n\nDesktop Navigation\n\nDesktop Homepage\n\nMobile Commerce\n\nProduct Detail Page\n\nRewards Program\n\nResearch' }
 ]],
 
 ['Hardinge','w','','#f76b15','B2B · Manufacturing','2020—21',[
-  { kind:'info', kicker:'Role · 2020–21',
+  { kind:'info', kicker:'Client · Agency · Role',
     title:'What the heck is a 5C Collet?',
-    message:'Principal UX / UX Manager · LiveArea. B2B commerce build on SAP Hybris for a manufacturing titan.',
-    image:img('herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.avif'),
+    message:'A B2B SAP Hybris build for a manufacturing titan. Board-level visibility.',
+    image:'https://i.ibb.co/ynyPWk7k/herohardinge-Plbu-Hi-Swg-Qd-Ruqc-Ni-Ulf.webp',
     imageTag:'Hardinge · Hero',
-    details:'Board-level visibility. Three accounts running in parallel: Hardinge anchored a book that also carried Simpson Strong-Tie and Aquasana.' },
+    details:'Client: Hardinge Inc.\n\nAgency: LiveArea\n\nRole: Principal UX · UX Manager' },
   { kind:'warning', kicker:'The tension',
-    title:'A client so unfamiliar with "the design process"…',
-    message:'…that jargon-laden spreadsheets nearly cost us the contract.',
-    image:img('dropmyinterpretationp-SXi-Ii-YKYBGt.avif'),
-    imageTag:'PDP concept' },
+    title:'The brief was simple. The client was not.',
+    message:'A client so unfamiliar with the design process that jargon-laden spreadsheets nearly cost us the contract.',
+    details:'Navigation was slated as a Drop 1 deliverable.\n\nThe actual taxonomy review was months away.' },
   { kind:'insight', kicker:'So I invented something',
     title:'Cards Against Bad UX™',
-    message:'Simple visual cards: "As a shopper," "As a content manager," "As a guest user."',
-    image:img('stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.avif'),
-    imageTag:'Workshop cards',
-    details:'Stakeholders learned to empathize with their end users. Approved on the first call — two modest feedback adjustments.' },
+    message:'Shifted the conversation away from jargon and toward user-centric thinking. Simple visual cards: "As a shopper," "As a content manager," "As a guest user."',
+    details:'Stakeholders learned to empathize with their end users. Approved on the first call. Two modest feedback adjustments.' },
   { kind:'success', kicker:'The override',
-    title:'A ranking teammate insisted their version ship the night before.',
-    message:'I stayed up all night and made both happen.',
-    image:img('switchtodroppdpconceptsyrf-TSes-HS.avif'),
-    imageTag:'PDP · single purchase',
-    details:'We showed their version first. The client was pleased — but asked if we had anything else. Minutes into mine: enthusiastic approval, on the spot.' },
-  { kind:'highlight', kicker:'Final deliverable',
+    title:'A ranking teammate insisted their version ship the night before the presentation.',
+    message:'I stayed up all night and made both happen. We showed their version first. The client was pleased — but asked if we had anything else. Minutes into mine: enthusiastic approval, on the spot.',
+    details:'PDP: Perspective, Diligence & Payoff.\n\nOne week. Single purchase, variable purchase, kit & bundled items. Iterated in both desktop and mobile.\n\nThe quirk: the PM and Solutions Architect wanted to force it to dev sight-unseen. Obviously the client wanted to see it. We showed. They responded.' },
+  { kind:'highlight', kicker:'A note',
     title:'Some people take notes on the call. Some are in the call.',
-    message:'Mobile-first. Desktop. One navigation system that had to hold for a category-defining B2B catalog.',
-    images:[img('finalizednavigationfmb-YVOjfy-CHcf.avif'),img('dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.avif'),img('Tm-Bi-ALaojf-TNSBf-Df-Qmk-Qsy-RZPTk-Qq-NR.avif')] }
+    message:'Gauging vocal inflections. Reading between the lines. I am a user experience designer.',
+    details:'Drop 1 scope (partial):\n\nStyle guide. Header — Default / Guest / Authenticated. Type-ahead / search suggestions. Tools (B2B) menu. Category navigation. My Account. Account registration. Guest order history lookup. Cookies / tracking consent. Footer. Homepage.' },
+  { kind:'insight', kicker:'The screens',
+    title:'PDP, navigation, and high-fidelity UI.',
+    images:[
+      'https://i.ibb.co/Jw5N5wP2/switchtodroppdpconceptsyrf-TSes-HS.webp',
+      'https://i.ibb.co/VW7qMV2D/dropmyinterpretationp-SXi-Ii-YKYBGt.webp',
+      'https://i.ibb.co/SX0gLsmK/dropnavigation-Oz-Dt-Hno-Ngy-Ckoww-Dg-K.webp',
+      'https://i.ibb.co/MyffyvQg/finalizednavigationfmb-YVOjfy-CHcf.webp',
+      'https://i.ibb.co/cK4MYYhF/stories-AZh-EPUSk-YDf-SRVVUp-Ro-Sl-Zp-SE.webp',
+      'https://i.ibb.co/PZZ4K84X/stories-LLTzcdn-TOb-Jw-PYKdl-GSVx-YZWb.webp',
+      'https://i.ibb.co/zhwZr9pZ/Tm-Bi-ALaojf-TNSBf-Df-Qmk-Qsy-RZPTk-Qq-NR.webp',
+      'https://i.ibb.co/Rp4zfwWx/dropcontinuedplusvisualguide-SHo-W.webp',
+      'https://i.ibb.co/cSdN1V0v/g-ZQm-IJGXkgk-Sgkyf-Xhlx-AJYEj-PMvq-HTg.webp'
+    ],
+    details:'PDP — Desktop, Single Purchase Item\n\nPDP — Mobile, Variable & Kit Items\n\nDrop 1 — Navigation, Header & Search\n\nShopHardinge.com — High-Fidelity UI\n\nFinal Deliverables 1–5' }
 ]],
 
 ['Dana Foundation','b','dots','#12a594','Nonprofit · Neuroscience','2018',[
-  { kind:'info', kicker:'Role · 2018',
+  { kind:'info', kicker:'Client · Agency · Role',
     title:'Neuroscience, made navigable.',
-    message:'Senior UX Designer · FlightPath NYC. Full-spectrum redesign of Dana.org + Brain Awareness Week.',
-    image:img('bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.avif'),
-    imageTag:'Brain Awareness Week' },
+    message:'Full-spectrum redesign of Dana.org + Brain Awareness Week.',
+    image:'https://i.ibb.co/kgKd9xPY/navsec-YRQxt-Fy-Cpymu-Zdplk-TOWUpe-ELB.gif',
+    imageTag:'Dana · Nav',
+    details:'Client: The Dana Foundation (Dana.org + Brain Awareness Week)\n\nAgency: FlightPath\n\nRole: Senior UX Designer — full-spectrum redesign, brand identity' },
   { kind:'success', kicker:'The brief',
-    title:'A decade without a refresh.',
-    message:'Full-spectrum, mobile-first redesign. A brand new identity. An intuitive navigation structure.',
-    image:img('danasitemap.avif'),
-    imageTag:'Sitemap',
-    details:'A flexible layout for a comprehensive array of neuroscience content — served to two distinct audiences.' },
+    title:'The previous site hadn\'t seen a refresh in over a decade.',
+    message:'A full-spectrum, mobile-first redesign. A brand new identity. An intuitive navigation structure. A flexible layout for a comprehensive array of neuroscience content.',
+    details:'The brief was simple. The site was not.' },
   { kind:'warning', kicker:'The design move',
-    title:'A traditional top-bar nav wasn\'t going to work.',
-    message:'So: cards. A card-system interface serving both sites with only modest CSS adjustments between them.',
-    image:img('danamobilemockupgtgxr-TPNy-NLPZg-PD.avif'),
-    imageTag:'Mobile mockup',
-    details:'A near 1:1 desktop-to-mobile experience. Built with modern accessibility in mind — WCAG 2.0.' },
+    title:'A traditional top-bar nav was not going to work.',
+    message:'So: cards. A card-system interface serving Dana.org and Brain Awareness Week with only modest CSS adjustments between them.',
+    details:'A design system with a near 1:1 desktop-to-mobile experience. Built with modern accessibility in mind (WCAG 2.0).' },
   { kind:'insight', kicker:'The logo that didn\'t win',
-    title:'Dots as individuals. Many as humankind.',
-    message:'A metaphor for the mind. No cliché brain icons.',
-    images:[img('braintypeface-AKfrx-EDNtd-Bq-BMCXDDw.avif'),img('dana-geometry.avif'),img('dana-ratios.avif')],
-    details:'Thought modularly. Circle-proportion geometry became a custom typeface. It lost by a few votes. I\'m told it was close. I was an artist before I was a graphic designer.' },
-  { kind:'highlight', kicker:'Final lockups',
-    title:'Dana Foundation, The Dana Alliance, Brain Awareness Week.',
-    message:'Three brands. One geometric system.',
-    images:[img('dana-foundation.avif'),img('dana-alliance.avif'),img('dana-brain-awareness-week.avif')] }
+    title:'Dots as individuals. Many as humankind. A metaphor for the mind.',
+    message:'No cliché brain icons. Thought modularly. Circle-proportion geometry became a custom typeface.',
+    details:'It lost by a few votes. I\'m told it was close.\n\nI was an artist before I was a graphic designer. It offers a look into how I approach design.\n\nMy piece: sitemap & content architecture, mobile-first UI system, card-based navigation, bespoke logo concept, WCAG 2.0 accessibility.' },
+  { kind:'highlight', kicker:'The screens',
+    title:'Content, mobile, navigation, and lockups.',
+    images:[
+      'https://i.ibb.co/hFkwLZv9/imageassetw-XMKOVHr-YCxydo-Jj-BBTd-Wp.webp',
+      'https://i.ibb.co/qFR3ZBmW/danamobilemockupgtgxr-TPNy-NLPZg-PD.webp',
+      'https://i.ibb.co/gFbDRSzz/dana-Dana-Mobile-Navt-Mvcc-Di-YYKxz-QYj.webp',
+      'https://i.ibb.co/GGnPBGN/bawmobilemockupg-OENk-Us-NFq-Ck-JLl-TQ.webp',
+      'https://i.ibb.co/ksTFbcm5/bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.webp',
+      'https://i.ibb.co/nMzjH9GD/ezgifcomoptimize-MRx-Gsfs-Wjr-Ymc-Pl-Z.gif'
+    ],
+    details:'Dana.org — Content Asset Module\n\nDana.org — Mobile Mockup\n\nDana.org — Mobile Navigation\n\nBrain Awareness Week — Mobile Mockup\n\nBrain Awareness Week — Hero\n\nBespoke Logo Concept' },
+  { kind:'highlight', kicker:'Geometry & final lockups',
+    title:'Circle-proportion geometry became a custom typeface.',
+    images:[
+      'https://i.ibb.co/39Z3CCmg/dana-primitives.png',
+      'https://i.ibb.co/XxsVsPRp/dana-geometry.png',
+      'https://i.ibb.co/twFgPzmY/dana-ratios.png',
+      'https://i.ibb.co/6921yLq/dana-brain-ratios.png',
+      'https://i.ibb.co/840nYbvR/dana-optical-align.png',
+      'https://i.ibb.co/XT67Rx9/dana-foundation.png',
+      'https://i.ibb.co/GrLbKv0/dana-alliance.png',
+      'https://i.ibb.co/DgKxFrjz/dana-brain-awareness-week.png'
+    ],
+    details:'Typeface Primitives — Core Shapes & Stems\n\nConstruction Grid — Letterforms & Circle Primitives\n\nConstruction Grid — Color Overlay & Ratios\n\nBrain Awareness Week — Geometric Construction\n\nBrain Awareness Week — Optical Alignment Grid\n\nFinal Lockup — Dana Foundation\n\nFinal Lockup — The Dana Alliance\n\nFinal Lockup — Brain Awareness Week' }
 ]],
 
 ['Power Home','b','sun','#ffb224','Home · Campaign','2015',[
-  { kind:'info', kicker:'Role · 2015',
+  { kind:'info', kicker:'Client · Agency · Role',
     title:'"Power is a _____ company."',
-    message:'Campaign strategy, brand voice, digital experience design · 160over90.',
-    image:img('powerhomeremod1.avif'),
-    imageTag:'Campaign hero' },
+    message:'Campaign strategy, brand voice, digital experience design.',
+    image:'https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp',
+    imageTag:'Power · Hero',
+    details:'Client: Power Home Remodeling Group\n\nAgency: 160over90\n\nRole: Campaign strategy, brand voice, digital experience design' },
   { kind:'success', kicker:'The brief',
-    title:'Unlike anything else in home remodeling.',
-    message:'Not an inventory of services. Showcase the lifestyle benefits of achieving your dream home.',
-    image:img('powerhomeremod3.avif'),
-    imageTag:'Lifestyle · motion',
+    title:'The brief was simple. The bar was not.',
+    message:'The cofounders had one requirement: unlike anything else in home remodeling. Not an inventory of services — showcase the lifestyle benefits of achieving your dream home.',
     details:'They wanted video, animation, and lifestyle photography. And had the budget and enthusiasm to see it through.' },
   { kind:'insight', kicker:'The idea',
-    title:'The blank becomes a canvas.',
+    title:'Rather than a singular brand statement, the blank becomes a canvas.',
     message:'Each visit fills it differently. A loaded sentence framework — "make every word count," as a copywriter once taught me.',
-    image:img('powerhomeremod2.avif'),
-    imageTag:'Far more than a remodeling co.',
-    details:'Since I\'m not really a copywriter, I gave them a whole bunch of sentences. The team liked it. Power loved it.' },
+    details:'Since I\'m not really a copywriter, I gave them a whole bunch of sentences.\n\nThe team liked it. Power loved it.\n\nMy piece: campaign strategy, brand voice & messaging, digital experience design, animation & video integration, cross-department coordination.' },
   { kind:'highlight', kicker:'Coordination',
-    title:'Brand designers. Photographers. Motion. Video.',
-    message:'The level of coordination was significant — nay, tremendous.',
-    images:[img('poweranimationloop-YFKh-XZGt-Pkc-UCZ.avif'),img('powertransitionloopsec-YQr-St-Ien-Xl.avif'),img('powerhomeloopoptimizedw-FIkl-UHPGV.avif')],
-    details:'Shout out to the dev team. (Okay, it was just Greg.)' }
+    title:'The level of coordination was significant — nay, tremendous.',
+    message:'Brand designers. On-site photographers. Motion designers. The video team.',
+    details:'Shout out to the dev team. (Okay, it was just Greg.)' },
+  { kind:'highlight', kicker:'The screens',
+    title:'Campaign artifacts, loops, and stills.',
+    images:[
+      'https://i.ibb.co/P79T6ft/powerhero-LTYm-Wh-GAv-Pyjom-OCDFp-EBRF.webp',
+      'https://i.ibb.co/VcrQ8WkX/powerhomeloopoptimizedw-FIkl-UHPGV.gif',
+      'https://i.ibb.co/7tkkDT7y/poweranimationloop-YFKh-XZGt-Pkc-UCZ.gif',
+      'https://i.ibb.co/sdvKR9t1/happymaqv-BLVCKUYIsiv-Tgu-KJQPEPMXl.webp',
+      'https://i.ibb.co/6Rh8NkVD/powertransitionloopsec-YQr-St-Ien-Xl.gif'
+    ],
+    details:'Campaign Artifacts\n\nLoop 01\n\nLoop 02\n\nStill 03\n\nLoop 04' }
 ]],
 
 ['Kent State','w','','#3e63dd','Higher Ed','2014—16',[
-  { kind:'info', kicker:'Role · 2014–16',
+  { kind:'info', kicker:'Client · Agency · Role',
     title:'A .EDU overhaul. With a green light to "do it different."',
-    message:'IA refactor, navigation design, visual design · 160over90.',
-    image:img('kentstatemockup.avif'),
-    imageTag:'Kent State homepage' },
+    message:'IA refactoring. A fresh brand identity. A ground-up redesign.',
+    image:'https://i.ibb.co/ZRzNg8sJ/Kj-EBo-DCXRUz-HHVRZBx-TQSEQu-Tv-Blfn-MT.webp',
+    imageTag:'Kent State · Hero',
+    details:'Client: Kent State University\n\nAgency: 160over90\n\nRole: IA refactor, navigation design, visual design' },
   { kind:'warning', kicker:'The scope',
-    title:'8 regional campuses. Dozens of international locations.',
-    message:'Multiple internal entities, each with unique priorities.',
-    image:img('kentnav.avif'),
-    imageTag:'Global nav' },
-  { kind:'insight', kicker:'My forté',
+    title:'The brief was simple. The scope was not.',
+    message:'A massive project covering the full gamut of a .EDU overhaul. 8 regional campuses. Dozens of international locations. Multiple internal entities, each with unique priorities.',
+    details:'Complete IA refactoring. A fresh brand identity. A ground-up redesign.' },
+  { kind:'insight', kicker:'The nav — my forté',
     title:'Navigation UX/UI for a .EDU with atypical infrastructure.',
     message:'I explored the options: base-line navs, mega menus, full-screen takeovers, pop-outs.',
-    images:[img('kent1.avif'),img('kent2.avif'),img('kent3.avif')],
-    details:'Then I dared to seek our own solution: a proprietary navigation system, designed ground-up for Kent State\'s complexity. It didn\'t make it to fruition. It was an invaluable thought experiment.' },
-  { kind:'highlight', kicker:'Credit',
-    title:'Psst… shout-out to my developer for that insane implementation.',
-    message:'Mobile-first. 8 campuses. One system.',
-    image:img('wiscmobiledcqqjkb-Gjo-Dg-Qi-AGk-Dt-DLi.avif'),
-    imageTag:'Mobile nav system' }
+    details:'Then I dared to seek our own solution. A proprietary navigation system, designed ground-up for Kent State\'s complexity.\n\nIt didn\'t make it to fruition. It was an invaluable thought experiment.\n\nPsst... shout-out to my developer for that insane implementation.\n\nMy piece: IA refactoring, navigation system design, wireframe + design prototypes, user flow walkthroughs, visual design.' },
+  { kind:'highlight', kicker:'Mobile-first',
+    title:'8 campuses. One system.',
+    message:'"What happens when the client hands you this..."',
+    details:'Mobile-first. 8 campuses. One system.' },
+  { kind:'highlight', kicker:'The screens',
+    title:'Homepage, brand refresh, proprietary nav, and 8-campus systems.',
+    images:[
+      'https://i.ibb.co/tP2RtPRT/kentnav-Qw-Utq-Np-Zzdkc-TPjlcpo-PLSJlh.webp',
+      'https://i.ibb.co/Nd7sYFdP/kentnav-PSz-NWCpx-DQoo-YFgrqs-WCz-Gx-ZU.webp',
+      'https://i.ibb.co/pBYP6wt8/1-HXIU3nxu-ZGq-Ne-Ef3-Wv-Lf-MQ.webp',
+      'https://i.ibb.co/VYS1xRzh/work2.webp',
+      'https://i.ibb.co/MrFyzRt/work3.webp',
+      'https://i.ibb.co/DPCMqM15/wiscwirelofi-Hyu-LQUf-JZe-Lj-Hxhx-Nd-Xj.webp',
+      'https://i.ibb.co/Q5DBrWJ/wiscstyledyh-Uw-Lz-Ci-GJb-Av-Oj-Iipa-VUF.webp',
+      'https://i.ibb.co/h1KtxvB7/wiscmobiledcqqjkb-Gjo-Dg-Qi-AGk-Dt-DLi.webp',
+      'https://i.ibb.co/Nn95Jbm3/dsxrh-YLBtn-Lf-Zvtpx-HLVHKSd-Lxw-FLEGF.webp',
+      'https://i.ibb.co/wFVd0CWJ/wiscfullge-Rkig-CAEDv-IJQOqn-RLTy-Yw-A.webp'
+    ],
+    details:'Homepage — Desktop\n\nBrand Refresh — Feature Headlines & Typography\n\nProprietary Nav System — Concept 1\n\nProprietary Nav System — Concept 2\n\n8 Campuses, One System — 1 through 6' }
 ]],
 
 ['AmericanMuscle','w','','#ca244d','E-commerce · Automotive','2007—11',[
-  { kind:'info', kicker:'Role · 2007–11',
-    title:'Test. Sell. Optimize. Sell more.',
-    message:'Web & graphic designer, UI+UX, product photographer · Turn5 Inc.',
-    image:img('mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.avif'),
-    imageTag:'AM · Mustang lineup' },
+  { kind:'info', kicker:'Client · Agency · Role',
+    title:'Test. Sell. Optimize. Sell more. Rinse and repeat.',
+    message:'A single product. The face of an e-commerce platform. Millions of dollars of merchandise shipped to a fanatical fanbase.',
+    image:'https://i.ibb.co/YTKt6LcS/IMG-20210515-151006.webp',
+    imageTag:'AM · Hero',
+    details:'Client: Turn5 Inc. — AmericanMuscle.com\n\nAgency: In-house (Turn5 Inc.)\n\nRole: Web & graphic designer, UI+UX, product photographer' },
   { kind:'success', kicker:'The volume',
-    title:'Millions of dollars of merchandise shipped to a fanatical fanbase.',
+    title:'The brief was simple. The volume was not.',
     message:'Thousands of uniquely complex online orders, across a bevy of categories.',
-    image:img('mustang001.avif'),
-    imageTag:'Full throttle',
-    details:'(derr, userbase.)' },
+    details:'(derr, userbase.)\n\nHeavy lift. Iterative gains.\n\nCustom UI+UX solutions, built through iterative testing. Homepage through checkout, to your inbox. Or, in this case, your doorstep.' },
   { kind:'warning', kicker:'My piece',
     title:'Full-funnel e-commerce UX.',
     message:'Iterative A/B testing. Custom checkout flow. Product photography. Brand & identity (Raxiom).',
-    image:img('AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.avif'),
-    imageTag:'Iterative wireframes' },
+    details:'My piece: full-funnel e-commerce UX, iterative A/B testing, custom checkout flow, product photography, brand & identity (Raxiom).' },
   { kind:'insight', kicker:'Holistic ownership',
     title:'Besides the UI+UX, I functioned as the product photographer.',
-    message:'One cohesive design language throughout the site.',
+    message:'A holistic hand over photography, the website, and branding. One cohesive design language throughout the site.',
+    details:'The site has changed since 2011. The fundamental building blocks are still largely intact.\n\nEssentially everything you see here. Raxiom logo included.' },
+  { kind:'highlight', kicker:'The screens',
+    title:'Full Throttle. AM Z Pro. Wireframes. Holistic ownership.',
     images:[
-      img('1-pch6xh-Ep-Fo-Xxli-AGb-Nnr7-Q.avif'),
-      img('1-o-P6kr-DDq-Pp-Sg-F4-Ag-Fr-WClw.avif'),
-      img('1-7w-EKA8du-Scc-OZw-Im-A-6j-SQ.avif'),
-      img('1-KE8g-FA6w4wud1uDArA4YvQ.avif'),
-      img('1-l-EJetj-Ut85-CTbb24d-BTFk-A.avif'),
-      img('1-XT2ea-L5pv1yb49r-o-Jq-Ao-A.avif')
+      'https://i.ibb.co/xyz2BHf/mustangtom-BPa-YSw-BXft-NHQCVEkp-IGb-O.webp',
+      'https://i.ibb.co/5XyTHpHy/AMZProe-ILmn-CKsiv-Dl-Kba-Gg-Sn-EZXj-GNY.webp',
+      'https://i.ibb.co/N27sPZv5/AMwire-GYVHbp-RSo-KUCz-KGe-FVEzj-Lzjmg.webp',
+      'https://i.ibb.co/KjFgH9Kk/mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.webp'
     ],
-    details:'Essentially everything you see here. Raxiom logo included.' },
-  { kind:'highlight', kicker:'Longevity',
-    title:'The site has changed since 2011.',
-    message:'The fundamental building blocks are still largely intact.',
-    image:img('mustangmm-YDg-XIj-JVi-Fvgyt-Js-Ynhvf-OX.avif'),
-    imageTag:'AM · holistic ownership' }
+    details:'Full Throttle — Homepage Hero, Mustang Lineup\n\nAM Z Pro — Product Detail & Configuration\n\nIterative Wireframes — Homepage Through Checkout\n\nHolistic Ownership — UX, Photography & Raxiom Brand' },
+  { kind:'highlight', kicker:'AmericanMuscle.com — 01–14',
+    title:'A fourteen-part tour through the platform.',
+    images:[
+      'https://i.ibb.co/KJsXgPv/1-dy-MNhi-XFPWPe9og0-dbv-Q.webp',
+      'https://i.ibb.co/C38FHDx9/1-FYt-Vic-HKj-LDPLW2rcn-J1u-A.webp',
+      'https://i.ibb.co/5WSx4J20/1-GFvd-yw-Ap-PELXmtr-Fbx-Vug.webp',
+      'https://i.ibb.co/w581TnW/1-ktn-HKT8-Zg-IADpbe-Byv2bqg.webp',
+      'https://i.ibb.co/RTWtsfgm/1-6-P6nlo-Usx-Jqv-WHG67-JAJv-A.webp',
+      'https://i.ibb.co/YBC7JqBg/1-v-Vm5zfz2gh5g-PHlee-Wv-Kv-A.webp',
+      'https://i.ibb.co/4w5mmGRp/1-a-NLx-Fbj-VHKc-GD9-Zcks-Rpx-Q.webp',
+      'https://i.ibb.co/sv8nw0Dp/1-rqzz-Cscn-OIL96-Vm-Ln0v7d-A.webp',
+      'https://i.ibb.co/NdwrPWfV/1-Na-ZV6rc-Ew-RT55p-R12-BY0jg.webp',
+      'https://i.ibb.co/MxKZJ0hS/1-ljwaiez95-NFrl-Y-ua8-J5-LA.webp',
+      'https://i.ibb.co/TMGkqSFt/1-0-Iydqh-Ls-CVQ-4-Kwv-Oovh-YA.webp',
+      'https://i.ibb.co/xqVR22qF/1-6y6ra001c08hq-Iqwoauv9-Q.webp',
+      'https://i.ibb.co/vCs4XwwY/1-H0-Ud-Exb-y-BPW1z-Fyi-C3bi-A.webp',
+      'https://i.ibb.co/fG0dXSr0/1-m7-Hfhu-QO4-Ugr1-Vte-Zf6it-A.webp'
+    ],
+    details:'AmericanMuscle.com — 01 through 14' }
 ]],
 
+/* ── Life brands — preserved from previous build ── */
 ['Leadnomics','w','','#8e4ec6','Lead Gen · Fintech','2011—14',[
   { kind:'info', kicker:'Role · 2011–14',
     title:'Design by Data.',
@@ -810,7 +925,7 @@ const B=[
   { kind:'highlight', kicker:'The budget',
     title:'This non-profit client only had a $20K budget.',
     message:'Look at what I gave them for $20K.',
-    images:[img('bawhero-Gha-St-Gjf-XDz-DZBv-URFWHFiw-Lj.avif'),img('danamobilemockupgtgxr-TPNy-NLPZg-PD.avif'),img('dana-foundation.avif')],
+    images:['https://i.ibb.co/NtWgd7T/dana-mobile-mockup.jpg','https://i.ibb.co/p4K0rCJ/baw-mobile-mockup.jpg','https://i.ibb.co/FJczkpC/dana-Dana-Mobile-Nav.jpg'],
     details:'Regulated industries demanded design solutions that adhered to WCAG 2.0 AA (or even AAA) compliance standards — and underwent rigorous scrutiny from legal and regulatory marketing authorities.' }
 ]],
 
@@ -818,8 +933,8 @@ const B=[
   { kind:'info', kicker:'Role · 2021',
     title:'Small cog, HUGE wheel.',
     message:'Freelance UX contractor at HUGE Inc.',
-    image:img('huge-sentral-lifestyle.avif'),
-    imageTag:'HUGE · Sentral' },
+    image:'https://i.ibb.co/4RksMzw/Browse-Location-List.png',
+    imageTag:'HUGE · Browse Location List' },
   { kind:'insight', kicker:'The context',
     title:'At LiveArea, I was the UX Manager on contracts exceeding $1m.',
     message:'My hourly billable rate to the client was something like $235/hr.',
@@ -834,12 +949,16 @@ const B=[
   { kind:'info', kicker:'Role · 2021',
     title:'Long Way to the Top.',
     message:'62nd Floor of the World One Trade Center Tower.',
-    image:img('publicissapient01.avif'),
+    image:'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*RTEI5aCcw31fjFzqjBgFEg.png',
     imageTag:'62nd floor' },
   { kind:'warning', kicker:'The setup',
     title:'Hired as a Senior Designer, with the intention of ACD responsibilities.',
     message:'The project was led by a DRI who accepted a Director role elsewhere three months in.',
-    images:[img('codeandtheory01.avif'),img('codeandtheor02.avif'),img('codeandtheor03.avif')],
+    images:[
+      'https://miro.medium.com/v2/resize:fit:4000/format:webp/1*xQoqrV021PFk0sxts5AWAg.png',
+      'https://miro.medium.com/v2/resize:fit:1100/format:webp/1*1gjrEffBioJYoEAvMWHfKQ.png',
+      'https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png'
+    ],
     details:'Several key team members departed — including senior strategists and technologists — placing additional UX, Strategy, and Development responsibilities on my shoulders.' },
   { kind:'highlight', kicker:'The lesson',
     title:'I was let go without explanation.',
@@ -850,12 +969,16 @@ const B=[
   { kind:'info', kicker:'Role · 2022–23',
     title:'#SeizeTheSpace #BonCourage.',
     message:'375 Hudson Street, along "Agency Row." A full year in Financial Services.',
-    image:img('publicis001.avif'),
+    image:'https://miro.medium.com/v2/resize:fit:2560/format:webp/1*OenHCQmGa10wpCzR8o9PtA.png',
     imageTag:'Hudson Street' },
   { kind:'insight', kicker:'The reality',
     title:'I became the de facto Team Lead and Product Owner.',
     message:'I led research and discovery. I led client workshops. I led design and prototype development and testing.',
-    images:[img('publicis002.avif'),img('publicis003.avif'),img('publicis004.avif')],
+    images:[
+      'https://miro.medium.com/v2/resize:fit:1400/format:webp/1*BlRk8mWPsIvsfbZkdzSI1A.png',
+      'https://miro.medium.com/v2/resize:fit:750/format:webp/1*PGkVR2sOAfcKk5kkTrnQdw.png',
+      'https://miro.medium.com/v2/resize:fit:1400/format:webp/1*3gnCq0a4KbY8MGJyVKyP-A.png'
+    ],
     details:'I collaborated across multiple concurrent tracks, while providing mentorship and guidance to junior and associate designers — also serving as team lead amongst peers at the senior level.' },
   { kind:'highlight', kicker:'Aside',
     title:'I successfully negotiated company-paid lunches for my in-office workshops.',
@@ -865,23 +988,42 @@ const B=[
 
 const C={mode:'spotlight',mobileMode:'swap',breakpoint:560,orient:'horizontal',speed:55,dir:'forward',gap:96,size:30,
  itemStyle:'bare',fill:'#ffffff14',border:'#ffffff2e',radius:14,pad:12,highlight:false,accent:'#c9c8ae',onAccent:'#2e2d2e',
- colour:'tint',tint:'#ffffff',bg:'#000000',focus:24,rest:.28,fade:22,hover:true,drag:true,scrollPush:1,slots:0,every:2.6,tooltips:true};
+ colour:'tint',tint:'#ffffff',bg:'#000000',focus:24,rest:.28,fade:22,hover:true,drag:true,scrollPush:1,slots:0,every:2.6,tooltips:true,
+ resumeDelay:0.55,
+ pullThreshold:80,
+ pullDwell:120,
+ pullHardRelease:160};
 
 const MODES=['marquee','spotlight','depth','swap','wave'];
 const SCHEMA=[
 ['Motion',[['mode','Mode','sel',MODES],['mobileMode','Narrow-screen mode','sel',MODES],['breakpoint','Narrow below px','rng',[240,900,10]],['orient','Axis','sel',['horizontal','vertical']],['dir','Travel','sel',['forward','reverse']],['speed','Speed','rng',[0,300,5]],['focus','Focus zone %','rng',[8,70,1]],['rest','Resting opacity','rng',[0,1,.01]],['slots','Swap slots (0 auto)','rng',[0,10,1]],['every','Swap every s','rng',[.8,6,.1]]]],
 ['Items',[['itemStyle','Style','sel',['bare','chip','card']],['gap','Gap','rng',[0,200,1]],['size','Logo size','rng',[14,64,1]],['pad','Padding','rng',[0,32,1]],['radius','Radius','rng',[0,32,1]],['fill','Fill','col'],['border','Border','col'],['highlight','Highlight focus','chk'],['accent','Accent','col'],['onAccent','On accent','col']]],
 ['Colour & page',[['colour','Colour','sel',['original','grayscale','tint']],['tint','Tint','col'],['bg','Background','col'],['fade','Edge fade %','rng',[0,40,1]]]],
-['Behaviour',[['hover','Pause on hover','chk'],['drag','Drag + momentum','chk'],['scrollPush','Scroll push','rng',[0,4,.1]],['tooltips','Name tooltip','chk']]]];
+['Behaviour',[['hover','Pause on hover','chk'],['drag','Drag + momentum','chk'],['scrollPush','Scroll push','rng',[0,4,.1]],['tooltips','Name tooltip','chk'],['resumeDelay','Resume delay (s)','rng',[0,2,.05]],['pullThreshold','Pull threshold px','rng',[20,200,5]],['pullDwell','Pull dwell ms','rng',[0,600,10]],['pullHardRelease','Hard release px','rng',[60,400,10]]]]];
 
 const $=s=>document.querySelector(s),stage=$('#stage'),track=$('#track'),tip=$('#tip');
+const canvasLayer=$('#canvasLayer'),railGhost=$('#railGhost');
 let items=[],pos0=[],sz=[],cs=[],L=1,maxS=0,len=1,H=true,mode='',off=0,inertia=0,clock=0,hoverF=1,dragging=false,moved=0,vel=0,raf=0,visible=true,timers=[],glide=null,hov=null;
 let pointerCaptured=false;
 let prevHov=null, prevCi=-1;
 let dragHov=null;
+let hoverReleaseAt=0;
+let lastPointerId=null;
+let suppressClickUntil=0;
 const mod=(a,n)=>((a%n)+n)%n,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sm=x=>x*x*(3-2*x);
 
-/* ── Theme toggle ── */
+const focusTimers = new WeakMap();
+const parked = new Map();
+
+let pullEl = null;
+let pullPerp = 0;
+let pullLocked = false;
+let pullDwellStart = 0;
+let pullReady = false;
+let pullVisualY = 0;
+
+const PULL_LOCK = 18;
+
 (function initTheme(){
   const btn=document.getElementById('themeToggle');
   if(!btn) return;
@@ -890,14 +1032,12 @@ const mod=(a,n)=>((a%n)+n)%n,clamp=(x,a,b)=>Math.max(a,Math.min(b,x)),sm=x=>x*x*
     const next=cur==='dark'?'light':'dark';
     document.documentElement.setAttribute('data-theme',next);
     try{localStorage.setItem('theme',next)}catch(e){}
-    // Sync stage background + C.bg so the desktop animation redraws correctly.
     const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
     if(bg){
       document.documentElement.style.background=bg;
       document.body.style.background=bg;
       C.bg=bg;
     }
-    // Reflect palette into C for the tint/accent tokens
     C.tint=getComputedStyle(document.documentElement).getPropertyValue('--tint').trim()||'#ffffff';
     rebuild();
   });
@@ -957,16 +1097,39 @@ function mk(i){
  const accentCol = getComputedStyle(document.documentElement).getPropertyValue('--k').trim() || '#ffffff';
  const onAccentCol = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#000000';
  a.style.cssText=`--b:${tintCol};--ink:${tintCol};--g:${C.colour==='grayscale'?1:0};--fill:${bare?'transparent':C.fill};--bd:${bare?'transparent':C.border};--acc:${accentCol};--onacc:${onAccentCol};--fs:${C.size}px;--pad:${C.pad}px;--r:${C.itemStyle==='chip'?999:C.itemStyle==='card'?C.radius:Math.min(C.radius,10)}px;--hl:0`;
- a.innerHTML=`<span class="in"><span class="tx">${chromaHTML(n)}</span></span>`;
- a.addEventListener('click',e=>{e.preventDefault();if(moved>12)return;pick(a)});
- a.addEventListener('pointerenter',()=>{hov=a;place()});
- a.addEventListener('pointerleave',()=>{if(hov===a)hov=null;place()});
+ a.innerHTML=`<span class="in"><span class="tx">${chromaHTML(n)}</span></span>
+   <span class="drag-grip" aria-hidden="true"></span>
+   <button class="park-close" aria-label="Return to rotation" title="Return to rotation"></button>`;
+ a.addEventListener('click', e => {
+   e.preventDefault();
+   if(moved > 12) return;
+   if(performance.now() < suppressClickUntil) return;
+   openNotifStack(a._i);
+ });
+ a.addEventListener('pointerenter',()=>{
+   hov=a;
+   hoverReleaseAt=0;
+   place();
+ });
+ a.addEventListener('pointerleave',()=>{
+   if(hov===a){
+     hov=null;
+     hoverReleaseAt=performance.now();
+   }
+   place();
+ });
+ a.querySelector('.park-close').addEventListener('pointerdown',e=>e.stopPropagation());
+ a.querySelector('.park-close').addEventListener('click',e=>{
+   e.preventDefault();e.stopPropagation();
+   if(a._detached) reinsert(a);
+ });
  return a;
 }
 const effMode=()=>innerWidth<C.breakpoint?C.mobileMode:C.mode;
 
 function rebuild(){
- timers.forEach(clearTimeout);timers=[];track.innerHTML='';items=[];hov=null;glide=null;prevHov=null;prevCi=-1;dragHov=null;
+ timers.forEach(clearTimeout);timers=[];track.innerHTML='';items=[];hov=null;glide=null;prevHov=null;prevCi=-1;dragHov=null;hoverReleaseAt=0;
+ pullEl=null; pullPerp=0; pullLocked=false; pullDwellStart=0; pullReady=false; pullVisualY=0;
  H=C.orient==='horizontal';mode=effMode();
  const bgNow=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||C.bg;
  C.bg=bgNow;
@@ -977,14 +1140,102 @@ function rebuild(){
  len=H?stage.clientWidth:stage.clientHeight;
  const n=B.length,set=[...Array(n)].map((_,i)=>mk(i));set.forEach(e=>track.appendChild(e));
  const w=set.map(e=>e.offsetWidth),h=set.map(e=>e.offsetHeight),S=H?w:h,X=H?h:w;
- if(mode==='swap'){track.innerHTML='';buildSwap(Math.max(...w),Math.max(...h));return}
+ if(mode==='swap'){track.innerHTML='';buildSwap(Math.max(...w),Math.max(...h));restoreParked();return}
  maxS=Math.max(...S);
  const setLen=S.reduce((a,b)=>a+b,0)+C.gap*n,reps=Math.max(1,Math.ceil((len+2*maxS+C.gap)/setLen));
  L=setLen*reps;pos0=[];sz=[];cs=[];track.innerHTML='';
  let p=0;
  for(let r=0;r<reps;r++)for(let i=0;i<n;i++){const e=r?mk(i):set[i];track.appendChild(e);items.push(e);pos0.push(p);sz.push(S[i]);cs.push(X[i]);p+=S[i]+C.gap}
  update();run();
+ restoreParked();
 }
+
+function restoreParked(){
+  parked.forEach((pos, idx) => {
+    let node = [...canvasLayer.children].find(c => c._i === idx);
+    if(!node){
+      node = mk(idx);
+      canvasLayer.appendChild(node);
+    }
+    detachNode(node, pos.x, pos.y, true);
+  });
+}
+
+function detachNode(el, x, y, silent){
+  el._detached = true;
+  el.classList.add('is-detached');
+  el.classList.remove('is-pulling');
+  el.style.transform = '';
+  el.style.opacity = '1';
+  el.style.filter = 'none';
+  el.style.visibility = '';
+  el.style.setProperty('--hl', 0);
+  setChroma(el, 0);
+  el._f = 1;
+  canvasLayer.appendChild(el);
+  el.style.left = Math.round(x) + 'px';
+  el.style.top  = Math.round(y) + 'px';
+  parked.set(el._i, { x: el.offsetLeft, y: el.offsetTop });
+  if(!silent){
+    el.animate(
+      [{ transform:'scale(.94)' }, { transform:'scale(1)' }],
+      { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1)' }
+    );
+  }
+}
+
+function reinsert(el){
+  el._detached = false;
+  el.classList.remove('is-detached');
+  el.classList.remove('is-pulling');
+  el.style.left = '';
+  el.style.top  = '';
+  el.style.transform = '';
+  el.style.opacity = '';
+  el.style.filter = '';
+  el.style.setProperty('--hl', '');
+  _blurState.delete(el);
+  track.appendChild(el);
+  parked.delete(el._i);
+
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+
+  const intervals = [];
+  for(let k = 0; k < items.length; k++){
+    const it = items[k];
+    if(it._detached) continue;
+    const start = mod(pos0[k] + off, L);
+    intervals.push({ start, end: start + sz[k] });
+  }
+  intervals.sort((a, b) => a.start - b.start);
+
+  let bestStart = 0, bestGap = -Infinity;
+  if(intervals.length === 0){
+    bestStart = 0;
+  } else {
+    for(let i = 0; i < intervals.length; i++){
+      const a = intervals[i];
+      const b = intervals[(i + 1) % intervals.length];
+      const bStart = (i === intervals.length - 1) ? b.start + L : b.start;
+      const gapStart = a.end;
+      const gapSize = bStart - gapStart - C.gap;
+      if(gapSize > bestGap){
+        bestGap = gapSize;
+        bestStart = gapStart + C.gap;
+      }
+    }
+  }
+
+  const slot = bestStart - off;
+
+  items.push(el);
+  pos0.push(slot);
+  sz.push(w);
+  cs.push(h);
+  run();
+}
+
 function buildSwap(mw,mh){
  const w=document.createElement('div');w.className='swap';w.style.flexDirection=H?'row':'column';w.style.gap=C.gap+'px';track.appendChild(w);
  const S=H?mw:mh,N=Math.min(C.slots||Math.max(1,Math.floor((len+C.gap)/(S+C.gap))),B.length-1),shown=[];
@@ -1006,21 +1257,36 @@ function buildSwap(mw,mh){
   timers.push(setTimeout(tick,(s+1)*C.every*1000/N+Math.random()*400));
  }
 }
+
+const _blurState=new WeakMap();
+
 function update(){
  if(mode==='swap'||!items.length)return;
  const cross=H?stage.clientHeight:stage.clientWidth,fw=len*C.focus/200;
  for(let k=0;k<items.length;k++){
-  const el=items[k],s=sz[k],p=mod(pos0[k]+off,L)-maxS;
+  const el=items[k];
+  if(el._detached){continue}
+  const s=sz[k],p=mod(pos0[k]+off,L)-maxS;
   if(p>len||p+s<0){el.style.visibility='hidden';el._f=0;continue}
   el.style.visibility='';
   const c=p+s/2,t=clamp(c/len,0,1),ex=clamp(Math.abs(c-len/2)/(len/2),0,1),d=Math.min(1,Math.abs(c-len/2)/fw),f=1-sm(d);
   el._f=f;
+  if(f > 0.88){
+    if(!focusTimers.has(el)) focusTimers.set(el, performance.now());
+    if(performance.now() - focusTimers.get(el) > 260) el.classList.add('is-focus-settled');
+  } else {
+    focusTimers.delete(el);
+    el.classList.remove('is-focus-settled');
+  }
   let cr=(cross-cs[k])/2,z=0,rot=0,sc=1,op=1,bl=0,hl=0;
   if(mode==='spotlight'){sc=.88+.22*f;bl=(1-f)*1.5+ex*ex*5;op=(C.rest+(1-C.rest)*f)*(1-ex*ex*.7);hl=f}
   else if(mode==='wave'){const a=t*7+clock*1.5+k*.8;cr+=Math.sin(a)*16;rot=Math.sin(a+1.2)*3.5;hl=f}
   else if(mode==='depth'){z=-520+900*t;cr-=(1-t)*18;bl=(1-f)*4;op=(C.rest+(1-C.rest)*f)*(1-sm(clamp((t-.82)/.18,0,1)))*sm(clamp(t/.12,0,1));hl=f}
   if(!C.highlight||mode==='marquee')hl=0;
-  const tx=H?p:cr,ty=H?cr:p;
+
+  const pullY = (el === pullEl) ? pullVisualY : 0;
+
+  const tx=H?p:cr,ty=(H?cr:p)+pullY;
   el.style.transform=`translate3d(${tx.toFixed(1)}px,${ty.toFixed(1)}px,${z.toFixed(0)}px) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(3)})`;
   el.style.opacity=op.toFixed(3);el.style.filter=bl>.05?`blur(${bl.toFixed(2)}px)`:'none';el.style.setProperty('--hl',hl.toFixed(3));
   if(C.colour==='grayscale'&&mode==='spotlight')el.style.setProperty('--g',(1-f).toFixed(2));
@@ -1040,6 +1306,22 @@ function place(){
     prevCi = -1;
   }
   if(!el||!C.tooltips||el.style.visibility==='hidden'){tip.classList.remove('on');return}
+  if(el._detached){
+    setChroma(el, 0);
+    const r=el.getBoundingClientRect(),b=B[el._i];
+    if(tip._i!==el._i){
+      tip.querySelector('.tip-name').textContent=b[0];
+      tip.querySelector('.tip-span').textContent=b[5];
+      tip.querySelector('.tip-cat').textContent=b[4];
+      tip._i=el._i;
+    }
+    tip.style.filter='none';
+    const tw=tip.offsetWidth;
+    tip.style.transform=`translate(${clamp(r.left+r.width/2-tw/2,8,innerWidth-tw-8).toFixed(0)}px,${(r.top-tip.offsetHeight-16).toFixed(0)}px)`;
+    tip.classList.add('on');
+    prevHov = el;
+    return;
+  }
   const f = el._f ?? 1;
   const ci = 0.15 + 0.70 * (1 - f);
   if(Math.abs(ci - prevCi) > 0.02){
@@ -1061,6 +1343,293 @@ function place(){
   tip.classList.add('on');
 }
 function pick(el){openNotifStack(el._i)}
+
+const RAIL_H = 120;
+
+let dragMode = null;
+let dragNode = null;
+let dragStart = {x:0,y:0};
+let dragOffset = {x:0,y:0};
+let lp=0, lt=0;
+
+stage.addEventListener('pointerdown', e=>{
+  if(mode==='swap') return;
+  const it = e.target.closest && e.target.closest('.it');
+  const isLiveLogo = it && !it._detached;
+
+  dragStart = {x:e.clientX, y:e.clientY};
+  moved = 0; vel = 0;
+  pointerCaptured = false;
+  lastPointerId = e.pointerId;
+
+  if(isLiveLogo && C.drag){
+    dragMode = 'pull';
+    dragNode = it;
+    pullEl = it;
+    pullPerp = 0;
+    pullLocked = false;
+    pullDwellStart = 0;
+    pullReady = false;
+    pullVisualY = 0;
+    it.classList.add('is-pulling');
+    glide = null;
+    lp = H ? e.clientX : e.clientY;
+    lt = performance.now();
+    run();
+    return;
+  }
+
+  if(!C.drag) return;
+  dragMode = 'marquee';
+  dragging = true;
+  glide = null;
+  dragHov = hov;
+  lp = H?e.clientX:e.clientY; lt=performance.now();
+  pointerCaptured=false;
+});
+
+stage.addEventListener('pointermove', e=>{
+  if(dragMode === 'pull' && dragNode){
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    moved = Math.hypot(dx, dy);
+
+    const perpRaw = H ? dy : dx;
+    const alongRaw = H ? dx : dy;
+
+    if(!pullLocked){
+      if(Math.abs(perpRaw) > PULL_LOCK){
+        pullLocked = true;
+        pullPerp = perpRaw;
+        if(!pointerCaptured && lastPointerId != null){
+          try{stage.setPointerCapture(lastPointerId);pointerCaptured=true;}catch(_){}
+        }
+      } else {
+        const q = H ? e.clientX : e.clientY;
+        const n = performance.now();
+        const dl = q - lp;
+        off += dl;
+        vel = vel*.6 + (dl/Math.max(.008,(n-lt)/1000))*.4;
+        lp = q; lt = n;
+        if(!pointerCaptured && Math.abs(dl) > 2 && lastPointerId != null){
+          try{stage.setPointerCapture(lastPointerId);pointerCaptured=true;}catch(_){}
+        }
+        update();
+        return;
+      }
+    }
+
+    pullPerp = perpRaw;
+    const th = Math.max(20, C.pullThreshold);
+    pullVisualY = th * Math.tanh(perpRaw / th);
+
+    const dwellZone = th * 0.85;
+    if(Math.abs(pullVisualY) >= dwellZone){
+      if(!pullDwellStart) pullDwellStart = performance.now();
+      if(performance.now() - pullDwellStart >= C.pullDwell) pullReady = true;
+    } else {
+      pullDwellStart = 0;
+      pullReady = false;
+    }
+    if(Math.abs(perpRaw) >= C.pullHardRelease) pullReady = true;
+
+    run();
+    return;
+  }
+
+  if((dragMode === 'detach' || dragMode === 'parked') && dragNode){
+    const x = e.clientX - dragOffset.x;
+    const y = e.clientY - dragOffset.y;
+    dragNode.style.left = Math.round(x) + 'px';
+    dragNode.style.top  = Math.round(y) + 'px';
+    moved = Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y);
+    updateRailGhost(e.clientX, e.clientY);
+    return;
+  }
+
+  if(!dragging) return;
+  const q=H?e.clientX:e.clientY,n=performance.now(),dl=q-lp;
+  moved+=Math.abs(dl);
+  if(!pointerCaptured && moved>4 && lastPointerId != null){
+    try{stage.setPointerCapture(lastPointerId);pointerCaptured=true;}catch(_){}
+    stage.style.cursor='grabbing';
+  }
+  off+=dl;
+  vel=vel*.6+(dl/Math.max(.008,(n-lt)/1000))*.4;
+  lp=q;lt=n;update();
+});
+
+const endDrag = (e)=>{
+  if(dragMode === 'pull' && dragNode){
+    const el = dragNode;
+    const wasDrag = moved > 8 || pullLocked || pullReady;
+    if(pullReady){
+      const r = el.getBoundingClientRect();
+      const cx = r.left;
+      const cy = r.top;
+      el.classList.remove('is-pulling');
+      pullVisualY = 0;
+      detachNode(el, cx, cy, false);
+    } else {
+      el.classList.remove('is-pulling');
+      pullVisualY = 0;
+    }
+    pullEl = null; pullPerp = 0; pullLocked = false;
+    pullDwellStart = 0; pullReady = false;
+    dragMode = null; dragNode = null;
+    dragging = false; pointerCaptured = false;
+    dragHov = null;
+    stage.style.cursor = 'grab';
+    if(wasDrag) suppressClickUntil = performance.now() + 200;
+    setTimeout(()=>moved=0, 60);
+    run();
+    return;
+  }
+
+  if((dragMode === 'detach' || dragMode === 'parked') && dragNode){
+    const el = dragNode;
+    const r = el.getBoundingClientRect();
+    const inRail = H ? (r.top + r.height/2 < RAIL_H) : (r.left + r.width/2 < RAIL_H);
+    if(inRail){
+      reinsert(el);
+    } else {
+      parked.set(el._i, { x: el.offsetLeft, y: el.offsetTop });
+    }
+    dragMode = null; dragNode = null;
+    dragging = false; pointerCaptured = false;
+    dragHov = null;
+    stage.style.cursor = 'grab';
+    hideRailGhost();
+    if(!hov) tip.classList.remove('on');
+    suppressClickUntil = performance.now() + 200;
+    setTimeout(()=>moved=0, 60);
+    run();
+    return;
+  }
+
+  if(!dragging){ dragMode=null; return; }
+  const wasDrag = moved > 8;
+  dragging=false;
+  pointerCaptured=false;
+  dragHov=null;
+  dragMode=null;
+  inertia=clamp(vel,-2500,2500);
+  stage.style.cursor='grab';
+  if(wasDrag) suppressClickUntil = performance.now() + 200;
+  setTimeout(()=>moved=0,60);
+  if(e && e.clientX != null){
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    const it = under && under.closest ? under.closest('.it') : null;
+    hov = it || null;
+    if(!hov){
+      tip.classList.remove('on');
+      hoverReleaseAt = performance.now();
+    } else {
+      place();
+    }
+  }
+  run();
+};
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+canvasLayer.addEventListener('pointerdown', e=>{
+  const it = e.target.closest && e.target.closest('.it');
+  if(!it || !it._detached) return;
+  if(e.target.closest('.park-close')) return;
+  e.stopPropagation();
+  dragMode = 'parked';
+  dragNode = it;
+  dragging = true;
+  const r = it.getBoundingClientRect();
+  dragOffset.x = e.clientX - r.left;
+  dragOffset.y = e.clientY - r.top;
+  dragStart = {x:e.clientX, y:e.clientY};
+  moved = 0;
+  lastPointerId = e.pointerId;
+  try{canvasLayer.setPointerCapture(e.pointerId)}catch(_){}
+  updateRailGhost(e.clientX, e.clientY);
+});
+canvasLayer.addEventListener('pointermove', e=>{
+  if(dragMode !== 'parked' || !dragNode) return;
+  const x = e.clientX - dragOffset.x;
+  const y = e.clientY - dragOffset.y;
+  dragNode.style.left = Math.round(x) + 'px';
+  dragNode.style.top  = Math.round(y) + 'px';
+  moved = Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y);
+  updateRailGhost(e.clientX, e.clientY);
+});
+canvasLayer.addEventListener('pointerup', endDrag);
+canvasLayer.addEventListener('pointercancel', endDrag);
+
+function updateRailGhost(x, y){
+  const inRail = H ? (y < RAIL_H) : (x < RAIL_H);
+  if(!inRail){ hideRailGhost(); return; }
+  railGhost.classList.add('on');
+  if(H){
+    railGhost.style.left   = Math.round(x) + 'px';
+    railGhost.style.top    = '0px';
+    railGhost.style.width  = '1px';
+    railGhost.style.height = RAIL_H + 'px';
+  } else {
+    railGhost.style.left   = '0px';
+    railGhost.style.top    = Math.round(y) + 'px';
+    railGhost.style.width  = RAIL_H + 'px';
+    railGhost.style.height = '1px';
+  }
+}
+function hideRailGhost(){ railGhost.classList.remove('on'); }
+
+stage.addEventListener('click', e=>{
+  if(performance.now() < suppressClickUntil){
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true);
+
+canvasLayer.addEventListener('click', e=>{
+  if(performance.now() < suppressClickUntil){
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  const it = e.target.closest && e.target.closest('.it');
+  if(!it || !it._detached) return;
+  if(moved > 12){ e.preventDefault(); e.stopPropagation(); return; }
+}, true);
+
+let sy=scrollY;
+addEventListener('scroll',()=>{const d=Math.abs(scrollY-sy);sy=scrollY;inertia=clamp(inertia+(C.dir==='reverse'?1:-1)*clamp(d,0,80)*C.scrollPush*2.2,-1800,1800)},{passive:true});
+
+addEventListener('wheel', e => {
+  const t = e.target;
+  if (t && t.closest && t.closest('#notifStack')) {
+    const body = stackEl.querySelector('.stack-body');
+    if (body) {
+      const atTop    = body.scrollTop <= 0;
+      const atBottom = body.scrollTop + body.scrollHeight - body.clientHeight <= 1;
+      const goingUp   = e.deltaY < 0;
+      const goingDown = e.deltaY > 0;
+      if ((goingUp && !atTop) || (goingDown && !atBottom)) return;
+    } else {
+      return;
+    }
+  }
+  const d = clamp(e.deltaY, -100, 100);
+  inertia = clamp(inertia + (C.dir === 'reverse' ? 1 : -1) * d * C.scrollPush * 1.4, -1800, 1800);
+  run();
+}, { passive: true });
+
+let lw=0,lh=0;
+new ResizeObserver(()=>{
+  const w=stage.clientWidth,h=stage.clientHeight;
+  if(w!==lw||h!==lh){
+    lw=w;lh=h;
+    parked.clear();
+    canvasLayer.querySelectorAll('.it').forEach(n=>n.remove());
+    rebuild();
+  }
+}).observe(stage);
 
 const lbEl=$('#lightbox');
 const lbImg=lbEl.querySelector('img');
@@ -1213,79 +1782,27 @@ let last=0;
 function frame(ts){
  raf=0;if(!visible||document.hidden||mode==='swap'){last=0;return}
  const dt=Math.min(.05,last?(ts-last)/1000:0);last=ts;clock+=dt;
- const paused=((C.hover&&!!hov)||dragging)?0:1;
- hoverF+=(paused-hoverF)*Math.min(1,dt*8);
+ const hovering = (C.hover && !!hov) || dragging;
+ let target;
+ if(hovering){
+   target = 0;
+   hoverReleaseAt = 0;
+ } else if(hoverReleaseAt){
+   const elapsed = (ts - hoverReleaseAt) / 1000;
+   target = elapsed < C.resumeDelay ? 0 : 1;
+   if(elapsed >= C.resumeDelay) hoverReleaseAt = 0;
+ } else {
+   target = 1;
+ }
+ hoverF += (target - hoverF) * Math.min(1, dt*8);
+ const frozen = (dragMode === 'pull') || (dragMode === 'detach') || (dragMode === 'parked');
  if(glide){off+=(glide.to-off)*Math.min(1,dt*7);inertia=0;if(Math.abs(glide.to-off)<.8){off=glide.to;const cb=glide.cb;glide=null;cb&&cb()}}
- else if(!dragging){off+=((C.dir==='reverse'?1:-1)*C.speed*hoverF+inertia)*dt;inertia*=Math.exp(-dt*2.5)}
+ else if(!dragging && !frozen){off+=((C.dir==='reverse'?1:-1)*C.speed*hoverF+inertia)*dt;inertia*=Math.exp(-dt*2.5)}
  update();raf=requestAnimationFrame(frame);
 }
 function run(){if(!raf&&visible&&!document.hidden&&mode!=='swap'){last=0;raf=requestAnimationFrame(frame)}}
 new IntersectionObserver(e=>{visible=e[0].isIntersecting;run()}).observe(stage);
 document.addEventListener('visibilitychange',run);
-
-let lp=0,lt=0;
-stage.addEventListener('pointerdown',e=>{
-  if(!C.drag||mode==='swap')return;
-  dragging=true;glide=null;moved=0;vel=0;
-  dragHov=hov;
-  lp=H?e.clientX:e.clientY;lt=performance.now();
-  pointerCaptured=false;
-});
-stage.addEventListener('pointermove',e=>{
-  if(!dragging)return;
-  const q=H?e.clientX:e.clientY,n=performance.now(),dl=q-lp;
-  moved+=Math.abs(dl);
-  if(!pointerCaptured && moved>4){
-    try{stage.setPointerCapture(e.pointerId);pointerCaptured=true;}catch(_){}
-    stage.style.cursor='grabbing';
-  }
-  off+=dl;
-  vel=vel*.6+(dl/Math.max(.008,(n-lt)/1000))*.4;
-  lp=q;lt=n;update();
-});
-const end=(e)=>{
-  if(!dragging)return;
-  dragging=false;
-  pointerCaptured=false;
-  dragHov=null;
-  inertia=clamp(vel,-2500,2500);
-  stage.style.cursor='grab';
-  setTimeout(()=>moved=0,60);
-  if(e && e.clientX != null){
-    const under = document.elementFromPoint(e.clientX, e.clientY);
-    const it = under && under.closest ? under.closest('.it') : null;
-    hov = it || null;
-    if(!hov) tip.classList.remove('on');
-    else place();
-  }
-  run();
-};
-stage.addEventListener('pointerup',end);
-stage.addEventListener('pointercancel',end);
-
-let sy=scrollY;
-addEventListener('scroll',()=>{const d=Math.abs(scrollY-sy);sy=scrollY;inertia=clamp(inertia+(C.dir==='reverse'?1:-1)*clamp(d,0,80)*C.scrollPush*2.2,-1800,1800)},{passive:true});
-
-addEventListener('wheel', e => {
-  const t = e.target;
-  if (t && t.closest && t.closest('#notifStack')) {
-    const body = stackEl.querySelector('.stack-body');
-    if (body) {
-      const atTop    = body.scrollTop <= 0;
-      const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 1;
-      const goingUp   = e.deltaY < 0;
-      const goingDown = e.deltaY > 0;
-      if ((goingUp && !atTop) || (goingDown && !atBottom)) return;
-    } else {
-      return;
-    }
-  }
-  const d = clamp(e.deltaY, -100, 100);
-  inertia = clamp(inertia + (C.dir === 'reverse' ? 1 : -1) * d * C.scrollPush * 1.4, -1800, 1800);
-  run();
-}, { passive: true });
-
-let lw=0,lh=0;new ResizeObserver(()=>{const w=stage.clientWidth,h=stage.clientHeight;if(w!==lw||h!==lh){lw=w;lh=h;rebuild()}}).observe(stage);
 
 const pn=$('#pn'),cw=$('#cw');
 $('#gear').onclick=()=>cw.classList.toggle('open');
@@ -1305,9 +1822,6 @@ SCHEMA.forEach(([title,rows],gi)=>{
   r.append(l,w);d.append(r)});
  pn.append(d)});
 
-/* ══════════════════════════════════════════════════════════════
-   MOBILE — marquee + accordion.
-   ══════════════════════════════════════════════════════════════ */
 (function buildMobile(){
   const list = document.getElementById('mobileList');
   const marquee = document.getElementById('mMarquee');
