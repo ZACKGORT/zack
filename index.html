@@ -367,8 +367,8 @@ body.lst #cv,body.lst #zg,body.lst #zero,body.lst #edge,body.lst #ring,body.lst 
 @media(max-width:900px){#lst{padding-top:calc(env(safe-area-inset-top,0px) + 112px)}}
 /* HOME — logo-rail homepage surface (iframe, fed from the live folders) */
 #hm{position:fixed;inset:0;width:100%;height:100%;border:0;z-index:3;background:var(--bg,#000)}
-body.hm #cv,body.hm #zg,body.hm #zero,body.hm #edge,body.hm #ring,body.hm #hint,body.hm #acts,body.hm #hd,body.hm #fab,body.hm #fab-menu,body.hm #tb,body.hm #lt,body.hm #lh,body.hm #lst,body.hm #sh{display:none!important}
-@media(max-width:900px){body.hm #sf{top:calc(env(safe-area-inset-top,0px) + 10px)}}
+body.hm #cv,body.hm #zg,body.hm #zero,body.hm #edge,body.hm #ring,body.hm #hint,body.hm #acts,body.hm #hd,body.hm #fab,body.hm #fab-menu,body.hm #tb,body.hm #lt,body.hm #lh,body.hm #lst{display:none!important}
+@media(max-width:900px){body.hm #sf{top:calc(env(safe-area-inset-top,0px) + 10px)}body.hm #sh{--sft:10px}}
 @media(max-width:767px){body.hm #hm{top:calc(env(safe-area-inset-top,0px) + 66px);height:calc(100% - env(safe-area-inset-top,0px) - 66px)}}
 @media(max-width:380px){#sf button{padding:0 9px}}
 /* SURFACE HINTS — tiny rotating tips just under the surface switcher (#sf) */
@@ -1929,7 +1929,7 @@ function sfSet(m){if(m==='home'){homeOn();return}HMoff();if(m==='list'){LM=true;
   if(m==='folders'){if(V)closeCat();else renderAll();sfPaint();return}
   const want=m==='letters';
   if(V){if(wl)renderAll();lvSet(want);return}const c=C.find(c=>c.id===lastCat)||C[0];if(!c)return;LV=want;lvSave();openCat(c)}
-function sfPaint(){const m=HM?'home':LM?'list':!V?'folders':LV?'letters':'canvas';document.querySelectorAll('#sf button').forEach(b=>{const on=b.dataset.m===m;b.setAttribute('aria-pressed',on);on?b.setAttribute('aria-current','true'):b.removeAttribute('aria-current')})}
+function sfPaint(){if(typeof shReady!=='undefined'&&shReady)shKick();const m=HM?'home':LM?'list':!V?'folders':LV?'letters':'canvas';document.querySelectorAll('#sf button').forEach(b=>{const on=b.dataset.m===m;b.setAttribute('aria-pressed',on);on?b.setAttribute('aria-current','true'):b.removeAttribute('aria-current')})}
 var lvlK='';
 function lstRender(){const bd=document.body;bd.classList.toggle('lst',LM);if(!LM)return;
  const qi=$('lqi'),k=V?V.id:'x';if(k!==lvlK){lvlK=k;qi.value='';$('lst').scrollTop=0}
@@ -1947,10 +1947,11 @@ $('sf').addEventListener('click',e=>{const b=e.target.closest('button');if(b)sfS
 /* SURFACE HINTS — rotating discoverability tips under the HUD */
 const shEl=document.createElement('div'),shT=document.createElement('span'),shTouch=matchMedia('(hover:none) and (pointer:coarse)'),SHK='frankly:hints';
 shEl.id='sh';shEl.setAttribute('aria-hidden','true');shEl.append(shT);document.body.append(shEl);
-let shSeen={},shI=0,shN=0,shTm=0;try{shSeen=JSON.parse(localStorage.getItem(SHK))||{}}catch(_){}
+var shReady=false;let shSeen={},shI=0,shN=0,shTm=0,shMode='';try{shSeen=JSON.parse(localStorage.getItem(SHK))||{}}catch(_){}
 function hintSeen(k){if(shSeen[k])return;shSeen[k]=1;try{localStorage.setItem(SHK,JSON.stringify(shSeen))}catch(_){}}
 function shList(){
-  const t=shTouch.matches,m=LM?'list':!V?'folders':LV?'letters':'canvas',a=[];
+  const t=shTouch.matches,m=HM?'home':LM?'list':!V?'folders':LV?'letters':'canvas',a=[];
+  if(m==='home')return t?['tap a name to open its file','swipe the row to browse']:['hold \u21e7 for the menu of every entry','click a name to open its file',mod+'K to search & run commands','? for help & shortcuts','drag a name to park it','the gear (bottom-left) tunes the rail'];
   if(m!=='list'&&!shSeen.ctx)a.push(t?'long-press for system menu':'right-click for system menu');
   if(!shSeen.cats)a.push(t?'tap menu to switch categories':'hold \u21e7 for category navigation');
   if(m==='letters')a.push(t?'swipe to turn letters':'\u2190 \u2192 to turn letters');
@@ -1960,13 +1961,15 @@ function shList(){
 function shSwap(txt){shT.style.transition='none';shT.className='i';shT.textContent=txt;void shT.offsetWidth;shT.style.transition='';shT.className=''}
 function shTick(){
   clearTimeout(shTm);
+  const mk=HM?'home':'app';if(mk!==shMode){shMode=mk;shN=0;shI=0}
   const tour=document.getElementById('tour'),L=shList();
   if(document.hidden||(tour&&tour.classList.contains('on'))||document.body.classList.contains('ed')){shTm=setTimeout(shTick,2000);return}
-  if(!L.length||shN>=L.length*(shSeen.ctx?1:3)){shEl.classList.remove('on');return}
+  if(!L.length||shN>=L.length*(HM?2:(shSeen.ctx?1:3))){shEl.classList.remove('on');return}
   const txt=L[shI++%L.length];shN++;
   if(shEl.classList.contains('on')){shT.className='o';setTimeout(()=>shSwap(txt),RM.matches?0:380)}else{shSwap(txt);shEl.classList.add('on')}
   shTm=setTimeout(shTick,5200)}
-shTm=setTimeout(shTick,1800);
+function shKick(){clearTimeout(shTm);shTm=setTimeout(shTick,500)}
+shReady=true;shTm=setTimeout(shTick,1800);
 /* HOME — the logo-rail homepage as a surface; brands are derived live from the folders in C */
 const HOME_CATS=['work','life'];   /* categories that feed the homepage; non-Work ones need a "Circa, …" date line to qualify */
 const hmClean=s=>String(s||'').replace(/\*\*|~~|`/g,'').replace(/^#{1,6}\s+/,'').replace(/\s+/g,' ').trim();
