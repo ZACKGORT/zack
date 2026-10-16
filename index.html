@@ -796,6 +796,10 @@ body.hm:not(.in) #hint{bottom:calc(env(safe-area-inset-bottom,0px) + 52px)}
 <!-- ═══════════════════════════════════════════════════════════════
      PART 2 OF 3 STARTS HERE — the main <script> block
      ═══════════════════════════════════════════════════════════════ -->
+<script>/* file:// pages all share one localStorage, so two local copies (spak, zack_cx) were loading each other's saved data and home had nothing to build from. Namespace keys per file; http(s) is untouched. */
+(function(){if(location.protocol!=='file:')return;var ns=decodeURIComponent(location.pathname.split('/').pop()||'index').replace(/\.html?$/i,'')+'|',P=Storage.prototype,g=P.getItem,s=P.setItem,r=P.removeItem;
+P.getItem=function(n){return g.call(this,ns+n)};P.setItem=function(n,v){return s.call(this,ns+n,v)};P.removeItem=function(n){return r.call(this,ns+n)}})();
+</script>
 <script>
 const $=id=>document.getElementById(id),h=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const K='frankly:canvas:v2',TOUR_K='frankly:tour:v1',FW=264,vv=visualViewport,root=document.documentElement,cv=$('cv'),world=$('w'),ov=$('ov'),wh=$('wh'),hint=$('hint'),zeroEl=$('zero'),edgeEl=$('edge');
@@ -2088,13 +2092,13 @@ function hmCard(n){
   else if(im.length>1)c.images=im.map(i=>hmUrl(i.u));
   if(d.length)c.details=d.map(hmEsc).join('\n\n');
   return c}
-function hmBrands(cats){
+function hmBrands(cats,loose){
   const out=[];
   for(const c of cats){
-    const cn=(c.name||'').trim().toLowerCase();if(!HOME_CATS.includes(cn))continue;
+    const cn=(c.name||'').trim().toLowerCase();if(!loose&&!HOME_CATS.includes(cn))continue;
     for(const f of c.trees){
       const top=f.tree||[],dl=top.find(n=>hmDate((n.t||'').trim()));
-      if(cn!=='work'&&!dl)continue;
+      if(!loose&&cn!=='work'&&!dl)continue;
       const first=top.find(n=>n.t&&n.t.trim()&&!isImg(n.t.trim())),raw=(f.name&&f.name.trim())||hmClean(first&&first.t),
         name=hmClean(raw.split(/\s[—–]\s/)[0])||'untitled';
       let acc='';(function w(a){for(const n of a){if(acc)return;if(n.c&&/^#[0-9a-f]{3,8}$/i.test(n.c)&&!/^#8e8e93$/i.test(n.c)){acc=n.c;return}w(n.k)}})(top);
@@ -2121,12 +2125,13 @@ let hmSig='',hmTour=0;
 const hmTheme=()=>curTheme()==='dark'?'dark':'light',hmPost=()=>{try{hmF.contentWindow.postMessage({hm:'theme',v:hmTheme()},'*')}catch(_){}};
 function hmSat(side){const b=side==='bottom',p=document.createElement('div');p.style.cssText='position:fixed;top:0;left:0;visibility:hidden;'+(b?'padding-bottom:env(safe-area-inset-bottom,0px)':'padding-top:env(safe-area-inset-top,0px)');document.body.append(p);const v=parseFloat(getComputedStyle(p)[b?'paddingBottom':'paddingTop'])||0;p.remove();return v+'px'}
 function hmBuild(){
-  const B=hmBrands(C);if(B.length<2)return false;
+  let B=hmBrands(C);if(B.length<2)B=hmBrands(C,true); /* saved data may not use the recognised category names: fall back to every folder so home still opens */
+  if(B.length<2)return false;
   const j=JSON.stringify(B).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
   if(j!==hmSig){hmSig=j;hmF.srcdoc=HOME_SRC.replace('__THEME__',()=>hmTheme()).replace('__SAT__',()=>hmSat()).replace('__SAB__',()=>hmSat('bottom')).replace('__B__',()=>j)}else hmPost();
   return true}
 function homeOn(){if(HM)return;try{if(W)cw(false);closeMenu()}catch(_){}
-  if(!hmBuild())return;HM=true;document.body.classList.add('hm');hmF.hidden=false;try{hmF.contentWindow.focus()}catch(_){}sfPaint()}
+  if(!hmBuild()){try{toast('Home needs at least two folders to build from')}catch(_){}return}HM=true;document.body.classList.add('hm');hmF.hidden=false;try{hmF.contentWindow.focus()}catch(_){}sfPaint()}
 function HMoff(){if(!HM)return;HM=false;document.body.classList.remove('hm');hmF.hidden=true;sfPaint();
   if(!tourSeen&&!hmTour){hmTour=1;setTimeout(()=>{try{openTour()}catch(_){}},600)}}
 addEventListener('message',e=>{
