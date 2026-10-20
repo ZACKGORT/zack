@@ -425,6 +425,16 @@ body.hm #rsm{display:inline-flex}
 @media(pointer:coarse){#rsm{--rsh:52px}}
 @media(max-width:767px){body.hm #rsm{background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}}
 @media(max-width:480px){#rsm{width:var(--rsh);padding:0}#rsm span{display:none}}
+/* resume hover preview — first page of the PDF, rendered live (pdf.js, loaded on first hover) */
+#rsp{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);right:calc(env(safe-area-inset-right,0px) + 18px);z-index:6;width:min(300px,calc((100vh - 96px) * .7727));aspect-ratio:612/792;box-sizing:border-box;display:none;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 14px 40px rgba(0,0,0,.22);opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;pointer-events:none;transition:opacity .18s,transform .22s cubic-bezier(.23,1,.32,1)}
+body.hm #rsp{display:block}
+#rsp.on{opacity:1;transform:none}
+#rsp canvas{display:none;width:100%;height:100%}
+#rsp.rdy canvas{display:block}
+#rsp span{position:absolute;inset:0;display:grid;place-items:center;font:300 10.5px/1 var(--mono);color:#6c685f}
+#rsp.rdy span{display:none}
+@media(hover:none){#rsp{display:none!important}}
+@media(prefers-reduced-motion:reduce){#rsp{transition-duration:.01s}}
 @media(max-width:767px){body.hm .sfg{background:color-mix(in srgb,var(--bg) 88%,transparent)}}
 @media(max-width:380px){#sf button{padding:0 9px}}
 @media(max-width:340px){#sf .sfl{display:none}#sf button{padding:0 8px}}
@@ -854,9 +864,25 @@ body.hm:not(.in) #hint{bottom:calc(env(safe-area-inset-bottom,0px) + 52px)}
 
 <div id="sf" role="group" aria-label="Surface"><svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="sf-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol><symbol id="sf-folders" viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol><symbol id="sf-canvas" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></symbol><symbol id="sf-letters" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="16" rx="2"/><path d="M3 8v8M21 8v8"/></symbol><symbol id="sf-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol></svg><div class="sfg"><span class="sfp"></span><button type="button" data-m="home" title="Home"><svg><use href="#sf-home"/></svg><span class="sfl"><span><b>home</b></span></span></button><button type="button" data-m="folders" title="Folders"><svg><use href="#sf-folders"/></svg><span class="sfl"><span><b>folders</b></span></span></button></div><div class="sfs off"><div class="sfw"><div class="sfg" role="group" aria-label="Folder views"><span class="sfp"></span><button type="button" data-m="canvas" title="Canvas"><svg><use href="#sf-canvas"/></svg><span class="sfl"><span><b>canvas</b></span></span></button><button type="button" data-m="letters" title="Letters"><svg><use href="#sf-letters"/></svg><span class="sfl"><span><b>letters</b></span></span></button><button type="button" data-m="list" title="List"><svg><use href="#sf-list"/></svg><span class="sfl"><span><b>list</b></span></span></button></div></div></div></div>
 <a id="rsm" href="https://raw.githubusercontent.com/ZACKGORT/zack/main/media/Zachary_Ryan_Gort-Product_Design-Resume-2026-.pdf" download="Zachary_Ryan_Gort-Product_Design-Resume-2026.pdf" target="_blank" rel="noopener" title="Download resume (PDF)" aria-label="Download resume (PDF)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg><span>resume</span></a>
-<script>/* the file lives on another origin, so the download attribute alone is ignored; fetch it and save the blob, fall back to opening it */
+<script>/* resume button: save the PDF (other origin, so fetch + blob) and show a live first-page preview on hover */
 (function(){var a=document.getElementById('rsm');if(!a)return;
-a.addEventListener('click',function(e){if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();
+var pv=document.createElement('div');pv.id='rsp';pv.setAttribute('aria-hidden','true');pv.innerHTML='<canvas></canvas><span>loading preview\u2026</span>';document.body.appendChild(pv);
+var cv=pv.firstChild,st='idle',tm=0,P='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+function lib(){return window.pdfjsLib?Promise.resolve():new Promise(function(ok,no){var s=document.createElement('script');s.src=P+'pdf.min.js';s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function load(){if(st!=='idle')return;st='load';
+var doc=fetch(a.href).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer()});
+var wk=fetch(P+'pdf.worker.min.js').then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(x){return URL.createObjectURL(new Blob([x],{type:'text/javascript'}))});
+Promise.all([doc,lib(),wk]).then(function(r){pdfjsLib.GlobalWorkerOptions.workerSrc=r[2];return pdfjsLib.getDocument({data:r[0]}).promise})
+.then(function(d){return d.getPage(1)})
+.then(function(pg){var v=pg.getViewport({scale:1}),w=300*Math.min(2,window.devicePixelRatio||1),vp=pg.getViewport({scale:w/v.width});cv.width=Math.round(vp.width);cv.height=Math.round(vp.height);return pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise})
+.then(function(){st='ok';pv.classList.add('rdy')}).catch(function(){st='err'})}
+function show(){clearTimeout(tm);load();tm=setTimeout(function(){if(st!=='err')pv.classList.add('on')},140)}
+function hide(){clearTimeout(tm);pv.classList.remove('on')}
+a.addEventListener('mouseenter',function(){if(matchMedia('(hover:hover)').matches)show()});
+a.addEventListener('focus',function(){try{if(a.matches(':focus-visible'))show()}catch(_){}});
+a.addEventListener('mouseleave',hide);a.addEventListener('blur',hide);
+addEventListener('keydown',function(e){if(e.key==='Escape')hide()});
+a.addEventListener('click',function(e){hide();if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();
 fetch(a.href).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){var u=URL.createObjectURL(new Blob([b],{type:'application/pdf'})),d=document.createElement('a');d.href=u;d.download=a.getAttribute('download');document.body.appendChild(d);d.click();d.remove();setTimeout(function(){URL.revokeObjectURL(u)},4000)}).catch(function(){window.open(a.href,'_blank','noopener')})})})();
 </script>
 <div id="lst" role="region" aria-label="List"><div class="lw"><div class="lq"><input id="lqi" type="search" placeholder="filter" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Filter list"><span id="lqc"></span></div><div id="lr"></div></div></div>
