@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>zack.cx.px</title>
 <meta name="description" content="zack.cx, — dab.cx and the lineage behind it: foundry, classic, neverever.land, intoview.pro, ifimaybefrank.com, emdash.click.">
 <link rel="icon" type="image/png" href="https://ifimaybefrank.com/favicon-96x96-dark.png" sizes="96x96">
@@ -42,7 +42,7 @@ html[data-theme="dark"]{
   --shadow:rgba(0,0,0,.5);
   --accent:#c96a4c;
 }
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webkit-font-smoothing:antialiased}
 *::-webkit-scrollbar{width:8px;height:8px}
 *::-webkit-scrollbar-track{background:transparent}
@@ -82,11 +82,6 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
   transition:background .2s ease;
 }
 .theme-toggle[aria-pressed="true"]{background:var(--ink)}
-@media(max-width:640px){
-  .focus-tab span{display:none}
-  .topbar{gap:10px;padding:0 12px}
-  .focus-tabs{max-width:48vw}
-}
 
 /* ── grid wrap ── */
 .grid-wrap{
@@ -136,6 +131,73 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
   position:fixed;bottom:14px;left:16px;z-index:50;
   font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:12px;
   color:var(--muted);opacity:.32;transition:opacity .2s ease;pointer-events:none;
+}
+
+/* ── touch shield + per-pane mode button (hidden on desktop) ── */
+.pane-shield{display:none}
+.pane-mode{
+  display:none;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+  background:var(--ink);color:var(--on-ink);border:none;border-radius:20px;padding:6px 12px;cursor:pointer;
+}
+
+/* ══ mobile: single-column swipe feed ══ */
+@media (max-width:720px){
+  :root{--bar-h:calc(52px + env(safe-area-inset-top,0px))}
+
+  .topbar{padding:env(safe-area-inset-top,0px) 12px 0;gap:10px}
+  .brand{font-size:15px}
+  .focus-tabs{flex:1;min-width:0;max-width:none;gap:6px;-webkit-overflow-scrolling:touch}
+  .focus-tab{min-width:38px;min-height:34px;padding:0 12px;font-size:11px}
+  .focus-tab span{display:none}
+  .topbar-right{gap:6px}
+  .chrome-link{padding:12px 6px}
+  .theme-toggle{position:relative;width:18px;height:18px;margin:0 4px}
+  .theme-toggle::after{content:"";position:absolute;inset:-14px}
+
+  /* the grid becomes a native vertical scroller */
+  .grid-wrap{
+    display:flex;flex-direction:column;gap:1px;
+    overflow-x:hidden;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;
+    scroll-snap-type:y proximity;touch-action:pan-y;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    transition:none;
+  }
+  .split{display:none}
+  .brand-mark{display:none}
+
+  /* each pane ≈ one screen, leaving a sliver of the next header as a swipe cue */
+  .pane{
+    flex:none;width:100%;
+    height:calc(100vh - var(--bar-h) - 44px);
+    height:calc(100dvh - var(--bar-h) - 44px);
+    min-height:320px;
+    scroll-snap-align:start;
+  }
+  .pane-head{height:42px;padding:0 6px 0 12px;touch-action:pan-y}
+  .pane-btn[data-focus]{display:none}
+  .pane-btn{padding:12px;margin:-2px}
+  .pane-actions{gap:2px}
+
+  /* iframes swallow touch gestures, so a transparent shield sits on top:
+     swipes scroll the page; a tap hands the touch over to that one iframe */
+  .pane-shield{
+    display:flex;position:absolute;inset:0;z-index:5;
+    align-items:flex-end;justify-content:flex-end;padding:12px;
+    touch-action:pan-y;cursor:pointer;-webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+  }
+  .pane-shield span{
+    pointer-events:none;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;
+    background:var(--ink);color:var(--on-ink);opacity:.82;border-radius:20px;padding:7px 12px;
+    box-shadow:0 2px 10px var(--shadow);
+  }
+  .pane-fallback{z-index:6}
+
+  .pane.interactive .pane-shield{display:none}
+  .pane.interactive .pane-mode{display:inline-flex;align-items:center}
+  .pane.interactive .pane-dot{background:var(--accent)}
+  .pane.interactive .pane-head{border-bottom-color:var(--accent)}
 }
 </style>
 </head>
@@ -193,6 +255,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
         <span class="pane-dot"></span>
         <span class="pane-label">${p.label}</span>
         <div class="pane-actions">
+          <button class="pane-mode" type="button" title="Back to page scrolling">Done</button>
           <button class="pane-btn" data-focus="${p.id}" title="Focus this pane">
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M1 4V1h3M10 4V1H7M1 7v3h3M10 7v3H7" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -203,6 +266,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
       </div>
       <div class="pane-frame-wrap">
         <iframe src="${p.url}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"></iframe>
+        <div class="pane-shield" role="button" tabindex="0" aria-label="Tap to interact with ${p.label}"><span>Tap to interact</span></div>
         <div class="pane-fallback"><p>This may not allow embedding.</p><a href="${p.url}" target="_blank" rel="noopener">open ${p.label} ↗</a></div>
       </div>`;
     wrap.appendChild(el);
@@ -226,6 +290,68 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
     hSplitters.push(s);
   }
 
+
+  // ── mobile: single-column feed behaviour ──
+  const mq = window.matchMedia('(max-width: 720px)');
+  const focusTabs = document.getElementById('focusTabs');
+  const paneEls = Array.from(wrap.querySelectorAll('.pane'));
+  let lockUntil = 0, currentId = null;
+
+  function clearInteractive(except){
+    paneEls.forEach(p => { if (p !== except) p.classList.remove('interactive'); });
+  }
+  function setActiveTab(id){
+    if (id === currentId) return;
+    currentId = id;
+    document.querySelectorAll('.focus-tab').forEach(t => {
+      const on = t.dataset.target === id;
+      t.classList.toggle('active', on);
+      if (on){
+        const c = focusTabs.getBoundingClientRect(), r = t.getBoundingClientRect();
+        focusTabs.scrollTo({ left: focusTabs.scrollLeft + (r.left - c.left) - (c.width - r.width) / 2, behavior: 'smooth' });
+      }
+    });
+  }
+  function scrollToPane(id){
+    const el = wrap.querySelector('.pane[data-id="' + id + '"]');
+    if (!el) return;
+    clearInteractive();
+    lockUntil = Date.now() + 700;
+    setActiveTab(id);
+    wrap.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+  }
+
+  paneEls.forEach(p => {
+    const shield = p.querySelector('.pane-shield');
+    const activate = () => { clearInteractive(p); p.classList.add('interactive'); };
+    shield.addEventListener('click', activate);
+    shield.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); activate(); } });
+    p.querySelector('.pane-mode').addEventListener('click', () => p.classList.remove('interactive'));
+  });
+
+  // an unlocked pane re-locks once it has mostly scrolled out of view
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.intersectionRatio < 0.3) en.target.classList.remove('interactive'); });
+  }, { root: wrap, threshold: [0, 0.3, 1] });
+  paneEls.forEach(p => io.observe(p));
+
+  // keep the top-bar tab in sync with the pane you're swiping through
+  let ticking = false;
+  wrap.addEventListener('scroll', () => {
+    if (!mq.matches || ticking || Date.now() < lockUntil) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const y = wrap.scrollTop + wrap.clientHeight * 0.35;
+      let cur = paneEls[0];
+      paneEls.forEach(p => { if (p.offsetTop <= y) cur = p; });
+      setActiveTab(cur.dataset.id);
+    });
+  }, { passive: true });
+
+  const onBreakpoint = () => { clearInteractive(); currentId = null; document.querySelectorAll('.focus-tab').forEach(t => t.classList.remove('active')); };
+  if (mq.addEventListener) mq.addEventListener('change', onBreakpoint); else mq.addListener(onBreakpoint);
+
   let cols = Array(NCOLS).fill(100 / NCOLS);
   let rows = Array(NROWS).fill(100 / NROWS);
 
@@ -247,6 +373,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
   function focusPane(id){
     const p = PANES.find(x => x.id === id);
     if (!p) return;
+    if (mq.matches){ scrollToPane(id); return; }
     const bigC = 58, restC = (100 - bigC) / (NCOLS - 1);
     const bigR = 68, restR = (100 - bigR) / (NROWS - 1);
     withAnimation(() => {
@@ -264,6 +391,14 @@ body{background:var(--bg);color:var(--ink);font-family:var(--chrome-font);-webki
     tab.addEventListener('click', () => focusPane(tab.dataset.target));
   });
   document.getElementById('resetBtn').addEventListener('click', () => {
+    if (mq.matches){
+      clearInteractive();
+      lockUntil = Date.now() + 700;
+      wrap.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelectorAll('.focus-tab').forEach(t => t.classList.remove('active'));
+      focusTabs.scrollTo({ left: 0, behavior: 'smooth' });
+      return;
+    }
     withAnimation(() => {
       cols = Array(NCOLS).fill(100 / NCOLS);
       rows = Array(NROWS).fill(100 / NROWS);
