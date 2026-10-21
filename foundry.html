@@ -244,39 +244,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--fg);overflow-x:hid
 ══════════════════════════════════════════ */
 #view-index{}
 
-/* Homepage hero — reuses .cs-hero-image (see case-study hero rules below).
-   Two stacked <img> layers crossfade between photos pulled from the same
-   pool as the Balance grid (window._gaPhotos), and both layers pan under
-   the cursor for a parallax effect. Each layer is overscaled slightly
-   (106%, centered via a matching -3% offset) so it can shift within the
-   frame without ever exposing an edge — driven by initHomeHeroParallax
-   (JS). Grayscale by default, full color on hover. Selector is
-   ID-qualified so it reliably wins over the later, more generic
-   .cs-hero-image img rule below. */
-#hero.home-hero{cursor:none}
-#hero.home-hero .hero-img-layer{
-  position:absolute;
-  inset:0;
-  width:106%;
-  height:106%;
-  max-width:none;
-  object-fit:cover;
-  object-position:center;
-  filter:grayscale(1) saturate(.92) contrast(1.02);
-  opacity:0;
-  transform:translate3d(-3%,-3%,0);
-  transition:opacity 1.2s ease, filter .5s ease;
-  will-change:transform,opacity;
-}
-#hero.home-hero .hero-img-layer.active{opacity:1}
-#hero.home-hero:hover .hero-img-layer{filter:grayscale(0) saturate(.92) contrast(1.02)}
-/* Same 1/2/3 focus scale as the case-study heroes (see .cs-hero-image img
-   rules below), set per-photo in JS from the [url, focus] pairs in
-   GA_PHOTOS. Wins over the base object-position:center above. */
-#hero.home-hero .hero-img-layer[data-focus="1"]{object-position:top}
-#hero.home-hero .hero-img-layer[data-focus="2"]{object-position:center}
-#hero.home-hero .hero-img-layer[data-focus="3"]{object-position:bottom}
-
 /* Work index grid */
 .testimonials{border-top:1px solid var(--rule);display:grid;grid-template-columns:1fr 1fr;gap:0}
 .testimonial{padding:40px 32px;border-right:1px solid var(--rule)}
@@ -2213,11 +2180,6 @@ body.light-mode .work-row-career:hover{background:rgba(0,0,0,.04)}
 <div id="view-index" class="view active">
     <h1 class="seo-text">I think. I make. I design — Zack G.</h1>
   <div class="page-body">
-    <section id="hero" class="cs-hero-image home-hero">
-      <img class="hero-img-layer" alt="" loading="eager">
-      <img class="hero-img-layer" alt="" loading="lazy">
-    </section>
-
     <div class="work-index">
 
       <div class="work-toolbar" id="work-toolbar">
@@ -7139,8 +7101,7 @@ function initAllNarrativeParticles(container) {
   ];
   const GA_CAPTIONS = ["…"];
 
-  // Exposed so the homepage hero (initHomeHeroParallax) can cycle through
-  // the same photo pool without duplicating this list.
+  // Exposed globally for any other module that needs the photo pool.
   window._gaPhotos = GA_PHOTOS;
 
   const GA_POOL = GA_PHOTOS.map((entry, i) => ({
@@ -7531,101 +7492,6 @@ function initAllNarrativeParticles(container) {
   btn.addEventListener('click', () => {
     (document.scrollingElement || document.documentElement).scrollTo({ top: 0, behavior: window._reduceMotion ? 'auto' : 'smooth' });
   });
-})();
-
-// ── HOMEPAGE HERO: PHOTO CYCLE + PARALLAX ────────────────────────────────────
-// The homepage hero reuses .cs-hero-image (same component the case studies
-// use) but pulls its photos from the same pool as the Balance grid
-// (window._gaPhotos, set by initGeneralAssembly above) instead of a single
-// static image, crossfading between two stacked <img> layers. Both layers
-// also pan under the cursor for a parallax effect. Respects reduced motion:
-// cycling and parallax both skip entirely, leaving a single static photo.
-(function initHomeHeroParallax() {
-  const heroEl = document.getElementById('hero');
-  const layers = heroEl ? Array.from(heroEl.querySelectorAll('.hero-img-layer')) : [];
-  if (!heroEl || layers.length < 2) return;
-
-  const FADE_HOLD_MS = 6500; // how long each photo holds before crossfading to the next
-
-  // Shuffle once per page load so the rotation order isn't identical every
-  // visit, and every photo in the pool gets shown once before any repeats.
-  const pool = (window._gaPhotos || []).slice();
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-
-  // Each pool entry is [url, focus] — focus (1=top,2=center,3=bottom) sits
-  // right next to its URL in the GA_PHOTOS source array above, so adjusting
-  // a photo's crop is a one-value edit in the same place you'd change the
-  // image itself. Applied to the layer as data-focus and resolved by the
-  // [data-focus] CSS rules alongside #hero.home-hero .hero-img-layer.
-  let idx = 0;
-  let activeLayer = 0;
-  if (pool.length) {
-    const img0 = layers[0];
-    const [url0, focus0] = pool[0];
-    img0.onload = () => { img0.classList.add('active'); };
-    img0.dataset.focus = focus0 ?? 2;
-    img0.src = url0;
-  }
-
-  function showNext() {
-    if (pool.length < 2) return;
-    idx = (idx + 1) % pool.length;
-    const nextLayer = 1 - activeLayer;
-    const img = layers[nextLayer];
-    const [url, focus] = pool[idx];
-    img.onload = () => {
-      layers[activeLayer].classList.remove('active');
-      img.classList.add('active');
-      activeLayer = nextLayer;
-    };
-    img.dataset.focus = focus ?? 2;
-    img.src = url;
-  }
-
-  if (pool.length > 1 && !window._reduceMotion) {
-    setInterval(showNext, FADE_HOLD_MS);
-  }
-
-  if (window._reduceMotion) return;
-
-  const RANGE = 12; // max px each layer shifts in either direction
-  const EASE  = 0.08;
-  let tx = 0, ty = 0, cx = 0, cy = 0, raf = null;
-
-  function render() {
-    raf = null;
-    cx += (tx - cx) * EASE;
-    cy += (ty - cy) * EASE;
-    const t = `translate3d(calc(-3% + ${cx.toFixed(2)}px), calc(-3% + ${cy.toFixed(2)}px), 0)`;
-    layers.forEach(img => { img.style.transform = t; });
-    if (Math.abs(tx - cx) > 0.05 || Math.abs(ty - cy) > 0.05) {
-      raf = requestAnimationFrame(render);
-    }
-  }
-
-  function onMove(e) {
-    const r = heroEl.getBoundingClientRect();
-    const px = (e.clientX - r.left) / r.width;   // 0..1
-    const py = (e.clientY - r.top)  / r.height;  // 0..1
-    tx = (0.5 - px) * 2 * RANGE;
-    ty = (0.5 - py) * 2 * RANGE;
-    if (!raf) raf = requestAnimationFrame(render);
-  }
-
-  function onLeave() {
-    tx = 0; ty = 0;
-    if (!raf) raf = requestAnimationFrame(render);
-  }
-
-  heroEl.addEventListener('mousemove', onMove);
-  heroEl.addEventListener('mouseleave', onLeave);
-  heroEl.addEventListener('touchmove', e => {
-    if (!e.touches || !e.touches[0]) return;
-    onMove(e.touches[0]);
-  }, { passive: true });
 })();
 
 // ── HASH BOOT (lets this file jump straight to a specific page via
