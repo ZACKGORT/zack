@@ -219,6 +219,26 @@ body.editing .sg-dock{opacity:0;visibility:hidden;pointer-events:none;transition
 .slosh-gauge[data-held='true'] .slosh-gauge__marker{opacity:1}
 @media (prefers-reduced-motion:reduce){#wTune{animation:none!important}.rd,.hl,.st,.pv,.blk,.sbar,.fbar,.sg-dock,.slosh-gauge__marker{transition-duration:.01s!important;transition-delay:0s!important;animation:none!important}}
 #wTune{width:268px}
+/* glyph widget: click to insert at the caret (when a line is open) and copy */
+#wGlyph{width:268px;animation:wIn .18s ease}
+#wGlyph.closed{display:none}
+#wGlyph>button{display:none}
+#wGlyph .gz{padding:10px 12px 12px;border-bottom:1px solid var(--line)}
+#wGlyph .gz:last-child{border-bottom:0}
+#wGlyph .gl{font:500 10px/1 Satoshi,system-ui,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+#wGlyph .gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:2px}
+#wGlyph .gg button{all:unset;box-sizing:border-box;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--fg);cursor:pointer;font:400 18px/1 Satoshi,system-ui,'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols','Noto Sans Symbols 2',sans-serif;transition:background .15s,color .15s}
+#wGlyph .gg button:hover{background:var(--chip)}
+#wGlyph .gg button:focus-visible{outline:2px solid var(--fg);outline-offset:-2px}
+#wGlyph .gg button.ok{background:var(--fg);color:var(--bg)}
+#wGlyph .gg.big button{font-size:20px}
+@media (pointer:coarse){#wGlyph .gg button{height:40px}}
+.gtoast{position:fixed;z-index:80;left:50%;bottom:calc(66px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;background:var(--fg);color:var(--bg);font:500 13px/1 Satoshi,system-ui,sans-serif;opacity:0;visibility:hidden;pointer-events:none;white-space:nowrap;transition:opacity .16s ease,transform .16s ease,visibility 0s .16s}
+.gtoast.on{opacity:1;visibility:visible;transform:translate(-50%,0);transition:opacity .16s ease,transform .16s ease}
+.gtoast b{font:400 16px/1 Satoshi,system-ui,'Segoe UI Symbol','Apple Symbols','Noto Sans Symbols 2',sans-serif}
+.gsw{position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.gtoast{transition-duration:.01s!important}}
+@media (prefers-reduced-motion:reduce){#wGlyph{animation:none!important}#wGlyph .gg button{transition-duration:.01s!important}}
 .rz{position:fixed;z-index:40;left:0;top:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--muted);background:var(--panel);border:1px solid var(--line);cursor:nwse-resize;touch-action:none;user-select:none;-webkit-user-select:none;opacity:0;visibility:hidden;transition:opacity .15s ease,color .15s,border-color .15s,visibility 0s .15s}
 .rz.on{opacity:1;visibility:visible;transition:opacity .15s ease,color .15s,border-color .15s}
 .rz:hover,.rz.drag{color:var(--fg);border-color:var(--muted)}
@@ -365,6 +385,7 @@ body.editing .sg-dock{opacity:0;visibility:hidden;pointer-events:none;transition
     <div class="vt" id="vt" role="group" aria-label="View mode, all sections">
       <button type="button" data-v="brutal" aria-pressed="false" aria-label="brutal view" title="Brutal: every section as one continuous string"><span class="f">brutal</span><span class="s">b</span></button><i aria-hidden="true">:</i><button type="button" data-v="human" aria-pressed="true" aria-label="human view" title="Human: the lines as written"><span class="f">human</span><span class="s">h</span></button><i aria-hidden="true">:</i><button type="button" data-v="machine" aria-pressed="false" aria-label="machine view" title="Machine: the same lines as a file tree"><span class="f">machine</span><span class="s">m</span></button>
     </div>
+    <div class="tool-btn" id="glyphBtn" role="button" tabindex="0" aria-label="Glyphs" aria-expanded="false" aria-controls="wGlyph" title="Glyphs: click to insert and copy"><span aria-hidden="true" style="display:block;width:16px;height:16px;font:500 16px/16px Satoshi,system-ui,sans-serif;text-align:center">&para;</span></div>
     <div class="tool-btn" id="toolBtn" role="button" tabindex="0" aria-label="Writing controls" aria-expanded="false" aria-controls="wTune" title="Controls">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </div>
@@ -381,6 +402,9 @@ body.editing .sg-dock{opacity:0;visibility:hidden;pointer-events:none;transition
   <section class="w closed" id="wTune">
     <div id="msg">click any line to write · drag the corner handle to resize a line · ⌘Z undo · ⌘B ⌘I ⌘U · ⌘E highlights · ⌘K links · ⌘⇧&lt; ⌘⇧&gt; line size · right-click for the menu · esc to read</div>
     <div class="body" id="tune"></div>
+  </section>
+  <section class="w closed" id="wGlyph" aria-label="Glyphs">
+    <div class="body" id="glyphs"></div>
   </section>
 </div>
 
@@ -404,6 +428,8 @@ body.editing .sg-dock{opacity:0;visibility:hidden;pointer-events:none;transition
     <button type="button" data-f="x" aria-label="Cancel" style="font-size:18px">×</button>
   </div>
 </div>
+<div class="gtoast" id="gtoast" role="status" aria-live="polite"></div>
+<label class="gsw" aria-hidden="true"><input type="checkbox" switch id="gsw" tabindex="-1"></label>
 <div class="sg-dock" id="sgDock"></div>
 
 <script>
@@ -1037,6 +1063,31 @@ root.style.setProperty('--fs',fsScale(S.fs));
   function tog(){var c=w.classList.toggle('closed');b.setAttribute('aria-expanded',String(!c));var x=w.querySelector(':scope>button');if(x)x.setAttribute('aria-expanded',String(!c))}
   b.addEventListener('click',tog);
   b.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();tog()}});
+})();
+/* glyph widget: click inserts at the caret of the open line (and always copies) */
+(function(){var b=$('glyphBtn'),w=$('wGlyph'),host=$('glyphs');
+  var G=[['Writing','big','\u2014 \u2013 \u2026 \uD81B\uDE6D \u0192'],
+    ['Dots','','\u2022 \u25E6 \u25D8 \u204C \u204D \u2043'],
+    ['Squares & diamonds','','\u25AA \u25AB \u25FC \u25FB \u25C6 \u25C7 \u25C8'],
+    ['Triangles & arrows','','\u2023 \u25B8 \u2794 \u279C \u27A2'],
+    ['Stars, flowers & checks','','\u2605 \u2606 \u2726 \u2713 \u2714 \u273F']];
+  var NM={'\u2014':'Em dash','\u2013':'En dash','\u2026':'Ellipsis','\uD81B\uDE6D':'Medefaidrin glyph','\u0192':'Florin (f)','\u2022':'Bullet','\u25E6':'White bullet','\u25D8':'Inverse bullet','\u204C':'Fishtail bullet','\u204D':'Reversed fishtail bullet','\u2043':'Hyphen bullet','\u25AA':'Black small square','\u25AB':'White small square','\u25FC':'Black medium square','\u25FB':'White medium square','\u25C6':'Black diamond','\u25C7':'White diamond','\u25C8':'Diamond with dot','\u2023':'Triangular bullet','\u25B8':'Right pointer','\u2794':'Right arrow','\u279C':'Heavy right arrow','\u27A2':'Three-D top-lighted righthead','\u2605':'Black star','\u2606':'White star','\u2726':'Four-teardrop spoked asterisk','\u2713':'Check mark','\u2714':'Heavy check mark','\u273F':'Florette'};
+  host.innerHTML=G.map(function(g){return'<div class="gz"><p class="gl">'+g[0].replace(/&/g,'&amp;')+'</p><div class="gg '+g[1]+'">'+g[2].split(' ').map(function(c){return'<button type="button" data-g="'+c+'" title="'+(NM[c]||c)+'" aria-label="'+(NM[c]||c)+'">'+c+'</button>'}).join('')+'</div></div>'}).join('');
+  function tog(){var c=w.classList.toggle('closed');b.setAttribute('aria-expanded',String(!c))}
+  b.addEventListener('click',tog);
+  b.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();tog()}});
+  /* keep the open line focused while a glyph is clicked */
+  w.addEventListener('mousedown',function(e){if(e.target.closest('button'))e.preventDefault()});
+  function copy(c){try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(c).catch(function(){legacy(c)})}catch(e){}legacy(c)}
+  function legacy(c){var a=document.activeElement,t=document.createElement('textarea');t.value=c;t.setAttribute('readonly','');t.style.cssText='position:fixed;top:0;left:0;opacity:0';document.body.appendChild(t);t.select();try{document.execCommand('copy')}catch(e){}t.remove();if(a&&a.focus)a.focus({preventScroll:true})}
+  /* haptics: Vibration API where it exists (Android); iOS 17.4+ Safari ticks when a checkbox switch is toggled */
+  var gsw=$('gsw'),tt,tel=$('gtoast');
+  function haptic(){try{if(navigator.vibrate){navigator.vibrate(12);return}}catch(e){}try{if(gsw&&gsw.parentNode)gsw.parentNode.click()}catch(e){}}
+  function toast(m,c){tel.innerHTML='<b></b><span></span>';tel.firstChild.textContent=c;tel.lastChild.textContent=m;tel.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){tel.classList.remove('on')},1100)}
+  host.addEventListener('click',function(e){var bt=e.target.closest('button[data-g]');if(!bt)return;var c=bt.dataset.g,t=document.activeElement;
+    if(t&&t.tagName==='TEXTAREA'&&wrap.contains(t)){t.setRangeText(c,t.selectionStart,t.selectionEnd,'end');t.dispatchEvent(new Event('input',{bubbles:true}))}
+    var did=t&&t.tagName==='TEXTAREA'&&wrap.contains(t);
+    copy(c);haptic();toast(did?'inserted \u00b7 copied':'copied',c);bt.classList.add('ok');setTimeout(function(){bt.classList.remove('ok')},600)});
 })();
 /* page scroll indicator */
 (function(){var bar=$('sbar'),th=bar.firstElementChild,ft,tk=false,H=0,Y=0,show=false;
