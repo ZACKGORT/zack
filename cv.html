@@ -1217,7 +1217,7 @@ function fmtKeys(t){
 function stmtNodes(js){var n=0,out=[];js.forEach(function(j){var t=B[j].t;n++;
   var kids=[],links=[],re=new RegExp(AL.source,'g'),m;
   while((m=re.exec(t))){var u=m[2]||(m[3]?(/^www\./.test(m[3])?'https://'+m[3]:m[3]):'mailto:'+m[4]);links.push({n:'link',kv:1,d:m[1]||m[3]||m[4],href:u})}
-  fmtKeys(t).forEach(function(x){if(!links.some(function(l){return l.d===x.d}))kids.push({n:x.f.indexOf('g')>-1?'ghost':'key',kv:1,d:x.d,f:x.f})});
+  fmtKeys(t).forEach(function(x){if(!links.some(function(l){return l.d===x.d}))kids.push({n:x.f.indexOf('g')>-1?'ghost':'key',nl:1,kv:1,d:x.d,f:x.f})});
   out.push({n:'s'+(n<10?'0':'')+n,ns:1,kv:1,h:1,k:kids.concat(links),o:1,key:'s:'+j,
     g:function(){return B[j].t},s:function(v){B[j].t=v;blkSync(j)},
     ops:{peer:function(){B.splice(j+1,0,{k:'p',t:''});mvGo('s:'+(j+1),0)},
@@ -1296,7 +1296,7 @@ function tbuild(items,ul){items.forEach(function(it){
   var li=mel('li'),fold=!!(it.k&&it.k.length),row=mel('div','tr'+(it.kv?' kv':'')+(fold?' fo':'')),tx=mel('span','tx'),vw=mel('span','mvv'),cs,ds,nm;
   li.setAttribute('role','treeitem');if(it.key)li.dataset.nk=it.key;
   if(fold){cs=mel('button','cs');cs.type='button';cs.setAttribute('aria-label','Toggle '+it.n);cs.innerHTML=CARET}else{cs=mel('span','cs');cs.setAttribute('aria-hidden','true')}
-  if(it.kv||it.ns){nm=mel('span','nm');nm.textContent=it.n;tx.appendChild(nm);
+  if(it.kv||it.ns){nm=mel('span','nm');nm.textContent=it.nl?'':it.n;tx.appendChild(nm);
     if(it.g)vw.appendChild(mvView(it,it.g()));
     else{var fl=it.f||'';ds=mel('span','ds'+((it.hl||fl.indexOf('h')>-1)?' hl':'')+(fl.indexOf('g')>-1?' gh':''));
       if(it.href){var a=mel('a');a.href=it.href;if(!/^mailto:/.test(it.href)){a.target='_blank';a.rel='noopener noreferrer'}a.textContent=it.d;ds.appendChild(a)}
@@ -1360,7 +1360,7 @@ function txPlain(t){t=t.replace(/''(.+?)''/g,'$1');return t.replace(/!embed\(([^
 function txTree(nodes,pre,d,out){nodes.forEach(function(it,x){
   var end=x===nodes.length-1,kids=it.k&&it.k.length,
     val=it.g?txPlain(it.g()):(it.d||'')+(it.href&&it.href!==it.d&&!/^mailto:/.test(it.href)?' ('+it.href+')':''),
-    lab=(it.kv||it.ns)?it.n+': '+val:it.n+(kids?'/':'')+(val?'  '+val:'');
+    lab=it.nl?val:(it.kv||it.ns)?it.n+': '+val:it.n+(kids?'/':'')+(val?'  '+val:'');
   out.push({t:pre+(d?(end?'\u2514\u2500\u2500 ':'\u251c\u2500\u2500 '):'')+lab,d:d});
   if(kids)txTree(it.k,pre+(d?(end?'    ':'\u2502   '):''),d+1,out)})}
 function txUnits(){var U=[],s=-1,m=B.map(function(b){if(b.k==='sec')s++;return b.k==='sig'?-1:s}),
@@ -1438,7 +1438,7 @@ function dxRaw(t){return t.replace(/''(.+?)''/g,'$1').replace(/!embed\(([^)\s]*)
 function dxItems(){var I=[],s=-1,m=B.map(function(b){if(b.k==='sec')s++;return b.k==='sig'?-1:s});
   function tree(nodes,d){nodes.forEach(function(it){var kids=it.k&&it.k.length,kv=it.kv||it.ns,
       val=it.g?txPlain(it.g()):(it.d||'')+(it.href&&it.href!==it.d&&!/^mailto:/.test(it.href)?' ('+it.href+')':'');
-    I.push({k:'li',n:it.n+(!kv&&kids?'/':''),v:val,sep:kv?': ':'  ',d:d});
+    I.push({k:'li',n:it.nl?'':it.n+(!kv&&kids?'/':''),v:val,sep:it.nl?'':kv?': ':'  ',d:d});
     if(kids)tree(it.k,d+1)})}
   B.forEach(function(b,i){
     if(b.k==='sec'){var v=effView(i),mem=[];B.forEach(function(_,j){if(j!==i&&m[j]===m[i])mem.push(j)});
