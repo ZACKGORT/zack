@@ -69,7 +69,15 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:Satoshi,system-ui
 .sig{margin-top:56px}
 .rd{font-family:var(--f-p,Satoshi,system-ui,sans-serif);font-weight:var(--w-p,400);font-size:calc(clamp(20px,2.6vw,22px)*var(--z-p,1)*var(--fs,1)*var(--bz,1));line-height:var(--l-p,1.6);letter-spacing:var(--s-p,0em);margin:0 0 1.5em;opacity:var(--inactive);filter:blur(var(--blur));transition:opacity .8s ease,filter .8s ease,color .3s;color:var(--c-p, var(--fg))}
 .rd.in{opacity:1;filter:blur(0)}
-.hl{background-image:linear-gradient(var(--hl),var(--hl));background-repeat:no-repeat;background-size:var(--s0);background-position:var(--pos);border-radius:3px;padding:0 3px;margin:0 -3px;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-size var(--hdur) ease var(--hdelay)}
+/* ---- conversation (human view): paren depth = speaker. 1 left, 2 right, 3 left+indent, 4 right+indent... ---- */
+.blk[data-sp]{--sp-step:2.4em;margin-bottom:.9em}
+.blk[data-sp] .vw{width:fit-content;max-width:min(86%,34em);box-sizing:border-box;padding:.45em .95em;border:1px solid transparent;border-radius:1.15em;background:var(--chip)}
+.blk[data-sd=l] .vw{margin-left:calc(var(--sl,0)*var(--sp-step));margin-right:auto;border-bottom-left-radius:.35em}
+.blk[data-sd=r] .vw{margin-left:auto;margin-right:calc(var(--sl,0)*var(--sp-step));background:transparent;border-color:var(--line);border-bottom-right-radius:.35em}
+.blk[data-nm]::before{content:attr(data-nm);display:block;margin:.5em 0 .3em;padding:0 calc(.95em + 1px);font:500 11px/1.2 ui-monospace,'SF Mono',Menlo,Consolas,monospace;color:var(--muted)}
+.blk[data-nm][data-sd=l]::before{margin-left:calc(var(--sl,0)*var(--sp-step))}
+.blk[data-nm][data-sd=r]::before{text-align:right;margin-right:calc(var(--sl,0)*var(--sp-step))}
+.hl{background-image:linear-gradient(var(--hl),var(--hl));background-repeat:no-repeat;background-size:var(--s0);background-position:var(--pos);border-radius:3px;padding:0 3px;margin:0 -3px 0 0;-webkit-box-decoration-break:clone;box-decoration-break:clone;transition:background-size var(--hdur) ease var(--hdelay)}
 .rd.in .hl,.blk:not(.rd) .hl,.w-on .rd .hl{background-size:var(--s1)}
 /* writing: the paragraph you're in is sharp, the rest soften */
 .w-on .rd:not(.ef){opacity:var(--inactive);filter:blur(var(--blur))}
@@ -690,15 +698,35 @@ fwResize.addEventListener('pointerup', function(e) {
 });
 
 /* ---------- render ---------- */
+/* conversation: "(a)" "((b))" "(((c)))" — opening-paren depth = speaker. Whole statement only, quotes required.
+   optional name group right before the text group: "(Steve Krug)((text))". A name binds to that depth and sticks until renamed. */
+var SPK=/^\s*["\u201c](\(+)([\s\S]*)["\u201d]\s*$/;
+var SPN=/^\s*["\u201c]\(+([^()]+)\)+(\(+)([\s\S]*)["\u201d]\s*$/;
+function spk(t){t=t||'';var nm='',n,x,k=0,m=SPN.exec(t);
+  if(m){nm=m[1].trim();n=m[2].length;x=m[3]}
+  else{m=SPK.exec(t);if(!m)return null;n=m[1].length;x=m[2]}
+  while(k<n&&x.slice(-1)===')'){x=x.slice(0,-1);k++}
+  x=x.trim();return k&&x?{n:n,t:x,nm:nm}:null}
+function inkB(b){var q=b.k==='p'?spk(b.t):null;return ink(q?q.t:b.t)}
+function spSet(d,b){var q=b.k==='p'?spk(b.t):null;
+  if(q){d.dataset.sp=q.n;d.dataset.sd=q.n%2?'l':'r';d.style.setProperty('--sl',Math.floor((q.n-1)/2))}
+  else{delete d.dataset.sp;delete d.dataset.sd;d.style.removeProperty('--sl')}}
+function spNames(){var nm={},prev=null;
+  B.forEach(function(b,i){var d=els[i],q=b.k==='p'?spk(b.t):null;if(!d)return;
+    if(!q){prev=null;delete d.dataset.nm;return}
+    if(q.nm)nm[q.n]=q.nm;
+    var n=nm[q.n]||'';
+    if(n&&!(prev&&prev.n===q.n&&prev.nm===n))d.dataset.nm=n;else delete d.dataset.nm;
+    prev={n:q.n,nm:n}})}
 function mk(i){
   var b=B[i],d=document.createElement('div'),v=document.createElement('div'),e=document.createElement('div'),t=document.createElement('textarea');
   d.className='blk '+(b.k==='p'?'rd':b.k);d.dataset.i=i;if(b.z)d.style.setProperty('--bz',b.z);
   
-  v.className='vw';v.dataset.ph=PH[b.k];v.tabIndex=0;v.innerHTML=ink(b.t);
+  v.className='vw';v.dataset.ph=PH[b.k];v.tabIndex=0;v.innerHTML=inkB(b);spSet(d,b);
   e.className='ed';e.dataset.v=b.t;t.rows=1;t.value=b.t;t.placeholder=PH[b.k];t.setAttribute('aria-label',b.k==='p'?'paragraph':b.k);
   e.appendChild(t);d.appendChild(v);d.appendChild(e);if(b.k==='sec')d.appendChild(stg());return d}
-function render(){els=B.map(function(_,i){return mk(i)});doc.replaceChildren.apply(doc,els);observe();hq();rzPlace();secSync()}
-function drop(i){hq();els[i].remove();els.splice(i,1);B.splice(i,1);els.forEach(function(d,j){d.dataset.i=j})}
+function render(){els=B.map(function(_,i){return mk(i)});doc.replaceChildren.apply(doc,els);observe();hq();rzPlace();spNames();secSync()}
+function drop(i){hq();els[i].remove();els.splice(i,1);B.splice(i,1);els.forEach(function(d,j){d.dataset.i=j});spNames()}
 var io;
 function observe(){if(io)io.disconnect();
   io=new IntersectionObserver(function(es){es.forEach(function(e){
@@ -751,7 +779,7 @@ wrap.addEventListener('focusout',function(e){var t=e.target;if(t.tagName!=='TEXT
     if(!d.isConnected||document.activeElement===t)return;
     d.classList.remove('ef');
     var i=els.indexOf(d),b=B[i];if(!b)return;
-    d.querySelector('.vw').innerHTML=ink(b.t);
+    d.querySelector('.vw').innerHTML=inkB(b);spSet(d,b);spNames();
     if(b.k==='p'&&!b.t.trim()&&B.filter(function(x){return x.k==='p'}).length>1&&!fbar.contains(document.activeElement))drop(i);
     
     if(!wrap.querySelector('textarea:focus')){
@@ -1227,7 +1255,7 @@ var SG=function(j){return B[j].t.split(' | ')},
   setCH=function(j,c){B[j].t=c.h+' '+c.a.join(' \u2192 ')};
 function viaSet(t,nm){if(/via\s+[^()]*\)\s*$/i.test(t))return t.replace(/(via\s+)[^()]*(\)\s*)$/i,function(m,a,b){return a+nm+b});
   return /\)\s*$/.test(t)?t.replace(/\)\s*$/,', via '+nm+')'):t+' (via '+nm+')'}
-function blkSync(j){var d=els[j];if(!d)return;var t=d.querySelector('textarea');d.querySelector('.vw').innerHTML=ink(B[j].t);if(t&&t.value!==B[j].t)t.value=B[j].t;d.querySelector('.ed').dataset.v=B[j].t}
+function blkSync(j){var d=els[j];if(!d)return;var t=d.querySelector('textarea');d.querySelector('.vw').innerHTML=inkB(B[j]);spSet(d,B[j]);spNames();if(t&&t.value!==B[j].t)t.value=B[j].t;d.querySelector('.ed').dataset.v=B[j].t}
 
 /* "Company · Title · dates | …" + "… Selected Client & Project Work: A (role) → B (via A) → …"  →  role folders with clients.
    Every node it returns carries a key, a getter/setter onto its raw text, and structural ops (ops) that rewrite the source line. */
