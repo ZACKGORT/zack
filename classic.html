@@ -212,6 +212,10 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 /* tighter bottom: contact hugs its content, footer sits right under it */
 #contact{min-height:0;padding-top:20vh;padding-bottom:0}
 .ft{margin-top:clamp(2rem,8vh,5rem)}
+/* ---------- cursor hotspots: direction label (text only, fades in near the top/bottom edges) ---------- */
+.dir{position:fixed;left:0;top:0;z-index:61;display:flex;align-items:center;gap:.5rem;font-size:12px;line-height:1.4;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;color:#fff;mix-blend-mode:difference;opacity:0;pointer-events:none;transition:opacity .1s;will-change:transform,opacity}
+.dir em{font-style:normal;opacity:.6}
+@media(hover:none){.dir{display:none!important}}
 </style>
 <script>{let t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='dark')document.documentElement.dataset.theme='light'}</script>
 </head>
@@ -388,6 +392,39 @@ else if(k==='0'){e.preventDefault();go(document.documentElement.scrollHeight)}
 else if(k==='Escape'){if(!cm.hidden)closeCm();else go(0)}
 else if(k==='t'||k==='T'){e.preventDefault();toggleTheme()}
   else if(k===' '){if(t.closest&&t.closest('a,button,[role=button]'))return;e.preventDefault();step(e.shiftKey?-1:1)}});
+/* ---------- cursor hotspots: near the top/bottom edge, click = previous/next stop; label fades in with proximity ---------- */
+if(FINE){const AXIS='y',/* 'y' = top/bottom edges, 'x' = left/right edges */
+BLOCK='a,button,input,textarea,select,iframe,[role=button],[role=menuitem],[contenteditable],.tip,.sup,.sk,.wg,.hud,.cm,.nt,#thm,#rsm,#rsp',
+AR=AXIS==='y'?['↑','↓']:['←','→'];
+const dr=document.createElement('div');dr.className='dir';dr.setAttribute('aria-hidden','true');dr.innerHTML='<b></b><span></span><em></em>';document.body.append(dr);
+const [ar,tx,ds]=dr.children;let px=-1,py=-1,af=0,vis=false,key='',cy=-1,cd=0,ch=0,ca=null,skip=false;
+const aim=d=>{const ys=STOPS.map(yOf),y=scrollY;let i=-1;ys.forEach((v,j)=>{if(v<=y+8)i=j});
+const j=d>0?(i+1<ys.length?i+1:-1):(i>=0&&y>ys[i]+24?i:i>0?i-1:-1);
+return{y:d>0?(j>=0?ys[j]:document.documentElement.scrollHeight):(j>=0?ys[j]:0),id:j>=0?STOPS[j].id:null}};
+const aimC=d=>{if(cy!==scrollY||cd!==d||ch!==innerHeight){cy=scrollY;cd=d;ch=innerHeight;ca=aim(d)}return ca};
+/* edge zone under the cursor: direction + 0..1 proximity (1 = right at the edge), or null */
+const zone=()=>{if(px<0)return null;const L=AXIS==='y'?innerHeight:innerWidth,p=AXIS==='y'?py:px,d=p<L/2?-1:1,e=clamp(L*.16,72,160),dist=d<0?p:L-p;return dist<e?{d,a:1-dist/e}:null};
+const hideD=()=>{if(vis){vis=false;dr.style.opacity=0}};
+function upd(){af=0;const z=zone();if(!z||z.a<.05){hideD();return}
+const el=document.elementFromPoint(px,py),d=z.d,mx=document.documentElement.scrollHeight-innerHeight;
+if(!el||el.closest(BLOCK)||(d<0&&scrollY<=8)||(d>0&&scrollY>=mx-8)){hideD();return}
+const id=aimC(d).id,name=id?(NT[id]?NT[id][0]:'Details'):(d>0?'Bottom':'Top'),k=d+'|'+name;
+if(k!==key){key=k;ar.textContent=AR[d>0?1:0];tx.textContent=d>0?'Next':'Previous';ds.textContent=name}
+const w=dr.offsetWidth,h=dr.offsetHeight;let x=px+18,y=py+18;if(x+w>innerWidth-8)x=px-18-w;if(y+h>innerHeight-8)y=py-18-h;
+dr.style.transform=`translate3d(${Math.max(8,x)}px,${Math.max(8,y)}px,0)`;dr.style.opacity=Math.min(1,z.a*2);vis=true}
+const q=()=>{if(!af)af=requestAnimationFrame(upd)};
+addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;px=e.clientX;py=e.clientY;q()},{passive:true});
+addEventListener('scroll',()=>{if(px>=0)q()},{passive:true});
+addEventListener('resize',q);
+addEventListener('blur',()=>{px=py=-1;q()});
+document.addEventListener('pointerout',e=>{if(!e.relatedTarget){px=py=-1;q()}});
+addEventListener('pointerdown',()=>{skip=!cm.hidden},true);
+document.addEventListener('click',e=>{if(e.defaultPrevented||e.button||e.detail===0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+if(skip){skip=false;return}
+const el=e.target;if(!el.closest||el.closest(BLOCK)||getSelection().toString())return;
+px=e.clientX;py=e.clientY;const z=zone();if(!z||!vis)return;const d=z.d;
+if(!RM)ar.animate([{transform:'none'},{transform:`translate${AXIS.toUpperCase()}(${d>0?5:-5}px)`},{transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.9,.3,1)'});
+go(aim(d).y)})}
 /* ---------- right-click section index ---------- */
 const LB=['About','Skills','Work','#design','#agencylife','Product','Ecommerce','Contact'];
 const cm=document.createElement('div');cm.className='cm';cm.setAttribute('role','menu');cm.setAttribute('aria-label','Section index');cm.hidden=true;document.body.append(cm);
