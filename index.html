@@ -162,6 +162,12 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 .nt button{all:unset;display:inline-block;margin-top:.6rem;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--pink);cursor:pointer;border-bottom:1px solid currentColor}
 .nt button:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
 .nt:not(.it){right:auto;left:var(--pad)}
+.nt.au{right:auto;bottom:auto;top:calc(var(--pad) + 2.5rem);left:50%;width:min(280px,calc(100vw - 2*var(--pad)));padding-bottom:calc(.75rem + 2px);transform:translate(-50%,-8px)}
+.nt.au.on{transform:translateX(-50%)}
+.nt.au .row{display:flex;align-items:center;gap:1.1rem}.nt.au .row button{margin-top:.6rem}
+.nt.au .pg{position:absolute;left:0;right:0;bottom:0;height:2px;background:color-mix(in srgb,var(--alt) 30%,transparent);overflow:hidden;pointer-events:none}
+.nt.au .pg::after{content:"";position:absolute;inset:0;background:var(--pink);transform:scaleX(var(--p,0));transform-origin:0 50%}
+:root[data-theme=light] .nt.au .pg::after{background:#d6455f}
 .hud{position:fixed;right:var(--pad);bottom:var(--pad);z-index:44;width:196px;padding:.5rem .75rem .6rem;background:rgba(14,13,14,.72);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);opacity:0;transform:translateY(8px);transition:opacity .3s,transform .4s cubic-bezier(.2,.9,.3,1)}
 .hud.on{opacity:1;transform:none}.hud[hidden]{display:none}
 .hh{display:flex;justify-content:space-between;align-items:center;padding-bottom:.4rem;cursor:grab;touch-action:none;user-select:none}
@@ -278,7 +284,7 @@ const U='https://i.ibb.co/';
 /* ---------- content ---------- */
 const D={
 tags:[['#About','#about'],['#Work','#work','end'],['#Product','#fintech','end'],['#Ecommerce','#ecommerce','end'],['#Connect','#contact','end']],
-links:[['zack.cx/px','https://zack.cx/px'],['zack.cx/bny','https://zack.cx/bny'],['zack.cx/cv','https://zack.cx/cv']],
+links:[['zack.cx','https://zack.cx'],['zack.cx/bny','https://zack.cx/bny'],['zack.cx/cv','https://zack.cx/cv']],
 copy:["I think. I make. I think about design and data as systems. I think about business requirements and better ways to build. I think about form and function.","I make things too. I've made websites for people to find money. I've made websites for people to spend money. I've made websites for people to invest money.","Now, as for design, I design those experiences :)"],
 tipUser:"user is kind of implied, no?",
 tipAI:"I found a gsap library that intrigued me, read the documentation, decided I saw a potential fit for the type of story I wished to tell, stripped the demo down, rebuilt it in JS for efficiency, added ad hoc functionality + features, included idiosyncratic interactive 'easter eggs', and splashed on some visual fluff for good measure.",
@@ -573,6 +579,18 @@ document.addEventListener('pointerout',e=>{if(!e.relatedTarget){px=py=-1e4;kick(
 b.addEventListener('focus',kick);b.addEventListener('blur',kick);addEventListener('resize',kick);addEventListener('scroll',kick,{passive:true});kick()}}
 /* ---------- idle nudge, key HUD ---------- */
 const au=new Audio('https://www.myinstants.com/media/sounds/french-meme-song.mp3');au.preload='none';
+/* sound byte toast: mute / cancel + a thin play-progress line */
+const aut=document.createElement('div');aut.className='nt au';aut.setAttribute('role','status');aut.setAttribute('aria-live','polite');
+aut.innerHTML='<span class="k">\u266a playing</span><p>acknowledged.</p><div class="row"><button type="button" data-m>mute</button><button type="button" data-x>cancel</button></div><i class="pg" aria-hidden="true"></i>';document.body.append(aut);
+const aM=aut.querySelector('[data-m]'),aX=aut.querySelector('[data-x]');let aRaf=0,aHide=0;
+const aLab=()=>{aM.textContent=au.muted?'unmute':'mute'};
+const aProg=()=>{aRaf=0;const d=au.duration;aut.style.setProperty('--p',(isFinite(d)&&d>0?clamp(au.currentTime/d,0,1):0).toFixed(4));if(!au.paused&&!au.ended)aRaf=requestAnimationFrame(aProg)};
+const aShow=()=>{clearTimeout(aHide);aLab();aut.classList.add('on');cancelAnimationFrame(aRaf);aProg()};
+const aOff=()=>{clearTimeout(aHide);aut.classList.remove('on');cancelAnimationFrame(aRaf);aRaf=0};
+const aStop=()=>{au.pause();au.currentTime=0;aOff()};
+aM.addEventListener('click',()=>{au.muted=!au.muted;aLab()});aX.addEventListener('click',aStop);
+au.addEventListener('playing',()=>{cancelAnimationFrame(aRaf);aProg()});au.addEventListener('durationchange',aProg);
+au.addEventListener('ended',()=>{aut.style.setProperty('--p',1);aHide=setTimeout(aOff,700)});au.addEventListener('error',aOff);
 const it=document.createElement('div');it.className='nt it';it.setAttribute('role','status');it.setAttribute('aria-live','polite');it.innerHTML='<p>uhm, please scroll?</p><button type="button">acknowledge</button>';document.body.append(it);
 let idleTm=0,scrolled=false;
 let peeking=false,pAbort=false;
@@ -580,7 +598,7 @@ const arm=()=>{clearTimeout(idleTm);if(!scrolled)idleTm=setTimeout(()=>{it.class
 function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scrollTo({top:Math.round(innerHeight*.18),behavior:'smooth'});setTimeout(()=>{if(!pAbort)scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{peeking=false;chk()},700)},1300)}
 ['wheel','touchstart','keydown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true}));
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
-it.querySelector('button').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;au.play().catch(()=>{});pAbort=true;step(1);arm()});
+it.querySelector('button').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;aShow();au.play().catch(aOff);pAbort=true;step(1);arm()});
 const hud=document.createElement('div');hud.className='hud';hud.hidden=true;hud.setAttribute('role','group');hud.setAttribute('aria-label','Key commands');
 const rows=[...TREE.map(([l,id,sub],i)=>[String(i+1),String(i+1),l,id,sub]),['Space','Space','Next'],['Shift+Space','⇧ Space','Back'],['Escape','Esc','Top'],['0','0','Bottom'],['t','T','Theme']];
 hud.innerHTML=`<div class="hh"><span class="k">Keys</span><button type="button" aria-label="Close key commands">×</button></div><ul>${rows.map(([k,d,l,id,sub])=>`<li data-k="${k}"${id?` data-s="${id}"`:''}${sub?' class="grp" aria-expanded="false"':''}><kbd>${d}</kbd><span>${l}</span></li>`+(sub?sub.map(([sl,sid])=>`<li class="sub" hidden data-k="${sid}" data-s="${sid}" data-id="${sid}" data-g="${k}"><kbd></kbd><span>${sl}</span></li>`).join(''):'')).join('')}</ul>`;document.body.append(hud);hud.querySelectorAll('li').forEach(li=>{li.tabIndex=0;li.setAttribute('role','button');const fire=()=>{if(li.dataset.id){go(yOf($('#'+li.dataset.id)));return}const k=li.dataset.k,sh=k==='Shift+Space';dispatchEvent(new KeyboardEvent('keydown',{key:k==='Space'||sh?' ':k,shiftKey:sh,bubbles:true,cancelable:true}))};li.addEventListener('mousedown',e=>e.preventDefault());li.addEventListener('click',fire);li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();fire()}})});
