@@ -159,7 +159,7 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 .nt button{all:unset;display:inline-block;margin-top:.6rem;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--pink);cursor:pointer;border-bottom:1px solid currentColor}
 .nt button:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
 .nt:not(.it){right:auto;left:var(--pad)}
-.hud{position:fixed;right:var(--pad);bottom:var(--pad);z-index:44;width:188px;padding:.5rem .75rem .6rem;background:rgba(14,13,14,.72);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);opacity:0;transform:translateY(8px);transition:opacity .3s,transform .4s cubic-bezier(.2,.9,.3,1)}
+.hud{position:fixed;right:var(--pad);bottom:var(--pad);z-index:44;width:196px;padding:.5rem .75rem .6rem;background:rgba(14,13,14,.72);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);opacity:0;transform:translateY(8px);transition:opacity .3s,transform .4s cubic-bezier(.2,.9,.3,1)}
 .hud.on{opacity:1;transform:none}.hud[hidden]{display:none}
 .hh{display:flex;justify-content:space-between;align-items:center;padding-bottom:.4rem;cursor:grab;touch-action:none;user-select:none}
 .hh:active{cursor:grabbing}
@@ -167,12 +167,13 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 .hh button:hover,.hh button:focus-visible{color:var(--pink)}
 .hud ul{list-style:none;margin:0;padding:0}
 .hud li{display:flex;gap:.6rem;padding:1px .25rem;font-size:12px;line-height:1.5;letter-spacing:.06em;text-transform:uppercase;color:var(--alt);transition:background .12s,color .12s}
-.hud kbd{min-width:4.6em;font:inherit;color:#fff}
+.hud kbd{min-width:5.2em;font:inherit;color:#fff}
 .hud li.hot{background:var(--pink);color:#0e0d0e}.hud li.hot kbd{color:inherit}
 @media(hover:none){.hud{display:none!important}}
 .hud li.nudge{color:var(--pink);animation:nd 1s ease-in-out infinite}
-.hud li.nudge kbd{color:var(--pink);font-size:0}
-.hud li.nudge kbd::after{content:"Spacebar";font-size:12px}
+.hud li.nudge kbd{color:var(--pink)}
+.hud li[data-k=Space].nudge kbd{font-size:0}
+.hud li[data-k=Space].nudge kbd::after{content:"Spacebar";font-size:12px}
 @keyframes nd{50%{opacity:.4}}
 @media(prefers-reduced-motion:reduce){.hud li.nudge{animation:none}}
 </style>
@@ -344,12 +345,11 @@ go(d>0?(i+1<ys.length?ys[i+1]:document.documentElement.scrollHeight):(i>=0&&y>ys
 let solo=false;
 addEventListener('pointerdown',()=>{solo=false});addEventListener('blur',()=>{solo=false});
 addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const t=e.target;if(t.closest&&t.closest('input,textarea,select,[contenteditable]'))return;
-if(e.key==='Shift'){solo=!e.repeat;return}solo=false;const k=e.key;
+if(e.key==='Shift')return;const k=e.key;
 if(/^[1-8]$/.test(k)){e.preventDefault();go(yOf($('#'+KEYS[k-1])))}
 else if(k==='0'){e.preventDefault();go(document.documentElement.scrollHeight)}
 else if(k==='Escape'){if(!cm.hidden)closeCm();else go(0)}
 else if(k===' '){if(t.closest&&t.closest('a,button,[role=button]'))return;e.preventDefault();step(e.shiftKey?-1:1)}});
-addEventListener('keyup',e=>{if(e.key==='Shift'&&solo){solo=false;step(-1)}});
 /* ---------- right-click section index ---------- */
 const LB=['About','Skills','Work','#design','#agencylife','Product','Ecommerce','Contact'];
 const cm=document.createElement('div');cm.className='cm';cm.setAttribute('role','menu');cm.setAttribute('aria-label','Section index');cm.hidden=true;document.body.append(cm);
@@ -365,15 +365,18 @@ addEventListener('pointerdown',e=>{if(!cm.hidden&&!cm.contains(e.target))closeCm
 const au=new Audio('https://www.myinstants.com/media/sounds/faaah.mp3');au.preload='none';
 const it=document.createElement('div');it.className='nt it';it.setAttribute('role','status');it.setAttribute('aria-live','polite');it.innerHTML='<p>uhm, please scroll?</p><button type="button">acknowledge</button>';document.body.append(it);
 let idleTm=0,scrolled=false;
-const arm=()=>{clearTimeout(idleTm);if(!scrolled)idleTm=setTimeout(()=>it.classList.add('on'),12000)};
+let peeking=false,pAbort=false;
+const arm=()=>{clearTimeout(idleTm);if(!scrolled)idleTm=setTimeout(()=>{it.classList.add('on');peek()},7000)};
+function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scrollTo({top:Math.round(innerHeight*.18),behavior:'smooth'});setTimeout(()=>{if(!pAbort)scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{peeking=false;chk()},700)},1300)}
+['wheel','touchstart','keydown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true}));
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
 it.querySelector('button').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;au.play().catch(()=>{});arm()});
 const hud=document.createElement('div');hud.className='hud';hud.hidden=true;hud.setAttribute('role','group');hud.setAttribute('aria-label','Key commands');
-const rows=[...LB.map((l,i)=>[String(i+1),String(i+1),l]),['Space','Space','Next'],['Shift','Shift','Back'],['Escape','Esc','Top'],['0','0','Bottom']];
+const rows=[...LB.map((l,i)=>[String(i+1),String(i+1),l]),['Space','Space','Next'],['Shift+Space','⇧ Space','Back'],['Escape','Esc','Top'],['0','0','Bottom']];
 hud.innerHTML=`<div class="hh"><span class="k">Keys</span><button type="button" aria-label="Close key commands">×</button></div><ul>${rows.map(([k,d,l])=>`<li data-k="${k}"><kbd>${d}</kbd><span>${l}</span></li>`).join('')}</ul>`;document.body.append(hud);
 let hudOff=false,hudOn=false;
 const showHud=()=>{if(hudOn||hudOff||matchMedia('(hover:none)').matches)return;hudOn=true;hud.hidden=false;requestAnimationFrame(()=>hud.classList.add('on'))};
-const chk=()=>{if(!scrolled&&scrollY>10){scrolled=true;clearTimeout(idleTm);it.classList.remove('on');showHud()}};
+const chk=()=>{if(peeking||scrolled||scrollY<=10)return;scrolled=true;clearTimeout(idleTm);it.classList.remove('on');const l=hud.querySelector('[data-k=Space]');l&&l.classList.remove('nudge')};
 addEventListener('scroll',chk,{passive:true});chk();arm();
 hud.querySelector('button').addEventListener('click',()=>{hudOff=true;hud.classList.remove('on');setTimeout(()=>{hud.hidden=true},300)});
 const hh=hud.firstChild;let dg=null;
@@ -381,11 +384,12 @@ hh.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;const
 hh.addEventListener('pointermove',e=>{if(dg){hud.style.left=clamp(e.clientX-dg.x,0,innerWidth-hud.offsetWidth)+'px';hud.style.top=clamp(e.clientY-dg.y,0,innerHeight-hud.offsetHeight)+'px'}});
 ['pointerup','pointercancel'].forEach(n=>hh.addEventListener(n,()=>{dg=null}));
 addEventListener('resize',()=>{if(hud.style.top){const r=hud.getBoundingClientRect();hud.style.left=clamp(r.left,0,innerWidth-r.width)+'px';hud.style.top=clamp(r.top,0,innerHeight-r.height)+'px'}});
-function nudgeSpace(){if(!hudOn||hudOff)return;const l=hot(' ');if(!l)return;l.classList.add('nudge');clearTimeout(l._n);l._n=setTimeout(()=>l.classList.remove('nudge'),3200)}
-const hot=k=>[...hud.querySelectorAll('li')].find(l=>l.dataset.k===(k===' '?'Space':k));
-addEventListener('keydown',e=>{const l=hot(e.key);if(!l)return;l.classList.add('hot');clearTimeout(l._t);l._t=setTimeout(()=>l.classList.remove('hot'),400)});
-addEventListener('keyup',e=>{const l=hot(e.key);if(l){clearTimeout(l._t);setTimeout(()=>l.classList.remove('hot'),120)}});
+function nudgeSpace(sticky){if(!hudOn||hudOff)return;[hot('Space'),scrolled&&hot('Shift+Space')].forEach(l=>{if(!l)return;l.classList.add('nudge');clearTimeout(l._n);if(!sticky)l._n=setTimeout(()=>l.classList.remove('nudge'),3200)})}
+const hot=k=>[...hud.querySelectorAll('li')].find(l=>l.dataset.k===k),kn=e=>e.key===' '?(e.shiftKey?'Shift+Space':'Space'):e.key;
+addEventListener('keydown',e=>{const l=hot(kn(e));if(!l)return;l.classList.add('hot');clearTimeout(l._t);l._t=setTimeout(()=>l.classList.remove('hot'),400)});
+addEventListener('keyup',e=>{hud.querySelectorAll('.hot').forEach(l=>{if(l.dataset.k===kn(e)||e.key===' '){clearTimeout(l._t);setTimeout(()=>l.classList.remove('hot'),120)}})});
 addEventListener('blur',()=>hud.querySelectorAll('.hot').forEach(l=>l.classList.remove('hot')));
+showHud();nudgeSpace(true);
 })();
 </script>
 <script>/* resume button: save the .docx (other origin, so fetch + blob) and show a live first-page preview on hover (docx-preview, loaded on first hover) */
