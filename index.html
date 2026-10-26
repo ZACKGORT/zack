@@ -318,6 +318,17 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 .vh a:hover,.vh a:focus-visible{color:var(--pink)}.vh a:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
 :root[data-theme=light] .vh a:hover,:root[data-theme=light] .vh a:focus-visible{color:#d6455f}
 @media(prefers-reduced-motion:reduce){.rd .ac-p,.rd .ac-c,.vw,.vc{transition:none}}
+/* ---------- key HUD: collapses into a key icon, lower right ---------- */
+.hud{transform-origin:100% 100%}
+.hud.cl{opacity:0;transform:scale(.12)}
+.hk{all:unset;box-sizing:border-box;position:fixed;right:var(--pad);bottom:var(--pad);z-index:44;width:34px;height:34px;display:grid;place-items:center;background:rgba(14,13,14,.72);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:var(--alt);cursor:pointer;opacity:0;transform:scale(.5);pointer-events:none;transition:opacity .25s .12s,transform .4s .08s cubic-bezier(.2,.9,.3,1),color .18s}
+.hk.on{opacity:1;transform:none;pointer-events:auto}
+.hk svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.hk:hover,.hk:focus-visible{color:var(--pink)}.hk:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+:root[data-theme=light] .hk{background:rgba(255,255,255,.78);box-shadow:0 8px 24px rgba(14,13,14,.12)}
+:root[data-theme=light] .hk:hover,:root[data-theme=light] .hk:focus-visible{color:#d6455f}
+@media(hover:none){.hk{display:none!important}}
+@media(prefers-reduced-motion:reduce){.hk{transition:none}}
 </style>
 <script>{let t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='dark')document.documentElement.dataset.theme='light'}</script>
 </head>
@@ -701,7 +712,11 @@ let hudOff=false,hudOn=false;
 const showHud=()=>{if(hudOn||hudOff||matchMedia('(hover:none)').matches)return;hudOn=true;hud.hidden=false;cSync();requestAnimationFrame(()=>hud.classList.add('on'))};
 const chk=()=>{if(peeking||scrolled||scrollY<=10)return;scrolled=true;clearTimeout(idleTm);it.classList.remove('on');const l=hud.querySelector('[data-k=Space]');l&&l.classList.remove('nudge')};
 addEventListener('scroll',chk,{passive:true});chk();arm();
-hud.querySelector('button').addEventListener('click',()=>{hudOff=true;hud.classList.remove('on');setTimeout(()=>{hud.hidden=true},300)});
+/* collapse: the HUD shrinks into a key icon in the lower right; click the icon to bring it back */
+const hk=document.createElement('button');hk.className='hk';hk.type='button';hk.title='Key commands';hk.setAttribute('aria-label','Show key commands');hk.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="16" r="4"/><path d="M11 13l9-9M16 8l3 3M13.5 10.5l2 2"/></svg>';document.body.append(hk);let hudTm=0;
+const hudClose=()=>{const h=hud.getBoundingClientRect(),k=hk.getBoundingClientRect();hud.style.transformOrigin=(k.left+k.width/2-h.left)+'px '+(k.top+k.height/2-h.top)+'px';hudOff=true;hud.classList.remove('on');hud.classList.add('cl');hk.classList.add('on');clearTimeout(hudTm);hudTm=setTimeout(()=>{hud.hidden=true},420);hk.focus({preventScroll:true})};
+const hudOpen=()=>{if(!hudOff)return;clearTimeout(hudTm);hudOff=false;hud.hidden=false;hk.classList.remove('on');void hud.offsetWidth;hud.classList.remove('cl');hud.classList.add('on');cSync();hud.querySelector('.hh button').focus({preventScroll:true})};
+hud.querySelector('button').addEventListener('click',hudClose);hk.addEventListener('click',hudOpen);
 const hh=hud.firstChild;let dg=null;
 hh.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;const r=hud.getBoundingClientRect();dg={x:e.clientX-r.left,y:e.clientY-r.top};hh.setPointerCapture(e.pointerId);hud.style.left=r.left+'px';hud.style.top=r.top+'px';hud.style.bottom=hud.style.right='auto'});
 hh.addEventListener('pointermove',e=>{if(dg){hud.style.left=clamp(e.clientX-dg.x,0,innerWidth-hud.offsetWidth)+'px';hud.style.top=clamp(e.clientY-dg.y,0,innerHeight-hud.offsetHeight)+'px'}});
