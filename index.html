@@ -406,7 +406,7 @@ const tile=(p,a)=>`<div class="t"><img src="${U+p}" alt="${a}" loading="lazy" de
 const stage=(id,mode,cl,rw,d,head,tiles,x='')=>`<section class="stg" id="${id}" data-mode="${mode}" style="--cl:${cl};--rw:${rw};--d:${d}"><div class="stk">${head?`<h2 class="hd">${head}</h2>`:''}<div class="g ${x}">${tiles}</div></div></section>`;
 const tiles=(a,l)=>a.map((p,i)=>tile(p,`${l} ${i+1}`)).join('');
 const proc=(id,P)=>`<section class="sec proc rv" id="${id}"><div class="intro"><dl><div><dt class="k">Client</dt><dd>${P.client}</dd></div><div><dt class="k">Agency</dt><dd>${P.agency}</dd></div></dl><h2 class="big">${P.title}</h2><div class="role"><span class="k">Role</span>${P.role.map(r=>`<p>${r}</p>`).join('')}</div></div><div class="cards">${P.details.map(([l,t])=>`<article class="card"><span class="k">${l}</span><p>${t}</p></article>`).join('')}</div></section>`;
-const ins=(id,P)=>`<section class="sec ins rv${P.embed?' hw':''}" id="${id}"><span class="k">${P.ins[0]}</span><p class="big2">${P.ins[1]}</p><p class="aside">${P.aside}</p>${P.embed?`<div class="embed"><div class="ew"><div class="eb" title="drag to pull it free · double-click to re-dock"><span class="eg"></span><span class="el">${P.embed.replace(/^https?:\/\/(www\.)?/,'')}</span><a class="eo" href="${P.embed}" target="_blank" rel="noopener" aria-label="Open in new tab">↗</a><button class="ed" type="button" aria-label="Dock widget" hidden>dock</button></div><div class="ev" title="click to interact"><iframe src="${P.embed}" title="${P.client} case study" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe></div><span class="eh" role="presentation" hidden></span></div></div>`:''}</section>`;
+const ins=(id,P)=>`<section class="sec ins rv${P.embed?' hw':''}" id="${id}"><span class="k">${P.ins[0]}</span><p class="big2">${P.ins[1]}</p><p class="aside">${P.aside}</p>${P.embed?`<div class="embed"><div class="ew"><div class="eb" title="drag to pull it free · double-click for full scale"><span class="eg"></span><span class="el">${P.embed.replace(/^https?:\/\/(www\.)?/,'')}</span><a class="eo" href="${P.embed}" target="_blank" rel="noopener" aria-label="Open in new tab">↗</a><button class="ed" type="button" aria-label="Dock widget" hidden>dock</button></div><div class="ev" title="click to interact"><iframe src="${P.embed}" title="${P.client} case study" loading="lazy" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="no-referrer"></iframe></div><span class="eh" role="presentation" hidden></span></div></div>`:''}</section>`;
 const stack=(id,a)=>`<section class="stack" id="${id}">${a.map(([p,t])=>`<figure class="fig rv"><img src="${U+p}" alt="${t}" loading="lazy" decoding="async"></figure>`).join('')}</section>`;
 const cards=D.cards.map(([t,h,g])=>`<div class="t cd"><a href="${h}"${ext(h)}${h[0]=='#'?' data-settle="end"':''}>${t}</a><span class="gl" aria-hidden="true">${g}</span></div>`);
 const wt=D.work.map((p,i)=>tile(p,`Selected work ${i+1}`));
@@ -596,13 +596,13 @@ const W=$('.ew',slot),bar=$('.eb',W),ev=$('.ev',W),hnd=$('.eh',W),dk=$('.ed',W);
 const BAR=24,R=.625,VW=1280,PULL=56,K=.3,MAG=90,MINW=260,CAP=1400,M=8,can=()=>innerWidth>768;
 const fit=()=>{const w=ev.clientWidth;if(!w)return;const s=w/VW;ev.style.setProperty('--s',s);ev.style.setProperty('--h',Math.ceil(ev.clientHeight/s))};
 new ResizeObserver(fit).observe(ev);fit();
-let mode='docked',x=0,y=0,w=0,tx=0,ty=0,tw=0,fw=0,raf=0,last=0,g=null,rz=null,near=false,pull={x:0,y:0},ptr={x:0,y:0},off={x:0,y:0};
+let full=false,pre=null,mode='docked',x=0,y=0,w=0,tx=0,ty=0,tw=0,fw=0,raf=0,last=0,g=null,rz=null,near=false,pull={x:0,y:0},ptr={x:0,y:0},off={x:0,y:0};
 const home=()=>{const r=slot.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width}};
 const th=w=>w*R+BAR,paint=()=>{W.style.left=x+'px';W.style.top=y+'px';W.style.width=w+'px';W.style.height=th(w)+'px'};
 const fitXY=(px,py,pw)=>[clamp(px,M,Math.max(M,innerWidth-pw-M)),clamp(py,M,Math.max(M,innerHeight-th(pw)-M))];
 const detach=()=>{const r=W.getBoundingClientRect();x=r.left;y=r.top;w=r.width;W.classList.add('fl');paint();slot.classList.add('away');dk.hidden=hnd.hidden=false;if(!wgs.includes(W))wgs.push(W);raise(W)};
 const attach=()=>{mode='docked';near=false;W.classList.remove('fl','drag','live');W.removeAttribute('style');slot.classList.remove('away','near');dk.hidden=hnd.hidden=true;const i=wgs.indexOf(W);if(i>-1){wgs.splice(i,1);wgZ()}};
-const tick=t=>{raf=0;const dt=Math.min(.05,(t-last)/1000)||.016;last=t;
+const tick=t=>{raf=0;if(mode==='docked'||mode==='arm')return;const dt=Math.min(.05,(t-last)/1000)||.016;last=t;
  const k=RM?1:1-Math.exp(-dt*(mode==='drag'?16:mode==='home'?13:20)),h=home();
  if(mode==='pull'){tx=h.x+pull.x*K;ty=h.y+pull.y*K;tw=h.w}
  else if(mode==='home'){tx=h.x;ty=h.y;tw=h.w}
@@ -618,40 +618,52 @@ const tick=t=>{raf=0;const dt=Math.min(.05,(t-last)/1000)||.016;last=t;
 const kick=()=>{if(!raf){raf=requestAnimationFrame(tick)}};
 /* pull from the dock: elastic resistance, then release into free movement */
 bar.addEventListener('pointerdown',e=>{if(e.button!==0||!can()||e.target.closest('a,button'))return;e.preventDefault();
- g={id:e.pointerId,px:e.clientX,py:e.clientY};ptr={x:e.clientX,y:e.clientY};
+ g={id:e.pointerId,px:e.clientX,py:e.clientY,moved:false};ptr={x:e.clientX,y:e.clientY};
  try{bar.setPointerCapture(e.pointerId)}catch(_){}
  W.classList.remove('live');
  if(mode==='docked'){mode='arm';return}
  mode='drag';fw=w;off={x:e.clientX-x,y:e.clientY-y};W.classList.add('drag');raise(W);last=performance.now();kick()});
 bar.addEventListener('pointermove',e=>{if(!g||e.pointerId!==g.id)return;ptr={x:e.clientX,y:e.clientY};
+ if(!g.moved&&Math.hypot(ptr.x-g.px,ptr.y-g.py)>=3){g.moved=true;if(mode==='drag'){full=false;pre=null}}
  if(mode==='arm'){if(Math.hypot(ptr.x-g.px,ptr.y-g.py)<3)return;detach();mode='pull';pull={x:0,y:0};tx=x;ty=y;tw=w;W.classList.add('drag');raise(W);last=performance.now()}
  if(mode==='pull'){pull={x:ptr.x-g.px,y:ptr.y-g.py};
   if(Math.hypot(pull.x,pull.y)>=PULL){const h=home();mode='drag';fw=h.w;off={x:g.px-h.x,y:g.py-h.y}}}
  kick()});
-const end=e=>{if(!g||e.pointerId!==g.id)return;g=null;try{bar.releasePointerCapture(e.pointerId)}catch(_){}W.classList.remove('drag');
+const end=e=>{if(!g||e.pointerId!==g.id)return;const mv=g.moved;g=null;try{bar.releasePointerCapture(e.pointerId)}catch(_){}W.classList.remove('drag');
  if(mode==='arm')mode='docked';
  else if(mode==='pull')mode='home';
- else if(mode==='drag'){mode=near?'home':'free'}
+ else if(mode==='drag'){mode=mv&&near?'home':'free'}
  slot.classList.remove('near');kick()};
 bar.addEventListener('pointerup',end);bar.addEventListener('pointercancel',end);
 /* scale from the corner (aspect locked to the 1280x800 viewport) */
 hnd.addEventListener('pointerdown',e=>{if(e.button!==0||mode!=='free')return;e.preventDefault();e.stopPropagation();
- rz={id:e.pointerId,px:e.clientX,py:e.clientY,w:fw};try{hnd.setPointerCapture(e.pointerId)}catch(_){}W.classList.add('drag');raise(W);last=performance.now();kick()});
+ full=false;rz={id:e.pointerId,px:e.clientX,py:e.clientY,w:fw};try{hnd.setPointerCapture(e.pointerId)}catch(_){}W.classList.add('drag');raise(W);last=performance.now();kick()});
 hnd.addEventListener('pointermove',e=>{if(!rz||e.pointerId!==rz.id)return;const d=((e.clientX-rz.px)+(e.clientY-rz.py)/R)/2;
  fw=clamp(rz.w+d,MINW,Math.max(MINW,Math.min(CAP,innerWidth-2*M)));kick()});
 const endRz=e=>{if(!rz||e.pointerId!==rz.id)return;rz=null;try{hnd.releasePointerCapture(e.pointerId)}catch(_){}W.classList.remove('drag')};
 hnd.addEventListener('pointerup',endRz);hnd.addEventListener('pointercancel',endRz);
 /* send it home: scroll its slot into view, then lerp back */
-const dock=()=>{if(mode!=='free'&&mode!=='drag')return;const r=slot.getBoundingClientRect();
+const dock=()=>{if(mode!=='free'&&mode!=='drag')return;full=false;pre=null;const r=slot.getBoundingClientRect();
  if(r.top<0||r.bottom>innerHeight)slot.scrollIntoView({block:'center',behavior:RM?'auto':'smooth'});
  mode='home';last=performance.now();kick()};
 dk.addEventListener('click',dock);
-bar.addEventListener('dblclick',e=>{if(!e.target.closest('a,button'))dock()});
+/* double-click the header: bring it to full scale (1:1 desktop viewport, as large as the screen allows); again to put it back */
+const goFull=()=>{const w1=Math.max(MINW,Math.min(VW+2,innerWidth-2*M,(innerHeight-2*M-BAR)/R));
+ fw=w1;tx=(innerWidth-w1)/2;ty=(innerHeight-th(w1))/2;full=true};
+const toggleFull=()=>{
+ if(full){full=false;const p=pre;pre=null;
+  if(!p||p.docked){mode='free';dock();return}
+  tx=p.x;ty=p.y;fw=p.w;mode='free';last=performance.now();kick();return}
+ if(mode==='docked'){detach();pre={docked:true}}
+ else pre={x:tx,y:ty,w:fw};
+ mode='free';goFull();raise(W);last=performance.now();kick()};
+bar.addEventListener('dblclick',e=>{if(can()&&!e.target.closest('a,button'))toggleFull()});
+addEventListener('keydown',e=>{if(e.key==='Escape'&&full)toggleFull()});
 /* the page keeps scrolling unless you click in to interact */
 ev.addEventListener('click',()=>W.classList.add('live'));
 W.addEventListener('pointerleave',()=>{if(!g&&!rz)W.classList.remove('live')});
 W.addEventListener('pointerdown',()=>{if(mode!=='docked')raise(W)},true);
-addEventListener('resize',()=>{if(mode==='free'){fw=clamp(fw,MINW,Math.max(MINW,Math.min(CAP,innerWidth-2*M)));kick()}if(!can()&&mode!=='docked'){mode='home';kick()}});
+addEventListener('resize',()=>{if(full){goFull();kick()}else if(mode==='free'){fw=clamp(fw,MINW,Math.max(MINW,Math.min(CAP,innerWidth-2*M)));kick()}if(!can()&&mode!=='docked'){mode='home';kick()}});
 });
 function openWg(href,label){let w=wgs.find(x=>x._h===href);if(w){raise(w);return}
 const W=Math.round(clamp(innerWidth*.42,360,640)),n=wgN++%6;
