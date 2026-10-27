@@ -352,6 +352,24 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 :root[data-theme=light] .hk:hover,:root[data-theme=light] .hk:focus-visible{color:#d6455f}
 @media(hover:none){.hk{display:none!important}}
 @media(prefers-reduced-motion:reduce){.hk{transition:none}}
+
+/* nav cards: one movable card per header link (about / work / product / ecommerce / connect / resume) */
+.tc.nc{width:min(380px,calc(100vw - 2*var(--pad)))}
+.nc .tc-line{font-size:26px;margin-bottom:12px}
+.nc .tc-note{font:300 14px/1.6 var(--sans);color:var(--alt);text-wrap:pretty;margin-bottom:14px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.nc .tc-ph{margin-bottom:16px}
+.nc .tc-ph img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);background:color-mix(in srgb,var(--ink) 5%,var(--bg))}
+.nc .tc-frame.tall{aspect-ratio:4/5}
+.nc .tc-frame.tall iframe{width:900px;height:1125px}
+.nc figcaption{margin-top:10px;font-size:13px;line-height:1.55;text-wrap:pretty}
+.nc .tc-links{margin-bottom:14px}
+.tc-jump{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:var(--pink);color:#0e0d0e;font:500 12px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.tc-jump::after{content:"";flex:none;width:7px;height:7px;margin-right:3px;border:solid currentColor;border-width:0 1.4px 1.4px 0;transform:translateY(-2px) rotate(45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.tc-jump:hover,.tc-jump:focus-visible{background:transparent;color:var(--pink);box-shadow:inset 0 0 0 1px var(--pink)}
+.tc-jump:hover::after,.tc-jump:focus-visible::after{transform:translateY(1px) rotate(45deg)}
+.tc-jump:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+:root[data-theme=light] .tc-jump:hover,:root[data-theme=light] .tc-jump:focus-visible{color:#d6455f;box-shadow:inset 0 0 0 1px #d6455f}
+@media(prefers-reduced-motion:reduce){.tc-jump::after{transition:none}}
 </style>
 <script>{let t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='dark')document.documentElement.dataset.theme='light'}</script>
 </head>
@@ -775,6 +793,62 @@ trig.addEventListener('click',()=>{if(card.classList.contains('on')&&!ps.some(p=
 /* view all: collapse the card, then fill the screen */
 all.addEventListener('click',()=>{set(false);setTimeout(()=>openVw(D.rd.items,trig),140)})}
 }}
+/* ---------- nav cards: every header link opens a movable card (caption, live preview or photo, jump button). Shift/Cmd/Ctrl-click still jumps straight there; touch screens keep direct jumps ---------- */
+{const SITE='https://zack.cx/',HIDE='.tc,.hud,.hk,.nt,.dir,.nav,.pbl,.gc,#thm,#rsm,#rsp{display:none!important}';
+const N={
+about:{line:'author’s note:',photo:'gLY9FQsD/ramen.webp',alt:'Zack Gort',
+ paras:['Hi, I’m Zack. Left-handed, self-taught, and still curious about how things fit together.','I think about design and data as systems, I write to find out what I actually think, and then I make the thing. Mostly that’s meant websites where people find money, spend money, or invest it. This page is the long-hand version, so poke around.'],
+ jump:['#about','About']},
+work:{line:'Work.',frame:{src:SITE+'px'},
+ cap:'Selected work across TikTok for Business, BNY Melon and GNC. Candidly, these tiles are the highlight reel; the case studies further down hold the thinking and the trade-offs.',
+ jump:['#work','Work',1]},
+fintech:{line:'Product.',frame:{src:SITE+'bny'},
+ cap:'BNY Melon, Pershing X. I led IA and flows on Wove, an advisor platform that folds many disconnected legacy tools into one dashboard. Candidly: 2023–24, no AI in the loop, just a great deal of hand-mapping.',
+ jump:['#fintech','Product',1]},
+ecommerce:{line:'Ecommerce.',frame:{src:SITE+'gnc'},
+ cap:'GNC, via Elva Design Group. A 12-week, ground-up Shopify rebuild after bankruptcy: mobile-first navigation, retail taxonomy, a modular design system. Candidly, it was a team win; I led the UX, IA and design-system side.',
+ jump:['#ecommerce','Ecommerce',1]},
+contact:{line:'Connect.',
+ paras:['If a creative team is hiring, LinkedIn is the quickest way to reach me. A short note and a real role is plenty.'],
+ links:true,jump:['#contact','Connect']},
+resume:{line:'Résumé.',frame:{src:SITE+'cv',tall:true},
+ cap:'The straight version: roles, tools and outcomes, minus the confetti. Read it here, <a href="'+SITE+'cv" target="_blank" rel="noopener noreferrer">open it in a tab</a>, or download the .docx.',
+ dl:true}};
+const KEY={'#about':'about','#work':'work','#fintech':'fintech','#ecommerce':'ecommerce','#contact':'contact'};
+const body=c=>cardChrome+
+ (c.photo?`<figure class="tc-ph"><img src="${U+c.photo}" alt="${c.alt}" loading="lazy" decoding="async"></figure>`:'')+
+ `<h2 class="tc-line">${c.line}</h2>`+
+ (c.paras||[]).map(t=>`<p class="tc-note">${t}</p>`).join('')+
+ (c.frame?`<figure class="tc-prev"><div class="tc-frame${c.frame.tall?' tall':''}" data-vw="${c.frame.tall?900:1280}"><iframe title="${c.line.replace(/[.:]$/,'')} preview" data-src="${c.frame.src||SITE+'#'+c.frame.id}" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div><figcaption>${c.cap}</figcaption></figure>`:'')+
+ (c.links?`<p class="tc-links"><a href="${D.linkedin}" target="_blank" rel="noopener noreferrer">/in/zackgort</a><i aria-hidden="true"></i><a href="${SITE}cv" target="_blank" rel="noopener noreferrer">zack.cx/cv</a></p>`:'')+
+ (c.jump?`<a class="tc-jump" href="${c.jump[0]}"${c.jump[2]?' data-settle="end"':''}>Jump to ${c.jump[1]}</a>`:'')+
+ (c.dl?`<button class="tc-jump" type="button" data-dl>Download .docx</button>`:'')+
+ `<span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
+/* same-origin only: park the preview on its section (same settle rule as the page's own jumps) and hide its floating chrome; cross-origin falls back to the #hash in the src */
+const park=(fi,id)=>{try{const w=fi.contentWindow,d=w.document;if(!d.getElementById('zcx-nc')){const st=d.createElement('style');st.id='zcx-nc';st.textContent=HIDE;d.head.append(st)}
+ if(!id)return;const t=d.getElementById(id);if(!t)return;const r=t.getBoundingClientRect(),top=r.top+w.scrollY;w.scrollTo(0,Math.max(0,t.classList.contains('stg')?top+r.height-w.innerHeight+2:top))}catch(_){}};
+const made={};
+function ensure(key,trig,anchor){if(made[key])return made[key];
+ const c=N[key],card=document.createElement('aside');card.id='nc-'+key;card.className='tc nc';card.setAttribute('role','dialog');card.setAttribute('aria-label',c.line.replace(/[.:]$/,'')+' card');card.inert=true;card.innerHTML=body(c);document.body.append(card);
+ trig.setAttribute('aria-controls',card.id);
+ const set=dockCard(card,trig,'zcx.classic.nc.'+key,anchor),m=made[key]={card,set,key};
+ const fr=$('.tc-frame',card),fi=fr&&$('iframe',fr);
+ if(fr){const vw=+fr.dataset.vw||1280,f=()=>{const w=fr.clientWidth;if(w)fi.style.setProperty('--s',(w/vw).toFixed(4))};new ResizeObserver(f).observe(fr);f();
+  m.load=()=>{if(fi.getAttribute('src'))return;const id=c.frame.id||null;fi.addEventListener('load',()=>{park(fi,id);setTimeout(()=>park(fi,id),700);setTimeout(()=>park(fi,id),1800)});fi.src=fi.dataset.src}}
+ const j=$('a.tc-jump',card);if(j)j.addEventListener('click',()=>set(false));
+ const dl=$('[data-dl]',card);if(dl)dl.addEventListener('click',()=>{const r=$('#rsm');r.dataset.dl='1';r.click();delete r.dataset.dl});
+ return m}
+function toggle(key,trig,anchor){const m=ensure(key,trig,anchor),on=!m.card.classList.contains('on');
+ if(on){Object.values(made).forEach(o=>{if(o!==m&&o.card.classList.contains('on'))o.set(false)});m.load&&m.load()}
+ m.set(on)}
+const plain=e=>e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button;
+$('.tags').addEventListener('click',e=>{const a=e.target.closest('a');if(!a||plain(e)||innerWidth<=768)return;const k=KEY[a.getAttribute('href')];if(!k)return;
+ e.preventDefault();e.stopPropagation();toggle(k,a,()=>a.getBoundingClientRect())});
+const rsm=$('#rsm');
+if(rsm)rsm.addEventListener('click',e=>{if(rsm.dataset.dl||plain(e)||innerWidth<=768)return;e.preventDefault();e.stopImmediatePropagation();rsm.dispatchEvent(new Event('mouseleave'));toggle('resume',rsm,()=>rsm.getBoundingClientRect())});
+/* the header-anchored cards belong to the hero: close them once you scroll past (the résumé button is fixed, so its card stays) */
+addEventListener('scroll',()=>{if(scrollY<hero.offsetHeight*.9)return;Object.values(made).forEach(o=>{if(o.key!=='resume'&&o.card.classList.contains('on')&&!o.card.classList.contains('drag'))o.set(false)})},{passive:true});
+}
 function toggleTheme(){const d=document.documentElement,light=d.dataset.theme!=='light';if(light)d.dataset.theme='light';else delete d.dataset.theme;try{localStorage.setItem('theme',light?'light':'dark')}catch(e){}syncTheme()}
 function syncTheme(){const light=document.documentElement.dataset.theme==='light',b=document.getElementById('thm');if(b){const now='ADA',nxt=light?'Less ADA?':'More ADA?';b.querySelector('.a').textContent=now;b.querySelector('.b').textContent=nxt;b.setAttribute('aria-label',now+', switch to '+nxt.slice(0,-1).toLowerCase());b.removeAttribute('aria-pressed')}}
 {const b=document.createElement('button');b.id='thm';b.type='button';b.innerHTML='<i></i><span class="tl"><span class="a">ADA</span><span class="b"></span></span>';document.body.append(b);const place=()=>{const r=document.getElementById('rsm');if(r&&r.offsetWidth)b.style.right=(innerWidth-r.getBoundingClientRect().left+16)+'px'};place();addEventListener('resize',place);addEventListener('load',place);document.fonts&&document.fonts.ready.then(place);b.addEventListener('mousedown',e=>e.preventDefault());b.addEventListener('click',toggleTheme);syncTheme();
