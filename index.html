@@ -363,12 +363,13 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 .nc .tc-frame.tall iframe{width:900px;height:1125px}
 .nc figcaption{margin-top:10px;font-size:13px;line-height:1.55;text-wrap:pretty}
 .nc .tc-links{margin-bottom:14px}
-.tc-jump{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:var(--pink);color:#0e0d0e;font:500 12px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.tc-jump{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:#FFD60A;color:#0e0d0e;font:500 12px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
 .tc-jump::after{content:"";flex:none;width:7px;height:7px;margin-right:3px;border:solid currentColor;border-width:0 1.4px 1.4px 0;transform:translateY(-2px) rotate(45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1)}
-.tc-jump:hover,.tc-jump:focus-visible{background:transparent;color:var(--pink);box-shadow:inset 0 0 0 1px var(--pink)}
+.tc-jump:hover,.tc-jump:focus-visible{background:transparent;color:#FFD60A;box-shadow:inset 0 0 0 1px #FFD60A}
 .tc-jump:hover::after,.tc-jump:focus-visible::after{transform:translateY(1px) rotate(45deg)}
-.tc-jump:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
-:root[data-theme=light] .tc-jump:hover,:root[data-theme=light] .tc-jump:focus-visible{color:#d6455f;box-shadow:inset 0 0 0 1px #d6455f}
+.tc-jump:focus-visible{outline:2px solid #FFD60A;outline-offset:2px}
+:root[data-theme=light] .tc-jump:hover,:root[data-theme=light] .tc-jump:focus-visible{color:#8a6a00;box-shadow:inset 0 0 0 1px #FFD60A;background:#FFD60A1f}
+:root[data-theme=light] .tc-jump:focus-visible{outline-color:#c99a00}
 @media(prefers-reduced-motion:reduce){.tc-jump::after{transition:none}}
 </style>
 <script>{let t;try{t=localStorage.getItem('theme')}catch(e){}if(t!=='dark')document.documentElement.dataset.theme='light'}</script>
@@ -700,7 +701,7 @@ W.addEventListener('pointerleave',()=>{if(!g&&!rz)W.classList.remove('live')});
 W.addEventListener('pointerdown',()=>{if(mode!=='docked')raise(W)},true);
 addEventListener('resize',()=>{if(full){goFull();kick()}else if(mode==='free'){fw=clamp(fw,MINW,Math.max(MINW,Math.min(CAP,innerWidth-2*M)));kick()}if(!can()&&mode!=='docked'){mode='home';kick()}});
 });
-function openWg(href,label){let w=wgs.find(x=>x._h===href);if(w){raise(w);return}
+function openWg(href,label){dispatchEvent(new Event('zcx:wg-open'));let w=wgs.find(x=>x._h===href);if(w){raise(w);return}
 const W=Math.round(clamp(innerWidth*.42,360,640)),n=wgN++%6;
 w=document.createElement('div');w.className='wg';w._h=href;w.setAttribute('role','dialog');w.setAttribute('aria-label',label);
 w.style.width=W+'px';w.style.left=clamp(innerWidth/2-W/2+n*28,8,innerWidth-W-8)+'px';w.style.top=72+n*28+'px';w.style.setProperty('--s',W/1280);
@@ -780,10 +781,12 @@ mark.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDe
 /* preview: lay the iframe out at 1280px, scale to the frame */
 const fr=card.querySelector('.tc-frame'),fi=fr.firstChild,fit=()=>{const w=fr.clientWidth;if(w)fi.style.setProperty('--s',(w/1280).toFixed(4))};
 new ResizeObserver(fit).observe(fr);fit();
+/* opening any hero link widget or header nav card cancels the title card: closes it if open, and stops the first-visit auto-open */
+let noAuto=false;addEventListener('zcx:wg-open',()=>{noAuto=true;if(card.classList.contains('on'))set(false)});
 /* the title card belongs to the hero: close it once you scroll past */
 const pastHero=()=>scrollY>=hero.offsetHeight*.9;let past=pastHero();
 addEventListener('scroll',()=>{const n=pastHero();if(n&&!past){if(card.classList.contains('drag'))return;past=true;if(card.classList.contains('on'))set(false)}else if(!n)past=false},{passive:true});
-if(AUTO)try{if(!sessionStorage.getItem('tc')){sessionStorage.setItem('tc','1');(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{if(!pastHero())set(true)},900))}}catch(_){}
+if(AUTO)try{if(!sessionStorage.getItem('tc')){sessionStorage.setItem('tc','1');(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{if(!pastHero()&&!noAuto)set(true)},900))}}catch(_){}
 }}
 /* R&D_sandbox card: opened from the discreet note in About, docks beside it */
 {const trig=$('.rdb');
@@ -858,7 +861,7 @@ function ensure(key,trig,anchor){if(made[key])return made[key];
  const dl=$('[data-dl]',card);if(dl)dl.addEventListener('click',()=>{const r=$('#rsm');r.dataset.dl='1';r.click();delete r.dataset.dl});
  return m}
 function toggle(key,trig,anchor){const m=ensure(key,trig,anchor),on=!m.card.classList.contains('on');
- if(on){Object.values(made).forEach(o=>{if(o!==m&&o.card.classList.contains('on'))o.set(false)});m.load&&m.load()}
+ if(on){dispatchEvent(new Event('zcx:wg-open'));Object.values(made).forEach(o=>{if(o!==m&&o.card.classList.contains('on'))o.set(false)});m.load&&m.load()}
  m.set(on)}
 const plain=e=>e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button;
 $('.tags').addEventListener('click',e=>{const a=e.target.closest('a');if(!a||plain(e)||innerWidth<=768)return;const k=KEY[a.getAttribute('href')];if(!k)return;
