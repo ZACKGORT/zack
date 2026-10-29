@@ -350,6 +350,13 @@ html.esc-on .vw-bar{padding-left:5rem}
 .tc-rs{position:absolute;right:3px;bottom:3px;width:16px;height:16px;color:var(--ink);opacity:.3;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 52%,currentColor 52% 58%,transparent 58% 72%,currentColor 72% 78%,transparent 78%);transition:opacity .2s}
 .tc:hover .tc-rs{opacity:.55}.tc-rs:hover{opacity:.9}
 .tc.drag{box-shadow:0 28px 70px rgba(0,0,0,.45)}.tc.drag,.tc.drag *{cursor:grabbing!important}.tc.drag iframe{pointer-events:none}
+.tc-cd{position:absolute;left:-1px;right:-1px;top:-1px;height:2px;background:var(--pink);transform-origin:0 50%;animation:tc-cd 7s linear forwards;pointer-events:none;z-index:3}
+.tc-cd.hold{animation-play-state:paused}
+@keyframes tc-cd{to{transform:scaleX(0)}}
+:root[data-theme=light] .tc-cd{background:#d6455f}
+.tc.tc-fo{transition:opacity .8s ease,transform .8s cubic-bezier(.2,.9,.3,1),visibility 0s .8s}
+.nt .tc-cd{left:-1px;right:0;top:0}
+.nt:hover .tc-cd,.nt:focus-within .tc-cd{animation-play-state:paused}
 @media(max-width:768px){.tc{display:none!important}}
 .cs .ac-i{border-bottom:1px solid color-mix(in srgb,var(--ink) 18%,transparent)}
 .cs .ac-h{margin:0;font:inherit}
@@ -482,6 +489,8 @@ const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelecto
 const RM=matchMedia('(prefers-reduced-motion:reduce)').matches,FINE=matchMedia('(pointer:fine)').matches,TOUCH=matchMedia('(hover:none),(pointer:coarse)').matches;
 const MQ=matchMedia('(max-width:768px)'),flat=()=>MQ.matches||RM,clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
 const U='https://i.ibb.co/';
+/* timed toast: a thin line counts down ms along the top edge, then done() runs; hovering/focusing the toast pauses it (CSS). Re-calling restarts it. */
+const tLine=(el,ms,done)=>{el.querySelectorAll(':scope>.tc-cd').forEach(b=>b.remove());const b=document.createElement('i');b.className='tc-cd';b.setAttribute('aria-hidden','true');b.style.animationDuration=ms+'ms';b.addEventListener('animationend',()=>{b.remove();done()});el.append(b);return b};
 /* ---------- content ---------- */
 const D={
 tags:[['#About','#about'],['#Work','#work','end'],['#B2B/B2C','#tiktok','end'],['#Product','#fintech','end'],['#Ecommerce','#ecommerce','end'],['#Connect','#contact','end']],
@@ -650,8 +659,8 @@ const KEYS=TREE.map(t=>t[1]),STL={'about-content':'Intro'},ids=[];
 TREE.forEach(([l,id,sub=[]])=>{STL[id]=l;ids.push(id);if(id==='about')ids.push('about-content');sub.forEach(([sl,sid])=>{STL[sid]=l+' · '+sl;ids.push(sid)})});
 const STOPS=ids.map(id=>$('#'+id));
 const nt=document.createElement('div');nt.className='nt';nt.setAttribute('role','status');nt.setAttribute('aria-live','polite');document.body.append(nt);
-let nTm=0,nWait=0,nCur='';const hideN=()=>nt.classList.remove('on');nt.addEventListener('click',hideN);
-function notify(id){const n=NT[id];if(!n||id===nCur)return;nCur=id;clearTimeout(nWait);nWait=setTimeout(()=>{const k=KEYS.indexOf(id)+1;nt.innerHTML=`<span class="k">${k?k+' / ':''}${n[0]}</span><p>${n[1]}</p>`;nt.classList.add('on');nudgeSpace();clearTimeout(nTm);nTm=setTimeout(hideN,4500)},350)}
+let nTm=0,nWait=0,nCur='';const hideN=()=>{nt.classList.remove('on');nt.querySelectorAll('.tc-cd').forEach(b=>b.remove())};nt.addEventListener('click',hideN);
+function notify(id){const n=NT[id];if(!n||id===nCur)return;nCur=id;clearTimeout(nWait);nWait=setTimeout(()=>{const k=KEYS.indexOf(id)+1;nt.innerHTML=`<span class="k">${k?k+' / ':''}${n[0]}</span><p>${n[1]}</p>`;nt.classList.add('on');nudgeSpace();clearTimeout(nTm);tLine(nt,4500,hideN)},350)}
 const nio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)notify(e.target.id)}),{rootMargin:'-45% 0px -45% 0px'});
 STOPS.forEach(el=>NT[el.id]&&nio.observe(el));
 new IntersectionObserver(([e])=>{if(e.isIntersecting){hideN();nCur='';clearTimeout(nWait)}}).observe(hero);
@@ -905,7 +914,14 @@ let noAuto=false;addEventListener('zcx:wg-open',()=>{noAuto=true;if(card.classLi
 /* the title card belongs to the hero: close it once you scroll past */
 const pastHero=()=>scrollY>=hero.offsetHeight*.9;let past=pastHero();
 addEventListener('scroll',()=>{const n=pastHero();if(n&&!past){if(card.classList.contains('drag'))return;past=true;if(card.classList.contains('on'))set(false)}else if(!n)past=false},{passive:true});
-if(AUTO)try{if(!sessionStorage.getItem('tc')){sessionStorage.setItem('tc','1');(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{if(!pastHero()&&!noAuto)set(true)},900))}}catch(_){}
+/* first-visit auto-open: a thin line counts down 7s, then the card fades out. Pauses while hovered/focused; any click, drag, manual close or other widget cancels it. */
+const countdown=(secs=7)=>{const bar=document.createElement('i');bar.className='tc-cd';bar.setAttribute('aria-hidden','true');bar.style.animationDuration=secs+'s';card.append(bar);
+const hold=()=>bar.classList.add('hold'),go=()=>bar.classList.remove('hold'),ev=[['mouseenter',hold],['mouseleave',go],['focusin',hold],['focusout',go],['pointerdown',stop]];
+function stop(){bar.remove();mo.disconnect();ev.forEach(([t,f])=>card.removeEventListener(t,f))}
+const mo=new MutationObserver(()=>{if(!card.classList.contains('on'))stop()});
+ev.forEach(([t,f])=>card.addEventListener(t,f));mo.observe(card,{attributes:true,attributeFilter:['class']});
+bar.addEventListener('animationend',()=>{stop();card.classList.add('tc-fo');set(false);setTimeout(()=>card.classList.remove('tc-fo'),900)})};
+if(AUTO)try{if(!sessionStorage.getItem('tc')){sessionStorage.setItem('tc','1');(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(()=>setTimeout(()=>{if(!pastHero()&&!noAuto){set(true);countdown(7)}},900))}}catch(_){}
 }}
 /* R&D_sandbox card: opened from the discreet note in About, docks beside it */
 {const trig=$('.rdb');
@@ -1066,8 +1082,8 @@ function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scro
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
 it.querySelector('[data-a]').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;aShow();au.play().catch(aOff);pAbort=true;step(1);arm()});
 const gt=document.createElement('div');gt.className='nt gt';gt.setAttribute('role','status');gt.setAttribute('aria-live','polite');gt.innerHTML='<p>Well, if we\u2019re just hanging out, I brought my guitar\u2026</p>';document.body.append(gt);let gtTm=0;
-gt.addEventListener('click',()=>{clearTimeout(gtTm);gt.classList.remove('on')});
-it.querySelector('[data-h]').addEventListener('click',()=>{declined=true;clearTimeout(idleTm);it.classList.remove('on');openWg(CUR,'zack.cx/cursory');openMusic();void gt.offsetWidth;gt.classList.add('on');clearTimeout(gtTm);gtTm=setTimeout(()=>gt.classList.remove('on'),5500)});
+gt.addEventListener('click',()=>{clearTimeout(gtTm);gt.classList.remove('on');gt.querySelectorAll('.tc-cd').forEach(b=>b.remove())});
+it.querySelector('[data-h]').addEventListener('click',()=>{declined=true;clearTimeout(idleTm);it.classList.remove('on');openWg(CUR,'zack.cx/cursory');openMusic();void gt.offsetWidth;gt.classList.add('on');clearTimeout(gtTm);tLine(gt,7000,()=>gt.classList.remove('on'))});
 /* once the scroll toast has appeared and been put away (either button, or by scrolling), #cursory joins the header links */
 {let shown=false,added=false;const nav=$('.tags');
 new MutationObserver(()=>{if(it.classList.contains('on')){shown=true;return}if(!shown||added||!nav)return;added=true;
@@ -1139,7 +1155,7 @@ fetch(a.href+'?t='+Date.now()).then(function(r){if(!r.ok)throw 0;return r.blob()
 <script type="text/plain" id="llmsTxt">
 # Zack Gort — craft.experience (https://zack.cx)
 
-> I think. I make. I think about design and data as systems. I think about business requirements and better ways to build. I think about form and function. I make things too. I've made websites for people to find money. I've made websites for people to spend money. I've made websites for people to invest money. Now, as for design, I design those experiences :)
+> Senior User Experience / Product Designer. Thesis: "UX is dead. ¡Viva la CX!" (craft experience). Thinks about design and data as systems, writes to find out what he actually thinks, then makes the thing. Mostly websites where people find money, spend money, or invest it. Left-handed, self-taught, still curious about how things fit together.
 
 Contact: if a creative team is hiring, LinkedIn is the quickest route — https://www.linkedin.com/in/zackgort/
 
