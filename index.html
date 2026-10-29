@@ -233,6 +233,7 @@ body:has(.nt.on:is(.au,.gt)) .nt:not(.au):not(.gt):not(.it){top:calc(env(safe-ar
 .nt.gt{z-index:75;right:auto;bottom:auto;top:calc(var(--pad) + 2.5rem);left:50%;width:min(320px,calc(100vw - 2*var(--pad)));transform:translate(-50%,-8px)}
 .nt.gt.on{transform:translateX(-50%)}
 .nt.gt p{margin:0}
+.nt.gt .row{display:flex;flex-wrap:wrap;align-items:center;gap:0 1.1rem}.nt.gt .row button{margin-top:.7rem}
 /* music widget: SoundCloud playlist; header bar collapses/expands the track list */
 .mw{position:fixed;z-index:60;left:calc(env(safe-area-inset-left,0px) + var(--pad));bottom:calc(env(safe-area-inset-bottom,0px) + var(--pad));width:min(360px,calc(100vw - 2*var(--pad)));background:color-mix(in srgb,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);box-shadow:0 20px 50px rgba(0,0,0,.35);color:var(--ink);opacity:0;transform:translateY(8px);transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1)}
 .mw.on{opacity:1;transform:none}
@@ -829,7 +830,7 @@ W.addEventListener('pointerleave',()=>{if(!g&&!rz)W.classList.remove('live')});
 W.addEventListener('pointerdown',()=>{if(mode!=='docked')raise(W)},true);
 addEventListener('resize',()=>{if(full){goFull();kick()}else if(mode==='free'){fw=clamp(fw,MINW,Math.max(MINW,Math.min(CAP,innerWidth-2*M)));kick()}if(!can()&&mode!=='docked'){mode='home';kick()}});
 });
-function openWg(href,label){dispatchEvent(new Event('zcx:wg-open'));let w=wgs.find(x=>x._h===href);if(w){raise(w);return}
+function openWg(href,label,opts){dispatchEvent(new Event('zcx:wg-open'));let w=wgs.find(x=>x._h===href);if(w){raise(w);return}
 const big=innerWidth>768,W=big?Math.round(Math.max(640,Math.min(1440,innerWidth*.66,(innerHeight-110)*1.6))):Math.round(clamp(innerWidth*.42,360,640)),n=wgN++%6;
 w=document.createElement('div');w.className='wg';w._h=href;w.setAttribute('role','dialog');w.setAttribute('aria-label',label);
 w.style.width=W+'px';w.style.left=clamp(innerWidth/2-W/2+n*28,8,innerWidth-W-8)+'px';w.style.top=(big?48+n*24:72+n*28)+'px';w.style.setProperty('--s',W/1600);
@@ -843,7 +844,11 @@ hd.addEventListener('pointermove',e=>{if(g){w.style.left=clamp(e.clientX-g.x,0,i
 rs.addEventListener('pointerdown',e=>{z={x:e.clientX,w:w.offsetWidth};rs.setPointerCapture(e.pointerId);w.classList.add('drag')});
 rs.addEventListener('pointermove',e=>{if(!z)return;const mx=Math.min(innerWidth-w.offsetLeft-8,(innerHeight-w.offsetTop-8-hd.offsetHeight)*1.6),nw=clamp(z.w+e.clientX-z.x,280,Math.max(280,mx));w.style.width=nw+'px';w.style.setProperty('--s',nw/1600)});
 ['pointerup','pointercancel'].forEach(n=>rs.addEventListener(n,()=>{z=null;w.classList.remove('drag')}));
-w.querySelector('button').addEventListener('click',()=>{w.classList.remove('on');wgs.splice(wgs.indexOf(w),1);setTimeout(()=>w.remove(),220)})}
+const shut=()=>{if(w._shut)return;w._shut=true;document.removeEventListener('pointerdown',away,true);w.classList.remove('on');const i=wgs.indexOf(w);if(i>-1)wgs.splice(i,1);setTimeout(()=>w.remove(),220)};
+/* opts.outside: clicking the page outside the widget closes it (toasts and the music player don't count as "outside") */
+const away=e=>{if(e.target.closest&&e.target.closest('.wg,.nt,.mw'))return;shut()};
+if(opts&&opts.outside)document.addEventListener('pointerdown',away,true);
+w.querySelector('button').addEventListener('click',shut)}
 /* ---------- view all: full-screen grid of live iframes (same 1600x1000 scaled frame as the widgets) ---------- */
 let vwEl=null,vwInert=[],vwBack=null,vwTm=0;
 const vwOpen=()=>!!vwEl;
@@ -894,7 +899,7 @@ const put=(x,y,w)=>{w=clamp(w,MINW,Math.max(MINW,Math.min(MAXW,innerWidth-2*M)))
  card.style.left=Math.round(x)+'px';card.style.top=Math.round(y)+'px';card.classList.add('tc-moved');return{x:Math.round(x),y:Math.round(y),w:Math.round(w)}};
 const redock=()=>{dragged=false;card.classList.remove('tc-moved');card.style.left=card.style.top=card.style.width='';try{localStorage.removeItem(KEY)}catch(_){}};
 const set=on=>{
- if(on&&!isOn()&&anchor&&!dragged&&innerWidth>768){const a=anchor(),w=card.offsetWidth,h=card.offsetHeight;put(a.right-w,a.top>h+24?a.top-h-12:a.bottom+12,w)}
+ if(on&&!isOn()&&anchor&&!dragged&&innerWidth>768){const a=anchor(),w=card.offsetWidth,h=card.offsetHeight;put(a.left+a.width/2-w/2,a.bottom+12+h>innerHeight-M&&a.top>h+24?a.top-h-12:a.bottom+12,w)}
  card.classList.toggle('on',on);card.inert=!on;trig.setAttribute('aria-expanded',on?'true':'false');
  const i=wgs.indexOf(card);if(on){if(i<0)wgs.push(card);raise(card)}else if(i>-1){wgs.splice(i,1);wgZ()}};
 card._set=set;card._fit=()=>{if(moved()){const r=card.getBoundingClientRect();put(r.left,r.top,r.width)}};
@@ -1069,16 +1074,16 @@ const itLoad=()=>{if(!itI.getAttribute('src'))itI.src=CUR};
 /* music widget: the works-in-prog SoundCloud set; collapses to a header bar, expands to the track list; opening it starts track 1 */
 const PL='https://soundcloud.com/zackgort/sets/works-in-prog';let mw=null;
 const scLoad=cb=>{if(window.SC&&SC.Widget)return cb();let s=document.querySelector('script[data-sc]');if(!s){s=document.createElement('script');s.src='https://w.soundcloud.com/player/api.js';s.async=true;s.dataset.sc='1';document.head.append(s)}s.addEventListener('load',cb,{once:true});s.addEventListener('error',cb,{once:true})};
-function openMusic(){if(mw){mw.set(true);mw.play();return}
+function openMusic(quiet){if(mw){mw.set(true);if(!quiet)mw.play();return}
  const el=document.createElement('aside');el.className='mw c';el.setAttribute('role','region');el.setAttribute('aria-label','Music player');
  el.innerHTML='<div class="mh"><button type="button" class="mt" aria-expanded="false" aria-controls="mw-b"><span class="mi" aria-hidden="true">\u266a</span><span class="ml">works-in-prog</span><i class="mc" aria-hidden="true"></i></button><a class="mo" href="'+PL+'" target="_blank" rel="noopener noreferrer" aria-label="Open playlist on SoundCloud">\u2197</a><button type="button" class="mx" aria-label="Close music player">\u00d7</button></div><div class="mb" id="mw-b" inert><div><iframe title="works-in-prog playlist" allow="autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe></div></div>';
  document.body.append(el);
- const t=el.querySelector('.mt'),bd=el.querySelector('.mb'),fr=el.querySelector('iframe'),lab=el.querySelector('.ml');let sc=null,swallow=false;
+ const t=el.querySelector('.mt'),bd=el.querySelector('.mb'),fr=el.querySelector('iframe'),lab=el.querySelector('.ml');let sc=null,swallow=false,want=!quiet;
  const MK='zcx.classic.mw',MM=8,can=()=>innerWidth>768;
  const pos=(x,y)=>{x=clamp(x,MM,Math.max(MM,innerWidth-el.offsetWidth-MM));y=clamp(y,MM,Math.max(MM,innerHeight-el.offsetHeight-MM));el.style.left=Math.round(x)+'px';el.style.top=Math.round(y)+'px';el.classList.add('mv')};
  const fit=()=>{if(!el.isConnected||!el.classList.contains('mv'))return;const r=el.getBoundingClientRect();pos(r.left,r.top-(el.classList.contains('on')?0:8))};
  const set=on=>{el.classList.toggle('c',!on);t.setAttribute('aria-expanded',on?'true':'false');bd.inert=!on;setTimeout(fit,420)};
- mw={set,play:()=>{sc&&sc.play()},close:()=>el.querySelector('.mx').click()};
+ mw={set,play:()=>{want=true;sc&&sc.play()},close:()=>el.querySelector('.mx').click()};
  /* repositionable: drag the header bar (a click still collapses/expands); the spot is remembered */
  if(can())try{const sp=JSON.parse(localStorage.getItem(MK));if(sp&&isFinite(sp.x)&&isFinite(sp.y))pos(sp.x,sp.y)}catch(_){}
  const hd=el.querySelector('.mh');hd.title='drag to move';let d=null;
@@ -1091,9 +1096,9 @@ function openMusic(){if(mw){mw.set(true);mw.play();return}
  el.querySelector('.mx').addEventListener('click',()=>{try{sc&&sc.pause()}catch(_){}mw=null;el.classList.remove('on');setTimeout(()=>el.remove(),380)});
  void el.offsetWidth;requestAnimationFrame(()=>{el.classList.add('on');set(true)});
  /* load the widget API first so the READY event can't be missed, then point the frame at the set (first track, auto_play) */
- scLoad(()=>{fr.src='https://w.soundcloud.com/player/?url='+encodeURIComponent(PL)+'&auto_play=true&visual=false&hide_related=true&show_comments=false&show_reposts=false&show_teaser=false&color=%23ff8da1';
+ scLoad(()=>{fr.src='https://w.soundcloud.com/player/?url='+encodeURIComponent(PL)+'&auto_play='+(quiet?'false':'true')+'&visual=false&hide_related=true&show_comments=false&show_reposts=false&show_teaser=false&color=%23ff8da1';
   if(!(window.SC&&SC.Widget))return;sc=SC.Widget(fr);
-  sc.bind(SC.Widget.Events.READY,()=>sc.play());
+  sc.bind(SC.Widget.Events.READY,()=>{if(want)sc.play()});
   sc.bind(SC.Widget.Events.PLAY,()=>sc.getCurrentSound(o=>{if(o&&o.title)lab.textContent=o.title}))})}
 addEventListener('zcx:music',()=>openMusic());
 let idleTm=0,scrolled=false,declined=false;
@@ -1103,14 +1108,16 @@ function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scro
 ['wheel','touchstart','keydown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true}));
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
 it.querySelector('[data-a]').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;aShow();au.play().catch(aOff);pAbort=true;step(1);arm()});
-const gt=document.createElement('div');gt.className='nt gt';gt.setAttribute('role','status');gt.setAttribute('aria-live','polite');gt.innerHTML='<p>Well, if we\u2019re just hanging out, I brought my guitar\u2026</p>';document.body.append(gt);let gtTm=0;
-gt.addEventListener('click',()=>{clearTimeout(gtTm);gt.classList.remove('on');gt.querySelectorAll('.tc-cd').forEach(b=>b.remove())});
-it.querySelector('[data-h]').addEventListener('click',()=>{declined=true;clearTimeout(idleTm);it.classList.remove('on');openWg(CUR,'zack.cx/cursory');openMusic();void gt.offsetWidth;gt.classList.add('on');clearTimeout(gtTm);tLine(gt,7000,()=>gt.classList.remove('on'))});
+const gt=document.createElement('div');gt.className='nt gt';gt.setAttribute('role','status');gt.setAttribute('aria-live','polite');gt.innerHTML='<p>Well, if we\u2019re just hanging out, I brought my guitar\u2026</p><div class="row"><button type="button" data-v>vibe</button><button type="button" data-n>no vibe</button></div>';document.body.append(gt);let gtTm=0;
+const gtOff=()=>{clearTimeout(gtTm);gt.classList.remove('on')};
+gt.querySelector('[data-v]').addEventListener('click',()=>{if(mw)mw.play();else openMusic();gtOff()});
+gt.querySelector('[data-n]').addEventListener('click',()=>{if(mw)mw.close();gtOff()});
+it.querySelector('[data-h]').addEventListener('click',()=>{declined=true;clearTimeout(idleTm);it.classList.remove('on');openWg(CUR,'zack.cx/cursory',{outside:true});openMusic(true);void gt.offsetWidth;gt.classList.add('on')});
 /* once the scroll toast has appeared and been put away (either button, or by scrolling), #cursory joins the header links */
 {let shown=false,added=false;const nav=$('.tags');
 new MutationObserver(()=>{if(it.classList.contains('on')){shown=true;return}if(!shown||added||!nav)return;added=true;
  const a=document.createElement('a');a.href=CUR;a.target='_blank';a.rel='noopener';a.textContent='#cursory';
- a.addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button||innerWidth<=768)return;e.preventDefault();openWg(CUR,'zack.cx/cursory')});
+ a.addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button||innerWidth<=768)return;e.preventDefault();openWg(CUR,'zack.cx/cursory',{outside:true})});
  nav.append(a);if(!RM)a.animate([{opacity:0},{opacity:1}],{duration:400,easing:'ease-out'})}).observe(it,{attributes:true,attributeFilter:['class']})}
 /* ---------- pressure text: per-letter weight swell on the logo and on "UX is dead" (port of React Bits TextPressure; Satoshi only has a weight axis, so no width / italic) ---------- */
 {const WMIN=300,WMAX=900,PERIOD=3.2,dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
