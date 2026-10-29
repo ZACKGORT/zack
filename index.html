@@ -139,14 +139,9 @@ body.sc .pbl{opacity:1}.pbl.b{bottom:-1px;height:97px;--d:to bottom}.pbl.t{displ
 .pbl i:last-child{-webkit-mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000);mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000)}
 @supports not (backdrop-filter:blur(1px)){.pbl{display:none}}
 /* oval cursor (from text-particles): stretches + rotates with velocity, with a soft bloom and two dots trailing behind. difference blend keeps it visible on both themes */
-.gc{position:fixed;left:0;top:0;width:0;height:0;z-index:95;pointer-events:none;opacity:0;contain:layout style}
-.gc>*{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;will-change:transform}
-.gc .gb{width:320px;height:320px;background:radial-gradient(circle closest-side,rgba(255,255,248,.04),rgba(255,255,248,.015) 40%,rgba(255,255,248,0))}
-.gc .gd{width:8px;height:8px;background:rgba(255,255,248,.35)}
-.gc .gp{width:3px;height:3px;background:rgba(255,255,248,.9)}
-.gc .go{width:18px;height:11px;background:rgba(255,255,248,.92)}
-:root[data-theme=light] .gc .gb{background:radial-gradient(circle closest-side,rgba(14,13,14,.05),rgba(14,13,14,.02) 40%,rgba(14,13,14,0))}
-:root[data-theme=light] .gc .gd{background:rgba(14,13,14,.4)}:root[data-theme=light] .gc .gp{background:rgba(14,13,14,.9)}:root[data-theme=light] .gc .go{background:rgba(14,13,14,.9)}
+.gc{position:fixed;left:0;top:0;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:rgba(255,255,248,.95);box-shadow:0 0 0 1px rgba(14,13,14,.5);z-index:95;pointer-events:none;opacity:0;scale:1;transition:opacity .15s,scale .15s;will-change:translate,scale}
+.gc.h{scale:1.8}
+:root[data-theme=light] .gc{background:rgba(14,13,14,.9);box-shadow:0 0 0 1px rgba(255,255,255,.6)}
 html.hc body,html.hc a,html.hc button{cursor:none}
 @media(min-width:53em){.hero{grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--pad);grid-template-rows:min-content 1fr auto;row-gap:15vh;align-items:center;grid-template-areas:"logo logo logo tags tags tags tags tags tags . . ." ". . . . . . . . . sub sub sub" "ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl"}.sub{align-self:end}.ttl{font-size:clamp(2rem,20vw,20rem);line-height:.55}}
 @media(max-width:768px){html{font-size:15px}.trio,.cards{grid-template-columns:1fr}
@@ -657,21 +652,15 @@ sk.addEventListener('focusout',hide);
 ['scroll','wheel','resize'].forEach(n=>addEventListener(n,()=>{if(vis)hide()},{passive:true}))}
 else{sk.addEventListener('click',e=>{const a=e.target.closest('.sk');if(!a)return;e.preventDefault();if(cur===a){hide();return}show(a,e.clientX,e.clientY)},true);
 ['scroll','wheel','resize','touchstart'].forEach(n=>addEventListener(n,e=>{if(vis&&!(e.target.closest&&e.target.closest('.sk')))hide()},{passive:true}))}})();
-/* ---------- oval cursor (from text-particles; sleeps when idle) ---------- */
+/* ---------- simple dot cursor: one element, moved on pointermove, no animation loop ---------- */
 if(FINE&&!RM){document.documentElement.classList.add('hc');
-const gc=document.createElement('div');gc.className='gc';gc.setAttribute('aria-hidden','true');gc.innerHTML='<b class="gb"></b><b class="gd"></b><b class="gp"></b><b class="go"></b>';document.body.append(gc);
-const [gb,gd,gp,go]=gc.children;
-let mx=0,my=0,bx=0,by=0,ex=0,ey=0,cx=0,cy=0,cvx=0,cvy=0,sc=1,st=1,run=false,first=true;
-const ct=()=>{bx+=(mx-bx)*.11;by+=(my-by)*.11;ex+=(mx-ex)*.1;ey+=(my-ey)*.1;sc+=(st-sc)*.2;
-cvx+=(mx-cx)*.18;cvy+=(my-cy)*.18;cvx*=.62;cvy*=.62;cx+=cvx;cy+=cvy;
-const spd=Math.hypot(cvx,cvy),ang=spd>.5?Math.atan2(cvy,cvx)*180/Math.PI:0,str=Math.min(spd*.55,13),w=18+str,h=Math.max(6,11-str*.28);
-go.style.width=w+'px';go.style.height=h+'px';go.style.transform=`translate(${(cx-w/2).toFixed(1)}px,${(cy-h/2).toFixed(1)}px) rotate(${ang.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
-gb.style.transform=`translate(${(bx-160).toFixed(1)}px,${(by-160).toFixed(1)}px)`;
-gd.style.transform=`translate(${(ex-4).toFixed(1)}px,${(ey-4).toFixed(1)}px)`;
-gp.style.transform=`translate(${(mx-1.5).toFixed(1)}px,${(my-1.5).toFixed(1)}px)`;
-if(spd>.05||Math.abs(mx-bx)+Math.abs(my-by)>.1||Math.abs(mx-ex)+Math.abs(my-ey)>.1||Math.abs(sc-st)>.003)requestAnimationFrame(ct);else run=false};
-addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;if(first){bx=ex=cx=mx;by=ey=cy=my;first=false;gc.style.opacity=1}if(!run){run=true;requestAnimationFrame(ct)}},{passive:true});
-document.addEventListener('pointerover',e=>{const a=e.target.closest&&e.target.closest('a[href]');st=a&&!a.closest('nav')?.55:1;if(!run&&!first){run=true;requestAnimationFrame(ct)}});}
+const gc=document.createElement('div');gc.className='gc';gc.setAttribute('aria-hidden','true');document.body.append(gc);
+const HOT='a[href],button,[role=button],input,textarea,select,summary,.tc-bar,.eb,.mh';
+addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&e.pointerType!=='pen')return;gc.style.translate=`${e.clientX}px ${e.clientY}px`;gc.style.opacity=1},{passive:true});
+/* hand the pointer back to the system cursor over iframes (the page can't see moves inside them) and when it leaves the window */
+document.addEventListener('pointerover',e=>{const t=e.target;if(t.tagName==='IFRAME'){gc.style.opacity=0;return}gc.classList.toggle('h',!!(t.closest&&t.closest(HOT)))});
+document.documentElement.addEventListener('pointerleave',()=>{gc.style.opacity=0});
+}
 /* ---------- scroll notifications + key commands ---------- */
 const NT={about:['About','Product experience: design and data as systems.'],skills:['Skills','UX, visual interface, accessibility, research. Currently: AI and creative coding.'],work:['Select works','BNY Mellon, GNC and TikTok for Business.'],'brands-grid':['#design','Interface, wireframe and motion work across brands.'],'brands-grid-2':['#agencylife','Snapshots from the agency years.'],tiktok:['TikTok For Business','One unified, intent-led B2B web experience.'],'tiktok-process':['TikTok process','Headless architecture, Code & Theory.'],'tiktok-discovery':['Discovery','Fragmented B2B sites, mapped by audience.'],'tiktok-insight':['Business impact','80% lift in SMB click-through.'],'tiktok-stack':['TikTok screens','Prototype, navigation and journeys.'],fintech:['BNY Mellon — Pershing X','Wove: one connected dashboard for advisors.'],'fintech-process':['Fintech process','Senior UX lead on IA and flows, Publicis Sapient.'],'fintech-discovery':['Discovery','Mapping every legacy application.'],'fintech-insight':['Deep dive','No artificial intelligence here.'],'fintech-stack':['Fintech screens','Five frames, account opening included.'],ecommerce:['GNC','A modular Shopify rebuild after bankruptcy.'],'ecommerce-process':['Ecommerce process','Lead UX, 12 weeks, Elva Design Group.'],'ecommerce-discovery':['Discovery','Research, wireframes, a component system.'],'ecommerce-insight':['Outcome','About $500M in annual revenue reclaimed.'],'ecommerce-stack':['GNC screens','Twelve frames, mobile to desktop.'],contact:['Contact','Hiring? Say hello on LinkedIn.']};
 /* one tree drives the right-click menu, the stepper stops (Space / hotspots), number keys and tooltip labels */
@@ -888,7 +877,10 @@ addEventListener('scroll',kick,{passive:true});
 esc.addEventListener('mousedown',e=>e.preventDefault());
 esc.addEventListener('click',()=>{escOnce();kick()});
 /* same-origin previews: pass Esc up from inside an iframe (cross-origin frames can't be reached; the ESC button covers those) */
-document.addEventListener('load',e=>{const f=e.target;if(!f||f.tagName!=='IFRAME')return;try{f.contentWindow.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!ev.repeat)dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))})}catch(_){}},true);
+document.addEventListener('load',e=>{const f=e.target;if(!f||f.tagName!=='IFRAME')return;
+/* same-origin pages loaded in widgets/embeds run their own copy of the cursor (the old trailing oval, if not redeployed): hide it and use the system cursor inside the frame */
+try{const d=f.contentDocument;if(d&&d.head&&!d.getElementById('zcx-cur')){const st=d.createElement('style');st.id='zcx-cur';st.textContent='.gc{display:none!important}html.hc,html.hc *{cursor:auto!important}html.hc a,html.hc button,html.hc [role=button]{cursor:pointer!important}';d.head.append(st)}}catch(_){}
+try{f.contentWindow.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!ev.repeat)dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))})}catch(_){}},true);
 }
 /* ---------- theme toggle ---------- */
 /* ---------- title card: a movable, resizable widget, toggled by the ZCKGRT mark ---------- */
