@@ -138,8 +138,13 @@ body.sc .pbl{opacity:1}.pbl.b{bottom:-1px;height:97px;--d:to bottom}.pbl.t{displ
 .pbl i{position:absolute;inset:0;-webkit-backdrop-filter:blur(var(--b));backdrop-filter:blur(var(--b));-webkit-mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000 calc(var(--s) + 24%),transparent calc(var(--s) + 36%));mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000 calc(var(--s) + 24%),transparent calc(var(--s) + 36%))}
 .pbl i:last-child{-webkit-mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000);mask-image:linear-gradient(var(--d),transparent var(--s),#000 calc(var(--s) + 12%),#000)}
 @supports not (backdrop-filter:blur(1px)){.pbl{display:none}}
-.gc{position:fixed;left:0;top:0;width:300px;height:300px;z-index:95;pointer-events:none;filter:url(#goo);mix-blend-mode:difference}
-.gc i{position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:#fff;transform:scale(0)}
+/* oval cursor (from text-particles): stretches + rotates with velocity, with a soft bloom and two dots trailing behind. difference blend keeps it visible on both themes */
+.gc{position:fixed;inset:0;z-index:95;pointer-events:none;mix-blend-mode:difference;opacity:0}
+.gc>*{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;will-change:transform}
+.gc .gb{width:320px;height:320px;background:radial-gradient(circle closest-side,rgba(255,255,248,.04),rgba(255,255,248,.015) 40%,rgba(255,255,248,0))}
+.gc .gd{width:8px;height:8px;background:rgba(255,255,248,.35)}
+.gc .gp{width:3px;height:3px;background:rgba(255,255,248,.9)}
+.gc .go{width:18px;height:11px;background:rgba(255,255,248,.92)}
 html.hc body,html.hc a,html.hc button{cursor:none}
 @media(min-width:53em){.hero{grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--pad);grid-template-rows:min-content 1fr auto;row-gap:15vh;align-items:center;grid-template-areas:"logo logo logo tags tags tags tags tags tags . . ." ". . . . . . . . . sub sub sub" "ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl ttl"}.sub{align-self:end}.ttl{font-size:clamp(2rem,20vw,20rem);line-height:.55}}
 @media(max-width:768px){html{font-size:15px}.trio,.cards{grid-template-columns:1fr}
@@ -649,15 +654,21 @@ sk.addEventListener('focusout',hide);
 ['scroll','wheel','resize'].forEach(n=>addEventListener(n,()=>{if(vis)hide()},{passive:true}))}
 else{sk.addEventListener('click',e=>{const a=e.target.closest('.sk');if(!a)return;e.preventDefault();if(cur===a){hide();return}show(a,e.clientX,e.clientY)},true);
 ['scroll','wheel','resize','touchstart'].forEach(n=>addEventListener(n,e=>{if(vis&&!(e.target.closest&&e.target.closest('.sk')))hide()},{passive:true}))}})();
-/* ---------- gooey cursor (small filter region, sleeps when idle) ---------- */
+/* ---------- oval cursor (from text-particles; sleeps when idle) ---------- */
 if(FINE&&!RM){document.documentElement.classList.add('hc');
-document.body.insertAdjacentHTML('beforeend','<svg width="0" height="0" aria-hidden="true" style="position:absolute"><filter id="goo"><feGaussianBlur in="SourceGraphic" stdDeviation="6" result="b"/><feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" result="g"/><feBlend in="SourceGraphic" in2="g"/></filter></svg>');
-const N=14,S=300,gc=document.createElement('div');gc.className='gc';gc.setAttribute('aria-hidden','true');gc.innerHTML='<i></i>'.repeat(N);document.body.append(gc);
-const ds=[...gc.children],h=Array.from({length:N},()=>({x:-999,y:-999}));let mx=-999,my=-999,boost=1,run=false,first=true;
-const ct=()=>{h.shift();h.push({x:mx,y:my});let mv=0;for(let i=0;i<N;i++){const c=h[i],n=h[i+1]||h[N-1],dx=(n.x-c.x)*.35,dy=(n.y-c.y)*.35;c.x+=dx;c.y+=dy;mv+=Math.abs(dx)+Math.abs(dy);ds[i].style.transform=`translate(${c.x-mx+S/2}px,${c.y-my+S/2}px) translate(-50%,-50%) scale(${i/N*(i===N-1?boost:1)})`}
-gc.style.transform=`translate(${mx-S/2}px,${my-S/2}px)`;if(mv>.3)requestAnimationFrame(ct);else run=false};
-addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;if(first){h.forEach(c=>{c.x=mx;c.y=my});first=false}if(!run){run=true;requestAnimationFrame(ct)}},{passive:true});
-document.addEventListener('pointerover',e=>{const a=e.target.closest('a[href]');boost=a&&!a.closest('nav')?.55:1});}
+const gc=document.createElement('div');gc.className='gc';gc.setAttribute('aria-hidden','true');gc.innerHTML='<b class="gb"></b><b class="gd"></b><b class="gp"></b><b class="go"></b>';document.body.append(gc);
+const [gb,gd,gp,go]=gc.children;
+let mx=0,my=0,bx=0,by=0,ex=0,ey=0,cx=0,cy=0,cvx=0,cvy=0,sc=1,st=1,run=false,first=true;
+const ct=()=>{bx+=(mx-bx)*.11;by+=(my-by)*.11;ex+=(mx-ex)*.1;ey+=(my-ey)*.1;sc+=(st-sc)*.2;
+cvx+=(mx-cx)*.18;cvy+=(my-cy)*.18;cvx*=.62;cvy*=.62;cx+=cvx;cy+=cvy;
+const spd=Math.hypot(cvx,cvy),ang=spd>.5?Math.atan2(cvy,cvx)*180/Math.PI:0,str=Math.min(spd*.55,13),w=18+str,h=Math.max(6,11-str*.28);
+go.style.width=w+'px';go.style.height=h+'px';go.style.transform=`translate(${(cx-w/2).toFixed(1)}px,${(cy-h/2).toFixed(1)}px) rotate(${ang.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
+gb.style.transform=`translate(${(bx-160).toFixed(1)}px,${(by-160).toFixed(1)}px)`;
+gd.style.transform=`translate(${(ex-4).toFixed(1)}px,${(ey-4).toFixed(1)}px)`;
+gp.style.transform=`translate(${(mx-1.5).toFixed(1)}px,${(my-1.5).toFixed(1)}px)`;
+if(spd>.05||Math.abs(mx-bx)+Math.abs(my-by)>.1||Math.abs(mx-ex)+Math.abs(my-ey)>.1||Math.abs(sc-st)>.003)requestAnimationFrame(ct);else run=false};
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;if(first){bx=ex=cx=mx;by=ey=cy=my;first=false;gc.style.opacity=1}if(!run){run=true;requestAnimationFrame(ct)}},{passive:true});
+document.addEventListener('pointerover',e=>{const a=e.target.closest&&e.target.closest('a[href]');st=a&&!a.closest('nav')?.55:1;if(!run&&!first){run=true;requestAnimationFrame(ct)}});}
 /* ---------- scroll notifications + key commands ---------- */
 const NT={about:['About','Product experience: design and data as systems.'],skills:['Skills','UX, visual interface, accessibility, research. Currently: AI and creative coding.'],work:['Select works','BNY Mellon, GNC and TikTok for Business.'],'brands-grid':['#design','Interface, wireframe and motion work across brands.'],'brands-grid-2':['#agencylife','Snapshots from the agency years.'],tiktok:['TikTok For Business','One unified, intent-led B2B web experience.'],'tiktok-process':['TikTok process','Headless architecture, Code & Theory.'],'tiktok-discovery':['Discovery','Fragmented B2B sites, mapped by audience.'],'tiktok-insight':['Business impact','80% lift in SMB click-through.'],'tiktok-stack':['TikTok screens','Prototype, navigation and journeys.'],fintech:['BNY Mellon — Pershing X','Wove: one connected dashboard for advisors.'],'fintech-process':['Fintech process','Senior UX lead on IA and flows, Publicis Sapient.'],'fintech-discovery':['Discovery','Mapping every legacy application.'],'fintech-insight':['Deep dive','No artificial intelligence here.'],'fintech-stack':['Fintech screens','Five frames, account opening included.'],ecommerce:['GNC','A modular Shopify rebuild after bankruptcy.'],'ecommerce-process':['Ecommerce process','Lead UX, 12 weeks, Elva Design Group.'],'ecommerce-discovery':['Discovery','Research, wireframes, a component system.'],'ecommerce-insight':['Outcome','About $500M in annual revenue reclaimed.'],'ecommerce-stack':['GNC screens','Twelve frames, mobile to desktop.'],contact:['Contact','Hiring? Say hello on LinkedIn.']};
 /* one tree drives the right-click menu, the stepper stops (Space / hotspots), number keys and tooltip labels */
