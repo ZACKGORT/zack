@@ -305,6 +305,13 @@ html.hc body,html.hc a,html.hc button{cursor:none}
 @media(hover:none){.dir{display:none!important}}
 /* ---------- title card: movable, resizable widget toggled by the ZCKGRT mark ---------- */
 .logo[role=button]{cursor:pointer}.logo[role=button]:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+/* ESC: while any widget is open it takes the logo's place, top left (click or Esc closes the top widget, one per press) */
+#esc{all:unset;box-sizing:border-box;position:fixed;z-index:97;top:calc(env(safe-area-inset-top,0px) + var(--pad));left:calc(env(safe-area-inset-left,0px) + var(--pad));font:300 1.5rem/1 var(--sans);text-transform:uppercase;color:#fff;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility 0s .18s}
+#esc.pst{color:var(--ink)}
+#esc:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+html.esc-on #esc{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .18s ease,visibility 0s}
+html.esc-on .logo{visibility:hidden}
+html.esc-on .vw-bar{padding-left:5rem}
 .tc{position:fixed;z-index:52;top:calc(env(safe-area-inset-top,0px) + var(--pad) + 2.6rem);left:calc(env(safe-area-inset-left,0px) + var(--pad));width:min(340px,calc(100vw - 2*var(--pad)));padding:22px 24px 20px;background:color-mix(in srgb,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);box-shadow:0 20px 50px rgba(0,0,0,.35);color:var(--ink);opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top left;transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1),visibility 0s .38s}
 .tc.on{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1),visibility 0s}
 :root[data-theme=light] .tc{box-shadow:0 20px 50px rgba(14,13,14,.16)}
@@ -611,7 +618,7 @@ addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const t=
 if(e.key==='Shift')return;const k=e.key;if(vwOpen()&&k!=='Escape')return;
 if(/^[1-9]$/.test(k)){e.preventDefault();go(yOf($('#'+KEYS[k-1])))}
 else if(k==='0'){e.preventDefault();go(document.documentElement.scrollHeight)}
-else if(k==='Escape'){if(vwOpen())closeVw();else if(!cm.hidden)closeCm();else{const c=wgs.filter(w=>w._set).pop();if(c)c._set(false);else go(0)}}
+else if(k==='Escape'){if(e.repeat)return;e.preventDefault();if(!escOnce())go(0)}
 else if(k==='t'||k==='T'){e.preventDefault();toggleTheme()}
   else if(k===' '){if(t.closest&&t.closest('a,button,[role=button]'))return;e.preventDefault();step(e.shiftKey?-1:1)}});
 /* ---------- cursor hotspots: near the top/bottom edge, click = previous/next stop; label fades in with proximity ---------- */
@@ -737,7 +744,8 @@ const toggleFull=()=>{
  else pre={x:tx,y:ty,w:fw};
  mode='free';goFull();raise(W);last=performance.now();kick()};
 bar.addEventListener('dblclick',e=>{if(can()&&!e.target.closest('a,button'))toggleFull()});
-addEventListener('keydown',e=>{if(e.key==='Escape'&&full)toggleFull()});
+W._live=()=>full||mode==='free'||mode==='drag';
+W._close=()=>{if(full){toggleFull();return true}if(mode==='free'||mode==='drag'){dock();return true}return false};
 /* the page keeps scrolling unless you click in to interact */
 ev.addEventListener('click',()=>W.classList.add('live'));
 W.addEventListener('pointerleave',()=>{if(!g&&!rz)W.classList.remove('live')});
@@ -768,13 +776,34 @@ const w=Math.max(120,Math.floor(best.w));g.style.gap=gap+'px';g.style.gridTempla
 function openVw(items,back){if(vwEl)return;clearTimeout(vwTm);vwBack=back||null;
 const el=document.createElement('div');el.className='vw';el.setAttribute('role','dialog');el.setAttribute('aria-modal','true');el.setAttribute('aria-label','R&D_sandbox, all sites');
 el.innerHTML=`<div class="vw-bar"><span class="k">R&amp;D_sandbox<em>${items.length} live previews</em></span><button class="vw-x" type="button">Close · Esc</button></div><div class="vw-g">${items.map(([l,h],i)=>`<div class="vc" style="--i:${i}"><div class="vh"><span>${l}</span><a href="${h}" target="_blank" rel="noopener" aria-label="Open ${l} in new tab">↗</a></div><div class="wf"><iframe src="${h}" title="${l}" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div></div>`).join('')}</div>`;
-vwInert=[...document.body.children].filter(c=>c.tagName!=='SCRIPT'&&!c.inert);vwInert.forEach(c=>{c.inert=true});
+vwInert=[...document.body.children].filter(c=>c.tagName!=='SCRIPT'&&c.id!=='esc'&&!c.inert);vwInert.forEach(c=>{c.inert=true});
 document.body.append(el);vwEl=el;document.documentElement.style.overflow='hidden';fitVw();requestAnimationFrame(()=>{fitVw();el.classList.add('on')});
 el.addEventListener('click',e=>{if(e.target===el||e.target.classList.contains('vw-g')||e.target.closest('.vw-x'))closeVw()});
 $('.vw-x',el).focus({preventScroll:true})}
 function closeVw(){if(!vwEl)return;const el=vwEl;vwEl=null;el.classList.remove('on');vwInert.forEach(c=>{c.inert=false});vwInert=[];document.documentElement.style.overflow='';vwTm=setTimeout(()=>el.remove(),300);if(vwBack)vwBack.focus({preventScroll:true})}
 addEventListener('resize',fitVw);
 $('.lnks').addEventListener('click',e=>{const a=e.target.closest('a');if(!a||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button||innerWidth<=768)return;e.preventDefault();openWg(a.href,a.textContent)});
+/* ---------- ESC: surfaces top left, replacing the logo, whenever a widget is open; one widget closes per press ---------- */
+function closeTopWidget(){
+ for(let i=wgs.length-1;i>=0;i--){const w=wgs[i];if(!w.isConnected)continue;
+  if(w._set){w._set(false);return true}
+  if(w._close){if(w._close())return true;continue}
+  const x=w.querySelector('.wh button');if(x){x.click();return true}}
+ if(mw){mw.close();return true}
+ return false}
+function escOnce(){if(vwOpen()){closeVw();return true}if(!cm.hidden){closeCm();return true}return closeTopWidget()}
+{const esc=document.createElement('button');esc.id='esc';esc.type='button';esc.textContent='ESC';esc.setAttribute('aria-label','Close widget (Esc)');document.body.append(esc);
+const root=document.documentElement;let q=0;
+const anyOpen=()=>vwOpen()||!!mw||wgs.some(w=>w.isConnected&&(!w._live||w._live()));
+const sync=()=>{q=0;root.classList.toggle('esc-on',anyOpen());esc.classList.toggle('pst',!!hero&&scrollY>=hero.offsetHeight*.9)};
+const kick=()=>{if(!q)q=requestAnimationFrame(sync)};
+new MutationObserver(kick).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
+addEventListener('scroll',kick,{passive:true});
+esc.addEventListener('mousedown',e=>e.preventDefault());
+esc.addEventListener('click',()=>{escOnce();kick()});
+/* same-origin previews: pass Esc up from inside an iframe (cross-origin frames can't be reached; the ESC button covers those) */
+document.addEventListener('load',e=>{const f=e.target;if(!f||f.tagName!=='IFRAME')return;try{f.contentWindow.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!ev.repeat)dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))})}catch(_){}},true);
+}
 /* ---------- theme toggle ---------- */
 /* ---------- title card: a movable, resizable widget, toggled by the ZCKGRT mark ---------- */
 /* ---------- dockable cards: movable, resizable widgets (title card + R&D_sandbox) ---------- */
@@ -857,7 +886,7 @@ trig.addEventListener('click',()=>{if(card.classList.contains('on')&&!ps.some(p=
 all.addEventListener('click',()=>{set(false);setTimeout(()=>openVw(D.rd.items,trig),140)})}
 }}
 /* ---------- nav cards: every header link opens a movable card (caption, live preview or photo, jump button). Shift/Cmd/Ctrl-click still jumps straight there; touch screens keep direct jumps ---------- */
-{const SITE='https://zack.cx/',HIDE='.tc,.hud,.hk,.nt,.mw,.dir,.nav,.pbl,.gc,#thm,#rsm,#rsp{display:none!important}html.hc,html.hc body{cursor:auto!important}html.hc a,html.hc button{cursor:pointer!important}';
+{const SITE='https://zack.cx/',HIDE='.tc,.hud,.hk,.nt,.mw,.dir,.nav,.pbl,.gc,#thm,#rsm,#rsp,#esc{display:none!important}html.hc,html.hc body{cursor:auto!important}html.hc a,html.hc button{cursor:pointer!important}';
 const N={
 about:{line:'author’s note:',photo:'gLY9FQsD/ramen.webp',alt:'Zack Gort',
  paras:['Hi, I’m Zack. Left-handed, self-taught, and still curious about how things fit together.','I think about design and data as systems, I write to find out what I actually think, and then I make the thing. Mostly that’s meant websites where people find money, spend money, or invest it. This page is the long-hand version, so poke around.'],
@@ -956,7 +985,7 @@ function openMusic(){if(mw){mw.set(true);mw.play();return}
  const pos=(x,y)=>{x=clamp(x,MM,Math.max(MM,innerWidth-el.offsetWidth-MM));y=clamp(y,MM,Math.max(MM,innerHeight-el.offsetHeight-MM));el.style.left=Math.round(x)+'px';el.style.top=Math.round(y)+'px';el.classList.add('mv')};
  const fit=()=>{if(!el.isConnected||!el.classList.contains('mv'))return;const r=el.getBoundingClientRect();pos(r.left,r.top-(el.classList.contains('on')?0:8))};
  const set=on=>{el.classList.toggle('c',!on);t.setAttribute('aria-expanded',on?'true':'false');bd.inert=!on;setTimeout(fit,420)};
- mw={set,play:()=>{sc&&sc.play()}};
+ mw={set,play:()=>{sc&&sc.play()},close:()=>el.querySelector('.mx').click()};
  /* repositionable: drag the header bar (a click still collapses/expands); the spot is remembered */
  if(can())try{const sp=JSON.parse(localStorage.getItem(MK));if(sp&&isFinite(sp.x)&&isFinite(sp.y))pos(sp.x,sp.y)}catch(_){}
  const hd=el.querySelector('.mh');hd.title='drag to move';let d=null;
