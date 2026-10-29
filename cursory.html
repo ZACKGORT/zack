@@ -137,6 +137,14 @@ nav li{padding:1px 0;cursor:pointer;opacity:.9}nav li.on::after{content:" →"}n
 #esc{position:fixed;left:20px;top:20px;z-index:60;display:none;font:900 38px/1 var(--sans);letter-spacing:-.03em;cursor:pointer;flex-direction:column;gap:6px;align-items:flex-start}
 #esc i{font:normal 10px/1.4 var(--mono);letter-spacing:0;color:var(--mute)}
 body.wo #esc{display:flex}body.wo #logo{visibility:hidden}
+/* oval cursor (from text-particles): stretches + rotates with velocity, with a soft bloom and two dots trailing behind. difference blend keeps it visible on both themes */
+html.hc,html.hc *{cursor:none!important}
+.gc{position:fixed;inset:0;z-index:9999;pointer-events:none;mix-blend-mode:difference;opacity:0}
+.gc>*{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;will-change:transform}
+.gc .gb{width:320px;height:320px;background:radial-gradient(circle closest-side,rgba(255,255,248,.04),rgba(255,255,248,.015) 40%,rgba(255,255,248,0))}
+.gc .gd{width:8px;height:8px;background:rgba(255,255,248,.35)}
+.gc .gp{width:3px;height:3px;background:rgba(255,255,248,.9)}
+.gc .go{width:18px;height:11px;background:rgba(255,255,248,.92)}
 </style></head><body>
 <a class="skip" href="#list">Skip to projects</a>
 <header>
@@ -570,5 +578,25 @@ addEventListener('keydown',e=>{if(e.key==='Escape'){if(e.repeat)return;if($('#mo
  rl.onclick=()=>{if(rl.disabled)return;store[mode()]={};save();W.forEach(w=>{apply(w,def(w.k))});W.forEach(w=>{clamp(w);place(w)});refresh()};
  let raf=0;const sync=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{W.forEach(w=>{apply(w,get(w.k))});W.forEach(w=>{clamp(w);place(w)});refresh()})};
  addEventListener('resize',sync);sync();
+})();
+/* ---------- oval cursor (from text-particles; sleeps when idle) ---------- */
+(()=>{if(!matchMedia('(pointer:fine)').matches||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+document.documentElement.classList.add('hc');
+const gc=document.createElement('div');gc.className='gc';gc.setAttribute('aria-hidden','true');gc.innerHTML='<b class="gb"></b><b class="gd"></b><b class="gp"></b><b class="go"></b>';document.body.append(gc);
+const [gb,gd,gp,go]=gc.children,HOT='a[href],button,[role=button],nav li,.it,.cd,.fh,.fx,.fo,.rz,#reel,#x,#esc,.gh';
+let mx=0,my=0,bx=0,by=0,ex=0,ey=0,cx=0,cy=0,cvx=0,cvy=0,sc=1,st=1,run=false,first=true;
+const ct=()=>{bx+=(mx-bx)*.11;by+=(my-by)*.11;ex+=(mx-ex)*.1;ey+=(my-ey)*.1;sc+=(st-sc)*.2;
+cvx+=(mx-cx)*.18;cvy+=(my-cy)*.18;cvx*=.62;cvy*=.62;cx+=cvx;cy+=cvy;
+const spd=Math.hypot(cvx,cvy),ang=spd>.5?Math.atan2(cvy,cvx)*180/Math.PI:0,str=Math.min(spd*.55,13),w=18+str,h=Math.max(6,11-str*.28);
+go.style.width=w+'px';go.style.height=h+'px';go.style.transform=`translate(${(cx-w/2).toFixed(1)}px,${(cy-h/2).toFixed(1)}px) rotate(${ang.toFixed(1)}deg) scale(${sc.toFixed(3)})`;
+gb.style.transform=`translate(${(bx-160).toFixed(1)}px,${(by-160).toFixed(1)}px)`;
+gd.style.transform=`translate(${(ex-4).toFixed(1)}px,${(ey-4).toFixed(1)}px)`;
+gp.style.transform=`translate(${(mx-1.5).toFixed(1)}px,${(my-1.5).toFixed(1)}px)`;
+if(spd>.05||Math.abs(mx-bx)+Math.abs(my-by)>.1||Math.abs(mx-ex)+Math.abs(my-ey)>.1||Math.abs(sc-st)>.003)requestAnimationFrame(ct);else run=false};
+const kick=()=>{if(!run){run=true;requestAnimationFrame(ct)}};
+addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'&&e.pointerType!=='pen')return;mx=e.clientX;my=e.clientY;if(first){bx=ex=cx=mx;by=ey=cy=my;first=false}gc.style.opacity=1;kick()},{passive:true});
+/* hand the pointer back to the system cursor over iframes (the page can't see moves inside them) and when it leaves the window */
+document.addEventListener('pointerover',e=>{const t=e.target;if(t.tagName==='IFRAME'){gc.style.opacity=0;return}st=t.closest&&t.closest(HOT)?.55:1;if(!first)kick()});
+document.documentElement.addEventListener('pointerleave',()=>{gc.style.opacity=0});
 })();
 </script></body></html>
