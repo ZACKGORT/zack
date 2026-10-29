@@ -122,6 +122,11 @@ nav li{padding:1px 0;cursor:pointer;opacity:.9}nav li.on::after{content:" →"}n
  .it h2{font-size:34px}.it p{max-width:340px;font-size:15px}.sp{height:0!important}
  #reel{bottom:12px;right:16px}
 }
+/* movable widgets: no chrome until hovered; handle is a separate fixed element so it never touches widget markup */
+.gh{position:fixed;left:0;top:0;z-index:9;width:34px;height:14px;display:none;opacity:0;pointer-events:none;cursor:grab;touch-action:none;user-select:none;transition:opacity .15s;outline-offset:2px;background:linear-gradient(var(--bg),var(--bg)) 50% calc(50% - 3px)/14px 1px no-repeat,linear-gradient(var(--bg),var(--bg)) 50% 50%/14px 1px no-repeat,linear-gradient(var(--bg),var(--bg)) 50% calc(50% + 3px)/14px 1px no-repeat,var(--fg)}
+.gh.on,.gh:focus-visible{opacity:1;pointer-events:auto}.gh:active{cursor:grabbing}
+.gh.co{opacity:.45;pointer-events:auto;width:40px;height:18px}.gh.co.on{opacity:1}
+.mvd{outline:1px dashed var(--ghost);outline-offset:6px}
 </style></head><body>
 <a class="skip" href="#list">Skip to projects</a>
 <header>
@@ -218,7 +223,7 @@ let wt;addEventListener('wheel',e=>{if($('#case').classList.contains('on')||$('#
  clearTimeout(wt);wt=setTimeout(()=>{L.style.scrollSnapType='';pick();items[cur].scrollIntoView({behavior:'smooth',block:'center'})},140)},{passive:true});
 // drag / swipe anywhere on the stage (mouse, pen, touch) scrolls the list
 (()=>{let d=null,moved=false,lastY=0,lastT=0,v=0;
- const free=t=>!t.closest('a,button,nav,#aw,#aud,#inq,#reel,#cx,#x,#case,#modal,#list,.fw');
+ const free=t=>!t.closest('a,button,nav,#aw,#aud,#inq,#reel,#cx,#x,#case,#modal,#list,.fw,.gh');
  const open=()=>$('#case').classList.contains('on')||$('#modal').classList.contains('on');
  addEventListener('pointerdown',e=>{if(e.button||open()||!free(e.target))return;d={y:e.clientY,st:L.scrollTop};moved=false;lastY=e.clientY;lastT=performance.now();v=0});
  addEventListener('pointermove',e=>{if(!d)return;const dy=e.clientY-d.y;
@@ -341,4 +346,43 @@ function openCase(i){const p=P[i];
 $('#cx').onclick=()=>$('#case').classList.remove('on');
 $('#reel').onclick=()=>openCase(cur);
 addEventListener('keydown',e=>{if(e.key==='Escape'){$('#case').classList.remove('on');if($('#modal').classList.contains('on'))$('#x').click()}if(e.key==='Enter'&&e.target===document.body&&!$('#case').classList.contains('on'))openCase(cur)});
+
+// movable widgets: logo, menu, project list, title, details. Offsets are applied with the independent `translate` property (composes with each widget's own transform) and remembered per layout (desktop / mobile).
+(()=>{
+ const LK='cursory.layout.v1',coarse=matchMedia('(pointer:coarse)').matches,mq=matchMedia('(max-width:900px)'),M=48;
+ const defs=[['logo','#logo','logo'],['menu','#nv','menu'],['list','#idx','project list'],['title','#desc','title'],['details','#meta','details']];
+ let store={};try{store=JSON.parse(localStorage.getItem(LK))||{}}catch(e){}
+ const mode=()=>mq.matches?'m':'d',save=()=>{try{localStorage.setItem(LK,JSON.stringify(store))}catch(e){}};
+ const get=k=>(store[mode()]||{})[k]||[0,0];
+ const put=(k,v)=>{const m=mode();store[m]=store[m]||{};if(v)store[m][k]=v;else delete store[m][k]};
+ const apply=(w,v)=>{w.pos=v;w.el.style.translate=(v[0]||v[1])?v[0]+'px '+v[1]+'px':''};
+ function clamp(w){const r=w.el.getBoundingClientRect();if(!r.width||!r.height)return;let[x,y]=w.pos,o=[x,y];
+  if(r.left>innerWidth-M)x-=r.left-(innerWidth-M);if(r.right<M)x+=M-r.right;if(r.top>innerHeight-M)y-=r.top-(innerHeight-M);if(r.top<0)y-=r.top;
+  if(x!==o[0]||y!==o[1])apply(w,[x,y])}
+ function place(w){const r=w.el.getBoundingClientRect(),h=w.h;if(!r.width||!r.height){h.style.display='none';return}
+  h.style.display='block';const x=Math.max(0,Math.min(innerWidth-h.offsetWidth,r.left)),y=Math.max(0,r.top-h.offsetHeight);h.style.transform=`translate(${x}px,${y}px)`}
+ const W=defs.map(([k,sel,label])=>{const el=$(sel),h=document.createElement('div');
+  h.className='gh'+(coarse?' co':'');h.setAttribute('role','button');h.tabIndex=0;
+  h.setAttribute('aria-label','Move '+label+': drag, or use arrow keys. Double-click to reset.');document.body.appendChild(h);
+  const w={k,el,h,pos:[0,0],t:0,hide:0,drag:null};
+  const show=()=>{clearTimeout(w.hide);place(w);h.classList.add('on')};
+  const later=()=>{clearTimeout(w.hide);w.hide=setTimeout(()=>{if(!w.drag&&document.activeElement!==h)h.classList.remove('on')},450)};
+  if(!coarse){el.addEventListener('pointerenter',show);el.addEventListener('pointerleave',later);h.addEventListener('pointerenter',show);h.addEventListener('pointerleave',later)}
+  h.addEventListener('focus',()=>{place(w);h.classList.add('on')});h.addEventListener('blur',later);
+  h.addEventListener('pointerdown',e=>{if(e.button)return;e.stopPropagation();e.preventDefault();h.setPointerCapture(e.pointerId);
+   w.drag={x:e.clientX,y:e.clientY,p:w.pos.slice(),moved:false};el.classList.add('mvd');document.body.style.userSelect='none';h.classList.add('on')});
+  h.addEventListener('pointermove',e=>{const d=w.drag;if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y;if(!d.moved&&Math.abs(dx)+Math.abs(dy)<3)return;
+   d.moved=true;apply(w,[d.p[0]+dx,d.p[1]+dy]);clamp(w);place(w)});
+  const up=()=>{const d=w.drag;if(!d)return;w.drag=null;el.classList.remove('mvd');document.body.style.userSelect='';
+   if(d.moved){put(k,w.pos.slice());save();if(!coarse)later()}
+   else{const n=performance.now();if(n-w.t<400){apply(w,[0,0]);put(k,null);save();place(w);w.t=0}else w.t=n}};
+  h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up);
+  h.addEventListener('keydown',e=>{const st=e.shiftKey?40:10,m={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+   if(m){e.preventDefault();e.stopPropagation();apply(w,[w.pos[0]+m[0],w.pos[1]+m[1]]);clamp(w);put(k,w.pos.slice());save();place(w)}
+   else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();e.stopPropagation();apply(w,[0,0]);put(k,null);save();place(w)}});
+  if(window.ResizeObserver)new ResizeObserver(()=>place(w)).observe(el);
+  return w});
+ let raf=0;const sync=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{W.forEach(w=>{apply(w,get(w.k))});W.forEach(w=>{clamp(w);place(w)})})};
+ addEventListener('resize',sync);sync();
+})();
 </script></body></html>
