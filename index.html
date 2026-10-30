@@ -77,6 +77,7 @@ body:not(.sc) .hud,body:not(.sc) .hk{bottom:calc(var(--pad) + clamp(40px,3vw + 1
 .ew.live .ev{cursor:auto}.ew.live .ev iframe{pointer-events:auto}
 .eh{position:absolute;right:3px;bottom:3px;width:16px;height:16px;z-index:2;color:#0e0d0e;opacity:.45;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 52%,currentColor 52% 58%,transparent 58% 72%,currentColor 72% 78%,transparent 78%);transition:opacity .2s}.eh:hover{opacity:.9}.eh[hidden]{display:none}
 .ins.hw{content-visibility:visible}
+html.wlock,html.wlock body{overflow:hidden}html.wlock{scrollbar-gutter:stable}
 @media(max-width:768px){.eg,.ed,.eh{display:none}.eb{cursor:default}}
 .by,.aside,.note{margin:1rem 0 0 auto;max-width:364px;padding-left:1.5rem;font-size:12px;line-height:1.8;letter-spacing:.06em;color:#fff}
 .copy p,.big2,.role p{margin:.6rem 0;font-size:clamp(1.1rem,2.8vw,1.7rem);line-height:1.4;font-weight:300;text-wrap:balance}
@@ -749,6 +750,11 @@ addEventListener('pointerdown',e=>{if(!cm.hidden&&!cm.contains(e.target))closeCm
 const wgs=[];let wgN=0;
 const wgZ=()=>wgs.forEach((w,i)=>{w.style.zIndex=51+i});
 const raise=w=>{const i=wgs.indexOf(w);if(i>-1)wgs.splice(i,1);wgs.push(w);wgZ()};
+/* page scroll is locked while a movable widget is open (title card, case-study + R&D cards, hero-link widgets); scrolling inside a widget still works. The first-visit title card stays scrollable during its 7s auto-intro. */
+{const root=document.documentElement;let was=false;
+const open=()=>[...document.querySelectorAll('.tc.on,.wg.on')].some(e=>!(e.id==='tc'&&e.querySelector('.tc-cd')));
+const upd=()=>{const o=open();if(o!==was){was=o;root.classList.toggle('wlock',o)}};
+new MutationObserver(upd).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});upd()}
 /* ---------- magnetic embed: docked until pulled past a threshold, lerp-released, re-docks when dropped near home ---------- */
 $$('.embed').forEach(slot=>{
 const W=$('.ew',slot),bar=$('.eb',W),ev=$('.ev',W),hnd=$('.eh',W),dk=$('.ed',W);
