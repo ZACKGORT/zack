@@ -114,6 +114,8 @@ nav li{padding:1px 0;cursor:pointer;opacity:.9}nav li.on::after{content:" →"}n
 /* progressive edge blur inside case study */
 .cs-blur{position:absolute;inset:0;z-index:4;pointer-events:none}
 .cs-blur i{position:absolute;pointer-events:none}
+/* layering inside a case widget (low to high): content < edge blur (4) < sticky meta, next-project button (5) < image map (6); the move handle sits just above its widget */
+.cs-nx{position:relative;z-index:5}
 /* map thumbs */
 .cs-map{position:fixed;z-index:6;right:18px;top:18%;width:56px;height:28%;display:flex;flex-direction:column;gap:4px;overflow:auto;scrollbar-width:none;pointer-events:auto}
 .cs-map::-webkit-scrollbar{display:none}
@@ -711,11 +713,12 @@ function shotsOf(i){const p=P[i],out=[],seen=new Set(),add=(src,cap)=>{if(!src||
  if(!out.length&&CI[i])add('https://raw.githubusercontent.com/ZACKGORT/zack/main/media/'+CI[i]+'.png',p[1]);
  return out}
 function metaHTML(rows){return (rows||[]).map(r=>`<div class="cs-row"><span class="k">${esc(r[0])}</span><div class="v">${r[1].map(v=>{const s=String(v);if(/^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}(\/\S*)?$/i.test(s)){const href=/^https?:\/\//i.test(s)?s:'https://'+s;return `<a class="lk" href="${esc(href)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\//,''))} ↗</a>`}return esc(s)}).join('<br>')}</div></div>`).join('')}
+const CASE_W=.4,CASE_H=.75; // case-study widget size as a fraction of the viewport (desktop)
 function openCase(i){const p=P[i];
  let w=FW.find(x=>x.dataset.k==='c'+i);if(w){fwFocus(w);return}
  const big=innerWidth>=900,shots=shotsOf(i),nxt=(i+1)%P.length,np=P[nxt];
  const accent=(p[6]&&p[6][0])||'var(--brand)',naccent=(np[6]&&np[6][0])||accent;
- w=fwMake('c'+i,p[1],'ic',big?innerWidth-16:innerWidth-8,big?innerHeight-16:innerHeight-48,EMB[i]||'');
+ w=fwMake('c'+i,p[1],'ic',big?Math.round(Math.max(440,innerWidth*CASE_W)):innerWidth-8,big?Math.round(Math.max(380,innerHeight*CASE_H)):innerHeight-48,EMB[i]||'');
  const fb=w.querySelector('.fb');
  const figs=shots.map((g,k)=>`<figure class="cs-shot" data-s="${k}"><img loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="${esc(g[0]||p[1]).replace(/"/g,'&quot;')}" src="${g[1]}">${g[0]?`<figcaption>${esc(g[0])}</figcaption>`:''}</figure>`).join('');
  const map=shots.length?`<div class="cs-map" aria-label="Project images">${shots.map((g,k)=>`<button type="button" data-s="${k}" aria-label="${esc(g[0]||('Image '+(k+1))).replace(/"/g,'&quot;')}"><img alt="" src="${g[1]}"></button>`).join('')}</div>`:'';
@@ -725,7 +728,7 @@ function openCase(i){const p=P[i];
  const metaBar=(p[7]||[]).map(r=>`<div class="row"><span class="k">${esc(r[0])}</span><span class="v">${r[1].map(v=>{const s=String(v);if(/^(https?:\/\/)?[a-z0-9.-]+\.[a-z]{2,}(\/\S*)?$/i.test(s)){const href=/^https?:\/\//i.test(s)?s:'https://'+s;return `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\//,''))}</a>`}return esc(s)}).join(' · ')}</span></div>`).join('');
  // progressive blur bands inside the case study
  const blurBands=(matchMedia('(pointer:coarse)').matches||innerWidth<=900)?[6,16]:[3,8,18];
- const blurHTML=[['top','to top','left:0;right:0;top:0;height:min(18vh,140px)'],['bottom','to bottom','left:0;right:0;bottom:0;height:min(22vh,180px)']].map(([n,dir,pos])=>{
+ const blurHTML=[['top','to top','left:0;right:0;top:0;height:min(18cqh,140px)'],['bottom','to bottom','left:0;right:0;bottom:0;height:min(22cqh,180px)']].map(([n,dir,pos])=>{
   return blurBands.map((b,i)=>{const N=blurBands.length,st=[i,i+1,i+2,i+3].map(k=>k/N*100).filter(v=>v<=100.01);
    const g=`linear-gradient(${dir},rgba(0,0,0,0) ${st[0]}%,#000 ${st[1]}%${st[2]!==undefined?`,#000 ${st[2]}%`:''}${st[3]!==undefined?`,rgba(0,0,0,0) ${st[3]}%`:''})`;
    return `<i style="${pos};backdrop-filter:blur(${b}px);-webkit-backdrop-filter:blur(${b}px);-webkit-mask-image:${g};mask-image:${g}"></i>`}).join('')}).join('');
@@ -769,7 +772,7 @@ function openCase(i){const p=P[i];
   const h=document.createElement('div');h.className='gh';h.setAttribute('role','button');h.tabIndex=0;
   h.setAttribute('aria-label','Move details: drag, double-click to reset');h.style.zIndex='8';
   document.body.appendChild(h);
-  const place=()=>{const r=panel.getBoundingClientRect();if(!r.width){h.style.display='none';return}
+  const place=()=>{const r=panel.getBoundingClientRect();if(!r.width){h.style.display='none';return}h.style.zIndex=w.style.zIndex||10;
    h.style.display='block';h.style.transform=`translate(${Math.max(0,r.left)}px,${Math.max(0,r.top-14)}px)`};
   let drag=null,hide=0,lastT=0;
   const show=()=>{clearTimeout(hide);place();h.classList.add('on')};
