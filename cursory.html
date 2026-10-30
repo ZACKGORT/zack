@@ -42,9 +42,12 @@ nav li{padding:1px 0;cursor:pointer;opacity:.9}nav li.on::after{content:" →"}n
 #themes button.on{opacity:1;box-shadow:0 0 0 1.5px var(--fg);transform:scale(1.12)}
 #themes button[data-t=dark]{background:#0a0a0a;border-color:rgba(242,242,242,.35)}
 #themes button[data-t=light]{background:#f2f2f2;border-color:rgba(0,0,0,.2)}
-#themes button[data-t=pink]{background:#FF8DA1;border-color:rgba(0,0,0,.15)}#inq{margin-left:auto;text-align:right}#rl{cursor:pointer;opacity:1;transition:opacity .2s}#rl[aria-pressed=false]{opacity:.45;cursor:default}#rl:hover{opacity:1}
+#themes button[data-t=pink]{background:#FF8DA1;border-color:rgba(0,0,0,.15)}#lay{display:inline-flex;align-items:center;gap:1px;margin:-1px 0 0 -14px;pointer-events:auto}
+#lay button{font-variant-emoji:text;width:18px;height:14px;font:400 13px/14px var(--mono);letter-spacing:0;text-align:center;opacity:.4;transition:opacity .15s,transform .15s}
+#lay button:hover{opacity:.85}#lay button[aria-pressed=true]{opacity:1;transform:scale(1.12)}
+#inq{margin-left:auto;text-align:right}#rl{cursor:pointer;opacity:1;transition:opacity .2s}#rl[aria-pressed=false]{opacity:.45;cursor:default}#rl:hover{opacity:1}
 #inq a{color:inherit;border-bottom:1px solid;margin-left:8px;padding:0 4px 2px;text-decoration:none}
-#meta{position:fixed;left:20px;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:55px 118px 70px 1fr;gap:12px 8px;z-index:4;width:450px;font-size:13px;line-height:1.2;transition:opacity .25s}
+#meta{position:fixed;left:20px;top:50%;transform:translateY(-50%);display:grid;grid-template-columns:55px 118px 70px 1fr;gap:12px 8px;z-index:4;width:450px;font-size:13px;line-height:1.2}
 #meta .k{color:var(--mute)}
 #meta div.v{display:block}
 #count{position:fixed;left:190px;bottom:18px;display:flex;align-items:flex-end;gap:12px;z-index:4}
@@ -53,9 +56,12 @@ nav li{padding:1px 0;cursor:pointer;opacity:.9}nav li.on::after{content:" →"}n
 #count sup{font-size:12px;position:relative;bottom:140px}
 #rail{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden;--cw:min(34vw,470px)}
 .cd{position:absolute;left:49%;top:50%;width:var(--cw);height:calc(var(--cw)*.8);margin:calc(var(--cw)*-.4) 0 0 calc(var(--cw)*-.5);will-change:transform,opacity}
-.cd{cursor:pointer;pointer-events:none}
+.cd{cursor:pointer;pointer-events:none;overflow:hidden}
 .cd.ph{box-sizing:border-box;background:#000;border:1px solid rgba(255,255,255,.4);box-shadow:0 0 18px rgba(255,255,255,.16),inset 0 0 16px rgba(255,255,255,.07)}
-.cd canvas{width:100%;height:100%;display:block;box-shadow:0 24px 50px -22px rgba(0,0,0,.4)}
+.cd:not(.ph){box-shadow:0 24px 50px -22px rgba(0,0,0,.4)}
+.cd canvas{width:100%;height:100%;display:block}
+/* shadow lives on the card (not the image) so the image can Ken-Burns inside a clipped frame */
+.cd img,.cd canvas{box-shadow:none!important;transform-origin:50% 50%}
 .mt{display:grid;grid-template-columns:5.5em 1fr;gap:.6em .8em}
 .n{line-height:1.25;margin:.3em 0}
 .kids{padding-left:1.1em}.sh{font-weight:700}.lk{color:inherit;border-bottom:1px solid;text-decoration:none}
@@ -154,10 +160,14 @@ body.wo #logo{visibility:hidden}
 .fb{flex:1;min-height:0;position:relative;background:#fff}.fb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.fw.drag iframe{pointer-events:none}
 .rz{position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 50%,var(--fg) 50%,var(--fg) 58%,transparent 58%,transparent 74%,var(--fg) 74%,var(--fg) 82%,transparent 82%)}
 #eb{position:fixed;inset:0;z-index:2;pointer-events:none}#eb i{position:absolute;pointer-events:none}
-#desc{display:none;transition:opacity .25s}
+#desc{display:none}
 #desc .c{font:400 11px/1.2 var(--mono);letter-spacing:0;color:var(--mute)}
 #desc h2{font:500 28px/1.1 var(--sans);text-transform:uppercase;margin:8px 0 10px;transform:scaleX(.95);transform-origin:left center}
 #desc p{font-size:14px;line-height:1.25;max-width:320px}
+/* text swap: old copy blurs + fades out fast, new copy blurs in line by line (stagger set in activate()) */
+#desc.out,#meta.out{opacity:0;filter:blur(14px);transition:opacity .22s ease-in,filter .22s ease-in}
+#desc>*,#meta>*{animation:blin .8s cubic-bezier(.2,.7,.2,1) backwards}
+@keyframes blin{from{opacity:0;filter:blur(14px)}to{opacity:1;filter:blur(0)}}
 #idx{display:none}
 @media (min-width:901px){
  .it{visibility:hidden}
@@ -266,6 +276,7 @@ a,button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 <button type="button" data-t="light" aria-label="Light theme" title="Light"></button>
 <button type="button" data-t="pink" aria-label="Pink theme" title="Pink"></button>
 </span>
+<span id="lay" role="group" aria-label="Carousel direction"><button type="button" data-l="d" aria-pressed="true" aria-label="Diagonal carousel" title="Diagonal">↙︎</button><button type="button" data-l="v" aria-pressed="false" aria-label="Vertical carousel" title="Top to bottom">↓︎</button><button type="button" data-l="h" aria-pressed="false" aria-label="Horizontal carousel" title="Left to right">→︎</button></span>
 <button type="button" class="top" id="rl" aria-pressed="false" title="Put the widgets back in the default arrangement"><span class="mute">Layout</span> <b style="font-weight:500">Reset —</b></button>
 <p class="top" id="loc"><b style="font-weight:500">Independent practice</b><br><span class="mute" id="clock">Local</span></p>
 <p class="top" id="inq"><span class="mute">Elsewhere</span><a href="https://zack.cx" target="_blank" rel="noopener">zack.cx</a></p>
@@ -419,7 +430,7 @@ o=vec4(c*uOpacity,uOpacity);}`;
    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);gl.generateMipmap(gl.TEXTURE_2D);
    return T[i]={el,tex,ar:iw/ih,lt:false}
   }catch(err){return T[i]={el,bad:true}}}
- R.take=(e,i,a,op,dx,dy,skx,sky,scx,scy)=>{
+ R.take=(e,i,a,op,dx,dy,skx,sky,scx,scy,kz,kpx,kpy)=>{
   if(!R.on||!ok())return false;
   if(!(CI[i]||!EMB[i]))return false;
   const el=e.querySelector('img,canvas');if(!el)return false;
@@ -427,7 +438,7 @@ o=vec4(c*uOpacity,uOpacity);}`;
   let t=T[i];if(!t||t.el!==el)t=upload(i,el);if(t.bad)return false;
   if(op<=.003)return true;
   R.q.push({t,a,op,x:e.offsetLeft+e.offsetWidth/2+dx,y:e.offsetTop+e.offsetHeight/2+dy,w:e.offsetWidth,h:e.offsetHeight,
-   kx:Math.tan(skx*Math.PI/180),ky:Math.tan(sky*Math.PI/180),sx:scx,sy:scy});
+   kx:Math.tan(skx*Math.PI/180),ky:Math.tan(sky*Math.PI/180),sx:scx,sy:scy,kz:kz||1,kpx:kpx||0,kpy:kpy||0});
   return true};
  function ok(){return innerWidth>=900}
  // displacement field target
@@ -476,34 +487,65 @@ o=vec4(c*uOpacity,uOpacity);}`;
   for(const c of q){
    const ca=c.w/c.h,fx=Math.min(1,ca/c.t.ar),fy=Math.min(1,c.t.ar/ca),ox=c.t.lt?0:(1-fx)/2,oy=c.t.lt?0:(1-fy)/2;
    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,c.t.tex);
-   gl.uniform4f(u.uCover,fx,fy,ox,oy);gl.uniform2f(u.uCenter,c.x,c.y);gl.uniform2f(u.uSize,c.w,c.h);
+   const z=c.kz,gx=fx*(1-1/z),gy=fy*(1-1/z);gl.uniform4f(u.uCover,fx/z,fy/z,ox+gx*(.5+.5*c.kpx),oy+gy*(.5+.5*c.kpy));gl.uniform2f(u.uCenter,c.x,c.y);gl.uniform2f(u.uSize,c.w,c.h);
    gl.uniform2f(u.uSkew,c.kx,c.ky);gl.uniform2f(u.uScale,c.sx,c.sy);gl.uniform1f(u.uOpacity,c.op);
    gl.drawArrays(gl.TRIANGLES,0,6)}
   gl.disable(gl.BLEND)};
  return R})();
-function draw(){rafId=0;pos+=(tp-pos)*.11;sx+=(mx-sx)*.06;sy+=(my-sy)*.06;const m=innerWidth<900,w=m?Math.min(innerWidth*.76,360):Math.min(innerWidth*.34,470),h=w*.8;
- cards.forEach((e,i)=>{const d=i-pos,a=Math.abs(d);
-  if(EMB[i]&&!CI[i]){let f=e.querySelector('.fr');if(a<1.6&&!f){f=document.createElement('div');f.className='fr';const q=document.createElement('iframe');q.src=EMB[i];q.tabIndex=-1;q.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms');q.onload=()=>f.style.opacity=1;f.appendChild(q);e.appendChild(f)}else if(a>3&&f)f.remove();const g=e.querySelector('iframe');if(g)g.style.transform=`scale(${w/1440})`}if(a>4.5){e.style.display='none';return}e.style.display='';
-  const s=Math.min(a,1),k=Math.min(a,4),px=RM?0:-sx*(18+10*k),py=RM?0:-sy*(12+7*k);
-  const dx=(m?-d*w*.2:-d*w*.5)+px,dy=(m?d*h*.6:d*h*.8)+py,sc=1-Math.min(a,3)*.035;
-  e.style.transform=`translate3d(${dx}px,${dy}px,0) skew(${(4*s).toFixed(2)}deg,${(8*s).toFixed(2)}deg) scale(${sc},${sc*(1-.12*s)})`;
-  const op=m?Math.max(0,1-a*.7):Math.max(0,1-Math.max(0,a-2.6)/1.9);e.style.opacity=RP.take(e,i,a,op,dx,dy,4*s,8*s,sc,sc*(1-.12*s))?0:op;e.style.zIndex=1000-Math.round(a*20);e.style.pointerEvents=(!m&&a<2.6)?'auto':'none'});
+/* focus separation: every non-focused card is pushed away from the focused one along the carousel axis (eased in over the first card of distance), so the focused card gets its own room, a little extra scale, and the rest recede slightly.
+   jelly: each card has an under-damped spring (hover) and the whole rail has one sway spring (carousel motion). Both overshoot and rebound. */
+const GAP_D=.45,GAP_M=.3,TIGHT=.6,DIM_D=.2,ez=t=>t*t*(3-2*t),cl=(v,a,b)=>Math.max(a,Math.min(b,v)),
+/* distance curve: the focused card gets GAP of room, while the unfiled cards beyond it stay closely stacked (TIGHT of the old spacing, so they overlap more). A card opens up as it nears focus and files back in once past it. */
+spread=(a,g)=>{const u=cl(a-1,0,1),hh=u<1?u*u*u-u*u*u*u/2:.5,h=a<=1?0:hh+Math.max(0,a-2);return a+g*ez(Math.min(a,1))-(1-TIGHT)*h};
+const JL=cards.map(()=>({x:0,v:0,kb:false})),SW={x:0,v:0},spring=(o,t,k,c,dt)=>{o.v+=(-k*(o.x-t)-c*o.v)*dt;o.x+=o.v*dt};
+/* carousel direction: d = diagonal (default, next card sits lower-left), v = top to bottom, h = left to right. Vectors are in card-widths/heights per step; draw() eases between them so switching glides. */
+const LAY={d:{x:-.5,y:.8,kx:4,ky:8},v:{x:0,y:.8,kx:0,ky:0},h:{x:.75,y:0,kx:0,ky:0}},MOB={x:-.2,y:.6,kx:4,ky:8},MV={...LAY.d};
+let layK='d';try{const q=localStorage.getItem('zack.lay');if(LAY[q])layK=q}catch(e){}
+const layBtns=[...document.querySelectorAll('#lay [data-l]')],setLay=k=>{layK=k;layBtns.forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===k));try{localStorage.setItem('zack.lay',k)}catch(e){}wake()};
+layBtns.forEach(b=>b.onclick=()=>setLay(b.dataset.l));setLay(layK);
+let hov=-1,lt=0,lpx=-1,lpy=-1;
+addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;lpx=e.clientX;lpy=e.clientY;const c=e.target.closest&&e.target.closest('.cd');hov=c?cards.indexOf(c):-1},{passive:true});
+document.documentElement.addEventListener('mouseleave',()=>{hov=-1;lpx=lpy=-1});
+function draw(){rafId=0;const now=performance.now(),dt=lt?Math.min(.033,(now-lt)/1000):1/60;lt=now;
+ const was=pos;pos+=(tp-pos)*.11;sx+=(mx-sx)*.06;sy+=(my-sy)*.06;const m=innerWidth<900,w=m?Math.min(innerWidth*.76,360):Math.min(innerWidth*.34,470),h=w*.8,gap=m?GAP_M:GAP_D,T=LAY[layK];let mvGo=false;for(const q in MV){const df=T[q]-MV[q];if(Math.abs(df)>.0005){MV[q]+=df*.12;mvGo=true}else MV[q]=T[q]}const V=m?MOB:MV;
+ /* cards slide under a still pointer: re-test what is under it so hover follows the carousel */
+ if(!RM&&lpx>=0&&Math.abs(pos-was)>.0005){const c=document.elementFromPoint(lpx,lpy),q=c&&c.closest?c.closest('.cd'):null;hov=q?cards.indexOf(q):-1}
+ spring(SW,RM?0:cl(tp-pos,-1.5,1.5),130,9,dt);SW.x=cl(SW.x,-1.8,1.8);
+ let live=false;
+ cards.forEach((e,i)=>{const d=i-pos,a=Math.abs(d),J=JL[i];
+  spring(J,(i===hov&&!RM)?1:0,170,10,dt);if(i===hov||Math.abs(J.x)>.001||Math.abs(J.v)>.01)live=true;else{J.x=0;J.v=0}
+  if(EMB[i]&&!CI[i]){let f=e.querySelector('.fr');if(a<1.6&&!f){f=document.createElement('div');f.className='fr';const q=document.createElement('iframe');q.src=EMB[i];q.tabIndex=-1;q.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms');q.onload=()=>f.style.opacity=1;f.appendChild(q);e.appendChild(f)}else if(a>3&&f)f.remove();const g=e.querySelector('iframe');if(g)g.style.transform=`scale(${w/1440})`}
+  if(a>4.5){e.style.display='none';return}e.style.display='';
+  const s=Math.min(a,1),f=ez(s),k=Math.min(a,4),px=RM?0:-sx*(18+10*k),py=RM?0:-sy*(12+7*k);
+  const dd=Math.sign(d)*spread(a,gap);
+  const dx=dd*w*V.x+px,dy=dd*h*V.y+py,sc=1-Math.min(a,3)*.035+.05*(1-f);
+  const q=cl(J.v*.011,-.09,.09),hz=1+.06*J.x,sw=SW.x*1.5,skx=V.kx*s-sw,sky=V.ky*s+sw,scx=sc*hz*(1+q),scy=sc*(1-.12*s)*hz*(1-q);
+  e.style.transform=`translate3d(${dx}px,${dy}px,0) skew(${skx.toFixed(2)}deg,${sky.toFixed(2)}deg) scale(${scx.toFixed(4)},${scy.toFixed(4)})`;
+  const op=(m?Math.max(0,1-a*.7):Math.max(0,1-Math.max(0,a-2.6)/1.9))*(1-(m?0:DIM_D)*f);
+  /* Ken Burns inside the card: zoom follows the hover spring (so it overshoots), pan drifts slowly while hovered */
+  const kz=1+.18*Math.max(0,J.x),kpx=cl(Math.sin(now/1600+i*1.7)*J.x,-1,1),kpy=cl(Math.cos(now/2100+i)*J.x,-1,1);
+  const took=RP.take(e,i,a,op,dx,dy,skx,sky,scx,scy,kz,kpx,kpy);e.style.opacity=took?0:op;
+  if(!took&&(kz>1.0005||J.kb)){const im=e.querySelector('img,canvas');if(im)im.style.transform=kz>1.0005?`translate(${(kpx*(kz-1)*50).toFixed(2)}%,${(kpy*(kz-1)*50).toFixed(2)}%) scale(${kz.toFixed(4)})`:'';J.kb=kz>1.0005}
+  e.style.zIndex=1000-Math.round(a*20);e.style.pointerEvents=(!m&&a<2.6)?'auto':'none'});
  RP.render();
  /* sleep once everything has settled; any input, scroll, resize, image load or click wakes it */
- if(Math.abs(tp-pos)<.0005&&Math.abs(mx-sx)<.0003&&Math.abs(my-sy)<.0003&&!RP.alive())calm++;else calm=0;
- if(calm<3&&!rafId)rafId=requestAnimationFrame(draw)}
+ if(Math.abs(tp-pos)<.0005&&Math.abs(mx-sx)<.0003&&Math.abs(my-sy)<.0003&&Math.abs(SW.x)<.002&&Math.abs(SW.v)<.02&&!live&&!mvGo&&!RP.alive())calm++;else calm=0;
+ if(calm<3&&!rafId)rafId=requestAnimationFrame(draw);else if(calm>=3)lt=0}
 ['pointermove','pointerdown','wheel','keydown','click','resize'].forEach(n=>addEventListener(n,wake,{passive:true}));
 addEventListener('scroll',wake,{capture:true,passive:true});document.addEventListener('load',wake,true);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(wake);
 wake();
+let swapT=0;
 function activate(i){
  if(i===cur)return;cur=i;const p=P[i];
  items.forEach((e,k)=>e.classList.toggle('on',k===i));
  [...IX.children].forEach((b,k)=>{b.classList.toggle('on',k===i);if(k===i)b.setAttribute('aria-current','true');else b.removeAttribute('aria-current')});
- M.style.opacity=0;D.style.opacity=0;
- setTimeout(()=>{
+ M.classList.add('out');D.classList.add('out');clearTimeout(swapT);
+ swapT=setTimeout(()=>{
   M.innerHTML=p[7].map((r,k)=>`<span class="k" style="${k?'grid-column:3;grid-row:'+k:''}">${esc(r[0])}</span><div class="v" style="${k?'grid-column:4;grid-row:'+k:''}">${r[1].map(esc).join('<br>')}</div>`).join('');
-  M.style.opacity=1;D.innerHTML=`<div class="c">${esc(p[0])}</div><h2>${esc(p[1])}</h2><p>${p[2]}</p>`;D.style.opacity=1},180);
+  D.innerHTML=`<div class="c">${esc(p[0])}</div><h2>${esc(p[1])}</h2><p>${p[2]}</p>`;
+  [M,D].forEach(el=>[...el.children].forEach((c,k)=>c.style.animationDelay=(k*.05).toFixed(2)+'s'));
+  M.classList.remove('out');D.classList.remove('out')},230);
  setNum(i);$('#cat').textContent=i<RD0?'Work':'R&D';
  if(!$('#modal').classList.contains('on'))document.querySelectorAll('#menu li').forEach(li=>{const q=li.dataset.s;li.classList.toggle('on',q==='work'?i<RD0:q==='rd'?i>=RD0:false)});
 }
@@ -513,7 +555,7 @@ function pick(){
  activate(best)}
 /* mobile: each title/description fades continuously as it scrolls out of focus (desktop keeps the plain on/off look) */
 const MQF=matchMedia('(max-width:900px)');
-function fade(){const m=MQF.matches,mid=L.scrollTop+L.clientHeight/2;items.forEach(e=>{if(!m){if(e.style.opacity)e.style.opacity='';return}const h=e.offsetHeight||1,o=Math.max(0,1-Math.abs(e.offsetTop+h/2-mid)/(h*.55));e.style.opacity=o<.02?0:o.toFixed(3)})}
+function fade(){const m=MQF.matches,mid=L.scrollTop+L.clientHeight/2;items.forEach(e=>{if(!m){if(e.style.opacity)e.style.opacity='';if(e.style.filter)e.style.filter='';return}const h=e.offsetHeight||1,o=Math.max(0,1-Math.abs(e.offsetTop+h/2-mid)/(h*.55));e.style.opacity=o<.02?0:o.toFixed(3);e.style.filter=(o<.98&&o>=.02)?`blur(${((1-o)*10).toFixed(1)}px)`:''})}
 fade();
 L.addEventListener('scroll',()=>{calc();pick();fade();$('#hint').style.opacity=L.scrollTop>40?0:1},{passive:true});
 items.forEach((e,k)=>{e.onclick=()=>k===cur?openCase(k):e.scrollIntoView({behavior:'smooth',block:'center'});e.onkeydown=ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();ev.stopPropagation();e.onclick()}}});
@@ -528,7 +570,7 @@ let wt;addEventListener('wheel',e=>{if($('#case').classList.contains('on')||$('#
  const free=(t,e)=>!t.closest('a,button,nav,#aw,#aud,#inq,#reel,#x,#case,#modal,.fw,.gh')&&(!t.closest('#list')||e.pointerType!=='touch');
  const open=()=>$('#modal').classList.contains('on');
  // unit vector the "next" card travels toward the centre (matches draw())
- const ax=()=>{const m=innerWidth<900,w=m?Math.min(innerWidth*.76,360):Math.min(innerWidth*.34,470),h=w*.8,X=m?w*.2:w*.5,Y=m?h*.6:h*.8,len=Math.hypot(X,Y);return{x:X/len,y:-Y/len,len}};
+ const ax=()=>{const m=innerWidth<900,w=m?Math.min(innerWidth*.76,360):Math.min(innerWidth*.34,470),h=w*.8,X=-(m?MOB.x:LAY[layK].x)*w,Y=-(m?MOB.y:LAY[layK].y)*h,len=Math.hypot(X,Y);return{x:X/len,y:Y/len,len:len*(1+(m?GAP_M:GAP_D))}};
  const proj=(dx,dy,a)=>dx*a.x+dy*a.y;
  addEventListener('pointerdown',e=>{if(e.button||open()||!free(e.target,e))return;const a=ax();d={x:e.clientX,y:e.clientY,st:L.scrollTop,a};moved=false;lastP=0;lastT=performance.now();v=0});
  addEventListener('pointermove',e=>{if(!d)return;const dx=e.clientX-d.x,dy=e.clientY-d.y,p=proj(dx,dy,d.a);
