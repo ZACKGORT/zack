@@ -200,6 +200,7 @@ body:has(.nt.on:is(.au,.gt)) .nt:not(.au):not(.gt):not(.it){top:calc(env(safe-ar
 .ins .big2,#contact .big2{grid-column:4/13;grid-row:1;margin:0}
 .ins .aside{grid-column:9/13;margin:3rem 0 0;padding:0}
 .ins .embed{grid-column:9/13;margin:2rem 0 0}
+#about-content .embed{grid-column:8/13;margin:2rem 0 0}
 .intro{grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--pad);align-items:start}
 .intro dl{grid-column:1/4;grid-row:1;flex-direction:column;gap:1rem}
 .intro .big{grid-column:4/13;grid-row:1;margin:0}
@@ -555,7 +556,8 @@ const tile=(p,a)=>`<div class="t"><img src="${src(p)}" alt="${a}" loading="lazy"
 const stage=(id,mode,cl,rw,d,head,tiles,x='')=>`<section class="stg" id="${id}" data-mode="${mode}" style="--cl:${cl};--rw:${rw};--d:${d}"><div class="stk">${head?`<h2 class="hd">${head}</h2>`:''}<div class="g ${x}">${tiles}</div></div></section>`;
 const tiles=(a,l)=>a.map((p,i)=>tile(p,`${l} ${i+1}`)).join('');
 const proc=(id,P)=>`<section class="sec proc rv" id="${id}"><div class="intro"><dl><div><dt class="k">Client</dt><dd>${P.client}</dd></div><div><dt class="k">Agency</dt><dd>${P.agency}</dd></div></dl><h2 class="big">${P.title}</h2><div class="role"><span class="k">Role</span>${P.role.map(r=>`<p>${r}</p>`).join('')}</div></div><div class="cards">${P.details.map(([l,t])=>`<article class="card"><span class="k">${l}</span><p>${t}</p></article>`).join('')}</div></section>`;
-const ins=(id,P)=>`<section class="sec ins rv${P.embed?' hw':''}" id="${id}"><span class="k">${P.ins[0]}</span><p class="big2">${P.ins[1]}</p><p class="aside">${P.aside}</p>${P.embed?`<div class="embed"><div class="ew"><div class="eb" title="drag to pull it free · double-click for full scale"><span class="eg"></span><span class="el">${P.embed.replace(/^https?:\/\/(www\.)?/,'')}</span><a class="eo" href="${P.embed}" target="_blank" rel="noopener" aria-label="Open in new tab">↗</a><button class="ed" type="button" aria-label="Dock widget" hidden>dock</button></div><div class="ev" title="click to interact"><iframe data-src="${P.embed}" title="${P.client} case study" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe></div><span class="eh" role="presentation" hidden></span></div></div>`:''}</section>`;
+const emb=(u,t)=>`<div class="embed"><div class="ew"><div class="eb" title="drag to pull it free · double-click for full scale"><span class="eg"></span><span class="el">${u.replace(/^https?:\/\/(www\.)?/,'')}</span><a class="eo" href="${u}" target="_blank" rel="noopener" aria-label="Open in new tab">↗</a><button class="ed" type="button" aria-label="Dock widget" hidden>dock</button></div><div class="ev" title="click to interact"><iframe data-src="${u}" title="${t}" sandbox="allow-scripts allow-same-origin allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe></div><span class="eh" role="presentation" hidden></span></div></div>`;
+const ins=(id,P)=>`<section class="sec ins rv${P.embed?' hw':''}" id="${id}"><span class="k">${P.ins[0]}</span><p class="big2">${P.ins[1]}</p><p class="aside">${P.aside}</p>${P.embed?emb(P.embed,P.client+' case study'):''}</section>`;
 const stack=(id,a)=>`<section class="stack" id="${id}">${a.map(([p,t])=>`<figure class="fig rv"><img src="${src(p)}" alt="${t}" loading="lazy" decoding="async"></figure>`).join('')}</section>`;
 const cards=D.cards.map(([t,h,g])=>`<div class="t cd"><a href="${h}"${ext(h)}${h[0]=='#'?' data-settle="end"':''}>${t}</a><span class="gl" aria-hidden="true">${g}</span></div>`);
 const wt=D.work.map((p,i)=>tile(p,`Selected work ${i+1}`));
@@ -568,7 +570,7 @@ $('#app').innerHTML=`
 <section class="sec" id="about"><h2 class="heading">¡Viva la CX!<sup class="sup" role="button" tabindex="0" aria-label="craft experience (tap for confetti)">craft experience<span class="em" aria-hidden="true"></span></sup></h2>
 <p class="by">— Zack Gort, Senior <span class="tip blur" tabindex="0" data-tip="${D.tipUser}"><span>User</span></span> Experience Designer</p></section>
 <section class="sec" id="about-content"><div class="copy">${D.copy.map(p=>`<p>${p}</p>`).join('')}</div>
-<p class="note">psst, hey — super secret…<button class="rdb blur" type="button" aria-controls="rd" aria-expanded="false"><span>R&amp;D_sandbox</span></button></p></section>
+<p class="note">psst, hey — super secret…<button class="rdb blur" type="button" aria-controls="rd" aria-expanded="false"><span>R&amp;D_sandbox</span></button></p>${emb('https://zack.cx/haiku','An introduction in haiku')}</section>
 <section class="sec" id="skills"><div class="trio">${D.skills.map(([h,it])=>`<div><h3 class="k">${h}</h3>${it.map(([t,i])=>`<a class="sk" href="#" data-img="${i?U+i:''}" role="link" aria-label="${t}" onclick="return false"><span>${t}</span></a>`).join('')}</div>`).join('')}</div></section>
 ${stage('work','second',4,2,200,'select works',workTiles)}
 ${stage('brands-grid','ninth',5,4,220,'#design',tiles(D.design,'Design'))}
@@ -622,8 +624,10 @@ new IntersectionObserver(([e])=>nav.classList.toggle('h',e.isIntersecting),{root
 document.addEventListener('visibilitychange',()=>document.body.classList.toggle('sc',!document.hidden&&scrollY>hero.offsetHeight*.9));
 /* ---------- navigation ---------- */
 const go=y=>scrollTo({top:y,behavior:RM?'auto':'smooth'});
+/* sections above a jump target (lazy images, content-visibility) change height while the smooth scroll runs, so a single measured y lands short: once the scroll goes idle, re-measure and re-aim until it sits on the target; any user input cancels */
+let chaseT=0;const chase=yOf=>{clearTimeout(chaseT);let n=0,idle=0,last=scrollY,ks=['wheel','touchstart','keydown','pointerdown'],stop=false;const off=()=>{stop=true;clearTimeout(chaseT);ks.forEach(k=>removeEventListener(k,off))};ks.forEach(k=>addEventListener(k,off,{passive:true}));const tick=()=>{if(stop)return;const c=scrollY;idle=Math.abs(c-last)<1?idle+1:0;last=c;if(idle>=3){const d=yOf();if(Math.abs(d-c)>4&&n++<6){go(d);idle=0}else{off();return}}chaseT=setTimeout(tick,120)};chaseT=setTimeout(tick,250)};
 const clear=()=>{try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}};if(location.hash)clear();
-document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const id=a.getAttribute('href');if(id.length<2)return;const t=$(id);if(!t)return;e.preventDefault();const r=t.getBoundingClientRect();go(a.dataset.settle==='end'&&t.classList.contains('stg')&&!flat()?r.top+scrollY+r.height-innerHeight+2:r.top+scrollY);t.tabIndex=-1;setTimeout(()=>t.focus({preventScroll:true}),0);clear()});
+document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const id=a.getAttribute('href');if(id.length<2)return;const t=$(id);if(!t)return;e.preventDefault();const yOf=()=>{const r=t.getBoundingClientRect();return a.dataset.settle==='end'&&t.classList.contains('stg')&&!flat()?r.top+scrollY+r.height-innerHeight+2:r.top+scrollY};go(yOf());chase(yOf);t.tabIndex=-1;setTimeout(()=>t.focus({preventScroll:true}),0);clear()});
 $('#top').addEventListener('click',e=>{e.preventDefault();go(0)});
 /* tooltips stay on-screen */
 const tipFit=e=>{const t=e.target.closest&&e.target.closest('.tip');if(!t)return;const r=t.getBoundingClientRect(),w=Math.min(320,innerWidth-24),c=r.left+r.width/2;t.style.setProperty('--sh',Math.max(0,12-(c-w/2))+Math.min(0,innerWidth-12-(c+w/2))+'px')};
@@ -921,7 +925,7 @@ const card=document.createElement('aside');card.id='tc';card.className='tc';card
 card.innerHTML=cardChrome+`
 <h2 class="tc-line">I think. <br>I write. <br>I make by design.</h2>
 <p class="tc-bio">The makings &amp; doings of a left-handed autodidact:</p>
-<figure class="tc-prev"><div class="tc-frame"><iframe src="https://zack.cx/haiku" title="Preview of zack.cx/haiku" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe></div><figcaption>An introduction in haiku <a href="https://zack.cx/haiku" target="_blank" rel="noopener noreferrer">zack.cx/haiku</a></figcaption></figure>
+<figure class="tc-prev"><div class="tc-frame"><iframe src="https://zack.cx/cursory" title="Preview of zack.cx/cursory" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe></div><figcaption>cursory_case-studies: <a href="https://zack.cx/cursory" target="_blank" rel="noopener noreferrer">zack.cx/cx/cursory</a></figcaption></figure>
 <p class="tc-links"><a href="https://linkedin.com/in/zackgort" target="_blank" rel="noopener noreferrer">/in/zackgort</a><i aria-hidden="true"></i><a href="https://zack.cx/cv" target="_blank" rel="noopener noreferrer">zack.cx/cv</a><i aria-hidden="true"></i><button type="button" class="tc-mu" aria-label="Play music: works-in-prog playlist" title="music"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></button></p><p class="tc-tags"><span>#ecommerce</span><span>#fintech</span><span>#saas</span></p><span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
 document.body.append(card);
 card.querySelector('.tc-mu').addEventListener('click',()=>dispatchEvent(new Event('zcx:music')));
