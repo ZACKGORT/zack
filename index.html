@@ -406,6 +406,13 @@ html.esc-on .vw-bar{padding-left:5rem}
 .cs .cs-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 0 14px 1.9rem}
 .cs .cs-g img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);background:color-mix(in srgb,var(--ink) 5%,var(--bg))}
 .cs .tc-links{padding-top:12px}
+/* case-study background: the study's main image fills the viewport behind the card, drifting with the pointer + wheel (page scroll is locked while a card is open, so parallax is driven by input, not scrollY) */
+.csbg{position:fixed;inset:0;z-index:37;overflow:hidden;background:#0e0d0e;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .55s ease,visibility 0s .55s}
+.csbg.on{opacity:1;visibility:visible;transition:opacity .55s ease,visibility 0s}
+.csbg-i{position:absolute;left:-6%;top:-8%;width:112%;height:116%;background-position:center;background-size:cover;background-repeat:no-repeat;will-change:transform;transform:translate3d(0,0,0)}
+.csbg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,13,14,.5),rgba(14,13,14,0) 24%,rgba(14,13,14,0) 68%,rgba(14,13,14,.45))}
+html.csbg-on #thm,html.csbg-on #esc,html.csbg-on #rsm{color:#fff!important;text-shadow:0 0 12px rgba(0,0,0,.5)}
+@media(max-width:768px){.csbg{display:none}}
 /* ---------- R&D_sandbox: discreet trigger + sibling card ---------- */
 .rdb{all:unset;cursor:pointer;color:inherit;font:inherit;letter-spacing:inherit}
 .rdb:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
@@ -521,7 +528,7 @@ work:["c3vLP47/image-445-min.png","XZ8QtMx9/610811e9c2fa676f3fb1255f-zax02412-68
 cards:[["TikTok For Business","#tiktok-process","↓"],["BNY Mellon — Pershing X","#fintech-process","↓"],["General Nutrition Centers {GNC}","#ecommerce-process","↓"]],
 design:["9qFzTQH/tiktok-proto-gif.gif","yPyHvw2/Screenshot-20230217-101719.png","cX4QjFf/Screenshot-20230217-102232.png","kzpT2Qr/tiktok3.webp","0DPv3vQ/Frame-4349.png","Jrb2Npd/image-020.png","PhqGJgc/wovn-wireframes.jpg","4Z3457T5/1-t-Yd-DX2-Ql-VLw-XI7gm3ev-MLw.webp","kDXnBz5/1-p-XU6-Sp-Y7-Mx-MKiyf-VI-976g.gif","X5NHxCV/image-414-min.png","0VmJ708g/work3.webp","cSQCgNQY/work1.webp","7J9gLTRy/mask-group-68c4867fc5153.webp","jk13J77g/frame-4348-68c4866f3d9d4.webp","rft2bf0T/9.webp","vx76zjgf/10.webp","hsNwyLC/nav-1sec.gif","qLPtQwx3/dana-mobile-68c4866ab0d77.webp","5XBv9TX0/dana-mobile-mockup-68c4866c20dee.webp","wNWFgHj2/dana-dana-mobile-nav-68c48669d96e6.webp"],
 agency:["LXmyD2hq/IMG-20170104-184947-650.webp","CpkzWmRn/IMG-20151206-143245434-01.webp","q34v0ByL/IMG-20150419-175021862.jpg","GQM6jmpJ/1-1gjr-Eff-Bio-JYo-EAv-MWHf-KQ.webp","HpXh5NPN/IMG-20160407-150604368-1.jpg","mCK7D4Xb/1-Oen-HCQm-Ga10wp-Cz-R8o9-Pt-A.webp","jkcCXSkL/IMG-20150415-134735718.jpg","c3vLP47/image-445-min.png","RymyPtP/image-443-min.png","Ct9DZd9/image-442-min.png"],
-tt:{hero:["9qFzTQH/tiktok-proto-gif.gif","kzpT2Qr/tiktok3.webp","Z69xjMQY/tiktok-cat.gif","yPyHvw2/Screenshot-20230217-101719.png","cX4QjFf/Screenshot-20230217-102232.png"],
+tt:{bg:"kzpT2Qr/tiktok3.webp",hero:["9qFzTQH/tiktok-proto-gif.gif","kzpT2Qr/tiktok3.webp","Z69xjMQY/tiktok-cat.gif","yPyHvw2/Screenshot-20230217-101719.png","cX4QjFf/Screenshot-20230217-102232.png"],
 title:"One platform. Every kind of advertiser.",client:"TikTok For Business",agency:"Code & Theory",
 role:["Senior User Experience Designer on the TikTok for Business web ecosystem.","Partnered with strategy, content, engineering and TikTok stakeholders to unify the experience globally."],
 details:[["Problem","TikTok for Business had grown into a fragmented network of individual B2B sites. Content was hard to manage, harder to find, and every audience was left to piece together its own path."],["Headless Architecture","{We} designed a robust headless content architecture to streamline how information is managed and served globally, so one source of truth could feed every surface."],["Ecosystem Consolidation","The objective: take the scattered B2B sites and merge them into one unified web experience."],["Intent-Led Journeys","{We} moved the platform to an editorial, intent-driven content model, mapping and reorganizing navigation for SMBs, enterprise brands, agencies and independent creators."]],
@@ -1024,12 +1031,32 @@ const body=c=>c.cs?csBody(c):cardChrome+
 /* same-origin only: park the preview on its section (same settle rule as the page's own jumps) and hide its floating chrome; cross-origin falls back to the #hash in the src */
 const park=(fi,id)=>{try{const w=fi.contentWindow,d=w.document;if(!d.getElementById('zcx-nc')){const st=d.createElement('style');st.id='zcx-nc';st.textContent=HIDE;d.head.append(st)}
  if(!id)return;const t=d.getElementById(id);if(!t)return;const r=t.getBoundingClientRect(),top=r.top+w.scrollY;w.scrollTo(0,Math.max(0,t.classList.contains('stg')?top+r.height-w.innerHeight+2:top))}catch(_){}};
+/* case-study backdrop: main image as a fixed full-viewport layer with input-driven parallax; follows the card's open state */
+const wireBg=(card,P)=>{
+ const bg=document.createElement('div');bg.className='csbg';bg.setAttribute('aria-hidden','true');
+ const im=document.createElement('div');im.className='csbg-i';bg.append(im);document.body.append(bg);
+ const url=src(P.bg||P.hero[0]);let loaded=false,raf=0,px=0,py=0,wy=0,cx=0,cy=0,cw=0;
+ const loop=()=>{raf=0;const W=innerWidth,H=innerHeight,lim=H*.055;
+  cx+=(px-cx)*.06;cy+=(py-cy)*.06;cw+=(wy-cw)*.08;
+  im.style.transform=`translate3d(${(-cx*W*.025).toFixed(2)}px,${(-cy*H*.02-cw).toFixed(2)}px,0)`;
+  if(Math.abs(px-cx)+Math.abs(py-cy)+Math.abs(wy-cw)>.001*H)raf=requestAnimationFrame(loop)};
+ const kick=()=>{if(!raf)raf=requestAnimationFrame(loop)};
+ const mv=e=>{px=e.clientX/innerWidth*2-1;py=e.clientY/innerHeight*2-1;kick()};
+ const wh=e=>{if(e.target.closest&&e.target.closest('.cs-s'))return;const lim=innerHeight*.055;wy=clamp(wy+e.deltaY*.12,-lim,lim);kick()};
+ const show=on=>{
+  if(on&&!loaded){loaded=true;const t=new Image();t.onload=()=>{im.style.backgroundImage=`url("${url}")`};t.src=url}
+  if(on){px=py=wy=cx=cy=cw=0;im.style.transform='';if(!RM&&!MQ.matches){addEventListener('pointermove',mv,{passive:true});addEventListener('wheel',wh,{passive:true})}}
+  else{removeEventListener('pointermove',mv);removeEventListener('wheel',wh);cancelAnimationFrame(raf);raf=0}
+  bg.classList.toggle('on',on);
+  /* header controls stay legible on the image; cleared only when no backdrop is showing */
+  clearTimeout(show.t);if(on)document.documentElement.classList.add('csbg-on');else show.t=setTimeout(()=>{if(!$('.csbg.on'))document.documentElement.classList.remove('csbg-on')},0)};
+ let was=false;new MutationObserver(()=>{const on=card.classList.contains('on');if(on!==was){was=on;show(on)}}).observe(card,{attributes:true,attributeFilter:['class']})};
 const made={};
 function ensure(key,trig,anchor){if(made[key])return made[key];
  const c=N[key],card=document.createElement('aside');card.id='nc-'+key;card.className='tc nc'+(c.cs?' cs':'');card.setAttribute('role','dialog');card.setAttribute('aria-label',c.line.replace(/[.:]$/,'')+' card');card.inert=true;card.innerHTML=body(c);document.body.append(card);
  trig.setAttribute('aria-controls',card.id);
  const set=dockCard(card,trig,'zcx.classic.nc.'+key,anchor),m=made[key]={card,set,key,cs:!!c.cs};
- if(c.cs)wireCs(card,m);
+ if(c.cs){wireCs(card,m);wireBg(card,c.cs)}
  const fr=$('.tc-frame',card),fi=fr&&$('iframe',fr);
  if(fr){const vw=+fr.dataset.vw||1600,f=()=>{const w=fr.clientWidth;if(w)fi.style.setProperty('--s',(w/vw).toFixed(4))};new ResizeObserver(f).observe(fr);f();
   m.load=()=>{if(fi.getAttribute('src'))return;const id=c.frame.id||null;fi.addEventListener('load',()=>{park(fi,id);setTimeout(()=>park(fi,id),700);setTimeout(()=>park(fi,id),1800)});fi.src=fi.dataset.src}}
