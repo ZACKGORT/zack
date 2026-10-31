@@ -1164,8 +1164,8 @@ addEventListener('zcx:music',()=>openMusic());
 let idleTm=0,scrolled=false,declined=false;
 let peeking=false,pAbort=false;
 const arm=()=>{clearTimeout(idleTm);if(!scrolled&&!declined)idleTm=setTimeout(()=>{it.classList.add('on');itLoad();peek()},7000)};
-function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scrollTo({top:Math.round(innerHeight*.18),behavior:'smooth'});setTimeout(()=>{if(!pAbort)scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{peeking=false;chk()},700)},1300)}
-['wheel','touchstart','keydown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true}));
+function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scrollTo({top:Math.round(innerHeight*.18),behavior:'smooth'});setTimeout(()=>{/* only glide back if nobody has navigated: no press/key/wheel since the peek began, and the page is still down at the peek position (not on its way to another section) */if(!pAbort&&scrollY<=Math.round(innerHeight*.18)+24)scrollTo({top:0,behavior:'smooth'});setTimeout(()=>{peeking=false;chk()},700)},1300)}
+['wheel','touchstart','keydown','pointerdown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true,capture:true}));
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
 it.querySelector('[data-a]').addEventListener('click',()=>{it.classList.remove('on');au.currentTime=0;aShow();au.play().catch(aOff);pAbort=true;step(1);arm()});
 const gt=document.createElement('div');gt.className='nt gt';gt.setAttribute('role','status');gt.setAttribute('aria-live','polite');gt.innerHTML='<p>Well, if we\u2019re just hanging out, I brought my guitar\u2026</p><div class="row"><button type="button" data-v>vibe</button><button type="button" data-n>no vibe</button></div>';document.body.append(gt);let gtTm=0;
