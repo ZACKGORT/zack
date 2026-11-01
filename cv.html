@@ -2370,6 +2370,49 @@
             .blk.med .vw .emb.img .emb-t.gen {
                 display: none;
             }
+            /* ---------- dappled window light (ported from zack.cx): fixed window frame, drifting foliage, cursor parallax ---------- */
+.lf{position:fixed;left:-10%;top:-10%;width:120%;height:120%;z-index:12;pointer-events:none;display:none;will-change:transform;contain:strict}
+html.lf-on .lf{display:block}
+.lf.s{mix-blend-mode:multiply;opacity:var(--lfi,.7)}
+.lf.l{mix-blend-mode:screen;opacity:calc(var(--lfi,.7)*.45)}
+.lf.s.b{opacity:calc(var(--lfi,.7)*.55)}.lf.l.b{opacity:calc(var(--lfi,.7)*.3)}
+.lf.l{-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+/* the window frame is fixed; only the foliage drifts through it. light layers (l): the frame is the layer's own mask and the moving leaf-gap layer (.ln) sits inside it. shadow layers (s): a fixed 'no frame' sheet (.ls) plus a moving 'no leaf' sheet (.ln); their union is exactly everything except frame-and-leaf. .lm / .ln are two nested transform-only drifts (x, then y) on different periods so the pattern never visibly loops, and they stay on the compositor */
+.lf .ls,.lf .lm,.lf .ln{position:absolute}
+.lf .ls,.lf .ln{inset:0;-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.lf .lm{inset:-10%;will-change:transform}
+.lf.a .lm{animation:lfX calc(8s/var(--lfs,1)) ease-in-out infinite alternate}
+.lf.a .ln{animation:lfY calc(11.5s/var(--lfs,1)) ease-in-out infinite alternate-reverse}
+.lf.b .lm{animation:lfX calc(11s/var(--lfs,1)) ease-in-out infinite alternate-reverse}
+.lf.b .ln{animation:lfY calc(15s/var(--lfs,1)) ease-in-out infinite alternate}
+html.lf-still .lf .lm,html.lf-still .lf .ln{animation-play-state:paused}
+@keyframes lfX{0%{transform:translateX(2.3%)}30%{transform:translateX(-1.8%)}65%{transform:translateX(1.2%)}100%{transform:translateX(-2.5%)}}
+@keyframes lfY{0%{transform:translateY(.8%)}45%{transform:translateY(-1.5%)}100%{transform:translateY(1.3%)}}
+
+#lfb[aria-pressed=true] svg{fill:currentColor;fill-opacity:.3}
+button.tool-btn{border:0;background:transparent;font:inherit}
+#lfw{position:fixed;z-index:121;top:calc(env(safe-area-inset-top,0px) + 58px);right:max(20px,env(safe-area-inset-right,0px));width:min(260px,calc(100vw - 40px));background:var(--panel);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border:1px solid var(--line);border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,.28);color:var(--fg);font-family:Satoshi,system-ui,sans-serif;opacity:0;transform:translateY(-8px);transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1)}
+#lfw.on{opacity:1;transform:none}
+#lfw .lh{display:flex;align-items:center;height:36px;padding:0 6px 0 12px;border-bottom:1px solid var(--line);font-size:12px;font-weight:500;letter-spacing:.04em}
+#lfw .lh span{flex:1}
+#lfw .lx{all:unset;box-sizing:border-box;width:26px;height:26px;display:grid;place-items:center;border-radius:6px;font-size:16px;line-height:1;color:var(--muted);cursor:pointer;transition:background .15s,color .15s}
+#lfw .lx:hover,#lfw .lx:focus-visible{background:var(--chip);color:var(--fg)}
+#lfw .lbd{display:grid;gap:.65rem;padding:.8rem 12px .85rem}
+#lfw label{display:grid;grid-template-columns:4.6rem 1fr;align-items:center;gap:.6rem;font-size:12px;line-height:1;color:var(--muted)}
+#lfw input[type=range]{width:100%;margin:0;accent-color:var(--fg)}
+#lfw select{width:100%;font:inherit;padding:.25rem .35rem;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:6px}
+#lfw .lr{display:flex;gap:.5rem;margin-top:.15rem}
+#lfw .lr button{all:unset;box-sizing:border-box;flex:1;text-align:center;padding:.45rem .25rem;border:1px solid var(--line);border-radius:6px;font-size:12px;line-height:1.2;color:var(--fg);cursor:pointer;transition:background .15s}
+#lfw .lr button:hover,#lfw .lr button:focus-visible{background:var(--chip)}
+#lfw :focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+/* hover slider under the leaf (intensity): drag it, or hold the leaf and scroll */
+#lfs{position:fixed;z-index:60;width:26px;height:112px;padding:10px 0;box-sizing:border-box;display:flex;justify-content:center;transform:translate(-50%,-6px);opacity:0;pointer-events:none;touch-action:none;cursor:ns-resize;--v:.7;background:var(--panel);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:8px;color:var(--fg);transition:opacity .2s ease,transform .3s cubic-bezier(.2,.9,.3,1)}
+#lfs.on{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#lfs .lt{position:relative;display:block;width:2px;height:100%;background:var(--line)}
+#lfs .lq{position:absolute;left:0;right:0;bottom:0;height:calc(var(--v)*100%);background:var(--fg)}
+#lfs .lk{position:absolute;left:50%;bottom:calc(var(--v)*100%);width:10px;height:10px;border-radius:50%;background:var(--fg);transform:translate(-50%,50%);box-shadow:0 0 0 3px var(--bg)}
+@media(prefers-reduced-motion:reduce){#lfs{transition:none}}
+@media print{.lf,#lfw,#lfs{display:none!important}}
         </style>
     </head>
     <body>
@@ -2488,6 +2531,7 @@
                         />
                     </svg>
                 </div>
+                <button type="button" class="tool-btn" id="lfb" aria-pressed="false" aria-label="Toggle dappled light. Right-click, or press the context-menu key, for controls" title="dappled light (L) · hover for intensity · right-click for controls"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg></button>
                 <div class="theme-switch" id="themeToggle" role="button" tabindex="0" aria-label="Toggle theme">
                     <svg
                         class="sun"
@@ -7553,6 +7597,143 @@
                 rv.addEventListener("mouseenter", load, { once: true });
                 rv.addEventListener("focusin", load, { once: true });
             })();
+        </script>
+        <script>
+/* ---------- leaf light: toggle in the header (click / L), controls widget on right-click, long-press or the context-menu key ---------- */
+(()=>{const root=document.documentElement,btn=document.getElementById('lfb');if(!btn)return;
+const KEY='leaf-light',D={on:false,i:70,b:7,s:10,p:50,d:1300,sty:'casement',k:22,m:24,jx:0,jy:0},SH='#c4c7c2',LT='#9fb3bd';
+let st=Object.assign({},D);try{Object.assign(st,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+let cv=null,seed=(Math.random()*1e6)|0,w=null,dt=0;
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+/* dappled window: a window of light (skewed grid of panes with mullion shadows, faded along its length) that only gets through the gaps in a leaf pattern. everything is drawn in the beam's own space, so the leaves skew with the window. mode s = shadow sheet with the light cut out; mode l = the light itself */
+const G=(nc,nr,f)=>{const a=[];for(let r=0;r<nr;r++)for(let c=0;c<nc;c++){const o=f?f(r,c):{};if(o)a.push(Object.assign({c,r,cs:1,rs:1},o))}return a};
+const U=(n,v)=>Array(n).fill(v),R0=[0,0];
+const STY={
+ casement:{n:'Casement',l:.34,t:-.12,w:66,h:130,c:[1,1],r:[1.15,1,1],g:1,cells:G(2,3)},
+ french:{n:'French doors',l:.28,t:-.14,w:72,h:135,c:[1,1,.5,1,1],r:U(5,1),g:.7,cells:G(5,5,(r,c)=>c===2?null:{})},
+ arched:{n:'Arched',l:.38,t:-.10,w:56,h:130,c:[1,1],r:[1.5,1,1],g:1,cells:[{c:0,r:0,cs:2,rs:1,rad:[[.5,.4],[.5,.4],R0,R0]}].concat(G(2,2,(r,c)=>({r:r+1})))},
+ blinds:{n:'Venetian blinds',l:.28,t:-.08,w:78,h:125,c:[1],r:U(12,1),g:.55,cells:G(1,12)},
+ crittall:{n:'Steel grid',l:.34,t:-.12,w:64,h:128,c:U(4,1),r:U(5,1),g:.35,cells:G(4,5)},
+ bay:{n:'Bay window',l:.30,t:-.10,w:72,h:125,c:[.75,1.3,.75],r:[1,1],g:.8,cells:G(3,2,(r,c)=>c===1?{}:{sy:c===0?11:-11})},
+ porthole:{n:'Porthole',l:.46,t:.04,w:42,h:42,hu:'vw',c:[1,1],r:[1,1],g:1,m:[165,55,100],cells:[{c:0,r:0,rad:[[1,1],R0,R0,R0]},{c:1,r:0,rad:[R0,[1,1],R0,R0]},{c:0,r:1,rad:[R0,R0,R0,[1,1]]},{c:1,r:1,rad:[R0,R0,[1,1],R0]}]},
+ doorway:{n:'Doorway',l:.52,t:-.10,w:24,h:130,c:[1],r:[1],g:1,cells:[{c:0,r:0,rad:[[.5,.1],[.5,.1],R0,R0]}]},
+ clerestory:{n:'Clerestory',l:.14,t:.08,w:86,h:34,c:U(6,1),r:[1],g:1,m:[100,40,100],cells:G(6,1)}
+};
+Object.keys(STY).forEach(k=>{STY[k].cells=STY[k].cells.map(o=>Object.assign({cs:1,rs:1},o))});
+/* rounded rect with per-corner elliptical radii (fractions of w / h): [tl,tr,br,bl] */
+function rr(g,w,h,r){const [a,b,c,d]=(r||[R0,R0,R0,R0]).map(v=>[v[0]*w,v[1]*h]),E=(cx,cy,rx,ry,s,e)=>g.ellipse(cx,cy,rx,ry,0,s,e);
+ g.beginPath();g.moveTo(a[0],0);g.lineTo(w-b[0],0);
+ if(b[0]||b[1])E(w-b[0],b[1],b[0],b[1],-Math.PI/2,0);else g.lineTo(w,0);
+ g.lineTo(w,h-c[1]);if(c[0]||c[1])E(w-c[0],h-c[1],c[0],c[1],0,Math.PI/2);else g.lineTo(w,h);
+ g.lineTo(d[0],h);if(d[0]||d[1])E(d[0],h-d[1],d[0],d[1],Math.PI/2,Math.PI);else g.lineTo(0,h);
+ g.lineTo(0,a[1]);if(a[0]||a[1])E(a[0],a[1],a[0],a[1],Math.PI,Math.PI*1.5);else g.lineTo(0,0);g.closePath()}
+/* build the light for one beam (near or far) as two white-on-clear bitmaps: the window frame (panes + fade along the beam, fixed) and the leaf gaps (drawn in the beam's own space so the leaves still skew with the window, on a bitmap 20% bigger than the layer so it has room to drift). far = bigger, softer, finer-leafed penumbra */
+function mk(far){const S=STY[st.sty]||STY.casement,W=far?400:800,H=far?250:500,LW=960,LH=600,vw=innerWidth,vh=innerHeight,
+ bw=S.w*vw/100,bh=S.h*(S.hu==='vw'?vw:vh)/100,bl=S.l*vw+st.jx*vw/100,bt=S.t*vh+st.jy*vh/100,gp=(st.m/10)*vw/100*S.g,
+ ca=document.createElement('canvas'),la=document.createElement('canvas');ca.width=W;ca.height=H;la.width=LW;la.height=LH;
+ const g=ca.getContext('2d'),q=la.getContext('2d');
+ /* viewport px -> a bitmap centred on the viewport (ov = how many times bigger than the layer, which is the viewport plus 10% on every side), then the beam's own skew / tilt */
+ const T=(cx,w,h,ov)=>{const sx=w/(1.2*ov*vw),sy=h/(1.2*ov*vh);cx.setTransform(sx,0,0,sy,w/2-sx*vw/2,h/2-sy*vh/2);cx.translate(bl,bt);cx.transform(1,0,Math.tan(-st.k*Math.PI/180),1,0,0);cx.rotate(-4*Math.PI/180);if(far)cx.scale(1.03,1.03)};
+ const trk=(f,tot)=>{const sm=f.reduce((a,b)=>a+b,0),av=Math.max(0,tot-gp*(f.length-1));let o=0;return f.map(v=>{const l=av*v/sm,t=[o,l];o+=l+gp;return t})},cs=trk(S.c,bw),rs=trk(S.r,bh);
+ T(g,W,H,1);
+ S.cells.forEach(o=>{const x0=cs[o.c][0],y0=rs[o.r][0],e1=cs[o.c+o.cs-1],e2=rs[o.r+o.rs-1],cw=e1[0]+e1[1]-x0,ch=e2[0]+e2[1]-y0;
+  g.save();if(o.sy){g.translate(x0+cw/2,y0+ch/2);g.transform(1,Math.tan(o.sy*Math.PI/180),0,1,0,0);g.translate(-cw/2,-ch/2)}else g.translate(x0,y0);
+  const gr=g.createLinearGradient(0,0,0,ch);gr.addColorStop(0,'rgba(255,255,255,.98)');gr.addColorStop(1,'rgba(255,255,255,.5)');g.fillStyle=gr;rr(g,cw,ch,o.rad);g.fill();g.restore()});
+ /* fade along the beam (css-style angled gradient) */
+ const M=S.m||[165,30,95],an=M[0]*Math.PI/180,L=Math.abs(bw*Math.sin(an))+Math.abs(bh*Math.cos(an)),dx=Math.sin(an)*L/2,dy=-Math.cos(an)*L/2,gm=g.createLinearGradient(bw/2-dx,bh/2-dy,bw/2+dx,bh/2+dy);
+ gm.addColorStop(M[1]/100,'#000');gm.addColorStop(M[2]/100,'rgba(0,0,0,0)');g.globalCompositeOperation='destination-in';g.fillStyle=gm;g.fillRect(-4000,-4000,12000,12000);
+ /* leaf gaps, clustered like branches, in the beam's space; drawn a little past the beam's edges (and denser to match) so the drifting pattern never runs out */
+ T(q,LW,LH,1.2);const r=rng(far?seed+7:seed),p1=r()*6,p2=r()*6,p3=r()*6,k=Math.min(.6,900/Math.max(bw,bh)),cnt=Math.min(5000,st.d*1.5*(bw*bh)/1.6e6)*(far?.8:1)*1.35,sc=far?.8:1.25,
+  f=(X,Y)=>(Math.sin(X*.004+p1)+Math.sin(Y*.005+p2)+Math.sin((X+Y)*.003+p3)+Math.sin(X*.009-Y*.007+p1))/4;
+ q.fillStyle='#fff';let n=0,tr=0;
+ while(n<cnt&&tr<cnt*12){tr++;const X=(r()*1.16-.08)*bw,Y=(r()*1.16-.08)*bh;if(r()>(f(X*k,Y*k)+.35)*1.1)continue;
+  const rx=(6+r()*r()*60)*sc,ry=rx*(.45+r()*.5),a=.35+r()*.65;
+  q.save();q.translate(X,Y);q.rotate(r()*Math.PI);q.globalAlpha=a;q.beginPath();q.moveTo(-rx,0);q.quadraticCurveTo(0,-ry*1.3,rx,0);q.quadraticCurveTo(0,ry*1.1,-rx,0);q.fill();q.restore();n++}
+ return{fr:ca,lf:la}}
+/* four layers (shadow / light x near / far). each is a plain div: no canvas pixels on screen, just masks made from the bitmaps above */
+function build(){if(cv)return;cv={};[['sa','s','a'],['la','l','a'],['sb','s','b'],['lb','l','b']].forEach(([id,mode,d])=>{const p=document.createElement('div'),m=document.createElement('div'),n=document.createElement('div');
+ p.className='lf '+mode+' '+d;p.setAttribute('aria-hidden','true');m.className='lm';n.className='ln';n.style.background=mode==='s'?SH:LT;m.append(n);
+ if(mode==='s'){const s=document.createElement('div');s.className='ls';s.style.background=SH;p.append(s)}
+ p.append(m);document.body.append(p);cv[id]=p});draw()}
+/* the blur is baked into the bitmaps (once, off the animation path) instead of a live css filter on four full-screen blended layers, so each frame is just a transform + blend of a small texture. layers are low-res on purpose: they're blurred anyway, and the browser upsamples them smoothly */
+let ms=null;
+function blur(m,px){const W=m.width,H=m.height,o=document.createElement('canvas');o.width=W;o.height=H;const x=o.getContext('2d');
+ if('filter' in x){x.filter='blur('+px.toFixed(2)+'px)';x.drawImage(m,0,0);x.filter='none'}
+ else{const f=Math.max(1,px/1.5),t=document.createElement('canvas');t.width=Math.max(2,Math.round(W/f));t.height=Math.max(2,Math.round(H/f));const y=t.getContext('2d');y.imageSmoothingQuality='high';y.drawImage(m,0,0,t.width,t.height);x.imageSmoothingQuality='high';x.drawImage(t,0,0,W,H)}
+ return o}
+const mi=(el,u)=>{const v=u?'url('+u+')':'none';el.style.webkitMaskImage=v;el.style.maskImage=v};
+/* alpha inverse of a bitmap: 1 - a */
+function inv(m){const o=document.createElement('canvas');o.width=m.width;o.height=m.height;const x=o.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,o.width,o.height);x.globalCompositeOperation='destination-out';x.drawImage(m,0,0);return o}
+function compose(){if(!cv||!ms)return;[0,1].forEach(f=>{const F=ms[f].fr,E=ms[f].lf,sf=(F.width/(1.2*innerWidth)+F.height/(1.2*innerHeight))/2,se=(E.width/(1.44*innerWidth)+E.height/(1.44*innerHeight))/2,
+ fr=blur(F,st.b*(f?5:1)*sf),lf=blur(E,st.b*(f?1.6:1)*.7*se),s=cv[f?'sb':'sa'],l=cv[f?'lb':'la'];
+ mi(l,fr.toDataURL());mi(l.querySelector('.ln'),lf.toDataURL());
+ mi(s.querySelector('.ls'),inv(fr).toDataURL());mi(s.querySelector('.ln'),inv(lf).toDataURL())})}
+function draw(){if(!cv)return;ms=[mk(0),mk(1)];compose()}
+function newPat(){seed=(Math.random()*1e6)|0;const ks=Object.keys(STY).filter(x=>x!==st.sty);st.sty=ks[(Math.random()*ks.length)|0];st.k=8+((Math.random()*34)|0);st.m=6+((Math.random()*40)|0);st.jx=+(Math.random()*12-6).toFixed(1);st.jy=+(Math.random()*8-4).toFixed(1);
+ if(w)w.querySelectorAll('input,select').forEach(i=>{if(i.dataset.k in st)i.value=st[i.dataset.k]});save();draw()}
+let rz=0,bt=0;addEventListener('resize',()=>{if(!cv)return;clearTimeout(rz);rz=setTimeout(draw,200)});
+function vars(){root.style.setProperty('--lfi',st.i/100);root.style.setProperty('--lfb',st.b+'px');root.style.setProperty('--lfs',Math.max(st.s,1)/10);root.classList.toggle('lf-still',st.s===0)}
+function apply(){if(st.on)build();root.classList.toggle('lf-on',st.on);btn.setAttribute('aria-pressed',st.on?'true':'false');vars();save()}
+const toggle=()=>{st.on=!st.on;apply()};
+function close(back){if(!w)return;const e=w;w=null;document.removeEventListener('pointerdown',away,true);document.removeEventListener('keydown',esc,true);btn.setAttribute('aria-expanded','false');e.classList.remove('on');setTimeout(()=>e.remove(),240);if(back)btn.focus()}
+const away=e=>{if(w&&!w.contains(e.target)&&!btn.contains(e.target))close()};
+const esc=e=>{if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close(true)}};
+
+const rows=l=>l.map(([k,l,a,b])=>'<label><span>'+l+'</span><input type="range" data-k="'+k+'" min="'+a+'" max="'+b+'" value="'+st[k]+'"></label>').join('');
+function open(){if(w){close(true);return}if(!st.on){st.on=true;apply()}
+ w=document.createElement('div');w.id='lfw';w.setAttribute('role','dialog');w.setAttribute('aria-label','Dappled window controls');
+ w.innerHTML='<div class="lh"><span>Dappled window</span><button type="button" class="lx" aria-label="Close dappled window controls">×</button></div><div class="lbd">'+
+  rows([['i','Intensity',0,100],['b','Softness',1,22],['s','Sway',0,30],['p','Parallax',0,100]])+'<label><span>Style</span><select data-k="sty">'+Object.keys(STY).map(k=>'<option value="'+k+'"'+(k===st.sty?' selected':'')+'>'+STY[k].n+'</option>').join('')+'</select></label>'+rows([['k','Angle',5,45],['m','Mullions',0,60],['d','Foliage',400,2400]])+
+  '<div class="lr"><button type="button" data-a="new">New pattern</button><button type="button" data-a="reset">Reset</button></div></div>';
+ sl.classList.remove('on');document.body.append(w);btn.setAttribute('aria-expanded','true');requestAnimationFrame(()=>w.classList.add('on'));
+ w.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation()});
+ w.querySelector('.lx').addEventListener('click',()=>close(true));
+ w.addEventListener('input',e=>{const k=e.target.dataset.k;if(!k)return;st[k]=k==='sty'?e.target.value:+e.target.value;if(k==='d'||k==='k'||k==='m'||k==='sty'){clearTimeout(dt);dt=setTimeout(draw,120)}else if(k==='b'){clearTimeout(bt);bt=setTimeout(compose,50)}vars();save();if(k==='i')sync();if(k==='p')aim(tx,ty)});
+ w.addEventListener('click',e=>{const a=e.target.dataset&&e.target.dataset.a;if(a==='new')newPat();
+  else if(a==='reset'){Object.assign(st,D,{on:true});w.querySelectorAll('input,select').forEach(i=>{i.value=st[i.dataset.k]});apply();draw();sync()}});
+ document.addEventListener('pointerdown',away,true);document.addEventListener('keydown',esc,true)}
+btn.setAttribute('aria-haspopup','dialog');btn.setAttribute('aria-expanded','false');
+let lp=0,lpHit=false,wheeled=false;
+btn.addEventListener('click',()=>{if(lpHit){lpHit=false;return}if(wheeled){wheeled=false;return}toggle()});
+btn.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();open()});
+btn.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;lp=setTimeout(()=>{lpHit=true;open()},520)});
+['pointerup','pointercancel','pointerleave'].forEach(n=>btn.addEventListener(n,()=>clearTimeout(lp)));
+/* hover slider: hover the leaf to reveal a vertical intensity slider; drag it, or hold the leaf and scroll. mouse / pen only (touch keeps long-press for the full controls) */
+const sl=document.createElement('div');sl.id='lfs';sl.setAttribute('aria-hidden','true');sl.innerHTML='<span class="lt"><span class="lq"></span><span class="lk"></span></span>';document.body.append(sl);
+let hideT=0,held=false,drag=false,hov=0,fv=st.i;
+const clampI=v=>Math.max(0,Math.min(100,v));
+const sync=()=>{sl.style.setProperty('--v',st.i/100);if(w){const n=w.querySelector('input[data-k="i"]');if(n)n.value=st.i}};
+const setI=v=>{v=Math.round(clampI(v));if(v===st.i)return;st.i=v;if(!st.on&&v>0){st.on=true;apply()}else{vars();save()}sync()};
+const place=()=>{const r=btn.getBoundingClientRect();sl.style.left=(r.left+r.width/2)+'px';sl.style.top=(r.bottom+4)+'px'};
+const showS=()=>{if(w)return;clearTimeout(hideT);place();sync();sl.classList.add('on')};
+const hideS=()=>{clearTimeout(hideT);hideT=setTimeout(()=>{if(held||drag||hov>0)return;sl.classList.remove('on')},260)};
+const mouse=e=>e.pointerType!=='touch';
+[btn,sl].forEach(el=>{el.addEventListener('pointerenter',e=>{if(!mouse(e))return;hov++;showS()});el.addEventListener('pointerleave',e=>{if(!mouse(e))return;hov=Math.max(0,hov-1);hideS()})});
+btn.addEventListener('focus',()=>{if(btn.matches(':focus-visible'))showS()});btn.addEventListener('blur',hideS);
+const fromY=e=>{const r=sl.querySelector('.lt').getBoundingClientRect();fv=clampI(100*(1-(e.clientY-r.top)/r.height));setI(fv)};
+sl.addEventListener('pointerdown',e=>{if(e.button)return;e.preventDefault();drag=true;sl.setPointerCapture(e.pointerId);fromY(e)});
+sl.addEventListener('pointermove',e=>{if(drag)fromY(e)});
+['pointerup','pointercancel'].forEach(n=>sl.addEventListener(n,()=>{drag=false;hideS()}));
+sl.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation()});
+/* hold the leaf + scroll: wheel nudges the same slider, and the page doesn't scroll while it's held */
+btn.addEventListener('pointerdown',e=>{if(!mouse(e)||e.button)return;held=true;wheeled=false;fv=st.i;showS()});
+['pointerup','pointercancel'].forEach(n=>addEventListener(n,()=>{if(!held)return;held=false;hideS()},true));
+addEventListener('wheel',e=>{if(!held)return;e.preventDefault();e.stopImmediatePropagation();wheeled=true;
+ const k=e.deltaMode===1?33:e.deltaMode===2?200:1;fv=clampI(fv-e.deltaY*k*.08);setI(fv);showS()},{passive:false,capture:true});
+addEventListener('resize',()=>{if(sl.classList.contains('on'))place()});
+/* cursor parallax (from leaf.html): the eased pointer shifts each layer opposite the cursor, near layers most and the far penumbra least. it sets translate directly on the four canvases (not a root custom property) so a mouse move never restyles the page; mouse / pen only, skipped for reduced motion, and clamped so the layers' 10% overhang never shows an edge */
+const DP={sa:1,la:1,sb:.55,lb:.55},rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let tx=0,ty=0,cx=0,cy=0,praf=0;
+const amp=()=>Math.min(st.p*.8,Math.min(innerWidth,innerHeight)*.06);
+function ptick(){cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const a=amp();if(cv)for(const k in cv)cv[k].style.translate=(-cx*a*DP[k]).toFixed(2)+'px '+(-cy*a*DP[k]).toFixed(2)+'px';praf=(Math.abs(tx-cx)>.001||Math.abs(ty-cy)>.001)?requestAnimationFrame(ptick):0}
+const aim=(x,y)=>{tx=x;ty=y;if(!praf)praf=requestAnimationFrame(ptick)};
+if(!rm){addEventListener('pointermove',e=>{if(!st.on||!st.p||e.pointerType==='touch')return;aim(e.clientX/innerWidth*2-1,e.clientY/innerHeight*2-1)},{passive:true});root.addEventListener('mouseleave',()=>aim(0,0))}
+sync();
+window.zcxLeaf={toggle,open};
+/* L toggles the light, unless a modifier is held or you're typing in a block / field */
+addEventListener('keydown',e=>{if((e.key!=='l'&&e.key!=='L')||e.metaKey||e.ctrlKey||e.altKey||e.repeat)return;const a=document.activeElement,t=a&&a.tagName;if(t==='TEXTAREA'||t==='INPUT'||t==='SELECT'||(a&&a.isContentEditable))return;e.preventDefault();toggle()});
+apply()})();
         </script>
     </body>
 </html>
