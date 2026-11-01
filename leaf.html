@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dappled light background</title>
+<meta name="color-scheme" content="light">
+<style>
+:root{--wall:#e3e3e1;--wall-hi:#efefed;--ink:#0d0d0d;--leaf:#fff;--panel:rgba(255,255,255,.7);--grain:multiply;--grain-op:.35;color-scheme:light;--blur:7px;--speed:1;--glow:.95;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{height:100%}
+/* Dark: a moonlit wall. Light patches turn cool and dim, grain lifts instead of darkens, and the vignette deepens. */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wall:#0a0e11;--wall-hi:#151d22;--ink:#e6ebed;--leaf:#92a7b1;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;--glow:.6;color-scheme:dark}}
+:root[data-theme="dark"]{--wall:#0a0e11;--wall-hi:#151d22;--ink:#e6ebed;--leaf:#92a7b1;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;--glow:.6;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;height:100%;color:var(--ink);font-family:"Helvetica Neue",Arial,sans-serif;background:var(--wall);overflow:hidden}
+.wall{position:fixed;inset:0;background:radial-gradient(120% 90% at 30% 20%,var(--wall-hi),var(--wall) 70%);z-index:0}
+.wall::after{content:"";position:absolute;inset:0;opacity:var(--grain-op);mix-blend-mode:var(--grain);
+background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+.light{position:fixed;inset:-10%;width:120%;height:120%;z-index:1;pointer-events:none;will-change:transform}
+.light canvas{width:100%;height:100%;display:block;filter:blur(var(--blur))}
+.a{animation:swayA calc(23s / var(--speed)) ease-in-out infinite alternate}
+.b{opacity:.7;animation:swayB calc(31s / var(--speed)) ease-in-out infinite alternate}
+.b canvas{filter:blur(calc(var(--blur) * 1.6))}
+.light{opacity:var(--glow)}
+.b{opacity:calc(var(--glow) * .7)}
+@keyframes swayA{from{transform:translate(-1.2%,.6%) rotate(-.6deg) scale(1)}to{transform:translate(1.4%,-.8%) rotate(.7deg) scale(1.04)}}
+@keyframes swayB{from{transform:translate(1.6%,-.5%) rotate(.5deg) scale(1.06)}to{transform:translate(-1.4%,.9%) rotate(-.8deg) scale(1)}}
+main{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 8vw}
+h1{margin:0 0 .6rem;font-weight:700;font-size:clamp(2.2rem,6vw,5rem);letter-spacing:-.03em;line-height:1}
+p{margin:0;max-width:34ch;font-size:1.05rem;line-height:1.5}
+.panel{position:fixed;z-index:3;right:max(16px,env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom,0px));
+display:grid;gap:.5rem;padding:.9rem 1rem;background:var(--panel);backdrop-filter:blur(10px);border-radius:10px;font-size:.8rem}
+.panel label{display:grid;grid-template-columns:5.5rem 8rem;align-items:center;gap:.5rem}
+.panel input{width:100%;accent-color:var(--ink)}
+.panel input:focus-visible,.panel button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.panel button{font:inherit;padding:.4rem;border:1px solid var(--ink);background:var(--ink);color:var(--wall);border-radius:6px;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.a,.b{animation:none}}
+</style>
+</head>
+<body>
+<div class="wall"></div>
+<div class="light a"><canvas id="c1" width="1600" height="1000"></canvas></div>
+<div class="light b"><canvas id="c2" width="1600" height="1000"></canvas></div>
+
+<main>
+  <h1>Light through leaves.</h1>
+  <p>Replace this with your site content. The wall moves slowly behind it.</p>
+</main>
+
+<div class="panel" aria-label="Light controls">
+  <label>Softness<input id="blur" type="range" min="1" max="22" value="7"></label>
+  <label>Brightness<input id="glow" type="range" min="30" max="100" value="95"></label>
+  <label>Sway speed<input id="speed" type="range" min="0" max="30" value="10"></label>
+  <label>Foliage<input id="dens" type="range" min="400" max="2400" value="1300"></label>
+  <button id="re" type="button">New pattern</button>
+  <button id="th" type="button">Switch light / dark</button>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement,leaf='#fff';
+  function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  // Light = gaps between leaves. Clustered blobs make big pools; small ones make speckle.
+  function paint(cv,seed,count,scale){
+    var ctx=cv.getContext('2d'),W=cv.width,H=cv.height,r=rng(seed);
+    ctx.clearRect(0,0,W,H);
+    var p1=r()*6,p2=r()*6,p3=r()*6;
+    function field(x,y){ // low-frequency noise so gaps cluster like branches
+      return (Math.sin(x*.004+p1)+Math.sin(y*.005+p2)+Math.sin((x+y)*.003+p3)+Math.sin(x*.009-y*.007+p1))/4;
+    }
+    var n=0,tries=0;
+    while(n<count&&tries<count*12){
+      tries++;
+      var x=r()*W,y=r()*H,f=field(x,y);
+      if(r()>(f+.35)*1.1)continue;
+      var rx=(6+r()*r()*60)*scale,ry=rx*(.45+r()*.5),a=.35+r()*.65;
+      ctx.save();ctx.translate(x,y);ctx.rotate(r()*Math.PI);
+      ctx.globalAlpha=a;ctx.fillStyle=leaf;
+      ctx.beginPath();
+      ctx.moveTo(-rx,0);ctx.quadraticCurveTo(0,-ry*1.3,rx,0);ctx.quadraticCurveTo(0,ry*1.1,-rx,0);
+      ctx.fill();ctx.restore();n++;
+    }
+  }
+  var c1=document.getElementById('c1'),c2=document.getElementById('c2'),seed=Math.floor(Math.random()*1e6);
+  function draw(){var d=+document.getElementById('dens').value;
+    leaf=getComputedStyle(root).getPropertyValue('--leaf').trim()||'#fff';
+    paint(c1,seed,d,1.25);paint(c2,seed+7,d*.6,.8)}
+  draw();
+  function bind(id,fn){document.getElementById(id).addEventListener('input',function(e){fn(+e.target.value)})}
+  bind('blur',function(v){root.style.setProperty('--blur',v+'px')});
+  bind('glow',function(v){root.style.setProperty('--glow',v/100)});
+  bind('speed',function(v){root.style.setProperty('--speed',Math.max(v,1)/10)});
+  var dt;bind('dens',function(){clearTimeout(dt);dt=setTimeout(draw,120)});
+  document.getElementById('re').onclick=function(){seed=Math.floor(Math.random()*1e6);draw()};
+  var mq=matchMedia('(prefers-color-scheme: dark)');
+  function isDark(){var t=root.dataset.theme;return t?t==='dark':mq.matches}
+  function sync(){root.style.removeProperty('--glow');document.getElementById('glow').value=isDark()?60:95;draw()}
+  document.getElementById('th').onclick=function(){root.dataset.theme=isDark()?'light':'dark';sync()};
+  mq.addEventListener('change',function(){if(!root.dataset.theme)sync()});
+  sync();
+})();
+</script>
+</body>
+</html>
