@@ -88,10 +88,24 @@ float leaves(vec2 p,float sc,float sd,float dens,float sig,float km){
   return 1.-T;
 }
 
-/* mullion shadow of a bar of half-width hw seen through a gaussian-ish penumbra s: an umbra plus a wider, fainter shoulder (the bar has depth) */
+/* improved mullion shadow: core + wider soft shoulder + slight irregularity */
 float cdf(float z){return 1./(1.+exp(-1.702*z));}
-float bar(float d,float hw,float s){s=max(s,.5);return cdf((hw-d)/s)+cdf((hw+d)/s)-1.;}
-float shade(float d,float hw,float s){return bar(d,hw,s);}
+
+float edgeNoise(vec2 p){
+  return (sin(p.x*.11+p.y*.07)*.6 + sin(p.x*.29-p.y*.19)*.35)*.85;
+}
+
+float bar(float d,float hw,float s){
+  s=max(s,.55);
+  // tighter core + wider soft shoulder (simulates bar depth)
+  float core = cdf((hw-d)/(s*.55));
+  float soft = cdf((hw-d)/(s*1.85))*.52;
+  return clamp(core+soft,0.,1.);
+}
+
+float shade(float d,float hw,float s){
+  return bar(d,hw,s);
+}
 
 /* per-pass setup. w=0 is the first layer drawn (foliage a / far beam), w=1 the second (foliage b / near beam).
    returns the layer colour (a = shape coverage); lp/sc/sd/dn/sg describe the leaf mask, sg<0 means no mask */
@@ -137,12 +151,31 @@ vec4 setup(vec2 P,float w,out vec2 lp,out float sc,out float sd,out float dn,out
   float tt=.5+dot(p-.5*vec2(W,H),dir)/L,sp=1.;
   float s2=blur/scale*sp;   /* sigma = the original CSS blur radius */
   float a=cdf(dE/s2)*clamp((uFade.z-tt)/(uFade.z-uFade.y),0.,1.);
-  /* mullions: each bar is blurred analytically, so thin bars lighten as the penumbra grows past their width, as real ones do */
+
+  /* mullions: improved soft bars with irregularity + secondary soft shadow */
+  float sMull = s2 * mix(1.4, 2.05, step(0.5, near));   // softer on far layer
   float kx=floor((p.x+hw)/(cw+g)+.5),ky=floor((p.y-h0-hw)/(u+g)+.5);
-  float bx=(kx>.5&&kx<nc-.5)?shade(abs(p.x+hw-kx*(cw+g)),hw,s2):0.;
-  float by=(ky>-.5&&ky<nr-1.5)?shade(abs(p.y-h0-hw-ky*(u+g)),hw,s2):0.;
-  if(shape==1.)bx*=cdf((p.y-h0)/s2);
-  a*=(1.-bx)*(1.-by);
+
+  // per-bar thickness variation
+  float thickVar = 0.84 + 0.26 * fract(sin(kx*12.9898 + ky*78.233)*43758.5453);
+  float hwVar = hw * thickVar;
+
+  // distance with edge noise
+  float dX = abs(p.x + hw - kx*(cw+g));
+  float dY = abs(p.y - h0 - hw - ky*(u+g));
+  dX += edgeNoise(p) * 1.7;
+  dY += edgeNoise(p.yx) * 1.7;
+
+  float bx = (kx>.5 && kx<nc-.5) ? shade(dX, hwVar, sMull) : 0.;
+  float by = (ky>-.5 && ky<nr-1.5) ? shade(dY, hwVar, sMull) : 0.;
+
+  // faint wider secondary shadow (contact + ambient)
+  float bx2 = (kx>.5 && kx<nc-.5) ? shade(dX, hwVar*1.55, sMull*2.6)*0.20 : 0.;
+  float by2 = (ky>-.5 && ky<nr-1.5) ? shade(dY, hwVar*1.55, sMull*2.6)*0.20 : 0.;
+
+  if(shape==1.){ bx *= cdf((p.y-h0)/sMull); bx2 *= cdf((p.y-h0)/sMull); }
+  a *= (1.-bx)*(1.-by)*(1.-bx2)*(1.-by2);
+
   float k=min(.6,900./max(W,H));
   lp=p*k;sc=(near>.5?1.25:.8)*k;sd=uSeed+(near>.5?0.:7.);dn=uDens*1.5*(near>.5?1.:.8);
   sg=uScene>1.5?uBlur*k*(near>.5?1.22:5.12)*1.4*sp:-1.;   /* bitmap blur + the beam css blur, as the original */
