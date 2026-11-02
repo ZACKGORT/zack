@@ -1,82 +1,38 @@
 <!DOCTYPE html>
-<html lang="en" data-scene="window">
+<html lang="en" data-scene="both" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Dappled light background</title>
-<meta name="color-scheme" content="light">
+<title>Dappled light shader</title>
+<meta name="color-scheme" content="light dark">
 <style>
-:root{--wall:#e3e3e1;--wall-hi:#efefed;--ink:#0d0d0d;--leaf:#fff;--panel:rgba(255,255,255,.7);--grain:multiply;--grain-op:.35;color-scheme:light;--pane-a:rgba(255,251,242,.98);--pane-b:rgba(255,255,255,.5);--dim:rgba(50,50,46,.13);--mull:2.4vw;--skew:-22deg;--blur:7px;--speed:1;--glow:.95;
-box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--wall:#e3e3e1;--ink:#0d0d0d;--panel:rgba(255,255,255,.7);--grain:multiply;--grain-op:.35;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{height:100%}
-/* Dark: a moonlit wall. Light patches turn cool and dim, grain lifts instead of darkens, and the vignette deepens. */
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wall:#0a0e11;--wall-hi:#151d22;--ink:#e6ebed;--leaf:#92a7b1;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;--glow:.6;--pane-a:rgba(176,196,208,.42);--pane-b:rgba(176,196,208,.12);--dim:rgba(0,0,0,.3);color-scheme:dark}}
-:root[data-theme="dark"]{--wall:#0a0e11;--wall-hi:#151d22;--ink:#e6ebed;--leaf:#92a7b1;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;--glow:.6;--pane-a:rgba(176,196,208,.42);--pane-b:rgba(176,196,208,.12);--dim:rgba(0,0,0,.3);color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--wall:#0a0e11;--ink:#e6ebed;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;color-scheme:dark}}
+:root[data-theme="dark"]{--wall:#0a0e11;--ink:#e6ebed;--panel:rgba(16,22,26,.72);--grain:screen;--grain-op:.1;color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;height:100%;color:var(--ink);font-family:"Helvetica Neue",Arial,sans-serif;background:var(--wall);overflow:hidden}
-.wall{position:fixed;inset:0;background:radial-gradient(120% 90% at 30% 20%,var(--wall-hi),var(--wall) 70%);z-index:0}
-.wall::after{content:"";position:absolute;inset:0;opacity:var(--grain-op);mix-blend-mode:var(--grain);
-background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
-.light{position:fixed;inset:-10%;width:120%;height:120%;z-index:1;pointer-events:none;will-change:transform}
-.light canvas{width:100%;height:100%;display:block;filter:blur(var(--blur))}
-.a{animation:swayA calc(23s / var(--speed)) ease-in-out infinite alternate}
-.b{opacity:.7;animation:swayB calc(31s / var(--speed)) ease-in-out infinite alternate}
-.b canvas{filter:blur(calc(var(--blur) * 1.6))}
-.light{opacity:var(--glow)}
-.b{opacity:calc(var(--glow) * .7)}
-@keyframes swayA{from{transform:translate(-1.2%,.6%) rotate(-.6deg) scale(1)}to{transform:translate(1.4%,-.8%) rotate(.7deg) scale(1.04)}}
-@keyframes swayB{from{transform:translate(1.6%,-.5%) rotate(.5deg) scale(1.06)}to{transform:translate(-1.4%,.9%) rotate(-.8deg) scale(1)}}
-/* window scene: no foliage, just a skewed window of light with mullion shadows, a soft penumbra and a slow sun drift */
-.win{position:fixed;inset:0;z-index:1;pointer-events:none;display:none;overflow:hidden}
-html[data-scene=window] .win{display:block}
-html[data-scene=window] .light,html[data-scene=window] .fol,html:not([data-scene=window]) .wn{display:none}
-.dim{position:absolute;inset:0;background:var(--dim);animation:cloud calc(19s / var(--speed)) ease-in-out infinite alternate}
-.beam{position:absolute;left:34%;top:-12%;width:66vw;height:130vh;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1.15fr 1fr 1fr;gap:var(--mull);transform-origin:0 0;transform:skewX(var(--skew)) rotate(-4deg);-webkit-mask-image:linear-gradient(165deg,#000 30%,transparent 95%);mask-image:linear-gradient(165deg,#000 30%,transparent 95%);opacity:var(--glow);animation:drift calc(40s / var(--speed)) ease-in-out infinite alternate}
-.beam i{background:linear-gradient(180deg,var(--pane-a),var(--pane-b))}
-.beam.near{filter:blur(var(--blur))}
-.beam.far{filter:blur(calc(var(--blur) * 5));opacity:calc(var(--glow) * .55);transform:skewX(var(--skew)) rotate(-4deg) scale(1.03)}
-.beam i.e{background:none}
-/* dappled window scene: the window beam is cut by a leaf mask, so light only gets through the gaps in the foliage; the soft outer beam uses a second, smaller leaf pattern on a different drift so the two shimmer against each other */
-html[data-scene=both] .win{display:block}
-html[data-scene=both] .light{display:none}
-html[data-scene=both] .wn{display:grid}
-html[data-scene=both] .beam.far{animation-duration:calc(53s / var(--speed));animation-direction:alternate-reverse}
-/* cursor parallax: --px/--py come from the pointer; each layer moves by its own depth (--d). uses the separate translate property so sway animations are untouched */
-.pl{position:absolute;inset:0;translate:calc(var(--px,0px) * var(--d,1)) calc(var(--py,0px) * var(--d,1))}
-.light{translate:calc(var(--px,0px) * var(--d,1)) calc(var(--py,0px) * var(--d,1))}
-.beam{margin-left:var(--jx,0px);margin-top:var(--jy,0px)}
-.panel select{width:100%;font:inherit;padding:.25rem .35rem;background:transparent;color:inherit;border:1px solid currentColor;border-radius:6px}
-.panel select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-@keyframes drift{from{translate:-2.5vw 1vh}to{translate:3vw -1.5vh}}
-@keyframes cloud{from{opacity:.65}to{opacity:1}}
-@media (prefers-reduced-motion:reduce){.beam,.dim{animation:none}}
-main{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 8vw}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:var(--grain-op);mix-blend-mode:var(--grain);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+main{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;padding:0 8vw;pointer-events:none}
 h1{margin:0 0 .6rem;font-weight:700;font-size:clamp(2.2rem,6vw,5rem);letter-spacing:-.03em;line-height:1}
 p{margin:0;max-width:34ch;font-size:1.05rem;line-height:1.5}
-.panel{position:fixed;z-index:3;right:max(16px,env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom,0px));
-display:grid;gap:.5rem;padding:.9rem 1rem;background:var(--panel);backdrop-filter:blur(10px);border-radius:10px;font-size:.8rem}
+.panel{position:fixed;z-index:3;right:max(16px,env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:.5rem;padding:.9rem 1rem;background:var(--panel);backdrop-filter:blur(10px);border-radius:10px;font-size:.8rem;max-height:calc(100% - 32px);overflow:auto}
 .panel label{display:grid;grid-template-columns:5.5rem 8rem;align-items:center;gap:.5rem}
 .panel input{width:100%;accent-color:var(--ink)}
-.panel input:focus-visible,.panel button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.panel select{width:100%;font:inherit;padding:.25rem .35rem;background:transparent;color:inherit;border:1px solid currentColor;border-radius:6px}
 .panel button{font:inherit;padding:.4rem;border:1px solid var(--ink);background:var(--ink);color:var(--wall);border-radius:6px;cursor:pointer}
-@media (prefers-reduced-motion:reduce){.a,.b{animation:none}}
+.panel :focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+html[data-scene=window] .fol,html:not([data-scene=window]):not([data-scene=both]) .wn{display:none}
 </style>
 </head>
 <body>
-<div class="wall"></div>
-<div class="win" aria-hidden="true">
-  <div class="dim"></div>
-  <div class="pl" style="--d:.55"><div class="beam far"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-  <div class="pl" style="--d:1"><div class="beam near"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-</div>
-<div class="light a" style="--d:.6"><canvas id="c1" width="1600" height="1000"></canvas></div>
-<div class="light b" style="--d:1.1"><canvas id="c2" width="1600" height="1000"></canvas></div>
-
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
 <main>
   <h1>Light on a wall.</h1>
   <p>Replace this with your site content. The wall moves slowly behind it.</p>
 </main>
-
 <div class="panel" aria-label="Light controls">
   <label>Softness<input id="blur" type="range" min="1" max="22" value="7"></label>
   <label>Brightness<input id="glow" type="range" min="30" max="100" value="95"></label>
@@ -86,109 +42,227 @@ display:grid;gap:.5rem;padding:.9rem 1rem;background:var(--panel);backdrop-filte
   <label class="wn">Style<select id="sty"></select></label>
   <label class="wn">Angle<input id="skew" type="range" min="5" max="45" value="22"></label>
   <label class="wn">Mullions<input id="mull" type="range" min="0" max="60" value="24"></label>
-  <button id="sc" type="button">Scene: window</button>
+  <button id="sc" type="button">Scene: dappled window</button>
   <button id="re" type="button">New pattern</button>
   <button id="th" type="button">Switch light / dark</button>
 </div>
 
-<script>
-(function(){
-  var root=document.documentElement,leaf='#fff';
-  function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-  // Light = gaps between leaves. Clustered blobs make big pools; small ones make speckle.
-  function paint(cv,seed,count,scale){
-    var ctx=cv.getContext('2d'),W=cv.width,H=cv.height,r=rng(seed);
-    ctx.clearRect(0,0,W,H);
-    var p1=r()*6,p2=r()*6,p3=r()*6;
-    function field(x,y){ // low-frequency noise so gaps cluster like branches
-      return (Math.sin(x*.004+p1)+Math.sin(y*.005+p2)+Math.sin((x+y)*.003+p3)+Math.sin(x*.009-y*.007+p1))/4;
-    }
-    var n=0,tries=0;
-    while(n<count&&tries<count*12){
-      tries++;
-      var x=r()*W,y=r()*H,f=field(x,y);
-      if(r()>(f+.35)*1.1)continue;
-      var rx=(6+r()*r()*60)*scale,ry=rx*(.45+r()*.5),a=.35+r()*.65;
-      ctx.save();ctx.translate(x,y);ctx.rotate(r()*Math.PI);
-      ctx.globalAlpha=a;ctx.fillStyle=leaf;
-      ctx.beginPath();
-      ctx.moveTo(-rx,0);ctx.quadraticCurveTo(0,-ry*1.3,rx,0);ctx.quadraticCurveTo(0,ry*1.1,-rx,0);
-      ctx.fill();ctx.restore();n++;
+<script id="fs" type="x-shader/x-fragment">
+precision highp float;
+uniform vec2 uRes,uPar,uJit,uGrid,uGrain;
+uniform float uBloom,uDpr,uT,uBlur,uGlow,uSkew,uMull,uDens,uSeed,uScene;
+uniform vec4 uBox,uOpt,uPaneA,uPaneB,uDim;
+uniform vec3 uFade,uWall,uWallHi,uLeaf,uWarm,uCool;
+
+float ease(float t,float T){return .5-.5*cos(3.14159265*t/T);}
+vec4 h4(vec2 p){vec4 q=vec4(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)),dot(p,vec2(419.2,371.9)),dot(p,vec2(113.5,271.9)));return fract(sin(q)*43758.5453);}
+float fld(vec2 p,vec3 ph){return(sin(p.x*.004+ph.x)+sin(p.y*.005+ph.y)+sin((p.x+p.y)*.003+ph.z)+sin(p.x*.009-p.y*.007+ph.x))*.25;}
+
+/* light = gaps between leaves: jittered lens-shaped blobs per grid cell, clustered by a low-frequency field, edges softened by sig */
+float leaves(vec2 p,float sc,float sd,float dens,float sig,float km){
+  float cell=48.*sc,T=1.,pr=min(1.,dens/1300.*.9);
+  vec2 g=floor(p/cell);
+  vec3 ph=fract(sin(vec3(sd*1.7,sd*2.9,sd*4.1))*437.5)*6.;
+  sig=max(sig,.5);
+  for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){
+    vec2 id=g+vec2(float(i),float(j));
+    for(int k=0;k<11;k++){
+      if(float(k)>=km)break;
+      vec4 r=h4(id+vec2(float(k)*7.13+sd,float(k)*3.71+sd*.37));
+      vec2 c=(id+r.xy)*cell;
+      float acc=fract(r.w*91.7+r.z*37.3);
+      if(acc>clamp((fld(c,ph)+.35)*1.1,0.,1.)*pr)continue;
+      float ph2=r.z*6.2832,fl=sin(uT*(.8+r.w*.7)+ph2),gu=.5+.5*sin(uT*.33-(c.x+c.y)*.003);
+      c+=vec2(cos(ph2),sin(ph2))*fl*gu*5.*sc;
+      float u=fract(r.w*53.1+.37);
+      float rx=min(6.+u*u*60.,46.)*sc,ry=rx*(.45+fract(r.z*71.9)*.5);
+      vec2 d=p-c;
+      if(dot(d,d)>(rx+sig*2.)*(rx+sig*2.))continue;
+      float a=r.z*3.14159+fl*gu*.35+gu*.15;
+      d=vec2(d.x*cos(a)+d.y*sin(a),-d.x*sin(a)+d.y*cos(a));
+      float nx=clamp(d.x/rx,-1.,1.);
+      float dd=max(abs(d.y+.05*ry)-.6*ry*(1.-nx*nx),abs(d.x)-rx)*.85;
+      T*=1.-(.35+fract(r.x*113.3+r.w*7.7)*.65)*(1.-smoothstep(-sig,sig,dd));
     }
   }
-  var c1=document.getElementById('c1'),c2=document.getElementById('c2'),seed=Math.floor(Math.random()*1e6);
-  function draw(){var d=+document.getElementById('dens').value;
-    leaf=getComputedStyle(root).getPropertyValue('--leaf').trim()||'#fff';
-    paint(c1,seed,d,1.25);paint(c2,seed+7,d*.6,.8);rewin()}
-  draw();
-  function bind(id,fn){document.getElementById(id).addEventListener('input',function(e){fn(+e.target.value)})}
-  var bt=0;bind('blur',function(v){root.style.setProperty('--blur',v+'px');clearTimeout(bt);bt=setTimeout(rewin,150)});
-  bind('glow',function(v){root.style.setProperty('--glow',v/100)});
-  bind('speed',function(v){root.style.setProperty('--speed',Math.max(v,1)/10)});
-  var dt;bind('dens',function(){clearTimeout(dt);dt=setTimeout(draw,120)});
-  bind('skew',function(v){root.style.setProperty('--skew',-v+'deg')});
-  /* window / entrance styles: each is a grid of panes (n = gap scale, m = optional fade mask, '' = plain pane, 'skip' = empty spacer) */
-  var P=function(n,v){var a=[];for(var i=0;i<n;i++)a.push(typeof v==='function'?v(i):v);return a};
+  return 1.-T;
+}
+
+/* mullion shadow of a bar of half-width hw seen through a gaussian-ish penumbra s: an umbra plus a wider, fainter shoulder (the bar has depth) */
+float cdf(float z){return 1./(1.+exp(-1.702*z));}
+float bar(float d,float hw,float s){s=max(s,.5);return cdf((hw-d)/s)+cdf((hw+d)/s)-1.;}
+float shade(float d,float hw,float s){return bar(d,hw,s);}
+
+/* per-pass setup. w=0 is the first layer drawn (foliage a / far beam), w=1 the second (foliage b / near beam).
+   returns the layer colour (a = shape coverage); lp/sc/sd/dn/sg describe the leaf mask, sg<0 means no mask */
+vec4 setup(vec2 P,float w,out vec2 lp,out float sc,out float sd,out float dn,out float sg,out float op){
+  if(uScene<.5){
+    vec2 C=.5*uRes;
+    float bk=step(w,-.5),A=step(-.5,w)*step(w,.5);
+    float e=ease(uT,bk>.5?27.:A>.5?23.:31.);
+    vec2 t1=mix(vec2(-.012,.006),vec2(.014,-.008),e),t2=mix(vec2(.016,-.005),vec2(-.014,.009),e),t3=mix(vec2(.008,.008),vec2(-.01,-.006),e);
+    vec2 tr=(bk>.5?t3:A>.5?t1:t2)*1.2*uRes+uPar*(bk>.5?.3:A>.5?.6:1.1);
+    float rot=radians(bk>.5?mix(.3,-.5,e):A>.5?mix(-.6,.7,e):mix(.5,-.8,e)),z=bk>.5?mix(1.02,1.06,e):A>.5?mix(1.,1.04,e):mix(1.06,1.,e);
+    vec2 q=(P-C-tr)/z;
+    q=vec2(q.x*cos(rot)+q.y*sin(rot),-q.x*sin(rot)+q.y*cos(rot));
+    float f=1600./(1.2*uRes.x);
+    lp=q*f+vec2(800.,500.);sc=bk>.5?1.:A>.5?1.25:.8;sd=uSeed+(bk>.5?13.:A>.5?0.:7.);dn=uDens*(bk>.5?.8:A>.5?1.:.6);
+    sg=uBlur*(bk>.5?2.6:A>.5?1.:1.6)*1.5*f/z;op=uGlow*(bk>.5?.25:A>.5?.8:.5);
+    return vec4(uLeaf,1.);
+  }
+  /* window beam: undo skewX + rotate(-4deg) + scale, then a grid of panes with mullion gaps, soft penumbra and a fade mask */
+  float near=w,blur=near>.5?uBlur:uBlur*5.,scale=near>.5?1.:1.03,d=near>.5?1.:.55;
+  float e=ease(uT,40.);
+  if(uScene>1.5&&near<.5)e=1.-ease(uT,53.);
+  vec2 dr=mix(vec2(-.025*uRes.x,.01*uRes.y),vec2(.03*uRes.x,-.015*uRes.y),e);
+  vec2 p=P-(uBox.xy+uJit+dr+uPar*d);
+  p.x-=tan(uSkew)*p.y;
+  float cs=cos(.0698132),sn=sin(.0698132);
+  p=vec2(p.x*cs-p.y*sn,p.x*sn+p.y*cs)/scale;
+  float W=uBox.z,H=uBox.w,nc=uGrid.x,nr=uGrid.y,g=uMull*uOpt.y,shape=uOpt.w;
+  float cw=(W-(nc-1.)*g)/nc,u=(H-(nr-1.)*g)/(uOpt.x+nr-1.),h0=uOpt.x*u,hw=.5*g,ty,dE=1e4,ri=0.;
+  float ci=floor(p.x/(cw+g)),l=p.x-ci*(cw+g);
+  if(abs(ci-uOpt.z)<.5)dE=-min(l,cw-l)-1.;                 /* empty spacer column */
+  if(p.y<h0)ty=p.y/h0;
+  else{float yy=p.y-h0-g;ri=floor(yy/(u+g))+1.;ty=clamp((yy-(ri-1.)*(u+g))/u,0.,1.);}
+  if((shape==1.||shape==3.)&&p.y<h0){                      /* arched crown spans the top row */
+    float ry=(shape==1.?.4:.1)*h0;
+    dE=min(dE,h0-p.y);
+    if(p.y<ry)dE=min(dE,(1.-length(vec2((p.x-.5*W)/(.5*W),(p.y-ry)/ry)))*ry);
+  }
+  dE=min(dE,min(min(p.x,W-p.x),min(p.y,H-p.y)));
+  if(shape==2.)dE=min(dE,(.5-length((p-.5*vec2(W,H))/vec2(W,H)))*W);
+  vec2 dir=vec2(sin(uFade.x),-cos(uFade.x));
+  float L=abs(W*sin(uFade.x))+abs(H*cos(uFade.x));
+  float tt=.5+dot(p-.5*vec2(W,H),dir)/L,sp=1.;
+  float s2=blur/scale*sp;   /* sigma = the original CSS blur radius */
+  float a=cdf(dE/s2)*clamp((uFade.z-tt)/(uFade.z-uFade.y),0.,1.);
+  /* mullions: each bar is blurred analytically, so thin bars lighten as the penumbra grows past their width, as real ones do */
+  float kx=floor((p.x+hw)/(cw+g)+.5),ky=floor((p.y-h0-hw)/(u+g)+.5);
+  float bx=(kx>.5&&kx<nc-.5)?shade(abs(p.x+hw-kx*(cw+g)),hw,s2):0.;
+  float by=(ky>-.5&&ky<nr-1.5)?shade(abs(p.y-h0-hw-ky*(u+g)),hw,s2):0.;
+  if(shape==1.)bx*=cdf((p.y-h0)/s2);
+  a*=(1.-bx)*(1.-by);
+  float k=min(.6,900./max(W,H));
+  lp=p*k;sc=(near>.5?1.25:.8)*k;sd=uSeed+(near>.5?0.:7.);dn=uDens*1.5*(near>.5?1.:.8);
+  sg=uScene>1.5?uBlur*k*(near>.5?1.22:5.12)*1.4*sp:-1.;   /* bitmap blur + the beam css blur, as the original */
+  op=uGlow*(near>.5?1.:.55);
+  vec4 c=mix(uPaneA,uPaneB,clamp(ty,0.,1.));
+  c.a*=1.-.03*fract(sin(dot(vec2(ci,ri),vec2(12.9,78.2)))*43758.5);  /* each pane of glass is a touch different */
+  return vec4(c.rgb,c.a*a);
+}
+
+void main(){
+  vec2 P=vec2(gl_FragCoord.x,uRes.y*uDpr-gl_FragCoord.y)/uDpr;
+  float t=length((P-vec2(.3,.2)*uRes)/(vec2(1.2,.9)*uRes));
+  vec3 col=mix(uWallHi,uWall,clamp(t/.7,0.,1.));
+  float n=fract(sin(dot(floor(gl_FragCoord.xy/uDpr),vec2(12.9898,78.233)))*43758.5453);
+  float ga=uGrain.x*(.25+.5*n);
+  col=uGrain.y<.5?col*(1.-.5*ga):1.-(1.-col)*(1.-.5*ga);
+  col=pow(col,vec3(2.2))*uCool;            /* blend in linear light from here on */
+  if(uScene>.5)col=mix(col,pow(uDim.rgb,vec3(2.2)),uDim.a*mix(.65,1.,ease(uT,19.)));
+  float acc=0.;
+  for(int i=0;i<3;i++){
+    if(uScene>.5&&i==0)continue;           /* the extra back foliage layer is foliage-only */
+    vec2 lp;float sc,sd,dn,sg,op;
+    vec4 c=setup(P,float(i)-1.,lp,sc,sd,dn,sg,op);
+    float m=1.;
+    if(sg>=0.)m=leaves(lp,sc,sd,dn,sg,uScene>1.5?8.:6.);   /* the only leaves() call site, keeps the shader small to compile */
+    float al=c.a*m*op;
+    col=mix(col,pow(c.rgb,vec3(2.2))*uWarm,al);
+    acc+=al*(.55+.45*float(i));
+  }
+  col+=uWarm*uWarm*pow(clamp(acc,0.,1.5),2.)*uBloom;  /* soft bloom on the brightest patches */
+  gl_FragColor=vec4(pow(clamp(col,0.,1.),vec3(1./2.2)),1.);
+}
+</script>
+
+<script>
+(function(){
+  var root=document.documentElement,cv=document.getElementById('gl'),
+  gl=cv.getContext('webgl',{antialias:false,alpha:false})||cv.getContext('experimental-webgl');
+  if(!gl){document.querySelector('p').textContent='WebGL is unavailable in this browser, so the shader wall cannot render.';return}
+  var vs='attribute vec2 a;void main(){gl_Position=vec4(a,0.,1.);}';
+  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))console.error(gl.getShaderInfoLog(o));return o}
+  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('fs').textContent));gl.linkProgram(pr);gl.useProgram(pr);
+  var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+  var al=gl.getAttribLocation(pr,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
+  var loc={};
+  function set(n){var l=loc[n];if(l===undefined)l=loc[n]=gl.getUniformLocation(pr,n);var a=[].slice.call(arguments,1);gl['uniform'+a.length+'f'].apply(gl,[l].concat(a))}
+
+  /* window styles: name, left%, top%, width vw, height, unit, cols, rows, first-row weight, gap scale, skipped col, shape (0 plain, 1 arch, 2 porthole, 3 doorway), fade [deg, start, end] */
   var STY={
-   casement:{n:'Casement',l:'34%',t:'-12%',w:'66vw',h:'130vh',c:'1fr 1fr',r:'1.15fr 1fr 1fr',g:1,cells:P(6,'')},
-   french:{n:'French doors',l:'28%',t:'-14%',w:'72vw',h:'135vh',c:'1fr 1fr .5fr 1fr 1fr',r:'repeat(5,1fr)',g:.7,cells:P(25,function(i){return i%5===2?'skip':''})},
-   arched:{n:'Arched',l:'38%',t:'-10%',w:'56vw',h:'130vh',c:'1fr 1fr',r:'1.5fr 1fr 1fr',g:1,cells:['grid-column:1/3;border-radius:50% 50% 0 0/40% 40% 0 0','','','','']},
-   blinds:{n:'Venetian blinds',l:'28%',t:'-8%',w:'78vw',h:'125vh',c:'1fr',r:'repeat(12,1fr)',g:.55,cells:P(12,'')},
-   crittall:{n:'Steel grid',l:'34%',t:'-12%',w:'64vw',h:'128vh',c:'repeat(4,1fr)',r:'repeat(5,1fr)',g:.35,cells:P(20,'')},
-   bay:{n:'Bay window',l:'30%',t:'-10%',w:'72vw',h:'125vh',c:'.75fr 1.3fr .75fr',r:'1fr 1fr',g:.8,cells:P(6,function(i){var c=i%3;return c===0?'transform:skewY(11deg)':c===2?'transform:skewY(-11deg)':''})},
-   porthole:{n:'Porthole',l:'46%',t:'4%',w:'42vw',h:'42vw',c:'1fr 1fr',r:'1fr 1fr',g:1,m:'linear-gradient(165deg,#000 55%,transparent 100%)',cells:['border-radius:100% 0 0 0','border-radius:0 100% 0 0','border-radius:0 0 0 100%','border-radius:0 0 100% 0']},
-   doorway:{n:'Doorway',l:'52%',t:'-10%',w:'24vw',h:'130vh',c:'1fr',r:'1fr',g:1,cells:['border-radius:50% 50% 0 0/10% 10% 0 0']},
-   clerestory:{n:'Clerestory',l:'14%',t:'8%',w:'86vw',h:'34vh',c:'repeat(6,1fr)',r:'1fr',g:1,m:'linear-gradient(100deg,#000 40%,transparent 100%)',cells:P(6,'')}
+    casement:['Casement',34,-12,66,130,'h',2,3,1.15,1,-1,0],
+    french:['French doors',28,-14,72,135,'h',5,5,1,.7,2,0],
+    arched:['Arched',38,-10,56,130,'h',2,3,1.5,1,-1,1],
+    blinds:['Venetian blinds',28,-8,78,125,'h',1,12,1,.55,-1,0],
+    crittall:['Steel grid',34,-12,64,128,'h',4,5,1,.35,-1,0],
+    porthole:['Porthole',46,4,42,42,'w',2,2,1,1,-1,2,[165,.55,1]],
+    doorway:['Doorway',52,-10,24,130,'h',1,1,1,1,-1,3],
+    clerestory:['Clerestory',14,8,86,34,'h',6,1,1,1,-1,0,[100,.4,1]]
   };
-  function buildWin(k){var d=STY[k]||STY.casement,h=d.cells.map(function(s){return s==='skip'?'<i class="e"></i>':'<i'+(s?' style="'+s+'"':'')+'></i>'}).join('');
-   document.querySelectorAll('.beam').forEach(function(b){b.innerHTML=h;var s=b.style;s.left=d.l;s.top=d.t;s.width=d.w;s.height=d.h;s.gridTemplateColumns=d.c;s.gridTemplateRows=d.r;s.gap='calc(var(--mull) * '+d.g+')';maskFor(b,d)})}
-  var sty=document.getElementById('sty');
-  sty.innerHTML=Object.keys(STY).map(function(k){return '<option value="'+k+'">'+STY[k].n+'</option>'}).join('');
-  sty.onchange=function(){buildWin(sty.value)};buildWin('casement');
-  /* cursor parallax: eased pointer position drives --px/--py (moves opposite the cursor, like a shifting viewpoint) */
-  var par=document.getElementById('par'),amp=+par.value*.8,tx=0,ty=0,cx=0,cy=0,raf=0,rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function tick(){cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;root.style.setProperty('--px',(-cx*amp).toFixed(2)+'px');root.style.setProperty('--py',(-cy*amp).toFixed(2)+'px');raf=(Math.abs(tx-cx)>.001||Math.abs(ty-cy)>.001)?requestAnimationFrame(tick):0}
-  function aim(x,y){tx=x;ty=y;if(!raf)raf=requestAnimationFrame(tick)}
-  if(!rm){addEventListener('pointermove',function(e){aim(e.clientX/innerWidth*2-1,e.clientY/innerHeight*2-1)});root.addEventListener('mouseleave',function(){aim(0,0)})}
-  bind('par',function(v){amp=v*.8;aim(tx,ty)});
-  bind('mull',function(v){root.style.setProperty('--mull',v/10+'vw')});
-  var sc=document.getElementById('sc');
-  /* scenes cycle: window > foliage > dappled window (both) */
-  var SCN=['window','foliage','both'];
-  function setScene(n){if(n==='foliage')delete root.dataset.scene;else root.dataset.scene=n;sc.textContent='Scene: '+(n==='both'?'dappled window':n);buildWin(sty.value)}
-  sc.onclick=function(){setScene(SCN[(SCN.indexOf(root.dataset.scene||'foliage')+1)%3])};
-  function rewin(){if(root.dataset.scene==='both')buildWin(sty.value)}
-  var rt=0;addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(rewin,200)});
-  /* in the dappled scene each beam gets a leaf-gap bitmap as its mask: blurred, then faded along the beam's own gradient, then stretched over the beam so leaves skew with the window */
-  function maskFor(b,d){var s=b.style,m=d.m||'linear-gradient(165deg,#000 30%,transparent 95%)';
-   if(root.dataset.scene!=='both'||!b.offsetWidth){s.webkitMaskImage=d.m||'';s.maskImage=d.m||'';s.webkitMaskSize='';s.maskSize='';s.webkitMaskRepeat='';s.maskRepeat='';return}
-   var g=/(\d+)deg,#000 (\d+)%,transparent (\d+)%/.exec(m),ang=(+g[1])*Math.PI/180,s0=g[2]/100,s1=g[3]/100,
-    W=b.offsetWidth,H=b.offsetHeight,k=Math.min(.6,900/Math.max(W,H)),cw=Math.max(8,Math.round(W*k)),ch=Math.max(8,Math.round(H*k)),
-    near=b.classList.contains('near'),c=document.createElement('canvas');c.width=cw;c.height=ch;
-   var cnt=Math.min(5000,+document.getElementById('dens').value*1.5*(W*H)/1.6e6)*(near?1:.8);
-   paint(c,near?seed:seed+7,cnt,(near?1.25:.8)*k);
-   var o=document.createElement('canvas');o.width=cw;o.height=ch;var x=o.getContext('2d'),bl=(+document.getElementById('blur').value)*k*(near?1:1.6)*.7;
-   if('filter' in x){x.filter='blur('+bl.toFixed(1)+'px)';x.drawImage(c,0,0);x.filter='none'}
-   else{var f=Math.max(1,bl/1.5),t=document.createElement('canvas');t.width=Math.max(2,Math.round(cw/f));t.height=Math.max(2,Math.round(ch/f));t.getContext('2d').drawImage(c,0,0,t.width,t.height);x.imageSmoothingQuality='high';x.drawImage(t,0,0,cw,ch)}
-   var L=Math.abs(cw*Math.sin(ang))+Math.abs(ch*Math.cos(ang)),dx=Math.sin(ang)*L/2,dy=-Math.cos(ang)*L/2,gr=x.createLinearGradient(cw/2-dx,ch/2-dy,cw/2+dx,ch/2+dy);
-   gr.addColorStop(0,'#000');gr.addColorStop(s0,'#000');gr.addColorStop(s1,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,0)');
-   x.globalCompositeOperation='destination-in';x.fillStyle=gr;x.fillRect(0,0,cw,ch);
-   var u='url('+o.toDataURL()+')';s.webkitMaskImage=u;s.maskImage=u;s.webkitMaskSize='100% 100%';s.maskSize='100% 100%';s.webkitMaskRepeat='no-repeat';s.maskRepeat='no-repeat'}
-  document.getElementById('re').onclick=function(){if(root.dataset.scene){if(root.dataset.scene==='both')seed=Math.floor(Math.random()*1e6);
-   /* a window pattern = style + angle + mullion width + where it lands on the wall */
-   var ks=Object.keys(STY).filter(function(x){return x!==sty.value}),pick=ks[Math.floor(Math.random()*ks.length)];
-   sty.value=pick;buildWin(pick);
-   var a=document.getElementById('skew'),m=document.getElementById('mull');
-   a.value=8+Math.floor(Math.random()*34);m.value=6+Math.floor(Math.random()*40);
-   a.dispatchEvent(new Event('input'));m.dispatchEvent(new Event('input'));
-   root.style.setProperty('--jx',(Math.random()*12-6).toFixed(1)+'vw');root.style.setProperty('--jy',(Math.random()*8-4).toFixed(1)+'vh')
-  }else{seed=Math.floor(Math.random()*1e6);draw()}};
-  var mq=matchMedia('(prefers-color-scheme: dark)');
+  var S={sty:'casement',scene:'both',blur:7,glow:.95,speed:1,dens:1300,skew:22,mull:24,amp:40,jx:0,jy:0,seed:Math.random()*100};
+  var rm=matchMedia('(prefers-reduced-motion: reduce)').matches,mq=matchMedia('(prefers-color-scheme: dark)');
   function isDark(){var t=root.dataset.theme;return t?t==='dark':mq.matches}
-  function sync(){root.style.removeProperty('--glow');document.getElementById('glow').value=isDark()?60:95;draw()}
-  document.getElementById('th').onclick=function(){root.dataset.theme=isDark()?'light':'dark';sync()};
+  var dpr=1,W=1,H=1;
+  function size(){W=innerWidth;H=innerHeight;dpr=1;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);gl.viewport(0,0,cv.width,cv.height)}
+  size();addEventListener('resize',size);
+
+  var $=function(id){return document.getElementById(id)};
+  var sty=$('sty');
+  sty.innerHTML=Object.keys(STY).map(function(k){return '<option value="'+k+'">'+STY[k][0]+'</option>'}).join('');
+  sty.onchange=function(){S.sty=sty.value};
+  function bind(id,fn){var e=$(id);e.addEventListener('input',function(){fn(+e.value)});return e}
+  bind('blur',function(v){S.blur=v});
+  bind('glow',function(v){S.glow=v/100});
+  bind('speed',function(v){S.speed=Math.max(v,1)/10});
+  bind('dens',function(v){S.dens=v});
+  bind('skew',function(v){S.skew=v});
+  bind('mull',function(v){S.mull=v});
+  bind('par',function(v){S.amp=v*.8});
+  /* eased pointer drives parallax, moving opposite the cursor like a shifting viewpoint */
+  var tx=0,ty=0,cx=0,cy=0;
+  if(!rm){addEventListener('pointermove',function(e){tx=e.clientX/innerWidth*2-1;ty=e.clientY/innerHeight*2-1});root.addEventListener('mouseleave',function(){tx=ty=0})}
+
+  var SCN=['window','foliage','both'];
+  function setScene(n){S.scene=n;if(n==='foliage')delete root.dataset.scene;else root.dataset.scene=n;$('sc').textContent='Scene: '+(n==='both'?'dappled window':n)}
+  $('sc').onclick=function(){setScene(SCN[(SCN.indexOf(S.scene)+1)%3])};
+  $('re').onclick=function(){
+    if(S.scene==='foliage'||S.scene==='both')S.seed=Math.random()*100;
+    if(S.scene==='foliage')return;
+    var ks=Object.keys(STY).filter(function(x){return x!==S.sty});S.sty=sty.value=ks[Math.floor(Math.random()*ks.length)];
+    S.skew=$('skew').value=8+Math.floor(Math.random()*34);S.mull=$('mull').value=6+Math.floor(Math.random()*40);
+    S.jx=Math.random()*12-6;S.jy=Math.random()*8-4};
+  function sync(){S.glow=(isDark()?60:95)/100;$('glow').value=isDark()?60:95}
+  $('th').onclick=function(){root.dataset.theme=isDark()?'light':'dark';sync()};
   mq.addEventListener('change',function(){if(!root.dataset.theme)sync()});
   sync();
+
+  var rgb=function(r,g,b){return [r/255,g/255,b/255]};
+  var PAL={
+    light:{wall:rgb(227,227,225),hi:rgb(239,239,237),leaf:rgb(255,255,255),a:[1,.984,.949,.98],b:[1,1,1,.5],dim:[.196,.196,.18,.13],grain:[0,0],warm:[1,.975,.93],cool:[.99,.995,1.01],bloom:.02},
+    dark:{wall:rgb(10,14,17),hi:rgb(21,29,34),leaf:rgb(146,167,177),a:[.69,.769,.816,.42],b:[.69,.769,.816,.12],dim:[0,0,0,.3],grain:[0,0],warm:[.9,.97,1],cool:[1,1,1],bloom:.05}
+  };
+  var T=0,last=performance.now();
+  function frame(now){
+    var dt=Math.min((now-last)/1000,.1);last=now;
+    if(!rm)T+=dt*S.speed;
+    cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;
+    var s=STY[S.sty],m=s[12]||[165,.3,.95],p=PAL[isDark()?'dark':'light'];
+    set('uRes',W,H);set('uDpr',dpr);set('uT',T);set('uBlur',S.blur);set('uGlow',S.glow*(isDark()?.5:1));
+    set('uSkew',-S.skew*Math.PI/180);set('uMull',S.mull/10*W/100);set('uDens',S.dens);set('uSeed',S.seed);
+    set('uScene',S.scene==='foliage'?0:S.scene==='window'?1:2);
+    set('uPar',-cx*S.amp,-cy*S.amp);set('uJit',S.jx*W/100,S.jy*H/100);
+    set('uBox',s[1]*W/100,s[2]*H/100,s[3]*W/100,s[5]==='h'?s[4]*H/100:s[4]*W/100);
+    set('uGrid',s[6],s[7]);set('uOpt',s[8],s[9],s[10],s[11]);
+    set('uFade',m[0]*Math.PI/180,m[1],m[2]);
+    set('uWall',p.wall[0],p.wall[1],p.wall[2]);set('uWallHi',p.hi[0],p.hi[1],p.hi[2]);set('uLeaf',p.leaf[0],p.leaf[1],p.leaf[2]);
+    set('uPaneA',p.a[0],p.a[1],p.a[2],p.a[3]);set('uPaneB',p.b[0],p.b[1],p.b[2],p.b[3]);
+    set('uWarm',p.warm[0],p.warm[1],p.warm[2]);set('uCool',p.cool[0],p.cool[1],p.cool[2]);set('uBloom',p.bloom);set('uDim',p.dim[0],p.dim[1],p.dim[2],p.dim[3]);set('uGrain',p.grain[0],p.grain[1]);
+    gl.drawArrays(gl.TRIANGLES,0,3);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
