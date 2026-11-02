@@ -1548,6 +1548,9 @@ float leaves(vec2 p,float sc,float sd,float dens,float sig,float km){
 float cdf(float z){return 1./(1.+exp(-1.702*z));}
 float bar(float d,float hw,float s){s=max(s,.5);return cdf((hw-d)/s)+cdf((hw+d)/s)-1.;}
 float shade(float d,float hw,float s){return bar(d,hw,s);}
+/* per-pane glass tint; px() cross-fades neighbouring columns so a pane's identity never changes abruptly */
+float pt(float c,float r){return 1.-.03*fract(sin(dot(vec2(c,r),vec2(12.9,78.2)))*43758.5);}
+float pxl(float c,float r,float wl,float wr){return mix(mix(pt(c-1.,r),pt(c,r),wl),pt(c+1.,r),wr);}
 
 
 vec2 beam(vec2 P,vec2 o,float s){vec2 p=P-o;p.x-=tan(uSkew)*p.y;float cs=cos(.0698132),sn=sin(.0698132);return vec2(p.x*cs-p.y*sn,p.x*sn+p.y*cs)/s;}
@@ -1582,11 +1585,22 @@ float frame(vec2 P,float near,out vec2 lp,out float sc,out float sd,out float dn
   float by=(ky>-.5&&ky<nr-1.5)?shade(abs(p.y-h0-hw-ky*(u+g)),hw,s2):0.;
   if(shape==1.)bx*=cdf((p.y-h0)/s2);
   a*=(1.-bx)*(1.-by);
+  /* pane identity (tint + top-to-bottom gradient) used to flip at the far edge of each mullion, where the bar is only ~50% opaque,
+     leaving a hairline seam. Now it flips at the bar's centre and is cross-faded with the same penumbra as the bar itself. */
+  float cp=cw+g,rp=u+g;
+  float cc=floor((p.x+hw)/cp),rc=clamp(floor((p.y-h0-hw)/rp)+1.,0.,nr-1.);
+  float wxL=cdf((p.x+hw-cc*cp)/s2),wxR=cdf((p.x+hw-(cc+1.)*cp)/s2);
+  float cUp=h0+hw+(rc-1.)*rp,cDn=h0+hw+rc*rp;
+  float wyU=rc>.5?cdf((p.y-cUp)/s2):1.;
+  float wyD=rc<nr-1.5?cdf((p.y-cDn)/s2):0.;
+  float tint=mix(mix(pxl(cc,rc-1.,wxL,wxR),pxl(cc,rc,wxL,wxR),wyU),pxl(cc,rc+1.,wxL,wxR),wyD);
+  float topC=rc<.5?0.:h0+g+(rc-1.)*rp,hC=rc<.5?h0:u;
+  float tyc=clamp((p.y-topC)/hC,0.,1.);
+  ty=mix(mix(1.,tyc,wyU),0.,wyD);
   float k=min(.6,900./max(W,H));
   lp=beam(P,o+dr,scale)*k;sc=(near>.5?1.25:.8)*k;sd=uSeed+(near>.5?0.:7.);dn=uDens*1.5*(near>.5?1.:.8);
   sg=uBlur*k*(near>.5?1.22:5.12)*1.4;
-  float pa=mix(.98,.5,clamp(ty,0.,1.))*(1.-.03*fract(sin(dot(vec2(ci,ri),vec2(12.9,78.2)))*43758.5));
-  return a*pa;
+  return a*mix(.98,.5,ty)*tint;
 }
 /* overlay, not a wall: shadows multiply the page (as a black normal-blend), light screens it (moonlit gaps); near beam first, then far. out = page*A + B, written premultiplied */
 void main(){
