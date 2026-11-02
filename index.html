@@ -21,6 +21,7 @@
 html{font-size:18px}
 body{margin:0;background:var(--bg);color:var(--ink);font:300 1rem/1.5 var(--sans);-webkit-font-smoothing:antialiased;overflow-x:clip}
 a{color:#fff;text-decoration:none}
+[tabindex="-1"]:focus{outline:none}
 a:focus-visible,.tip:focus-visible,.sup:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
 .skip{position:absolute;left:-999px}.skip:focus{left:12px;top:12px;z-index:100;background:#000;color:#fff;padding:.5rem .75rem}
 .k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#fff}
@@ -742,11 +743,29 @@ new IntersectionObserver(([e])=>nav.classList.toggle('h',e.isIntersecting),{root
 document.addEventListener('visibilitychange',()=>document.body.classList.toggle('sc',!document.hidden&&scrollY>hero.offsetHeight*.9));
 /* ---------- navigation ---------- */
 const go=y=>scrollTo({top:y,behavior:RM?'auto':'smooth'});
-/* sections above a jump target (lazy images, content-visibility) change height while the smooth scroll runs, so a single measured y lands short: once the scroll goes idle, re-measure and re-aim until it sits on the target; any user input cancels */
-let chaseT=0;const chase=yOf=>{clearTimeout(chaseT);let n=0,idle=0,last=scrollY,ks=['wheel','touchstart','keydown','pointerdown'],stop=false;const off=()=>{stop=true;clearTimeout(chaseT);ks.forEach(k=>removeEventListener(k,off))};ks.forEach(k=>addEventListener(k,off,{passive:true}));const tick=()=>{if(stop)return;const c=scrollY;idle=Math.abs(c-last)<1?idle+1:0;last=c;if(idle>=3){const d=yOf();if(Math.abs(d-c)>4&&n++<6){go(d);idle=0}else{off();return}}chaseT=setTimeout(tick,120)};chaseT=setTimeout(tick,250)};
-const clear=()=>{try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}};if(location.hash)clear();
-document.addEventListener('click',e=>{const a=e.target.closest('a[href^="#"]');if(!a)return;const id=a.getAttribute('href');if(id.length<2)return;const t=$(id);if(!t)return;e.preventDefault();const yOf=()=>{const r=t.getBoundingClientRect();return a.dataset.settle==='end'&&t.classList.contains('stg')&&!flat()?r.top+scrollY+r.height-innerHeight+2:r.top+scrollY};go(yOf());chase(yOf);t.tabIndex=-1;setTimeout(()=>t.focus({preventScroll:true}),0);clear()});
-$('#top').addEventListener('click',e=>{e.preventDefault();go(0)});
+const maxY=()=>document.documentElement.scrollHeight-innerHeight;
+/* layout top of an element, ignoring its own transform (.rv sections sit 24px low until revealed, which used to land jumps 24px off). Stages can aim at their START or their END (tiles fully assembled). */
+const lay=el=>{let ty=0;try{ty=new DOMMatrixReadOnly(getComputedStyle(el).transform).m42||0}catch(_){}return el.getBoundingClientRect().top+scrollY-ty};
+const posOf=(el,end=true)=>{const top=lay(el);return end&&el.classList.contains('stg')&&!flat()?top+el.offsetHeight-innerHeight+2:top};
+const yOf=el=>posOf(el);
+/* sections above a target (lazy images, content-visibility) change height mid-scroll, so a single measured y lands wrong: while the scroll runs, and again once it settles, re-measure and re-aim; any user input cancels */
+let chaseT=0;const chase=fn=>{clearTimeout(chaseT);let n=0,m=0,idle=0,last=scrollY,aimY=fn(),ks=['wheel','touchstart','keydown','pointerdown'],stop=false;const off=()=>{stop=true;clearTimeout(chaseT);ks.forEach(k=>removeEventListener(k,off))};ks.forEach(k=>addEventListener(k,off,{passive:true}));
+const tick=()=>{if(stop)return;const c=scrollY,d=fn(),moving=Math.abs(c-last)>=1;last=c;idle=moving?0:idle+1;
+if(moving){if(Math.abs(d-aimY)>40&&m++<25){aimY=d;go(d)}}else if(idle>=2){if(Math.abs(d-c)>4&&n++<6){aimY=d;go(d);idle=0}else{off();return}}
+chaseT=setTimeout(tick,100)};chaseT=setTimeout(tick,150)};
+const jump=f=>{const F=()=>clamp(f(),0,maxY());go(F());chase(F)};
+/* where Tab continues from after a jump. Clicked links move focus to the target (like a native anchor); key-driven jumps (no focus move, so no screen-reader chatter) just reset the sequential-focus starting point, so the next Tab starts at the new section instead of yanking the page back to wherever focus was */
+const focusEl=el=>{if(!el)return;if(!el.hasAttribute('tabindex'))el.tabIndex=-1;setTimeout(()=>el.focus({preventScroll:true}),0)};
+const land=el=>{try{const a=document.activeElement;if(a&&a!==document.body&&a.blur)a.blur();const g=getSelection(),r=document.createRange();r.setStart(el,0);r.collapse(true);g.removeAllRanges();g.addRange(r)}catch(_){}};
+const toStop=(el,end=true,how)=>{if(!el)return;jump(()=>posOf(el,end));if(how==='click')focusEl(el);else if(how==='key')land(el)};
+const toEdge=(d,how)=>{jump(()=>d?maxY():0);const el=d?$('.ft'):hero;if(how==='click')focusEl(el);else if(how==='key')land(el)};
+const clear=()=>{try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}};
+document.addEventListener('click',e=>{if(e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;const a=e.target.closest('a[href^="#"]');if(!a)return;const id=a.getAttribute('href').slice(1);if(!id)return;const t=document.getElementById(id);if(!t)return;e.preventDefault();toStop(t,a.dataset.settle==='end','click');clear()});
+$('#top').addEventListener('click',e=>{e.preventDefault();toEdge(0,'click')});
+/* deep links: honour a #hash on load and on later hash edits, then keep the URL clean */
+const hashTo=h=>{let id='';try{id=decodeURIComponent((h||'').replace(/^#/,''))}catch(_){}if(id==='top'){toEdge(0,'click');return true}const t=id&&document.getElementById(id);if(!t)return false;toStop(t,true,'click');return true};
+const h0=location.hash;clear();if(h0)requestAnimationFrame(()=>hashTo(h0));
+addEventListener('hashchange',()=>{const h=location.hash;if(h.length>1){hashTo(h);clear()}});
 /* tooltips stay on-screen */
 const tipFit=e=>{const t=e.target.closest&&e.target.closest('.tip');if(!t)return;const r=t.getBoundingClientRect(),w=Math.min(320,innerWidth-24),c=r.left+r.width/2;t.style.setProperty('--sh',Math.max(0,12-(c-w/2))+Math.min(0,innerWidth-12-(c+w/2))+'px')};
 document.addEventListener('pointerover',tipFit,true);document.addEventListener('focusin',tipFit);
@@ -800,19 +819,24 @@ function notify(id){const n=NT[id];if(!n||id===nCur)return;nCur=id;clearTimeout(
 const nio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting)notify(e.target.id)}),{rootMargin:'-45% 0px -45% 0px'});
 STOPS.forEach(el=>NT[el.id]&&nio.observe(el));
 new IntersectionObserver(([e])=>{if(e.isIntersecting){hideN();nCur='';clearTimeout(nWait)}}).observe(hero);
-const yOf=el=>{const r=el.getBoundingClientRect(),t=r.top+scrollY;return el.classList.contains('stg')&&!flat()?t+r.height-innerHeight+2:t};
 function step(d){const ys=STOPS.map(yOf),y=scrollY;let i=-1;ys.forEach((v,j)=>{if(v<=y+8)i=j});
-go(d>0?(i+1<ys.length?ys[i+1]:document.documentElement.scrollHeight):(i>=0&&y>ys[i]+24?ys[i]:i>0?ys[i-1]:0))}
+const j=d>0?(i+1<ys.length?i+1:-1):(i>=0&&y>ys[i]+24?i:i>0?i-1:-1);
+if(j<0)toEdge(d>0?1:0,KEYHOW);else toStop(STOPS[j],true,KEYHOW)}
+let KEYHOW='key';
 let solo=false;
 addEventListener('pointerdown',()=>{solo=false});addEventListener('blur',()=>{solo=false});
-addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;const t=e.target;if(t.closest&&t.closest('input,textarea,select,[contenteditable]'))return;
-if(e.key==='Shift')return;const k=e.key;if(vwOpen()&&k!=='Escape')return;
-if(/^[1-9]$/.test(k)){e.preventDefault();go(yOf($('#'+KEYS[k-1])))}
-else if(k==='0'){e.preventDefault();go(document.documentElement.scrollHeight)}
-else if(k==='Escape'){if(e.repeat)return;e.preventDefault();if(!escOnce())go(0)}
-else if(k==='t'||k==='T'){e.preventDefault();toggleTheme()}
-else if(k==='l'||k==='L'){e.preventDefault();window.zcxLeaf&&zcxLeaf.toggle()}
-  else if(k===' '){if(t.closest&&t.closest('a,button,[role=button]'))return;e.preventDefault();step(e.shiftKey?-1:1)}});
+const HARD='input,textarea,select,[contenteditable]',SOFT='[role=dialog],[role=menu],[role=menuitem],[role=slider],[role=tab],[role=listbox],[role=option],[role=checkbox],[role=switch],summary,#llp,#lfw,.tc,.wg,.mw,.vw,.cm',CTRL='a,button,[role=button],[role=link]';
+/* single-key shortcuts are context-aware: never inside fields, dialogs, menus or other widgets that own the keyboard (Escape still closes them), never on a focused control (Space activates it), never while a widget locks the page, and a held key steps once instead of queueing jumps */
+addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.key==='Shift')return;const t=e.target,k=e.key,el=t&&t.closest?t:null;
+if(el&&el.closest(HARD))return;if(vwOpen()&&k!=='Escape')return;
+const soft=!!(el&&el.closest(SOFT)),lock=document.documentElement.classList.contains('wlock');KEYHOW=e.isTrusted?'key':'';
+if(k==='Escape'){if(e.repeat)return;e.preventDefault();if(!escOnce())toEdge(0,KEYHOW);return}
+if(soft)return;
+if(/^[1-9]$/.test(k)){if(lock)return;e.preventDefault();if(!e.repeat)toStop($('#'+KEYS[k-1]),true,KEYHOW)}
+else if(k==='0'){if(lock)return;e.preventDefault();if(!e.repeat)toEdge(1,KEYHOW)}
+else if(k==='t'||k==='T'){e.preventDefault();if(!e.repeat)toggleTheme()}
+else if(k==='l'||k==='L'){e.preventDefault();if(!e.repeat&&window.zcxLeaf)zcxLeaf.toggle()}
+else if(k===' '){if(lock||(el&&el.closest(CTRL)))return;e.preventDefault();if(!e.repeat)step(e.shiftKey?-1:1)}});
 /* ---------- cursor hotspots: near the top/bottom edge, click = previous/next stop; label fades in with proximity ---------- */
 if(FINE){const AXIS='y',/* 'y' = top/bottom edges, 'x' = left/right edges */
 BLOCK='a,button,.logo,.tc,input,textarea,select,iframe,[role=button],[role=menuitem],[contenteditable],.tip,.sup,.sk,.wg,.hud,.cm,.nt,.mw,#thm,#rsm,#rsp,#llm,#mus,#lfb,#lfw,#lfs,#llp,.vw',
@@ -845,7 +869,7 @@ if(skip){skip=false;return}
 const el=e.target;if(!el.closest||el.closest(BLOCK)||getSelection().toString())return;
 px=e.clientX;py=e.clientY;const z=zone();if(!z||!vis)return;const d=z.d;
 if(!RM)ar.animate([{transform:'none'},{transform:`translate${AXIS.toUpperCase()}(${d>0?5:-5}px)`},{transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.9,.3,1)'});
-go(aim(d).y)})}
+{const A=aim(d);jump(()=>A.id?yOf($('#'+A.id)):(d>0?maxY():0))}})}
 /* ---------- right-click section index ---------- */
 const cm=document.createElement('div');cm.className='cm';cm.setAttribute('role','menu');cm.setAttribute('aria-label','Section index');cm.hidden=true;document.body.append(cm);
 const closeCm=()=>{cm.hidden=true};
@@ -857,7 +881,7 @@ cm.innerHTML=row('Top','Esc','top')+TREE.map(([l,id,sub],i)=>{const open=!!sub&&
 cm.hidden=false;cm.style.left=e.clientX+'px';cm.style.top=e.clientY+'px';fitCm();cm.firstChild.focus({preventScroll:true})});
 cm.addEventListener('pointerover',e=>{const b=e.target.closest('button');if(b)syncCm(b)});
 cm.addEventListener('focusin',e=>{const b=e.target.closest('button');if(b)syncCm(b)});
-cm.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;closeCm();go(id==='top'?0:id==='bottom'?document.documentElement.scrollHeight:yOf($('#'+id)))});
+cm.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const id=b.dataset.id;closeCm();if(id==='top')toEdge(0,'key');else if(id==='bottom')toEdge(1,'key');else toStop($('#'+id),true,'key')});
 cm.addEventListener('keydown',e=>{const b=document.activeElement,vis=()=>[...cm.querySelectorAll('button')].filter(x=>!x.closest('[hidden]'));
 if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const l=vis(),i=l.indexOf(b);l[(i+(e.key==='ArrowDown'?1:-1)+l.length)%l.length].focus()}
 else if(e.key==='ArrowRight'&&b.classList.contains('grp')){e.preventDefault();syncCm(b);b.nextElementSibling.firstElementChild.focus()}
@@ -1323,7 +1347,7 @@ const surge=e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;p
 [tt,dot].forEach(a=>a.addEventListener('click',surge))}}}}
 const hud=document.createElement('div');hud.className='hud';hud.hidden=true;hud.setAttribute('role','group');hud.setAttribute('aria-label','Key commands');
 const rows=[...TREE.map(([l,id,sub],i)=>[String(i+1),String(i+1),l,id,sub]),['Space','Space','Next'],['Shift+Space','⇧ Space','Back'],['Escape','Esc','Top'],['0','0','Bottom'],['t','T','Theme']];
-hud.innerHTML=`<div class="hh"><span class="k">Keys</span><button type="button" aria-label="Close key commands">×</button></div><ul>${rows.map(([k,d,l,id,sub])=>`<li data-k="${k}"${id?` data-s="${id}"`:''}${sub?' class="grp" aria-expanded="false"':''}><kbd>${d}</kbd><span>${l}</span></li>`+(sub?sub.map(([sl,sid])=>`<li class="sub" hidden data-k="${sid}" data-s="${sid}" data-id="${sid}" data-g="${k}"><kbd></kbd><span>${sl}</span></li>`).join(''):'')).join('')}</ul>`;document.body.append(hud);hud.querySelectorAll('li').forEach(li=>{li.tabIndex=0;li.setAttribute('role','button');const fire=()=>{if(li.dataset.id){go(yOf($('#'+li.dataset.id)));return}const k=li.dataset.k,sh=k==='Shift+Space';dispatchEvent(new KeyboardEvent('keydown',{key:k==='Space'||sh?' ':k,shiftKey:sh,bubbles:true,cancelable:true}))};li.addEventListener('mousedown',e=>e.preventDefault());li.addEventListener('click',fire);li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();fire()}})});
+hud.innerHTML=`<div class="hh"><span class="k">Keys</span><button type="button" aria-label="Close key commands">×</button></div><ul>${rows.map(([k,d,l,id,sub])=>`<li data-k="${k}"${id?` data-s="${id}"`:''}${sub?' class="grp" aria-expanded="false"':''}><kbd>${d}</kbd><span>${l}</span></li>`+(sub?sub.map(([sl,sid])=>`<li class="sub" hidden data-k="${sid}" data-s="${sid}" data-id="${sid}" data-g="${k}"><kbd></kbd><span>${sl}</span></li>`).join(''):'')).join('')}</ul>`;document.body.append(hud);hud.querySelectorAll('li').forEach(li=>{li.tabIndex=0;li.setAttribute('role','button');const fire=()=>{if(li.dataset.id){jump(()=>yOf($('#'+li.dataset.id)));return}const k=li.dataset.k,sh=k==='Shift+Space';dispatchEvent(new KeyboardEvent('keydown',{key:k==='Space'||sh?' ':k,shiftKey:sh,bubbles:true,cancelable:true}))};li.addEventListener('mousedown',e=>e.preventDefault());li.addEventListener('click',fire);li.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();fire()}})});
 let hudOff=false,hudOn=false;
 const showHud=()=>{if(hudOn||hudOff||matchMedia('(hover:none)').matches)return;hudOn=true;hud.hidden=false;cSync();requestAnimationFrame(()=>hud.classList.add('on'))};
 const chk=()=>{if(peeking||scrolled||scrollY<=10)return;scrolled=true;clearTimeout(idleTm);it.classList.remove('on');const l=hud.querySelector('[data-k=Space]');l&&l.classList.remove('nudge')};
