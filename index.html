@@ -1514,6 +1514,7 @@ document.getElementById('lld').addEventListener('click',function(){var u=URL.cre
 const KEY='leaf-light',D={on:false,i:70,b:7,s:10,p:50,d:1300,sty:'casement',k:22,m:24,jx:0,jy:0};
 let st=Object.assign({},D);try{Object.assign(st,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
+const PX=new Uint8Array(4);let scrUntil=0;
 let cv=null,gl=null,pg=null,U={},seed=Math.random()*100,w=null,dirty=1,raf=0,T=0,last=0,ld=0,dpr=1;
 /* window styles: name, left%, top%, width vw, height, unit, cols, rows, first-row weight, gap scale, skipped col, shape (0 plain, 1 arch, 2 porthole, 3 doorway), fade [deg, start, end] */
 const STY={
@@ -1532,32 +1533,36 @@ precision highp float;
 #else
 precision mediump float;
 #endif
-uniform vec2 uRes,uPar,uJit,uGrid;uniform float uDpr,uT,uBlur,uSkew,uMull,uDens,uSeed,uI;uniform vec4 uBox,uOpt;uniform vec3 uFade;
+uniform vec2 uRes,uPar,uJit,uGrid;uniform float uDpr,uT,uBlur,uSkew,uMull,uDens,uSeed,uI;uniform vec4 uBox,uOpt;uniform vec3 uFade,uPh0,uPh1;
 const vec3 LT=vec3(.6235,.702,.7412);
 float ease(float t,float T){return .5-.5*cos(3.14159265*t/T);}
-vec4 h4(vec2 p){vec4 q=vec4(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)),dot(p,vec2(419.2,371.9)),dot(p,vec2(113.5,271.9)));return fract(sin(q)*43758.5453);}
+vec4 h4(vec2 p){vec4 q=fract(p.xyxy*vec4(.1031,.1030,.0973,.1099));q+=dot(q,q.wzxy+33.33);return fract((q.xxyz+q.yzzw)*q.zywx);}   /* sin-free hash */
 float fld(vec2 p,vec3 ph){return(sin(p.x*.004+ph.x)+sin(p.y*.005+ph.y)+sin((p.x+p.y)*.003+ph.z)+sin(p.x*.009-p.y*.007+ph.x))*.25;}
 
 /* light = gaps between leaves: jittered lens-shaped blobs per grid cell, clustered by a low-frequency field, edges softened by sig */
-float leaves(vec2 p,float sc,float sd,float dens,float sig,float km){
+float leaves(vec2 p,float sc,float sd,vec3 ph,float dens,float sig,float km){
   float cell=48.*sc,T=1.,pr=min(1.,dens/1300.*.9);
   vec2 g=floor(p/cell);
-  vec3 ph=fract(sin(vec3(sd*1.7,sd*2.9,sd*4.1))*437.5)*6.;
   sig=max(sig,.5);
+  float wob=5.*sc,sg2=sig*2.;
   for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){
     vec2 id=g+vec2(float(i),float(j));
+    float thr=clamp((fld((id+.5)*cell,ph)+.35)*1.1,0.,1.)*pr;   /* density sampled once per cell */
+    if(thr<=0.)continue;
     for(int k=0;k<11;k++){
       if(float(k)>=km)break;
       vec4 r=h4(id+vec2(float(k)*7.13+sd,float(k)*3.71+sd*.37));
-      vec2 c=(id+r.xy)*cell;
-      float acc=fract(r.w*91.7+r.z*37.3);
-      if(acc>clamp((fld(c,ph)+.35)*1.1,0.,1.)*pr)continue;
-      float ph2=r.z*6.2832,fl=sin(uT*(.8+r.w*.7)+ph2),gu=.5+.5*sin(uT*.33-(c.x+c.y)*.003);
-      c+=vec2(cos(ph2),sin(ph2))*fl*gu*5.*sc;
+      if(fract(r.w*91.7+r.z*37.3)>thr)continue;
       float u=fract(r.w*53.1+.37);
-      float rx=min(6.+u*u*60.,46.)*sc,ry=rx*(.45+fract(r.z*71.9)*.5);
+      float rx=min(6.+u*u*60.,46.)*sc;
+      vec2 c=(id+r.xy)*cell;
+      vec2 d0=p-c;float R=rx+sg2+wob;
+      if(dot(d0,d0)>R*R)continue;                               /* cheap cull on the undrifted position (drift <= wob), before any wobble trig */
+      float ph2=r.z*6.2832,fl=sin(uT*(.8+r.w*.7)+ph2),gu=.5+.5*sin(uT*.33-(c.x+c.y)*.003);
+      c+=vec2(cos(ph2),sin(ph2))*fl*gu*wob;
+      float ry=rx*(.45+fract(r.z*71.9)*.5);
       vec2 d=p-c;
-      if(dot(d,d)>(rx+sig*2.)*(rx+sig*2.))continue;
+      if(dot(d,d)>(rx+sg2)*(rx+sg2))continue;
       float a=r.z*3.14159+fl*gu*.35+gu*.15;
       d=vec2(d.x*cos(a)+d.y*sin(a),-d.x*sin(a)+d.y*cos(a));
       float nx=clamp(d.x/rx,-1.,1.);
@@ -1573,7 +1578,7 @@ float cdf(float z){return 1./(1.+exp(-1.702*z));}
 float bar(float d,float hw,float s){s=max(s,.5);return cdf((hw-d)/s)+cdf((hw+d)/s)-1.;}
 float shade(float d,float hw,float s){return bar(d,hw,s);}
 /* per-pane glass tint; px() cross-fades neighbouring columns so a pane's identity never changes abruptly */
-float pt(float c,float r){return 1.-.03*fract(sin(dot(vec2(c,r),vec2(12.9,78.2)))*43758.5);}
+float pt(float c,float r){vec2 q=fract(vec2(c,r)*vec2(.1031,.1030));q+=dot(q,q.yx+33.33);return 1.-.03*fract((q.x+q.y)*q.x);}
 float pxl(float c,float r,float wl,float wr){return mix(mix(pt(c-1.,r),pt(c,r),wl),pt(c+1.,r),wr);}
 
 
@@ -1635,7 +1640,7 @@ void main(){
     vec2 lp;float sc,sd,dn,sg;
     float a=frame(P,near,lp,sc,sd,dn,sg);
     float m=0.;
-    if(a>.003)m=leaves(lp,sc,sd,dn,sg,8.);   /* the only leaves() call site, keeps the shader small to compile */
+    if(a>.003)m=leaves(lp,sc,sd,near>.5?uPh0:uPh1,dn,sg,8.);   /* the only leaves() call site, keeps the shader small to compile */
     float cov=a*m;
     float s=1.-uI*(near>.5?.23:.127)*(1.-cov);
     A*=s;B*=s;
@@ -1652,28 +1657,37 @@ function init(){gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,ant
  pg=gl.createProgram();gl.attachShader(pg,v);gl.attachShader(pg,f);gl.linkProgram(pg);if(!gl.getProgramParameter(pg,gl.LINK_STATUS)){gl=null;return false}
  gl.useProgram(pg);gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
  const al=gl.getAttribLocation(pg,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
- U={};['uRes','uDpr','uT','uBlur','uSkew','uMull','uDens','uSeed','uI','uPar','uJit','uBox','uGrid','uOpt','uFade'].forEach(n=>U[n]=gl.getUniformLocation(pg,n));
+ U={};['uRes','uDpr','uT','uBlur','uSkew','uMull','uDens','uSeed','uI','uPar','uJit','uBox','uGrid','uOpt','uFade','uPh0','uPh1'].forEach(n=>U[n]=gl.getUniformLocation(pg,n));
  gl.clearColor(0,0,0,0);size();return true}
-/* the light is soft, so it renders at css-pixel size or lower (capped near 0.8MP) and the browser upsamples it */
-function size(){if(!cv||!gl)return;const W=innerWidth,H=innerHeight,s=Math.min(1,Math.sqrt(.8e6/(W*H)));cv.width=Math.max(1,Math.round(W*s));cv.height=Math.max(1,Math.round(H*s));dpr=cv.width/W;gl.viewport(0,0,cv.width,cv.height);dirty=1}
+/* the light is soft, so it renders at css-pixel size or lower (starts at 0.6MP, self-tunes below) and the browser upsamples it */
+let px=.6e6,tune=[],tuned=0;
+function size(){if(!cv||!gl)return;const W=innerWidth,H=innerHeight,s=Math.min(1,Math.sqrt(px/(W*H)));cv.width=Math.max(1,Math.round(W*s));cv.height=Math.max(1,Math.round(H*s));dpr=cv.width/W;gl.viewport(0,0,cv.width,cv.height);dirty=1}
 function build(){if(cv)return;cv=document.createElement('canvas');cv.className='lf';cv.setAttribute('aria-hidden','true');document.body.append(cv);
  cv.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(raf);raf=0});cv.addEventListener('webglcontextrestored',()=>{if(init())kick()});init()}
+/* compile on intent: hover / focus / touch of the toggle builds the context and runs one 1px draw so the driver finishes compiling before the click */
+let warmed=0;function warm(){if(warmed)return;warmed=1;const go=()=>{build();if(!gl)return;cv.width=cv.height=1;gl.viewport(0,0,1,1);draw();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,PX);size()};(window.requestIdleCallback||setTimeout)(go)}
+['pointerenter','focus','touchstart'].forEach(e=>btn.addEventListener(e,warm,{once:true,passive:true}));
 const amp=()=>Math.min(st.p*.8,Math.min(innerWidth,innerHeight)*.06);
+const fr=x=>x-Math.floor(x),phs=q=>[fr(Math.sin(q*1.7)*437.5)*6,fr(Math.sin(q*2.9)*437.5)*6,fr(Math.sin(q*4.1)*437.5)*6];
 function draw(){const S=STY[st.sty]||STY.casement,m=S[12]||[165,.3,.95],W=innerWidth,H=innerHeight,a=amp(),u=(n,...v)=>gl['uniform'+v.length+'f'](U[n],...v);
  u('uRes',W,H);u('uDpr',dpr);u('uT',T);u('uBlur',st.b);u('uSkew',-st.k*Math.PI/180);u('uMull',st.m/10*W/100);u('uDens',st.d);u('uSeed',seed);u('uI',st.i/100);
  u('uPar',-cx*a,-cy*a);u('uJit',st.jx*W/100,st.jy*H/100);u('uBox',S[1]*W/100,S[2]*H/100,S[3]*W/100,S[5]==='h'?S[4]*H/100:S[4]*W/100);
- u('uGrid',S[6],S[7]);u('uOpt',S[8],S[9],S[10],S[11]);u('uFade',m[0]*Math.PI/180,m[1],m[2]);
+ u('uGrid',S[6],S[7]);u('uOpt',S[8],S[9],S[10],S[11]);u('uFade',m[0]*Math.PI/180,m[1],m[2]);u('uPh0',...phs(seed));u('uPh1',...phs(seed+7));
  gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3)}
 /* renders only while something changes: sway running, the pointer easing, or a control touched */
 function frame(now){raf=0;if(!st.on||!gl||document.hidden)return;
- if(now-ld<30){raf=requestAnimationFrame(frame);return}   /* 30fps cap: the light is slow and soft, so half the frames look identical */
+ if(now-ld<(now<scrUntil?60:30)){raf=requestAnimationFrame(frame);return}   /* 30fps cap (15fps while scrolling): the light is slow and soft, so most frames look identical */
  const dt=Math.min((now-last)/1000,.1);last=now;ld=now;
  const mv=!rm&&st.s>0;if(mv)T+=dt*st.s/10;
  cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const ez=Math.abs(tx-cx)>.001||Math.abs(ty-cy)>.001;
- draw();dirty=0;if(mv||ez)raf=requestAnimationFrame(frame)}
+ if(tuned<3){const t0=performance.now();draw();gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,PX);tune.push(performance.now()-t0);   /* readPixels forces the GPU to finish, so this times a real frame */
+  if(tune.length>=8){const m=tune.slice(3).sort((a,b)=>a-b)[2];tune=[];if(m>8&&px>.2e6){px=Math.max(.2e6,px*Math.max(.5,7/m));tuned++;size()}else tuned=3}}
+ else draw();
+ dirty=0;if(mv||ez)raf=requestAnimationFrame(frame)}
 function kick(){dirty=1;if(!raf&&st.on&&gl){last=performance.now();ld=0;raf=requestAnimationFrame(frame)}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)kick()});
-addEventListener('resize',()=>{size();kick()});
+addEventListener('resize',()=>{size();if(st.on&&gl&&!document.hidden){draw();dirty=0}kick()});   /* setting canvas.width clears it: redraw in the same task so no blank frame shows */
+const yld=()=>{scrUntil=performance.now()+160};['scroll','wheel','touchmove'].forEach(e=>addEventListener(e,yld,{passive:true}));
 function newPat(){seed=Math.random()*100;const ks=Object.keys(STY).filter(x=>x!==st.sty);st.sty=ks[(Math.random()*ks.length)|0];st.k=8+((Math.random()*34)|0);st.m=6+((Math.random()*40)|0);st.jx=+(Math.random()*12-6).toFixed(1);st.jy=+(Math.random()*8-4).toFixed(1);
  if(w)w.querySelectorAll('input,select').forEach(i=>{if(i.dataset.k in st)i.value=st[i.dataset.k]});save();kick()}
 function vars(){root.style.setProperty('--lfi',st.i/100);root.style.setProperty('--lfb',st.b+'px');root.style.setProperty('--lfs',Math.max(st.s,1)/10);root.classList.toggle('lf-still',st.s===0)}
