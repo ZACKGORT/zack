@@ -1476,7 +1476,7 @@ document.getElementById('lld').addEventListener('click',function(){var u=URL.cre
 const KEY='leaf-light',D={on:false,i:70,b:7,s:10,p:50,d:1300,sty:'casement',k:22,m:24,jx:0,jy:0};
 let st=Object.assign({},D);try{Object.assign(st,JSON.parse(localStorage.getItem(KEY))||{})}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}};
-let cv=null,gl=null,pg=null,U={},seed=Math.random()*100,w=null,dirty=1,raf=0,T=0,last=0,dpr=1;
+let cv=null,gl=null,pg=null,U={},seed=Math.random()*100,w=null,dirty=1,raf=0,T=0,last=0,ld=0,dpr=1;
 /* window styles: name, left%, top%, width vw, height, unit, cols, rows, first-row weight, gap scale, skipped col, shape (0 plain, 1 arch, 2 porthole, 3 doorway), fade [deg, start, end] */
 const STY={
    casement:['Casement',34,-12,66,130,'h',2,3,1.15,1,-1,0],
@@ -1616,8 +1616,8 @@ function init(){gl=cv.getContext('webgl',{alpha:true,premultipliedAlpha:true,ant
  const al=gl.getAttribLocation(pg,'a');gl.enableVertexAttribArray(al);gl.vertexAttribPointer(al,2,gl.FLOAT,false,0,0);
  U={};['uRes','uDpr','uT','uBlur','uSkew','uMull','uDens','uSeed','uI','uPar','uJit','uBox','uGrid','uOpt','uFade'].forEach(n=>U[n]=gl.getUniformLocation(pg,n));
  gl.clearColor(0,0,0,0);size();return true}
-/* the light is soft, so it renders at css-pixel size or lower (capped near 1.5MP) and the browser upsamples it */
-function size(){if(!cv||!gl)return;const W=innerWidth,H=innerHeight,s=Math.min(1,Math.sqrt(1.5e6/(W*H)));cv.width=Math.max(1,Math.round(W*s));cv.height=Math.max(1,Math.round(H*s));dpr=cv.width/W;gl.viewport(0,0,cv.width,cv.height);dirty=1}
+/* the light is soft, so it renders at css-pixel size or lower (capped near 0.8MP) and the browser upsamples it */
+function size(){if(!cv||!gl)return;const W=innerWidth,H=innerHeight,s=Math.min(1,Math.sqrt(.8e6/(W*H)));cv.width=Math.max(1,Math.round(W*s));cv.height=Math.max(1,Math.round(H*s));dpr=cv.width/W;gl.viewport(0,0,cv.width,cv.height);dirty=1}
 function build(){if(cv)return;cv=document.createElement('canvas');cv.className='lf';cv.setAttribute('aria-hidden','true');document.body.append(cv);
  cv.addEventListener('webglcontextlost',e=>{e.preventDefault();cancelAnimationFrame(raf);raf=0});cv.addEventListener('webglcontextrestored',()=>{if(init())kick()});init()}
 const amp=()=>Math.min(st.p*.8,Math.min(innerWidth,innerHeight)*.06);
@@ -1627,11 +1627,13 @@ function draw(){const S=STY[st.sty]||STY.casement,m=S[12]||[165,.3,.95],W=innerW
  u('uGrid',S[6],S[7]);u('uOpt',S[8],S[9],S[10],S[11]);u('uFade',m[0]*Math.PI/180,m[1],m[2]);
  gl.clear(gl.COLOR_BUFFER_BIT);gl.drawArrays(gl.TRIANGLES,0,3)}
 /* renders only while something changes: sway running, the pointer easing, or a control touched */
-function frame(now){raf=0;if(!st.on||!gl||document.hidden)return;const dt=Math.min((now-last)/1000,.1);last=now;
+function frame(now){raf=0;if(!st.on||!gl||document.hidden)return;
+ if(now-ld<30){raf=requestAnimationFrame(frame);return}   /* 30fps cap: the light is slow and soft, so half the frames look identical */
+ const dt=Math.min((now-last)/1000,.1);last=now;ld=now;
  const mv=!rm&&st.s>0;if(mv)T+=dt*st.s/10;
  cx+=(tx-cx)*.07;cy+=(ty-cy)*.07;const ez=Math.abs(tx-cx)>.001||Math.abs(ty-cy)>.001;
  draw();dirty=0;if(mv||ez)raf=requestAnimationFrame(frame)}
-function kick(){dirty=1;if(!raf&&st.on&&gl){last=performance.now();raf=requestAnimationFrame(frame)}}
+function kick(){dirty=1;if(!raf&&st.on&&gl){last=performance.now();ld=0;raf=requestAnimationFrame(frame)}}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)kick()});
 addEventListener('resize',()=>{size();kick()});
 function newPat(){seed=Math.random()*100;const ks=Object.keys(STY).filter(x=>x!==st.sty);st.sty=ks[(Math.random()*ks.length)|0];st.k=8+((Math.random()*34)|0);st.m=6+((Math.random()*40)|0);st.jx=+(Math.random()*12-6).toFixed(1);st.jy=+(Math.random()*8-4).toFixed(1);
