@@ -1313,6 +1313,15 @@ new MutationObserver(()=>{if(it.classList.contains('on')){shown=true;return}if(!
  const a=document.createElement('a');a.href=CUR;a.target='_blank';a.rel='noopener';a.textContent='#cursory';
  a.addEventListener('click',e=>{if(e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||e.button)return;e.preventDefault();openWg(CUR,'zack.cx/cursory',{outside:true})});
  nav.append(a);if(!RM)a.animate([{opacity:0},{opacity:1}],{duration:400,easing:'ease-out'})}).observe(it,{attributes:true,attributeFilter:['class']})}
+/* header overlap guard: the fixed toolbar (#tb) is wider than the free space right of the tag links at mid desktop widths (and #cursory makes the row longer), so cap .tags at the toolbar's left edge and let the links wrap to a second row instead of running under it */
+{const tags=$('.tags'),tb=$('#tb'),hero=$('.hero'),mq=matchMedia('(min-width:53em)');
+if(tags&&tb&&hero){let raf=0;
+const fit=()=>{raf=0;tags.style.maxWidth='';if(!mq.matches)return;const r=tags.getBoundingClientRect(),room=tb.getBoundingClientRect().left-r.left-24;if(room>0&&room<r.width)tags.style.maxWidth=Math.floor(room)+'px'};
+const q=()=>{if(!raf)raf=requestAnimationFrame(fit)};
+new ResizeObserver(q).observe(tb);new ResizeObserver(q).observe(hero);
+new MutationObserver(q).observe(tags,{childList:true});
+mq.addEventListener('change',q);addEventListener('resize',q);
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(q);q()}}
 /* ---------- pressure text: per-letter weight swell on the logo and on "UX is dead" (port of React Bits TextPressure; Satoshi only has a weight axis, so no width / italic) ---------- */
 {const WMIN=300,WMAX=900,PERIOD=3.2,dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const split=root=>{const out=[];(function walk(n){[...n.childNodes].forEach(c=>{if(c.nodeType===3){const f=document.createDocumentFragment();for(const ch of c.nodeValue){if(/\s/.test(ch))f.append(ch);else{const s=document.createElement('span');s.textContent=ch;out.push(s);f.append(s)}}c.replaceWith(f)}else if(c.nodeType===1&&!c.matches('.ttl-dot'))walk(c)})})(root);return out};
@@ -1451,6 +1460,32 @@ Contact: if a creative team is hiring, LinkedIn is the quickest route — https:
 - https://neverever.land — personal provenance
 - https://intoview.pro — professional provenance
 - https://emdash.click — in defense of the em dash
+
+## How the page works
+
+Hero
+- Full-bleed hero: "UX IS DEAD" in Satoshi. Each letter's weight swells as the pointer approaches (a port of the TextPressure effect).
+- The period is a circle with an arrow. Hover it and the letters swell outward from the circle while the page peeks down as a teaser. Click it and a wave runs through the letters as the page scrolls on.
+- On a first visit a movable, resizable title card opens by itself with a 7-second countdown line along its top edge. Hovering pauses it; any click or drag cancels it. It belongs to the hero and closes when you scroll away.
+
+Scrolling and navigation
+- One jump function handles every jump: links, number keys, Space/J/K stepping, [ and ] section hops, Home/End, the right-click index, edge hotspots, and deep links like /#work. It keeps re-aiming while lazy images change page height, then parks keyboard focus on the destination.
+- Edge hotspots: near the top or bottom of the screen a label fades in with proximity; clicking steps to the previous or next stop.
+- Scroll progress readout; blurred edges switch on once the hero leaves view.
+- Collapsible key legend in the lower right; ? opens the full list of shortcuts.
+- Idle nudge: if you stall, the page nudges you, and the scroll toast hands off to a #cursory link.
+- Keyboard and focus handling is treated as a feature, including a Tab loop-back.
+
+Content
+- About: short, confident copy ("I think. I make.") followed by a deliberately cheeky tooltip: "user is kind of implied, no?"
+- Case studies open as accordions over a fixed full-viewport backdrop image with input-driven parallax. Clicking a gallery thumbnail makes it the new backdrop. A live iframe of the case-study page loads the first time a panel opens.
+- Skills: hover or tap previews show a GIF or image for each specialization and tool.
+- R&D_sandbox: a discreet note in About opens a dockable card linking to the other projects listed above.
+
+Widgets
+- Hero links and header nav items open as movable, scalable iframe widgets, rendered at 1600x1000 and scaled to fit. Drag them, pull them out of a magnetic dock against elastic resistance, resize from a corner, double-click the header for 1:1 scale. Esc closes one widget per press.
+- A "view all" grid shows live pages, so the work itself is the demo rather than a screenshot.
+- Also on the page: a SoundCloud player for works in progress, confetti, and a theme toggle (dark default, pink).
 
 ## About this page
 
