@@ -1416,12 +1416,14 @@ const canvas=document.createElement('canvas');canvas.className='tt-cv';canvas.se
 const ctx=canvas.getContext('2d'),scratch=document.createElement('canvas'),sctx=scratch.getContext('2d');
 if(!ctx||!sctx){canvas.remove();return null}
 const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
-let width=1,height=1,dpr=1,raf=0,last=performance.now(),visible=false,layoutKey='',requestedFont='',word=null,glyphs=[],clock=0,pulse=0,placed=false,dragging=-1,cursor='',ext=0;
+let width=1,height=1,dpr=1,raf=0,last=performance.now(),visible=false,layoutKey='',requestedFont='',word=null,glyphs=[],clock=0,pulse=0,placed=false,dragging=-1,cursor='',ext=0,inkC='',famC='',prev=null,idleTick=false,lastDraw=0,t1=0,t2=0;
 const kicks=[],press={x:0,y:0,time:0,index:-1},pointer={x:0,y:0,inside:false},grab={x:0,y:0},lens={x:0,y:0},frame={x1:0,y1:0,x2:0,y2:0,alpha:0,index:-1};
-const wake=()=>{if(raf||!visible)return;last=performance.now();raf=requestAnimationFrame(tick)};
-const family=()=>getComputedStyle(box).fontFamily||'sans-serif';
+const wake=()=>{idleTick=false;if(raf||!visible)return;last=performance.now();raf=requestAnimationFrame(tick)};
+const family=()=>famC;
 const fontFor=size=>S.fontWeight+' '+size+'px '+family();
-const palette=()=>getComputedStyle(box).color||'#000';
+const palette=()=>inkC;
+/* getComputedStyle forces a style recalc, so it is read on resize / theme / font events and cached; a changed ink or family re-renders the letter sprites */
+const readStyle=()=>{const cs=getComputedStyle(box),c=cs.color||'#000',f=cs.fontFamily||'sans-serif';if(c!==inkC||f!==famC){inkC=c;famC=f;layoutKey=''}};
 const setFont=(t,size)=>{t.font=fontFor(size);if('letterSpacing'in t)t.letterSpacing=(S.letterSpacing*size)+'px';t.textAlign='left';t.textBaseline='alphabetic'};
 const sprite=(view,g,stroke,ink)=>{const pad=Math.ceil(S.strokeWidth*2+4),left=g.box.x1-pad,top=g.box.y1-pad,w=g.box.x2-g.box.x1+pad*2,h=g.box.y2-g.box.y1+pad*2;
 const image=document.createElement('canvas');image.width=Math.max(1,Math.ceil(w*dpr));image.height=Math.max(1,Math.ceil(h*dpr));
@@ -1473,7 +1475,7 @@ const kick=index=>{const strength=(word?word.size:120)*11;kicks.push({index,at:p
 for(let d=1;d<glyphs.length;d++){const v=strength*Math.pow(KICK_DECAY,d);if(v<30)break;for(const j of[index-d,index+d])if(j>=0&&j<glyphs.length)kicks.push({index:j,at:pulse+d*.055,velocity:v})}wake()};
 /* a hop that runs through every letter, right to left (from the arrow circle outward) */
 const ripple=()=>{if(reduced||!glyphs.length)return;const v=(word?word.size:120)*8;glyphs.forEach((g,j)=>kicks.push({index:j,at:pulse+(glyphs.length-1-j)*.05,velocity:v}));wake()};
-function tick(now){raf=0;if(!visible)return;const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+function tick(now){raf=0;if(!visible)return;if(idleTick&&now-lastDraw<30){raf=requestAnimationFrame(tick);return}if(mv.has){mv.has=false;locate(mv)}const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
 const ink=palette(),view=ensureLayout(ink),damping=2*Math.sqrt(SPRING)*(1-c01(S.bounce)*.96);
 const sweeping=S.sweep&&!reduced&&!pointer.inside&&dragging<0;if(sweeping)clock+=dt*S.speed;pulse+=dt;
 let tx=pointer.x,ty=pointer.y;
@@ -1495,18 +1497,29 @@ frame.alpha=approach(frame.alpha,focus>=0&&S.selection?1:0,dt,.1);
 glyphs.forEach((g,i)=>{const t=i===focus&&i!==dragging?1:0;g.outline=approach(g.outline,t,dt,.09);if(Math.abs(g.outline-t)>.002)moving=true;else g.outline=t});
 const hovering=focus>=0&&pointer.inside,nc=dragging>=0?'grabbing':hovering&&S.draggable?'grab':hovering&&S.clickKick?'pointer':'';
 if(nc!==cursor){cursor=nc;box.style.cursor=nc}
-ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.clearRect(0,0,canvas.width,canvas.height);
+ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+/* clear only what was drawn last frame plus what is about to be drawn (the canvas can be very tall because it reaches the top of the hero) */
+{let bx1=1e9,by1=1e9,bx2=-1e9,by2=-1e9;
+for(const g of glyphs){bx1=Math.min(bx1,g.box.x1,g.box.x1+g.offset.x);by1=Math.min(by1,g.box.y1,g.box.y1+g.offset.y);bx2=Math.max(bx2,g.box.x2,g.box.x2+g.offset.x);by2=Math.max(by2,g.box.y2,g.box.y2+g.offset.y)}
+if(glyphs.length){bx1-=12;by1-=12;bx2+=12;by2+=12;if(frame.alpha>.01){bx1=Math.min(bx1,frame.x1-12);by1=Math.min(by1,frame.y1-32);bx2=Math.max(bx2,frame.x2+100);by2=Math.max(by2,frame.y2+12)}}
+const cur=glyphs.length?[bx1,by1,bx2,by2]:null,pv=prev||[0,0,width,height],all=cur?[Math.min(cur[0],pv[0]),Math.min(cur[1],pv[1]),Math.max(cur[2],pv[2]),Math.max(cur[3],pv[3])]:pv;
+const cx1=Math.max(0,Math.floor(all[0]*dpr)),cy1=Math.max(0,Math.floor(all[1]*dpr)),cx2=Math.min(canvas.width,Math.ceil(all[2]*dpr)),cy2=Math.min(canvas.height,Math.ceil(all[3]*dpr));
+if(cx2>cx1&&cy2>cy1)ctx.clearRect(cx1,cy1,cx2-cx1,cy2-cy1);prev=cur}
 for(const g of glyphs){const mv=Math.hypot(g.offset.x,g.offset.y);if(mv>1){ctx.globalAlpha=Math.min(1,mv/24)*.55;blit(ctx,g.dashes,0,0);ctx.globalAlpha=1}}
 glyphs.forEach(g=>{if(g.outline<.999){ctx.globalAlpha=1-g.outline;blit(ctx,g.fill,g.offset.x,g.offset.y)}if(g.outline>.001){ctx.globalAlpha=g.outline;blit(ctx,g.dashes,g.offset.x,g.offset.y)}ctx.globalAlpha=1});
 drawFrame(ink);
+idleTick=sweeping&&!moving&&kicks.length===0;lastDraw=now;
 const settling=moving||kicks.length>0||(frame.alpha>.01&&frame.alpha<.99);
 if((active||settling)&&visible)raf=requestAnimationFrame(tick)}
 const hero=box.closest('.hero');
-const resize=()=>{const bh=Math.max(1,box.clientHeight);ext=hero?Math.min(2400,Math.max(0,Math.round(box.getBoundingClientRect().top-hero.getBoundingClientRect().top))):0;width=Math.max(1,box.clientWidth);height=bh+ext;canvas.style.top=-ext+'px';canvas.style.height=height+'px';dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);layoutKey='';wake()};
+const resize=()=>{readStyle();const bh=Math.max(1,box.clientHeight);ext=hero?Math.min(2400,Math.max(0,Math.round(box.getBoundingClientRect().top-hero.getBoundingClientRect().top))):0;
+const w=Math.max(1,box.clientWidth),nh=bh+ext,nd=Math.min(devicePixelRatio||1,2);canvas.style.top=-ext+'px';canvas.style.height=nh+'px';
+if(w!==width||nh!==height||nd!==dpr){width=w;height=nh;dpr=nd;canvas.width=Math.round(w*dpr);canvas.height=Math.round(nh*dpr);layoutKey='';prev=null}wake()};
+const mv={clientX:0,clientY:0,has:false};
 const locate=e=>{const r=canvas.getBoundingClientRect();pointer.x=e.clientX-r.left;pointer.y=e.clientY-r.top};
-const onMove=e=>{locate(e);pointer.inside=true;wake()};
+const onMove=e=>{mv.clientX=e.clientX;mv.clientY=e.clientY;mv.has=true;pointer.inside=true;wake()};
 const onLeave=()=>{if(dragging>=0)return;pointer.inside=false;wake()};
-const onDown=e=>{if(S.ignore&&e.target.closest&&e.target.closest(S.ignore))return;locate(e);pointer.inside=true;
+const onDown=e=>{if(S.ignore&&e.target.closest&&e.target.closest(S.ignore))return;locate(e);mv.has=false;pointer.inside=true;
 const primary=e.pointerType!=='mouse'||e.button===0,index=primary?glyphAt(pointer.x,pointer.y):-1;press.x=pointer.x;press.y=pointer.y;press.time=performance.now();press.index=index;
 if(S.draggable&&index>=0){dragging=index;grab.x=pointer.x-glyphs[index].offset.x;grab.y=pointer.y-glyphs[index].offset.y;box.setPointerCapture&&box.setPointerCapture(e.pointerId)}wake()};
 const onUp=e=>{if(dragging>=0){dragging=-1;box.releasePointerCapture&&box.releasePointerCapture(e.pointerId);const r=box.getBoundingClientRect();pointer.inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom}
@@ -1521,7 +1534,9 @@ const sync=()=>{const v=inView&&!document.hidden;if(v===visible)return;visible=v
 new IntersectionObserver(([en])=>{inView=en.isIntersecting;sync()}).observe(box);
 document.addEventListener('visibilitychange',sync);
 /* theme / tone swaps change the ink colour */
-const mo=new MutationObserver(wake);for(const n of[document.documentElement,document.body])if(n)mo.observe(n,{attributes:true,attributeFilter:['class','style','data-theme','data-tone']});
+const recheck=()=>{if(!t1)t1=setTimeout(()=>{t1=0;readStyle();wake()},80);if(!t2)t2=setTimeout(()=>{t2=0;readStyle();wake()},500)};
+const mo=new MutationObserver(recheck);for(const n of[document.documentElement,document.body])if(n)mo.observe(n,{attributes:true,attributeFilter:['class','style','data-theme','data-tone']});
+{const sq=matchMedia('(prefers-color-scheme:dark)');sq.addEventListener&&sq.addEventListener('change',recheck)}
 if(document.fonts)document.fonts.ready.then(()=>{layoutKey='';wake()});
 resize();box.classList.add('on');
 return{wake,ripple}}
