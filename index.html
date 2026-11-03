@@ -1473,7 +1473,7 @@ const kick=index=>{const strength=(word?word.size:120)*11;kicks.push({index,at:p
 for(let d=1;d<glyphs.length;d++){const v=strength*Math.pow(KICK_DECAY,d);if(v<30)break;for(const j of[index-d,index+d])if(j>=0&&j<glyphs.length)kicks.push({index:j,at:pulse+d*.055,velocity:v})}wake()};
 /* a hop that runs through every letter, right to left (from the arrow circle outward) */
 const ripple=()=>{if(reduced||!glyphs.length)return;const v=(word?word.size:120)*8;glyphs.forEach((g,j)=>kicks.push({index:j,at:pulse+(glyphs.length-1-j)*.05,velocity:v}));wake()};
-function tick(now){raf=0;const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
+function tick(now){raf=0;if(!visible)return;const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
 const ink=palette(),view=ensureLayout(ink),damping=2*Math.sqrt(SPRING)*(1-c01(S.bounce)*.96);
 const sweeping=S.sweep&&!reduced&&!pointer.inside&&dragging<0;if(sweeping)clock+=dt*S.speed;pulse+=dt;
 let tx=pointer.x,ty=pointer.y;
@@ -1515,7 +1515,11 @@ press.index=-1;wake()};
 const P={passive:true};
 box.addEventListener('pointermove',onMove,P);box.addEventListener('pointerenter',onMove,P);box.addEventListener('pointerdown',onDown,P);box.addEventListener('pointerup',onUp,P);box.addEventListener('pointercancel',onUp,P);box.addEventListener('pointerleave',onLeave,P);
 {const ro=new ResizeObserver(resize);ro.observe(box);if(hero)ro.observe(hero)}
-new IntersectionObserver(([en])=>{visible=en.isIntersecting;wake()}).observe(box);
+/* runs only while the title is on screen AND the tab is showing: leaving either cancels the pending frame outright and drops any hover or drag; coming back resumes from the same pose */
+let inView=false;
+const sync=()=>{const v=inView&&!document.hidden;if(v===visible)return;visible=v;if(v){wake();return}cancelAnimationFrame(raf);raf=0;pointer.inside=false;dragging=-1;press.index=-1;cursor='';box.style.cursor=''};
+new IntersectionObserver(([en])=>{inView=en.isIntersecting;sync()}).observe(box);
+document.addEventListener('visibilitychange',sync);
 /* theme / tone swaps change the ink colour */
 const mo=new MutationObserver(wake);for(const n of[document.documentElement,document.body])if(n)mo.observe(n,{attributes:true,attributeFilter:['class','style','data-theme','data-tone']});
 if(document.fonts)document.fonts.ready.then(()=>{layoutKey='';wake()});
