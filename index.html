@@ -677,16 +677,14 @@ html.lf-on .lf{display:block}
 #about[data-phase=falling] .fxs .blur .piece:hover{filter:blur(.5px)}
 #about[data-phase=falling] .tip::after,#about[data-phase=restoring] .tip::after{display:none}
 @media(prefers-reduced-motion:reduce){.sling-button__pulse{animation:none}.sling-button__face{transition:none}}
-/* ghost beckon: recalls the ball to its resting spot from anywhere */
-.beckon{all:unset;box-sizing:border-box;position:fixed;z-index:46;left:calc(env(safe-area-inset-left,0px) + var(--pad));bottom:calc(env(safe-area-inset-bottom,0px) + var(--pad) + 4.5rem);display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .7rem;font:300 11px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--alt);background:color-mix(in srgb,var(--bg) 72%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px dashed color-mix(in srgb,var(--ink) 28%,transparent);cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(6px);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s .35s,color .18s,border-color .18s}
-.beckon.on{opacity:.72;visibility:visible;pointer-events:auto;transform:none;transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s,color .18s,border-color .18s}
-.beckon:hover,.beckon:focus-visible{opacity:1;color:var(--pink);border-color:var(--pink)}
-.beckon:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
-.beckon i{display:block;width:10px;height:10px;border:1.4px solid currentColor;border-radius:50%;position:relative}
-.beckon i::after{content:"";position:absolute;inset:-4px;border:1px dashed currentColor;border-radius:50%;opacity:.45;animation:bk-ring 2.4s ease-out infinite}
-@keyframes bk-ring{0%{transform:scale(.7);opacity:.5}70%{transform:scale(1.35);opacity:0}100%{transform:scale(1.35);opacity:0}}
-@media(prefers-reduced-motion:reduce){.beckon i::after{animation:none}}
-@media(max-width:768px){.beckon{bottom:calc(env(safe-area-inset-bottom,0px) + var(--pad) + 3.2rem)}}
+/* reset: sits in the exact home slot of the sling pad (behind it); outlined silhouette */
+.reset-btn{all:unset;box-sizing:border-box;position:fixed;z-index:44;left:0;top:0;width:var(--rb-size,52px);height:var(--rb-size,52px);margin:0;display:grid;place-items:center;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;color:var(--alt);transform:translate(-50%,-50%) scale(.96);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s .35s,color .18s}
+.reset-btn.on{opacity:.65;visibility:visible;pointer-events:auto;transform:translate(-50%,-50%) scale(1);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s,color .18s}
+.reset-btn:hover,.reset-btn:focus-visible{opacity:1;color:var(--pink)}
+.reset-btn:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+.reset-btn .rb-pad{position:relative;width:100%;height:100%;border-radius:50%;border:1.5px dashed currentColor;display:grid;place-items:center;background:transparent;box-sizing:border-box}
+.reset-btn .rb-pad svg{width:40%;height:40%;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;opacity:.9}
+.reset-btn .rb-label{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);font:300 10px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;pointer-events:none}
 </style>
 </head>
 <body>
@@ -917,7 +915,7 @@ else if(k==='l'||k==='L'){e.preventDefault();window.zcxLeaf&&zcxLeaf.toggle()}
   else if(k===' '){if(selfAct||(t.closest&&t.closest('a,button,[role=button],summary')))return;e.preventDefault();step(e.shiftKey?-1:1)}});
 /* ---------- cursor hotspots: near the top/bottom edge, click = previous/next stop; label fades in with proximity ---------- */
 if(FINE){const AXIS='y',/* 'y' = top/bottom edges, 'x' = left/right edges */
-BLOCK='a,button,.logo,.tc,input,textarea,select,iframe,[role=button],[role=menuitem],[contenteditable],.tip,.sup,.sk,.wg,.hud,.cm,.nt,.mw,#thm,#rsm,#rsp,#llm,#mus,#sfx,#lfb,#lfw,#lfs,#llp,.vw,.beckon',
+BLOCK='a,button,.logo,.tc,input,textarea,select,iframe,[role=button],[role=menuitem],[contenteditable],.tip,.sup,.sk,.wg,.hud,.cm,.nt,.mw,#thm,#rsm,#rsp,#llm,#mus,#sfx,#lfb,#lfw,#lfs,#llp,.vw,.reset-btn',
 AR=AXIS==='y'?['↑','↓']:['←','→'];
 const dr=document.createElement('div');dr.className='dir';dr.setAttribute('aria-hidden','true');dr.innerHTML='<b></b><span></span><em></em>';document.body.append(dr);
 const [ar,tx,ds]=dr.children;let px=-1,py=-1,af=0,vis=false,key='',cy=-1,cd=0,ch=0,ca=null,skip=false;
@@ -1831,9 +1829,10 @@ showHud();nudgeSpace(true);
       clock = 0; wake();
     }
     // circle (viewport coords) vs letters: contact + small-radius blast, returns the bounced circle
+    // letter notes / haptics only fire on first fall (release) — already-loose letters stay silent to avoid chaos
     function hit(cx, cy, r, vx, vy) {
       if (phase !== 'armed' && phase !== 'falling') return null;
-      var b = container.getBoundingClientRect(), x = cx - b.left - container.clientLeft, y = cy - b.top - container.clientTop, moved = false;
+      var b = container.getBoundingClientRect(), x = cx - b.left - container.clientLeft, y = cy - b.top - container.clientTop, moved = false, newly = 0;
       var speed = Math.hypot(vx, vy) || 1, blast = BLAST_R, primary = null, primD = 1e9;
       // first pass: find primary contact (closest penetrating letter)
       pieces.forEach(function (p) {
@@ -1863,7 +1862,7 @@ showHud();nudgeSpace(true);
         var ivx = -nx * impulse * (inContact ? 1.15 : .75) + vx * .12 * falloff;
         var ivy = -ny * impulse * (inContact ? 1.15 : .75) + vy * .12 * falloff - 80 * falloff;
         var was = p.rel;
-        if (!was) release(p, ivx * 2.2, ivy * 2.2, falloff);
+        if (!was) { release(p, ivx * 2.2, ivy * 2.2, falloff); newly++; }
         else {
           M.Sleeping.set(p.body, false);
           M.Body.setVelocity(p.body, {
@@ -1871,7 +1870,6 @@ showHud();nudgeSpace(true);
             y: p.body.velocity.y + clamp(ivy * STEP / 1000 * .55, -12, 12)
           });
           M.Body.setAngularVelocity(p.body, p.body.angularVelocity + (Math.random() - .5) * .18 * falloff);
-          if (p.noteI != null && falloff > .35) sfxLetter(p.noteI, falloff * .7);
         }
         if (inContact && vn < 0) {
           var k = was ? .7 : 1.35;
@@ -1881,12 +1879,13 @@ showHud();nudgeSpace(true);
         moved = true;
       });
       if (!moved) return null;
-      sfxThud('letter', speed);
+      // thud only when at least one letter actually fell (keeps fallen-letter chaos quiet)
+      if (newly) sfxThud('letter', speed);
       wake();
       return { x: x + b.left + container.clientLeft, y: y + b.top + container.clientTop, vx: vx, vy: vy };
     }
     function restore() {
-      if (phase !== 'falling') return;
+      if (phase !== 'falling' && phase !== 'restoring') return;
       phase = 'restoring'; container.dataset.phase = 'restoring';
       if (drag) { M.Composite.remove(engine.world, drag.c); drag = null; }
       cancelAnimationFrame(raf); raf = 0;
@@ -1902,6 +1901,11 @@ showHud();nudgeSpace(true);
         if (phase !== 'restoring') return;
         reset(); if (o.hit) arm(); if (o.onRestore) o.onRestore();
       });
+    }
+    // full snap-back: animated if letters are loose, otherwise hard re-arm so the scene is hittable again
+    function fullReset() {
+      if (phase === 'falling' || phase === 'restoring') { restore(); return; }
+      reset(); if (o.hit) arm(); if (o.onRestore) o.onRestore();
     }
     function reset() {
       cancelAnimationFrame(raf); raf = 0;
@@ -1959,7 +1963,7 @@ showHud();nudgeSpace(true);
     function rearm() { if (phase === 'armed') { reset(); arm(); } }
     if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', rearm);
     addEventListener('load', rearm);
-    return { fall: fall, hit: hit };
+    return { fall: fall, hit: hit, restore: restore, reset: reset, fullReset: fullReset };
   }
 
 
@@ -2100,6 +2104,7 @@ showHud();nudgeSpace(true);
   function placeHome() {
     if (homeAnim) { homeAnim.cancel(); homeAnim = null; }
     var h = homePt(); ph.x = h.x; ph.y = h.y; ph.vx = ph.vy = 0; ph.ang = restAngle = aimAngle = 180; render();
+    if (typeof placeReset === 'function') placeReset();
   }
   function goHome() {
     if (grip || root.hasAttribute('data-flying') || !shown) return;
@@ -2111,7 +2116,7 @@ showHud();nudgeSpace(true);
       homeAnim = root.animate([{ transform: from }, { transform: to }], { duration: 750, easing: 'cubic-bezier(.34,1.3,.64,1)' });
       homeAnim.onfinish = function () { homeAnim = null; };
     }
-    beckonShow(false);
+    resetShow(false);
   }
   // one integration step (dt in seconds). Returns true once the ball has come to rest on the floor.
   function step(dt, W, Fl) {
@@ -2123,7 +2128,7 @@ showHud();nudgeSpace(true);
     if (!intro) {   // during the hero hand-off the ball may start above the viewport and ignores the headline
       if (ph.y < r) { var hitC = ph.vy < 0; ph.y = r; ph.vy = Math.abs(ph.vy) * EW; if (hitC && sp0 > 80) sfxThud('wall', sp0); }
       var hv = head.hit(ph.x, ph.y, size / 2 + 3, ph.vx, ph.vy);
-      if (hv) { ph.x = hv.x; ph.y = hv.y; ph.vx = hv.vx; ph.vy = hv.vy; ph.om += (Math.random() - .5) * 520; }
+      if (hv) { ph.x = hv.x; ph.y = hv.y; ph.vx = hv.vx; ph.vy = hv.vy; ph.om += (Math.random() - .5) * 520; updateReset(); }
     }
     if (ph.y >= Fl - r) {
       ph.y = Fl - r; floor = true;
@@ -2154,7 +2159,7 @@ showHud();nudgeSpace(true);
     var r = root.getBoundingClientRect();
     ph.x = r.left + r.width / 2; ph.y = r.top + r.height / 2; ph.vx = vx; ph.vy = vy;
     ph.ang = aimAngle; ph.om = vx / wellR * .3 * 57.3; intro = false;
-    beckonShow(true);
+    resetShow(true);
     run();
   }
   function settle() {
@@ -2162,11 +2167,14 @@ showHud();nudgeSpace(true);
     if (was) {   // the hero hand-off lands wherever the maths says: ease the last few px onto the centre resting spot and bring the well back
       svg.style.opacity = ''; ph.vx = 0;
       var h = homePt(); if (Math.abs(ph.x - h.x) > .5 || Math.abs(ph.y - h.y) > .5) goHome();
-      else beckonShow(false);
-    } else {
-      var h2 = homePt(), away = Math.hypot(ph.x - h2.x, ph.y - h2.y) > 40;
-      beckonShow(away && shown && mode === 'live');
-    }
+      else updateReset();
+    } else updateReset();
+  }
+  function updateReset() {
+    if (!shown || mode !== 'live') { resetShow(false); return; }
+    var phase = about.dataset.phase, lettersOut = phase === 'falling' || phase === 'restoring';
+    var h = homePt(), ballAway = Math.hypot(ph.x - h.x, ph.y - h.y) > 40 || root.hasAttribute('data-flying');
+    resetShow(lettersOut || ballAway);
   }
   function rest() {
     root.removeAttribute('data-flying');
@@ -2235,34 +2243,43 @@ showHud();nudgeSpace(true);
   // ---------- wiring ----------
   var head = FallingText(about, blocks, { hit: true, restore: 2.2, scatter: .7, inset: 150, onRestore: goHome });
 
-  // ---------- ghost beckon: call the ball home from anywhere ----------
-  var beckon = el('button', 'beckon');
-  beckon.type = 'button'; beckon.setAttribute('aria-label', 'Beckon the ball back to its resting spot');
-  beckon.innerHTML = '<i aria-hidden="true"></i><span>beckon</span>';
-  document.body.appendChild(beckon);
-  function beckonShow(on) { beckon.classList.toggle('on', !!on); }
-  function doBeckon() {
+  // ---------- reset: outlined arrow-pad silhouette parked in the ball's exact home slot (behind it) ----------
+  var resetBtn = el('button', 'reset-btn');
+  resetBtn.type = 'button'; resetBtn.setAttribute('aria-label', 'Reset letters and ball to their resting positions');
+  resetBtn.innerHTML = '<span class="rb-pad" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg></span><span class="rb-label">Reset</span>';
+  document.body.appendChild(resetBtn);
+  function placeReset() {
+    var h = homePt();
+    resetBtn.style.setProperty('--rb-size', size + 'px');
+    resetBtn.style.left = h.x + 'px';
+    resetBtn.style.top = h.y + 'px';
+  }
+  function resetShow(on) {
+    if (on) placeReset();
+    resetBtn.classList.toggle('on', !!on);
+  }
+  placeReset();
+  addEventListener('resize', placeReset);
+  function doReset() {
     ensureAudio();
-    if (grip) return;
+    if (grip) { try { pad.releasePointerCapture(grip.id); } catch (_) {} grip = null; pad.removeAttribute('data-held'); root.removeAttribute('data-held'); setArmed(false); setPos(0, 0); }
     if (root.hasAttribute('data-flying')) { cancelAnimationFrame(flyRaf); root.removeAttribute('data-flying'); intro = false; }
     if (homeAnim) { homeAnim.cancel(); homeAnim = null; }
     stopAll();
-    if (!shown || mode === 'hero' || mode === 'past') {
-      if (mode === 'past') { mode = 'live'; shown = true; root.removeAttribute('data-off'); svg.style.opacity = ''; }
-      else if (mode === 'hero') return;
-    }
-    placeHome();
-    tone(392, .08, 'sine', .1, 1.4); tone(523.25, .12, 'triangle', .08, 1.1);
-    buzz(18);
-    beckonShow(false);
+    if (head && head.fullReset) head.fullReset();
+    if (mode === 'past') { mode = 'live'; shown = true; root.removeAttribute('data-off'); svg.style.opacity = ''; }
+    if (mode === 'live' || mode === 'past') { placeHome(); rest(); }
+    tone(330, .07, 'sine', .09, 1.25); tone(494, .1, 'triangle', .07, 1.05);
+    buzz(16);
+    resetShow(false);
   }
-  beckon.addEventListener('click', doBeckon);
+  resetBtn.addEventListener('click', doReset);
   addEventListener('keydown', function (e) {
-    if (e.key !== 'b' && e.key !== 'B') return;
+    if (e.key !== 'r' && e.key !== 'R') return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     var t = e.target; if (t && t.closest && t.closest('input,textarea,select,[contenteditable]')) return;
-    if (!beckon.classList.contains('on')) return;
-    e.preventDefault(); doBeckon();
+    if (!resetBtn.classList.contains('on')) return;
+    e.preventDefault(); doReset();
   });
 
   // ---------- hero hand-off: the hero's arrow circle becomes this ball ----------
@@ -2310,12 +2327,12 @@ showHud();nudgeSpace(true);
     root.style.transition = 'none'; root.setAttribute('data-off', ''); void root.offsetWidth; root.style.transition = '';
     svg.style.opacity = ''; root.removeAttribute('data-flying'); themeInk();
     if (DOT) DOT.style.visibility = '';
-    beckonShow(false);
+    resetShow(false);
   }
   function toHero() {
     var was = !root.hasAttribute('data-off'), r = root.getBoundingClientRect(), fx0 = r.left + r.width / 2, fy0 = r.top + r.height / 2;
     mode = 'hero'; if (grip) release(grip.id, true);
-    stopAll(); shown = false; beckonShow(false);
+    stopAll(); shown = false; resetShow(false);
     var di = dotInfo();
     if (!was || !di || !di.on || mq.matches) { finishHero(); return; }
     dotInk(); root.setAttribute('data-flying', '');   // scrolling back up: the ball hops back into the arrow circle
@@ -2337,8 +2354,8 @@ showHud();nudgeSpace(true);
     if (mode === 'hero') { if (r.top < vh * DROP_AT) drop(); return; }
     if (r.top > vh * BACK_AT) { toHero(); return; }
     var vis = (Math.min(r.bottom, vh) - Math.max(r.top, 0)) / Math.max(1, r.height), past = r.top < 0 && vis < .35;
-    if (past && mode === 'live') { mode = 'past'; shown = false; stopAll(); root.setAttribute('data-off', ''); beckonShow(false); }
-    else if (!past && mode === 'past') { mode = 'live'; shown = true; stopAll(); placeHome(); svg.style.opacity = ''; root.removeAttribute('data-off'); beckonShow(false); }
+    if (past && mode === 'live') { mode = 'past'; shown = false; stopAll(); root.setAttribute('data-off', ''); resetShow(false); }
+    else if (!past && mode === 'past') { mode = 'live'; shown = true; stopAll(); placeHome(); svg.style.opacity = ''; root.removeAttribute('data-off'); resetShow(false); }
   }
   function queue() { if (!ticking) { ticking = true; requestAnimationFrame(sync); } }
   addEventListener('scroll', queue, { passive: true }); addEventListener('load', queue);
