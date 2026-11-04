@@ -661,6 +661,19 @@ html.lf-on .lf{display:block}
 .sling-button__pad[data-held] .sling-button__face{transform:scale(.97)}
 .sling-button__pad[data-armed] .sling-button__face{transform:scale(1.04)}
 .sling-button__icon{display:inline-flex;will-change:transform}
+.fxs .group{white-space:nowrap}
+.fxs .piece{display:inline-block;white-space:pre}
+.fxs .slot{display:inline}
+.fx-sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;user-select:none;-webkit-user-select:none}
+.sup:hover .piece,.sup:focus-visible .piece{text-decoration:underline;text-underline-offset:.12em}
+/* the blurry word: the blur lives on each letter (not the wrapper), so it survives the fall — hover/focus sharpens it at rest; once the letters are loose, each letter sharpens on its own hover */
+.fxs .blur>span,.fxs .blur:hover>span,.fxs .blur:focus-visible>span{filter:none}
+.fxs .blur .piece{filter:blur(4px);transition:filter .18s}
+.fxs .blur:hover .piece{filter:blur(.5px)}
+.fxs .blur:focus-visible .piece{filter:none}
+#about[data-phase=falling] .fxs .blur:hover .piece{filter:blur(4px)}
+#about[data-phase=falling] .fxs .blur .piece:hover{filter:blur(.5px)}
+#about[data-phase=falling] .tip::after,#about[data-phase=restoring] .tip::after{display:none}
 @media(prefers-reduced-motion:reduce){.sling-button__pulse{animation:none}.sling-button__face{transition:none}}
 </style>
 </head>
@@ -1645,6 +1658,7 @@ showHud();nudgeSpace(true);
 
   // ---------- FallingText (Matter.js): letters sit still until knocked ----------
   function FallingText(container, block, o) {
+    var blocks = [].concat(block);
     o = Object.assign({ gravity: 1, bounce: .3, scatter: .6, stagger: .04, restore: 2.5, push: .5, stiff: .2, scroll: false, hit: false, inset: 0, onRestore: null }, o);
     var M = Matter, STEP = 1000 / 120, WALL = 400, phase = 'idle', engine = null, pieces = [], ghosts = [], walls = [], drag = null,
         raf = 0, last = 0, clock = 0, acc = 0, quiet = null, visible = true, armedScroll = true, ptr = { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
@@ -1660,7 +1674,7 @@ showHud();nudgeSpace(true);
       pieces.forEach(function (p) {
         if (!p.rel) return;
         var b = p.body, x = p.px + (b.position.x - p.px) * a, y = p.py + (b.position.y - p.py) * a, g = p.pa + (b.angle - p.pa) * a;
-        p.el.style.transform = 'translate3d(' + (x - p.w / 2).toFixed(2) + 'px,' + (y - p.h / 2).toFixed(2) + 'px,0) rotate(' + g.toFixed(4) + 'rad)';
+        p.el.style.transform = 'translate3d(' + (x - p.w / 2 - p.ox).toFixed(2) + 'px,' + (y - p.h / 2 - p.oy).toFixed(2) + 'px,0) rotate(' + g.toFixed(4) + 'rad)';
       });
     }
     function release(p, vx, vy) {
@@ -1691,24 +1705,32 @@ showHud();nudgeSpace(true);
     function wake() { if (!raf && engine && visible) { last = 0; raf = requestAnimationFrame(frame); } }
     function arm() {
       if (phase !== 'idle' || mq.matches) return;
-      var els = [].slice.call(block.querySelectorAll('[data-piece]')); if (!els.length) return;
+      var els = []; blocks.forEach(function (b) { els = els.concat([].slice.call(b.querySelectorAll('[data-piece]'))); }); if (!els.length) return;
       var box = container.getBoundingClientRect(), ox = box.left + container.clientLeft, oy = box.top + container.clientTop;
       var rects = els.map(function (e) { var r = e.getBoundingClientRect(); return { x: r.left - ox, y: r.top - oy, w: r.width, h: r.height }; });
-      block.style.minHeight = block.offsetHeight + 'px'; block.style.minWidth = block.offsetWidth + 'px';
+      blocks.forEach(function (b) { if (!b.querySelector('[data-slot]')) { b.style.minHeight = b.offsetHeight + 'px'; b.style.minWidth = b.offsetWidth + 'px'; } });
       engine = M.Engine.create({ enableSleeping: true, positionIterations: 10, velocityIterations: 8 });
       engine.gravity.y = o.gravity * 1.4;
       walls = [[10000, WALL, .8], [WALL, 10000, .3], [WALL, 10000, .3], [10000, WALL, .3]].map(function (w) { return M.Bodies.rectangle(0, 0, w[0], w[1], { isStatic: true, friction: w[2] }); });
       pieces = []; ghosts = [];
+      // pass 1: every piece goes absolute; pieces that live in a slot leave an in-flow placeholder of the same size, so the line / tooltip / hover box around them never collapses
       els.forEach(function (e, i) {
-        var r = rects[i], s = e.style;
+        var r = rects[i], s = e.style, sl = e.parentNode && e.parentNode.hasAttribute && e.parentNode.hasAttribute('data-slot') ? e.parentNode : null;
+        if (sl) { var ss = sl.style; ss.display = 'inline-block'; ss.position = 'relative'; ss.verticalAlign = 'top'; ss.width = r.w + 'px'; ss.height = r.h + 'px'; }
         s.position = 'absolute'; s.left = '0'; s.top = '0'; s.width = r.w + 'px'; s.height = r.h + 'px'; s.margin = '0';
-        s.transform = 'translate3d(' + r.x + 'px,' + r.y + 'px,0)';
+      });
+      // pass 2: a slotted piece's transform is relative to its slot, so measure each slot's origin (in container space) once the layout has settled
+      var b2 = container.getBoundingClientRect(), cx = b2.left + container.clientLeft, cy = b2.top + container.clientTop;
+      els.forEach(function (e, i) {
+        var r = rects[i], sl = e.parentNode && e.parentNode.hasAttribute && e.parentNode.hasAttribute('data-slot') ? e.parentNode : null, px0 = 0, py0 = 0;
+        if (sl) { var sr = sl.getBoundingClientRect(); px0 = sr.left - cx; py0 = sr.top - cy; }
+        e.style.transform = 'translate3d(' + (r.x - px0) + 'px,' + (r.y - py0) + 'px,0)';
         if (e.hasAttribute('data-ghost')) { ghosts.push(e); return; }
         var rad = Math.max(0, Math.min(4, r.w / 2 - 1, r.h / 2 - 1));
         var body = M.Bodies.rectangle(r.x + r.w / 2, r.y + r.h / 2, Math.max(2, r.w - 1), Math.max(2, r.h - 1),
           { chamfer: rad > .5 ? { radius: rad } : undefined, restitution: o.bounce, friction: .4, frictionStatic: .8, frictionAir: .012, density: .0015, slop: .02 });
         M.Body.setStatic(body, true);
-        var p = { el: e, body: body, w: r.w, h: r.h, x0: r.x, y0: r.y, px: 0, py: 0, pa: 0, at: 0, rel: false };
+        var p = { el: e, body: body, w: r.w, h: r.h, x0: r.x, y0: r.y, ox: px0, oy: py0, px: 0, py: 0, pa: 0, at: 0, rel: false };
         body.piece = p; pieces.push(p);
       });
       M.Composite.add(engine.world, walls.concat(pieces.map(function (p) { return p.body; })));
@@ -1761,8 +1783,8 @@ showHud();nudgeSpace(true);
       var ord = pieces.filter(function (p) { return p.rel; }).sort(function (a, b) { return a.body.position.y - b.body.position.y; });
       var anims = ord.map(function (p, i) {
         var ang = Math.atan2(Math.sin(p.body.angle), Math.cos(p.body.angle));
-        var from = 'translate3d(' + (p.body.position.x - p.w / 2) + 'px,' + (p.body.position.y - p.h / 2) + 'px,0) rotate(' + ang + 'rad)';
-        var to = 'translate3d(' + p.x0 + 'px,' + p.y0 + 'px,0) rotate(0rad)';
+        var from = 'translate3d(' + (p.body.position.x - p.w / 2 - p.ox) + 'px,' + (p.body.position.y - p.h / 2 - p.oy) + 'px,0) rotate(' + ang + 'rad)';
+        var to = 'translate3d(' + (p.x0 - p.ox) + 'px,' + (p.y0 - p.oy) + 'px,0) rotate(0rad)';
         p.el.style.transform = to;
         return p.el.animate([{ transform: from }, { transform: to }], { duration: 760, delay: Math.min(i * 14, 360), easing: 'cubic-bezier(.34,1.4,.64,1)', fill: 'backwards' });
       });
@@ -1778,8 +1800,9 @@ showHud();nudgeSpace(true);
       pieces.map(function (p) { return p.el; }).concat(ghosts).forEach(function (e) {
         e.getAnimations().forEach(function (a) { a.cancel(); });
         var s = e.style; s.position = s.left = s.top = s.width = s.height = s.margin = s.transform = '';
+        var sl = e.parentNode; if (sl && sl.hasAttribute && sl.hasAttribute('data-slot')) { var ss = sl.style; ss.display = ss.position = ss.verticalAlign = ss.width = ss.height = ''; }
       });
-      pieces = []; ghosts = []; walls = []; drag = null; block.style.minHeight = block.style.minWidth = ''; phase = 'idle';
+      pieces = []; ghosts = []; walls = []; drag = null; blocks.forEach(function (b) { b.style.minHeight = b.style.minWidth = ''; }); phase = 'idle';
       delete container.dataset.phase; delete container.dataset.dragging;
     }
     container.addEventListener('pointerdown', function (e) {
@@ -1831,7 +1854,7 @@ showHud();nudgeSpace(true);
 
 
 
-  // ---------- split "¡Viva la CX!" into letters (the .sup confetti stays untouched) ----------
+  // ---------- split every line of type in the section into letters: the headline, the superscript, the byline (incl. the blurry word) ----------
   var tn = [].slice.call(heading.childNodes).filter(function (n) { return n.nodeType === 3 && n.textContent.trim(); })[0];
   if (!tn) return;
   var label = tn.textContent.trim(), fxEl = el('span', 'fx');
@@ -1844,6 +1867,37 @@ showHud();nudgeSpace(true);
     if (i < words.length - 1) fxEl.appendChild(document.createTextNode(' '));
   });
   heading.replaceChild(fxEl, tn);
+
+  // the superscript and the byline become letters too. Each letter sits in a "slot" (an in-flow placeholder) so wrapping, the tooltip box and the hover area survive;
+  // the confetti emitter (.em) is skipped, so the sup keeps its click / hover / Enter confetti
+  function splitSlots(rootEl, sr) {
+    var tns = [];
+    (function walk(n) {
+      [].slice.call(n.childNodes).forEach(function (c) {
+        if (c.nodeType === 3) { if (c.textContent.trim()) tns.push(c); }
+        else if (c.nodeType === 1 && !c.classList.contains('em') && !c.hasAttribute('data-piece')) walk(c);
+      });
+    })(rootEl);
+    rootEl.classList.add('fxs');
+    tns.forEach(function (t) {
+      var text = t.textContent, frag = document.createDocumentFragment();
+      if (sr) { var h = el('span', 'fx-sr'); h.textContent = text; frag.appendChild(h); }   // screen readers get the real text; the letters are decoration
+      text.split(/(\s+)/).forEach(function (part) {
+        if (!part) return;
+        if (/^\s+$/.test(part)) { frag.appendChild(document.createTextNode(part)); return; }
+        var g = el('span', 'group'); g.setAttribute('aria-hidden', 'true');
+        Array.from(part).forEach(function (ch) {
+          var sl = el('span', 'slot'), pc = el('span', 'piece'); sl.setAttribute('data-slot', ''); pc.setAttribute('data-piece', ''); pc.textContent = ch;
+          sl.appendChild(pc); g.appendChild(sl);
+        });
+        frag.appendChild(g);
+      });
+      t.parentNode.replaceChild(frag, t);
+    });
+  }
+  var supEl = heading.querySelector('.sup'), byEl = about.querySelector('.by'), blocks = [fxEl];
+  if (supEl) { splitSlots(supEl, false); blocks.push(supEl); }
+  if (byEl) { splitSlots(byEl, true); blocks.push(byEl); }
 
   // ---------- button ----------
   var size = innerWidth < 600 ? 46 : 52, wellR = size / 2 + GAP + SW, padR = size / 2 - SW / 2, H = wellR + SW + 2;
@@ -2060,7 +2114,7 @@ showHud();nudgeSpace(true);
   pad.addEventListener('click', function () { if (skip) { skip = false; return; } nextSection(); });
 
   // ---------- wiring ----------
-  var head = FallingText(about, fxEl, { hit: true, restore: 2.2, scatter: .7, inset: 150, onRestore: goHome });
+  var head = FallingText(about, blocks, { hit: true, restore: 2.2, scatter: .7, inset: 150, onRestore: goHome });
 
   // ---------- hero hand-off: the hero's arrow circle becomes this ball ----------
   // 'hero' = ball parked (off), the real arrow circle is on screen · 'live' = ball in play · 'past' = scrolled beyond the section (ball off)
