@@ -633,6 +633,36 @@ html.lf-on .lf{display:block}
 @media(prefers-reduced-motion:reduce){#lfs{transition:none}}
 </style>
 <script>{let t;try{t=localStorage.getItem('theme')}catch(e){}if(t==='light'||t==='pink'){document.documentElement.dataset.theme='light';if(t==='pink')document.documentElement.dataset.tone='pink'}}</script>
+<style id="sling-css">
+#about{position:relative}
+.fx{display:block;user-select:none;-webkit-user-select:none}
+.fx .group{white-space:nowrap}
+.fx .piece{display:inline-block;white-space:pre}
+#about[data-phase=falling] [data-piece]{touch-action:none;cursor:grab;will-change:transform}
+#about[data-dragging],#about[data-dragging] [data-piece]{cursor:grabbing!important}
+.sling-button{--sl-size:52px;--sl-svg:90px;--sl-pad:var(--ink);--sl-icon:var(--bg);--sl-accent:var(--pink);--sl-well:#242224;--sl-band:#5a5658;--sl-stroke:3px;--sl-ease-out:cubic-bezier(.23,1,.32,1);position:fixed;left:0;top:0;z-index:45;display:block;width:var(--sl-size);height:var(--sl-size);transition:opacity .35s}
+.sling-button[data-off]{opacity:0;pointer-events:none}
+.sling-button__fx{position:absolute;top:50%;left:50%;width:var(--sl-svg);height:var(--sl-svg);margin:calc(var(--sl-svg)/-2) 0 0 calc(var(--sl-svg)/-2);overflow:visible;pointer-events:none;shape-rendering:geometricPrecision}
+.sling-button__well{fill:var(--sl-well)}
+.sling-button__band{fill:none;stroke:var(--sl-band);stroke-width:var(--sl-stroke);stroke-linecap:round;transition:stroke-width 160ms var(--sl-ease-out)}
+.sling-button[data-armed] .sling-button__band{stroke-width:calc(var(--sl-stroke)*1.5)}
+.sling-button__band--hot{stroke:var(--sl-accent)}
+.sling-button__arc{fill:none;stroke:var(--sl-accent);stroke-width:var(--sl-stroke);transition:stroke-width 160ms var(--sl-ease-out)}
+.sling-button[data-armed] .sling-button__arc{stroke-width:calc(var(--sl-stroke)*1.5)}
+.sling-button__pulse{position:absolute;inset:0;border-radius:50%;border:2px solid var(--sl-accent);opacity:0;pointer-events:none;animation:sl-pulse 5.5s ease-out 2s infinite}
+.sling-button[data-held] .sling-button__pulse,.sling-button[data-flying] .sling-button__pulse,.sling-button[data-off] .sling-button__pulse{animation:none}
+@keyframes sl-pulse{0%{transform:scale(1);opacity:.5}16%{transform:scale(2.1);opacity:0}100%{transform:scale(2.1);opacity:0}}
+.sling-button__move{position:absolute;inset:0}
+.sling-button__pad{position:relative;display:block;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:50%;background:none;cursor:grab;outline:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.sling-button__pad::after{content:'';position:absolute;inset:-6px;border-radius:50%}
+.sling-button__pad[data-held]{cursor:grabbing}
+.sling-button__pad:focus-visible .sling-button__face{box-shadow:0 0 0 3px var(--sl-well),0 0 0 5px var(--sl-accent)}
+.sling-button__face{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:var(--sl-pad);color:var(--sl-icon);transition:transform 160ms var(--sl-ease-out),background-color .7s ease,color .7s ease}
+.sling-button__pad[data-held] .sling-button__face{transform:scale(.97)}
+.sling-button__pad[data-armed] .sling-button__face{transform:scale(1.04)}
+.sling-button__icon{display:inline-flex;will-change:transform}
+@media(prefers-reduced-motion:reduce){.sling-button__pulse{animation:none}.sling-button__face{transition:none}}
+</style>
 </head>
 <body>
 <a class="skip" href="#about">Skip to content</a>
@@ -1596,6 +1626,520 @@ addEventListener('keydown',e=>{if(e.key!=='?'||e.ctrlKey||e.metaKey||e.altKey)re
 if(hud.contains(document.activeElement)){hudBack();return}
 hudFrom=document.activeElement;if(hudOff){hudOpen();return}if(hud.hidden)return;(hud.querySelector('li.cur')||hud.querySelector('li')).focus({preventScroll:true})});
 showHud();nudgeSpace(true);
+})();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
+<script>
+/* ¡Viva la CX! — sling button + knock-down letters (Matter.js). Tap = next section; drag & release = sling it at the letters. */
+(function () {
+  var about = document.getElementById('about'), heading = about && about.querySelector('.heading');
+  if (!heading || !window.Matter) return;
+  var SVGNS = 'http://www.w3.org/2000/svg', GAP = 4, SW = 3, ARM = 48, R = 240, LAUNCH = 2600, FINGER_MAX = 3000, HAND_MAX = 6000,
+      POWER_CAP = 3.2, SHOT = 1600, G = 2200, E = .7, EW = .92, AIR = .06, RECOIL = .2, EASE = 'cubic-bezier(.23,1,.32,1)';
+  /* R: how far the pad can stretch (was 160). POWER_CAP: shot speed keeps growing with the pull up to 3.2x the arm distance (was capped at 1.5x, which is why long pulls stopped adding energy).
+     SHOT: px/s per unit of pull. E: floor restitution. EW: wall + ceiling restitution (was .64 everywhere, so the top edge ate 36% of the energy each touch). AIR: slight air drag. */
+  var mq = matchMedia('(prefers-reduced-motion: reduce)');
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+  var mod = function (v, n) { return ((v % n) + n) % n; };
+  function el(t, c, ns) { var e = ns ? document.createElementNS(SVGNS, t) : document.createElement(t); if (c) e.setAttribute('class', c); return e; }
+
+  // ---------- FallingText (Matter.js): letters sit still until knocked ----------
+  function FallingText(container, block, o) {
+    o = Object.assign({ gravity: 1, bounce: .3, scatter: .6, stagger: .04, restore: 2.5, push: .5, stiff: .2, scroll: false, hit: false, inset: 0, onRestore: null }, o);
+    var M = Matter, STEP = 1000 / 120, WALL = 400, phase = 'idle', engine = null, pieces = [], ghosts = [], walls = [], drag = null,
+        raf = 0, last = 0, clock = 0, acc = 0, quiet = null, visible = true, armedScroll = true, ptr = { x: 0, y: 0, vx: 0, vy: 0, t: 0 };
+    function local(e) { var b = container.getBoundingClientRect(); return { x: e.clientX - b.left - container.clientLeft, y: e.clientY - b.top - container.clientTop }; }
+    function placeWalls() {
+      if (!engine) return;
+      var w = container.clientWidth, h = container.clientHeight;
+      M.Body.setPosition(walls[0], { x: w / 2, y: h - o.inset + WALL / 2 }); M.Body.setPosition(walls[1], { x: -WALL / 2, y: h / 2 });
+      M.Body.setPosition(walls[2], { x: w + WALL / 2, y: h / 2 }); M.Body.setPosition(walls[3], { x: w / 2, y: -WALL / 2 });
+      pieces.forEach(function (p) { if (p.rel) M.Sleeping.set(p.body, false); });
+    }
+    function draw(a) {
+      pieces.forEach(function (p) {
+        if (!p.rel) return;
+        var b = p.body, x = p.px + (b.position.x - p.px) * a, y = p.py + (b.position.y - p.py) * a, g = p.pa + (b.angle - p.pa) * a;
+        p.el.style.transform = 'translate3d(' + (x - p.w / 2).toFixed(2) + 'px,' + (y - p.h / 2).toFixed(2) + 'px,0) rotate(' + g.toFixed(4) + 'rad)';
+      });
+    }
+    function release(p, vx, vy) {
+      if (p.rel) return;
+      p.rel = true; p.px = p.body.position.x; p.py = p.body.position.y; p.pa = 0;
+      M.Body.setStatic(p.body, false); M.Sleeping.set(p.body, false);
+      var f = STEP / 1000 * .5, k = o.scatter;
+      M.Body.setVelocity(p.body, { x: clamp(vx * f, -12, 12) + (Math.random() - .5) * 4 * k, y: clamp(vy * f, -12, 12) - Math.random() * 1.5 * k });
+      M.Body.setAngularVelocity(p.body, (Math.random() - .5) * .14 * k);
+      if (phase === 'armed') { phase = 'falling'; container.dataset.phase = 'falling'; }
+    }
+    function frame(now) {
+      raf = 0; if (!engine || !visible) return;
+      var dt = Math.min(.05, last ? (now - last) / 1000 : 1 / 60); last = now; clock += dt;
+      pieces.forEach(function (p) { if (!p.rel && ((p.pending && clock >= p.at) || p.knocked)) release(p, 0, 0); });
+      acc += dt * 1000;
+      while (acc >= STEP) {
+        pieces.forEach(function (p) { if (p.rel) { p.px = p.body.position.x; p.py = p.body.position.y; p.pa = p.body.angle; } });
+        M.Engine.update(engine, STEP); acc -= STEP;
+      }
+      draw(acc / STEP);
+      var rel = pieces.filter(function (p) { return p.rel; }), pend = pieces.some(function (p) { return !p.rel && p.pending; });
+      if (!rel.length && !pend) return;
+      var settled = !pend && rel.every(function (p) { return p.body.isSleeping || p.body.speed < .05; });
+      if (settled && !drag) { if (quiet == null) quiet = now; if (now - quiet > o.restore * 1000) { restore(); return; } } else quiet = null;
+      raf = requestAnimationFrame(frame);
+    }
+    function wake() { if (!raf && engine && visible) { last = 0; raf = requestAnimationFrame(frame); } }
+    function arm() {
+      if (phase !== 'idle' || mq.matches) return;
+      var els = [].slice.call(block.querySelectorAll('[data-piece]')); if (!els.length) return;
+      var box = container.getBoundingClientRect(), ox = box.left + container.clientLeft, oy = box.top + container.clientTop;
+      var rects = els.map(function (e) { var r = e.getBoundingClientRect(); return { x: r.left - ox, y: r.top - oy, w: r.width, h: r.height }; });
+      block.style.minHeight = block.offsetHeight + 'px'; block.style.minWidth = block.offsetWidth + 'px';
+      engine = M.Engine.create({ enableSleeping: true, positionIterations: 10, velocityIterations: 8 });
+      engine.gravity.y = o.gravity * 1.4;
+      walls = [[10000, WALL, .8], [WALL, 10000, .3], [WALL, 10000, .3], [10000, WALL, .3]].map(function (w) { return M.Bodies.rectangle(0, 0, w[0], w[1], { isStatic: true, friction: w[2] }); });
+      pieces = []; ghosts = [];
+      els.forEach(function (e, i) {
+        var r = rects[i], s = e.style;
+        s.position = 'absolute'; s.left = '0'; s.top = '0'; s.width = r.w + 'px'; s.height = r.h + 'px'; s.margin = '0';
+        s.transform = 'translate3d(' + r.x + 'px,' + r.y + 'px,0)';
+        if (e.hasAttribute('data-ghost')) { ghosts.push(e); return; }
+        var rad = Math.max(0, Math.min(4, r.w / 2 - 1, r.h / 2 - 1));
+        var body = M.Bodies.rectangle(r.x + r.w / 2, r.y + r.h / 2, Math.max(2, r.w - 1), Math.max(2, r.h - 1),
+          { chamfer: rad > .5 ? { radius: rad } : undefined, restitution: o.bounce, friction: .4, frictionStatic: .8, frictionAir: .012, density: .0015, slop: .02 });
+        M.Body.setStatic(body, true);
+        var p = { el: e, body: body, w: r.w, h: r.h, x0: r.x, y0: r.y, px: 0, py: 0, pa: 0, at: 0, rel: false };
+        body.piece = p; pieces.push(p);
+      });
+      M.Composite.add(engine.world, walls.concat(pieces.map(function (p) { return p.body; })));
+      M.Events.on(engine, 'collisionStart', function (ev) {
+        ev.pairs.forEach(function (pr) {
+          var a = pr.bodyA.piece, b = pr.bodyB.piece; if (!a || !b || a.rel === b.rel) return;
+          var mv = a.rel ? a : b, st = a.rel ? b : a;
+          if (st.body.position.y - mv.body.position.y > st.h * .25) st.knocked = true;
+        });
+      });
+      placeWalls(); phase = 'armed'; container.dataset.phase = 'armed'; clock = 0; acc = 0; quiet = null;
+    }
+    function fall() {
+      if (mq.matches) return;
+      if (phase === 'idle') arm();
+      if (phase !== 'armed') return;
+      var ord = pieces.map(function (_, i) { return i; }).sort(function () { return Math.random() - .5; });
+      pieces.forEach(function (p, i) { p.pending = true; p.at = ord.indexOf(i) * o.stagger; });
+      clock = 0; wake();
+    }
+    // circle (viewport coords) vs letters: knocks them loose, returns the bounced circle
+    function hit(cx, cy, r, vx, vy) {
+      if (phase !== 'armed' && phase !== 'falling') return null;
+      var b = container.getBoundingClientRect(), x = cx - b.left - container.clientLeft, y = cy - b.top - container.clientTop, moved = false;
+      pieces.forEach(function (p) {
+        var q = p.body.position, dx = x - q.x, dy = y - q.y, hw = p.w / 2, hh = p.h / 2;
+        var ex = dx - clamp(dx, -hw, hw), ey = dy - clamp(dy, -hh, hh), d = Math.hypot(ex, ey);
+        if (d >= r) return;
+        var sp = Math.hypot(vx, vy) || 1, nx = d > .01 ? ex / d : -vx / sp, ny = d > .01 ? ey / d : -vy / sp, vn = vx * nx + vy * ny;
+        if (vn >= 0) return;
+        var was = p.rel;
+        if (!was) release(p, vx, vy);
+        else {
+          M.Sleeping.set(p.body, false);
+          M.Body.setVelocity(p.body, { x: p.body.velocity.x + clamp(vx * STEP / 1000 * .4, -8, 8), y: p.body.velocity.y + clamp(vy * STEP / 1000 * .4, -8, 8) });
+        }
+        var k = was ? .8 : 1.5;
+        vx = (vx - k * vn * nx) * .88; vy = (vy - k * vn * ny) * .88;
+        x += nx * (r - d); y += ny * (r - d); moved = true;
+      });
+      if (!moved) return null;
+      wake();
+      return { x: x + b.left + container.clientLeft, y: y + b.top + container.clientTop, vx: vx, vy: vy };
+    }
+    function restore() {
+      if (phase !== 'falling') return;
+      phase = 'restoring'; container.dataset.phase = 'restoring';
+      if (drag) { M.Composite.remove(engine.world, drag.c); drag = null; }
+      cancelAnimationFrame(raf); raf = 0;
+      var ord = pieces.filter(function (p) { return p.rel; }).sort(function (a, b) { return a.body.position.y - b.body.position.y; });
+      var anims = ord.map(function (p, i) {
+        var ang = Math.atan2(Math.sin(p.body.angle), Math.cos(p.body.angle));
+        var from = 'translate3d(' + (p.body.position.x - p.w / 2) + 'px,' + (p.body.position.y - p.h / 2) + 'px,0) rotate(' + ang + 'rad)';
+        var to = 'translate3d(' + p.x0 + 'px,' + p.y0 + 'px,0) rotate(0rad)';
+        p.el.style.transform = to;
+        return p.el.animate([{ transform: from }, { transform: to }], { duration: 760, delay: Math.min(i * 14, 360), easing: 'cubic-bezier(.34,1.4,.64,1)', fill: 'backwards' });
+      });
+      Promise.all(anims.map(function (a) { return a.finished.catch(function () {}); })).then(function () {
+        if (phase !== 'restoring') return;
+        reset(); if (o.hit) arm(); if (o.onRestore) o.onRestore();
+      });
+    }
+    function reset() {
+      cancelAnimationFrame(raf); raf = 0;
+      if (engine) { M.Composite.clear(engine.world, false); M.Engine.clear(engine); }
+      engine = null;
+      pieces.map(function (p) { return p.el; }).concat(ghosts).forEach(function (e) {
+        e.getAnimations().forEach(function (a) { a.cancel(); });
+        var s = e.style; s.position = s.left = s.top = s.width = s.height = s.margin = s.transform = '';
+      });
+      pieces = []; ghosts = []; walls = []; drag = null; block.style.minHeight = block.style.minWidth = ''; phase = 'idle';
+      delete container.dataset.phase; delete container.dataset.dragging;
+    }
+    container.addEventListener('pointerdown', function (e) {
+      if (!engine || phase !== 'falling' || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      var pt = local(e), hitB = M.Query.point(pieces.filter(function (p) { return p.rel; }).map(function (p) { return p.body; }), pt)[0];
+      if (!hitB) return;
+      e.preventDefault(); if (container.setPointerCapture) container.setPointerCapture(e.pointerId);
+      M.Sleeping.set(hitB, false);
+      var c = M.Constraint.create({ pointA: pt, bodyB: hitB, pointB: { x: pt.x - hitB.position.x, y: pt.y - hitB.position.y }, stiffness: o.stiff, damping: .08, length: 0 });
+      M.Composite.add(engine.world, c); drag = { c: c, id: e.pointerId }; container.dataset.dragging = ''; wake();
+    });
+    container.addEventListener('pointermove', function (e) {
+      var pt = local(e), now = performance.now(), dt = Math.max(1, now - ptr.t);
+      if (ptr.t && dt < 120) { var bl = Math.min(1, dt / 40); ptr.vx += ((pt.x - ptr.x) / dt - ptr.vx) * bl; ptr.vy += ((pt.y - ptr.y) / dt - ptr.vy) * bl; } else { ptr.vx = ptr.vy = 0; }
+      ptr.x = pt.x; ptr.y = pt.y; ptr.t = now;
+      if (phase !== 'falling') return;
+      if (drag && e.pointerId === drag.id) { drag.c.pointA = pt; return; }
+      var sp = Math.hypot(ptr.vx, ptr.vy); if (!o.push || sp < .35) return;
+      var touched = false;
+      pieces.forEach(function (p) {
+        if (!p.rel) return;
+        var b = p.body, reach = Math.max(p.w, p.h) / 2 + 18, d = Math.hypot(b.position.x - pt.x, b.position.y - pt.y);
+        if (d > reach || now - (p.pushed || 0) < 60) return;
+        p.pushed = now;
+        var k = Math.min(20, sp * o.push * (1 - (d / reach) * (d / reach)) * 16);
+        M.Sleeping.set(b, false);
+        M.Body.setVelocity(b, { x: b.velocity.x + ptr.vx / sp * k, y: b.velocity.y + ptr.vy / sp * k - k * .7 });
+        M.Body.setAngularVelocity(b, b.angularVelocity + (Math.random() - .5) * .03); touched = true;
+      });
+      if (touched) wake();
+    });
+    function up(e) { if (!drag || e.pointerId !== drag.id) return; if (engine) M.Composite.remove(engine.world, drag.c); drag = null; delete container.dataset.dragging; }
+    container.addEventListener('pointerup', up); container.addEventListener('pointercancel', up);
+    new IntersectionObserver(function (es) {
+      var en = es[es.length - 1]; visible = en.isIntersecting; if (visible) wake();
+      if (!o.scroll) return;
+      if (en.intersectionRatio >= .3) { if (armedScroll) { armedScroll = false; fall(); } } else if (phase === 'idle') armedScroll = true;
+    }, { threshold: [0, .3] }).observe(container);
+    new ResizeObserver(function () {
+      if (phase === 'armed' && o.hit) { reset(); arm(); }
+      else if (phase === 'falling') { placeWalls(); wake(); }
+    }).observe(container);
+    if (o.hit) (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () { requestAnimationFrame(arm); });
+    function rearm() { if (phase === 'armed') { reset(); arm(); } }
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', rearm);
+    addEventListener('load', rearm);
+    return { fall: fall, hit: hit };
+  }
+
+
+
+  // ---------- split "¡Viva la CX!" into letters (the .sup confetti stays untouched) ----------
+  var tn = [].slice.call(heading.childNodes).filter(function (n) { return n.nodeType === 3 && n.textContent.trim(); })[0];
+  if (!tn) return;
+  var label = tn.textContent.trim(), fxEl = el('span', 'fx');
+  fxEl.setAttribute('role', 'img'); fxEl.setAttribute('aria-label', label);
+  var words = label.split(/\s+/);
+  words.forEach(function (w, i) {
+    var g = el('span', 'group'); g.setAttribute('aria-hidden', 'true');
+    [].forEach.call(w, function (ch) { var s = el('span', 'piece'); s.setAttribute('data-piece', ''); s.textContent = ch; g.appendChild(s); });
+    fxEl.appendChild(g);
+    if (i < words.length - 1) fxEl.appendChild(document.createTextNode(' '));
+  });
+  heading.replaceChild(fxEl, tn);
+
+  // ---------- button ----------
+  var size = innerWidth < 600 ? 46 : 52, wellR = size / 2 + GAP + SW, padR = size / 2 - SW / 2, H = wellR + SW + 2;
+  var root = el('span', 'sling-button'), st = root.style;
+  root.setAttribute('data-off', '');
+  st.setProperty('--sl-size', size + 'px'); st.setProperty('--sl-svg', 2 * H + 'px');
+  st.setProperty('--sl-pad', 'var(--ink)'); st.setProperty('--sl-icon', 'var(--bg)'); st.setProperty('--sl-accent', 'var(--pink)');
+  st.setProperty('--sl-well', 'color-mix(in srgb, var(--ink) 13%, var(--bg))');
+  st.setProperty('--sl-band', 'color-mix(in srgb, var(--ink) 38%, var(--bg))'); st.setProperty('--sl-stroke', SW + 'px');
+  var svg = el('svg', 'sling-button__fx', 1);
+  svg.setAttribute('viewBox', -H + ' ' + -H + ' ' + 2 * H + ' ' + 2 * H); svg.setAttribute('aria-hidden', 'true');
+  var fx = el('g', '', 1); fx.style.opacity = 0;
+  var band = el('path', 'sling-button__band', 1), hot = el('path', 'sling-button__band sling-button__band--hot', 1);
+  fx.appendChild(band); fx.appendChild(hot);
+  var well = el('circle', 'sling-button__well', 1); well.setAttribute('r', wellR);
+  var arc = el('circle', 'sling-button__arc', 1);
+  arc.setAttribute('r', wellR); arc.setAttribute('pathLength', '1'); arc.setAttribute('stroke-dasharray', '0 1'); arc.style.opacity = 0;
+  svg.appendChild(fx); svg.appendChild(well); svg.appendChild(arc); root.appendChild(svg);
+  root.appendChild(el('span', 'sling-button__pulse'));
+  var move = el('span', 'sling-button__move'), pad = el('button', 'sling-button__pad');
+  pad.type = 'button'; pad.setAttribute('aria-label', 'Scroll to the next section');
+  var face = el('span', 'sling-button__face'), icon = el('span', 'sling-button__icon'), isz = Math.round(size * .4);
+  icon.innerHTML = '<svg width="' + isz + '" height="' + isz + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>';
+  face.appendChild(icon); pad.appendChild(face); move.appendChild(pad); root.appendChild(move);
+  document.body.appendChild(root);
+
+  var nav = document.querySelector('.nav');
+  function lift() { return clamp(innerHeight * .12, 48, 112); }   // resting spot raised: room under the ball for a long pull
+  function floorY() { var r = nav && nav.getBoundingClientRect(); return (r && r.height ? r.top : innerHeight - 60) - 18 - lift(); }
+  function homePt() { return { x: innerWidth / 2, y: floorY() - wellR }; }
+  function tf(x, y) { return 'translate(' + (x - size / 2) + 'px,' + (y - size / 2) + 'px)'; }
+
+  // ---------- state ----------
+  var px = 0, py = 0, grip = null, dir = { ux: 0, uy: -1 }, armed = false, queued = false, skip = false;
+  var springRaf = 0, flyRaf = 0, restAngle = 180, aimAngle = 180, homeAnim = null, shown = false, intro = false;
+  var ph = { x: 0, y: 0, vx: 0, vy: 0, ang: 180, om: 0 };
+
+  function setPos(x, y) {
+    px = x; py = y; move.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    if (!queued) { queued = true; requestAnimationFrame(paint); }
+  }
+  function spring(v0) {
+    cancelAnimationFrame(springRaf);
+    var k = Math.pow(2 * Math.PI / .4, 2), c = 2 * (1 - RECOIL) * Math.sqrt(k), vx = v0.x, vy = v0.y, last = performance.now();
+    (function step(now) {
+      var dt = Math.min((now - last) / 1000, .032); last = now;
+      var n = Math.max(1, Math.ceil(dt / .004)), h = dt / n;
+      for (var i = 0; i < n; i++) { vx += (-k * px - c * vx) * h; vy += (-k * py - c * vy) * h; px += vx * h; py += vy * h; }
+      if (Math.hypot(px, py) < .05 && Math.hypot(vx, vy) < 5) { setPos(0, 0); return; }
+      setPos(px, py); springRaf = requestAnimationFrame(step);
+    })(last);
+  }
+  function aimIcon(ux, uy, dist) {
+    var la = Math.atan2(-uy, -ux) * 180 / Math.PI + 90, diff = mod(la - restAngle + 180, 360) - 180;
+    aimAngle = restAngle + diff * clamp(dist / 12, 0, 1);
+    icon.style.transition = 'none'; icon.style.transform = 'rotate(' + aimAngle + 'deg)';
+  }
+  function relaxIcon() {
+    icon.style.transition = mq.matches ? 'none' : 'transform 360ms ' + EASE;
+    icon.style.transform = 'rotate(' + restAngle + 'deg)'; aimAngle = restAngle;
+  }
+  function paint() {
+    queued = false;
+    var x = px, y = py, ux = dir.ux, uy = dir.uy, proj = x * ux + y * uy, p = clamp(proj / ARM, 0, 1), dist = Math.hypot(x, y), d = '';
+    if (dist > .5) {
+      var a = Math.atan2(y, x), b = Math.acos(clamp((wellR - padR) / dist, -1, 1));
+      d = [a + b, a - b].map(function (t) {
+        var cx = Math.cos(t), cy = Math.sin(t);
+        return 'M' + (wellR * cx).toFixed(2) + ',' + (wellR * cy).toFixed(2) + 'L' + (x + padR * cx).toFixed(2) + ',' + (y + padR * cy).toFixed(2);
+      }).join('');
+    }
+    band.setAttribute('d', d); hot.setAttribute('d', d); hot.style.opacity = p;
+    fx.style.opacity = clamp(proj / 6, 0, 1);
+    arc.setAttribute('stroke-dasharray', p + ' ' + (1 - p)); arc.setAttribute('stroke-dashoffset', p / 2);
+    arc.style.opacity = p > .01 ? '1' : '0';
+    arc.setAttribute('transform', 'rotate(' + Math.atan2(-uy, -ux) * 180 / Math.PI + ')');
+    if (grip) aimIcon(ux, uy, dist);
+  }
+  function setArmed(v) { var f = v ? 'setAttribute' : 'removeAttribute'; root[f]('data-armed', ''); pad[f]('data-armed', ''); }
+  function nextSection() {
+    var a = document.createElement('a'); a.href = '#about-content'; a.hidden = true;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ---------- projectile ----------
+  function render() {
+    root.style.transform = tf(ph.x, ph.y);
+    icon.style.transition = 'none'; icon.style.transform = 'rotate(' + ph.ang + 'deg)';
+  }
+  function placeHome() {
+    if (homeAnim) { homeAnim.cancel(); homeAnim = null; }
+    var h = homePt(); ph.x = h.x; ph.y = h.y; ph.vx = ph.vy = 0; ph.ang = restAngle = aimAngle = 180; render();
+  }
+  function goHome() {
+    if (grip || root.hasAttribute('data-flying') || !shown) return;
+    var h = homePt(), from = tf(ph.x, ph.y), to = tf(h.x, h.y);
+    ph.x = h.x; ph.y = h.y; root.style.transform = to;
+    restAngle = 180 + 360 * Math.round((ph.ang - 180) / 360); ph.ang = restAngle;
+    icon.style.transition = 'transform 700ms cubic-bezier(.34,1.56,.64,1)'; icon.style.transform = 'rotate(' + restAngle + 'deg)';
+    if (!mq.matches) {
+      homeAnim = root.animate([{ transform: from }, { transform: to }], { duration: 750, easing: 'cubic-bezier(.34,1.3,.64,1)' });
+      homeAnim.onfinish = function () { homeAnim = null; };
+    }
+  }
+  // one integration step (dt in seconds). Returns true once the ball has come to rest on the floor.
+  function step(dt, W, Fl) {
+    var r = wellR, floor = false;
+    ph.vy += G * dt; ph.vx *= 1 - AIR * dt;
+    ph.x += ph.vx * dt; ph.y += ph.vy * dt; ph.ang += ph.om * dt; ph.om *= 1 - .4 * dt;
+    if (ph.x < r) { ph.x = r; ph.vx = Math.abs(ph.vx) * EW; ph.om *= -.6; }
+    if (ph.x > W - r) { ph.x = W - r; ph.vx = -Math.abs(ph.vx) * EW; ph.om *= -.6; }
+    if (!intro) {   // during the hero hand-off the ball may start above the viewport and ignores the headline
+      if (ph.y < r) { ph.y = r; ph.vy = Math.abs(ph.vy) * EW; }
+      var hv = head.hit(ph.x, ph.y, size / 2 + 3, ph.vx, ph.vy);
+      if (hv) { ph.x = hv.x; ph.y = hv.y; ph.vx = hv.vx; ph.vy = hv.vy; ph.om += (Math.random() - .5) * 400; }
+    }
+    if (ph.y >= Fl - r) {
+      ph.y = Fl - r; floor = true;
+      if (ph.vy > 0) ph.vy = ph.vy > 90 ? -ph.vy * E : 0;
+      if (!intro) ph.vx *= 1 - 2.2 * dt;
+      ph.om += (ph.vx / r * 57.3 - ph.om) * Math.min(1, 12 * dt);
+    }
+    return floor && ph.vy === 0 && (intro || Math.abs(ph.vx) < 12);
+  }
+  function run() {
+    root.setAttribute('data-flying', ''); render();
+    cancelAnimationFrame(flyRaf);
+    var last = performance.now();
+    (function tick(now) {
+      var fdt = Math.min(Math.max((now - last) / 1000, 0), 1 / 20), W = innerWidth, Fl = floorY(),
+          n = Math.max(1, Math.ceil(fdt / (1 / 240))), dt = fdt / n, done = false;   // 240Hz substeps: fast shots can't tunnel through letters or walls
+      last = now;
+      for (var i = 0; i < n && !done; i++) done = step(dt, W, Fl);
+      render();
+      if (done) { settle(); return; }
+      flyRaf = requestAnimationFrame(tick);
+    })(last);
+  }
+  function fly(vx, vy) {
+    var r = root.getBoundingClientRect();
+    ph.x = r.left + r.width / 2; ph.y = r.top + r.height / 2; ph.vx = vx; ph.vy = vy;
+    ph.ang = aimAngle; ph.om = vx / wellR * .3 * 57.3; intro = false;
+    run();
+  }
+  function settle() {
+    var was = intro; intro = false; rest();
+    if (was) {   // the hero hand-off lands wherever the maths says: ease the last few px onto the centre resting spot and bring the well back
+      svg.style.opacity = ''; ph.vx = 0;
+      var h = homePt(); if (Math.abs(ph.x - h.x) > .5 || Math.abs(ph.y - h.y) > .5) goHome();
+    }
+  }
+  function rest() {
+    root.removeAttribute('data-flying');
+    restAngle = 180 + 360 * Math.round((ph.ang - 180) / 360);
+    icon.style.transition = 'transform 700ms cubic-bezier(.34,1.56,.64,1)';
+    icon.style.transform = 'rotate(' + restAngle + 'deg)'; aimAngle = restAngle;
+  }
+  function stopAll() {
+    cancelAnimationFrame(flyRaf); cancelAnimationFrame(springRaf); intro = false;
+    root.removeAttribute('data-flying'); setPos(0, 0); fx.style.opacity = 0;
+  }
+
+  // ---------- pointer ----------
+  pad.addEventListener('pointerdown', function (e) {
+    if (grip || e.button !== 0) return;
+    if (root.hasAttribute('data-flying')) { cancelAnimationFrame(flyRaf); root.removeAttribute('data-flying'); intro = false; svg.style.opacity = ''; }
+    if (homeAnim) { var r = root.getBoundingClientRect(); ph.x = r.left + r.width / 2; ph.y = r.top + r.height / 2; homeAnim.cancel(); homeAnim = null; root.style.transform = tf(ph.x, ph.y); }
+    cancelAnimationFrame(springRaf);
+    var dNow = Math.hypot(px, py), dc = Math.min(dNow, .95 * R), raw = dNow > .5 ? R * dc / (R - dc) : 0;
+    grip = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, hist: [],
+      o: dNow > .5 ? { x: raw * px / dNow, y: raw * py / dNow } : { x: 0, y: 0 }, slop: e.pointerType === 'touch' ? 8 : 4 };
+    try { pad.setPointerCapture(e.pointerId); } catch (_) {}
+    pad.setAttribute('data-held', ''); root.setAttribute('data-held', '');
+  });
+  pad.addEventListener('pointermove', function (e) {
+    var g = grip; if (!g || g.id !== e.pointerId) return;
+    var dx = e.clientX - g.sx, dy = e.clientY - g.sy, rx = g.o.x + dx, ry = g.o.y + dy;
+    if (!g.moved && Math.hypot(dx, dy) > g.slop) g.moved = true;
+    var raw = Math.hypot(rx, ry); if (raw < .01) return;
+    var d = R * raw / (R + raw), ux = rx / raw, uy = ry / raw;
+    var pr = size / 2, bx = clamp(ph.x + d * ux, pr, innerWidth - pr) - ph.x, by = clamp(ph.y + d * uy, pr, innerHeight - pr) - ph.y, bd = Math.hypot(bx, by);
+    if (bd > .01 && bd < d - .01) { d = bd; ux = bx / bd; uy = by / bd; }   // a long pull never drags the pad off the viewport
+    dir = { ux: ux, uy: uy }; setPos(d * ux, d * uy);
+    var t = performance.now(); g.hist.push({ x: d * ux, y: d * uy, t: t });
+    while (g.hist.length > 4 || t - g.hist[0].t > 80) g.hist.shift();
+    var a = d >= ARM; if (a !== armed) { armed = a; setArmed(a); }
+  });
+  function release(id, cancelled) {
+    var g = grip; if (!g || g.id !== id) return;
+    grip = null; skip = true; setTimeout(function () { skip = false; }, 60);
+    try { pad.releasePointerCapture(id); } catch (_) {}
+    var d = Math.hypot(px, py), p = d / ARM, ux = dir.ux, uy = dir.uy, vx = 0, vy = 0;
+    if (!cancelled && g.hist.length > 1) {
+      var a = g.hist[0], b = g.hist[g.hist.length - 1], dt = b.t - a.t;
+      if (dt > 0 && performance.now() - b.t < 50) { vx = (b.x - a.x) / dt * 1000; vy = (b.y - a.y) / dt * 1000; }
+    }
+    var fm = Math.hypot(vx, vy); if (fm > FINGER_MAX) { vx *= FINGER_MAX / fm; vy *= FINGER_MAX / fm; }
+    if (!g.moved) { relaxIcon(); if (!cancelled) nextSection(); }
+    else {
+      var fire = armed && !cancelled, launch = fire ? LAUNCH * Math.min(p, 1.5) : .5 * LAUNCH * Math.min(p, 1);
+      var v0x = vx - ux * launch, v0y = vy - uy * launch, m = Math.hypot(v0x, v0y);
+      if (m > HAND_MAX) { v0x *= HAND_MAX / m; v0y *= HAND_MAX / m; }
+      if (fire && mq.matches) { relaxIcon(); nextSection(); }
+      else if (fire) { var s = SHOT * Math.min(p, POWER_CAP); fly(-ux * s, -uy * s); }
+      else relaxIcon();
+      if (mq.matches) { fx.style.opacity = 0; setTimeout(function () { setPos(0, 0); }, 200); } else spring({ x: v0x, y: v0y });
+    }
+    armed = false; pad.removeAttribute('data-held'); root.removeAttribute('data-held'); setArmed(false);
+  }
+  pad.addEventListener('pointerup', function (e) { release(e.pointerId, false); });
+  pad.addEventListener('pointercancel', function (e) { release(e.pointerId, true); });
+  pad.addEventListener('lostpointercapture', function (e) { release(e.pointerId, true); });
+  pad.addEventListener('keydown', function (e) { if (e.key === 'Escape' && grip) release(grip.id, true); });
+  pad.addEventListener('click', function () { if (skip) { skip = false; return; } nextSection(); });
+
+  // ---------- wiring ----------
+  var head = FallingText(about, fxEl, { hit: true, restore: 2.2, scatter: .7, inset: 150, onRestore: goHome });
+
+  // ---------- hero hand-off: the hero's arrow circle becomes this ball ----------
+  // 'hero' = ball parked (off), the real arrow circle is on screen · 'live' = ball in play · 'past' = scrolled beyond the section (ball off)
+  var DOT = document.querySelector('.ttl-dot'), heroEl = document.querySelector('.hero');
+  var mode = 'hero', lastSY = scrollY, lastST = performance.now(), scrollV = 0, backRaf = 0, ticking = false, DROP_AT = .4, BACK_AT = .55;
+  function themeInk() { st.setProperty('--sl-pad', 'var(--ink)'); st.setProperty('--sl-icon', 'var(--bg)'); }
+  function dotInfo() {
+    if (!DOT) return null;
+    var d = DOT.getBoundingClientRect(); if (!d.width) return null;
+    return { x: d.left + d.width / 2, y: d.top + d.height / 2, w: d.width, on: d.bottom > 0 && d.top < innerHeight };
+  }
+  function dotInk() {
+    var bg = getComputedStyle(DOT).backgroundColor, sv = DOT.querySelector('svg'), fg = sv ? getComputedStyle(sv).stroke : '';
+    st.setProperty('--sl-pad', bg); if (fg && fg !== 'none') st.setProperty('--sl-icon', fg);
+  }
+  // how long a vertical-only bounce takes to die out: sets the sideways speed so the ball arrives at the resting spot as it stops
+  function airtime(y0, vy0, yf) {
+    var y = y0, vy = vy0, t = 0, dt = 1 / 240;
+    while (t < 12) { vy += G * dt; y += vy * dt; t += dt; if (y >= yf) { y = yf; if (vy > 90) vy = -vy * E; else return t; } }
+    return t;
+  }
+  function drop() {
+    mode = 'live'; shown = true; stopAll(); cancelAnimationFrame(backRaf); root.style.scale = '';
+    var di = dotInfo(), h = homePt();
+    if (DOT) DOT.style.visibility = 'hidden';
+    if (mq.matches || !di) { placeHome(); root.removeAttribute('data-off'); return; }
+    var on = di.on, x0 = on ? di.x : clamp(di.x, wellR, innerWidth - wellR), y0 = on ? di.y : -wellR - 8,
+        vy0 = on ? -clamp(scrollV * .4, 0, 700) : 0, T = airtime(y0, vy0, h.y),
+        op = on && heroEl ? parseFloat(getComputedStyle(heroEl).opacity) : 1;
+    if (on) { dotInk(); requestAnimationFrame(function () { requestAnimationFrame(themeInk); }); }   // starts in the arrow's own colours, eases to the theme's
+    ph.x = x0; ph.y = y0; ph.vx = (h.x - x0) / Math.max(.4, T); ph.vy = vy0; ph.ang = restAngle = aimAngle = 180; ph.om = 0;
+    intro = true;
+    svg.style.transition = 'opacity .6s ease'; svg.style.opacity = '0';   // the well only appears once the ball has settled
+    root.style.transition = 'none'; root.style.opacity = isFinite(op) ? op : 1; root.removeAttribute('data-off'); render();
+    void root.offsetWidth; root.style.transition = ''; root.style.opacity = '';
+    if (on) {   // match the arrow circle's size / arrow weight, then grow into the button
+      root.animate([{ scale: di.w / size }, { scale: 1 }], { duration: 520, easing: 'cubic-bezier(.34,1.4,.64,1)' });
+      icon.animate([{ scale: 1.45 }, { scale: 1 }], { duration: 520, easing: EASE });
+    }
+    run();
+  }
+  function finishHero() {
+    cancelAnimationFrame(backRaf); root.style.scale = '';
+    root.style.transition = 'none'; root.setAttribute('data-off', ''); void root.offsetWidth; root.style.transition = '';
+    svg.style.opacity = ''; root.removeAttribute('data-flying'); themeInk();
+    if (DOT) DOT.style.visibility = '';
+  }
+  function toHero() {
+    var was = !root.hasAttribute('data-off'), r = root.getBoundingClientRect(), fx0 = r.left + r.width / 2, fy0 = r.top + r.height / 2;
+    mode = 'hero'; if (grip) release(grip.id, true);
+    stopAll(); shown = false;
+    var di = dotInfo();
+    if (!was || !di || !di.on || mq.matches) { finishHero(); return; }
+    dotInk(); root.setAttribute('data-flying', '');   // scrolling back up: the ball hops back into the arrow circle
+    var t0 = performance.now();
+    (function back(now) {
+      if (mode !== 'hero') return;
+      var k = clamp((now - t0) / 280, 0, 1), e = k * k, d = dotInfo(); if (!d) { finishHero(); return; }
+      root.style.transform = tf(fx0 + (d.x - fx0) * e, fy0 + (d.y - fy0) * e); root.style.scale = 1 + (d.w / size - 1) * e;
+      svg.style.opacity = 1 - e;
+      if (k < 1) backRaf = requestAnimationFrame(back); else finishHero();
+    })(t0);
+  }
+  function sync() {
+    ticking = false;
+    var now = performance.now(), dts = (now - lastST) / 1000;
+    if (dts > .001) scrollV += ((scrollY - lastSY) / dts - scrollV) * .5;
+    lastSY = scrollY; lastST = now;
+    var r = about.getBoundingClientRect(), vh = innerHeight;
+    if (mode === 'hero') { if (r.top < vh * DROP_AT) drop(); return; }
+    if (r.top > vh * BACK_AT) { toHero(); return; }
+    var vis = (Math.min(r.bottom, vh) - Math.max(r.top, 0)) / Math.max(1, r.height), past = r.top < 0 && vis < .35;
+    if (past && mode === 'live') { mode = 'past'; shown = false; stopAll(); root.setAttribute('data-off', ''); }
+    else if (!past && mode === 'past') { mode = 'live'; shown = true; stopAll(); placeHome(); svg.style.opacity = ''; root.removeAttribute('data-off'); }
+  }
+  function queue() { if (!ticking) { ticking = true; requestAnimationFrame(sync); } }
+  addEventListener('scroll', queue, { passive: true }); addEventListener('load', queue);
+  addEventListener('resize', function () { if (mode === 'live' && !grip && !root.hasAttribute('data-flying')) placeHome(); queue(); });
+  placeHome(); sync();
 })();
 </script>
 <script>/* resume button: save the .docx (other origin, so fetch + blob) and show a live first-page preview on hover (docx-preview, loaded on first hover) */
