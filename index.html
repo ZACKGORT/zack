@@ -751,7 +751,9 @@ if(m=='sixth')s.grid.style.transform=s.p<1?`scale(${.85+.15*s.p}) skewY(${3*(1-s
 const figs=$$('.fig').map(el=>({el,img:$('img',el),on:false}));
 let busy=false,lastPct=-1;const kick=()=>{if(!busy){busy=true;requestAnimationFrame(tick)}};
 function tick(){busy=false;const y=scrollY,vh=innerHeight;let more=false;
-if(y<vh*1.2&&!RM){const p=clamp(y/hero.offsetHeight);hero.style.opacity=1-.62*p;hero.style.transform=`translateY(${14*p}%)`;ttl.style.transform=`translateX(${-80*p}%)`}
+/* toolbar ink: flip to the section's colours the moment the hero is no longer under the toolbar (same 32px threshold as the observer below, but synchronous with every scroll frame so it can't lag or miss a landing) */
+if(!document.hidden)document.body.classList.toggle('sc',hero.getBoundingClientRect().bottom<=32);
+if(y<vh*1.2&&!RM){const p=clamp(y/hero.offsetHeight);hero.style.opacity=1-.62*p;hero.style.transform=`translateY(${14*Math.sin(Math.PI*p)}%)`;ttl.style.transform=`translateX(${-80*p}%)`}
 const mx=document.documentElement.scrollHeight-vh,pr=mx>0?clamp(y/mx):0,pc=Math.round(pr*100);bar.style.transform=`scaleX(${pr})`;if(pc!==lastPct){pct.textContent=pc+'%';lastPct=pc}
 nav.classList.toggle('ov',hero.getBoundingClientRect().bottom>nav.getBoundingClientRect().top);
 if(!flat()){for(const s of stages)if(s.on){const r=s.el.getBoundingClientRect(),d=r.height-vh;s.tgt=d>0?clamp(-r.top/d):1;s.p=s.p<0?s.tgt:s.p+(s.tgt-s.p)*.22;if(Math.abs(s.tgt-s.p)<.002)s.p=s.tgt;else more=true;if(s.p!==s.last){paint(s);s.last=s.p}}
@@ -766,9 +768,9 @@ const fio=new IntersectionObserver(es=>{es.forEach(e=>{e.target._f.on=e.isInters
 figs.forEach(f=>{f.el._f=f;fio.observe(f.el)});
 const rio=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');rio.unobserve(e.target)}}),{rootMargin:'0px 0px -10% 0px'});
 $$('.rv,.t').forEach(n=>rio.observe(n));
-/* hero leaves → blur edges on; footer in view → progress hides */
+/* hero leaves → blur edges on; footer in view → progress hides. top inset (-32px) = the top toolbar's bottom edge: once the hero no longer sits under the toolbar, .sc flips the toolbar ink even if the hero is edge-adjacent or a few px off after a jump (an IntersectionObserver counts a touching edge as intersecting) */
 const blurBands=()=>{const lite=/Android/i.test(navigator.userAgent)||(navigator.deviceMemory||8)<=4,B=lite?[1,3,8]:[1,2,4,8],step=lite?30:23;$$('.pbl').forEach(p=>{p.innerHTML=B.map((b,k)=>`<i style="--b:${b}px;--s:${k*step}%"></i>`).join('')})};blurBands();
-new IntersectionObserver(([e])=>document.body.classList.toggle('sc',!e.isIntersecting),{rootMargin:'0px 0px -60px 0px'}).observe(hero);
+new IntersectionObserver(([e])=>document.body.classList.toggle('sc',!e.isIntersecting),{rootMargin:'-32px 0px -60px 0px'}).observe(hero);
 new IntersectionObserver(([e])=>nav.classList.toggle('h',e.isIntersecting),{rootMargin:'0px 0px -10% 0px'}).observe($('.ft'));
 document.addEventListener('visibilitychange',()=>document.body.classList.toggle('sc',!document.hidden&&scrollY>hero.offsetHeight*.9));
 /* ---------- navigation ---------- */
