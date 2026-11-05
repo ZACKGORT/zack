@@ -678,7 +678,7 @@ html.lf-on .lf{display:block}
 #about[data-phase=falling] .tip::after,#about[data-phase=restoring] .tip::after{display:none}
 @media(prefers-reduced-motion:reduce){.sling-button__pulse{animation:none}.sling-button__face{transition:none}}
 /* reset: sits in the exact home slot of the sling pad (behind it); outlined silhouette */
-.reset-btn{all:unset;box-sizing:border-box;position:fixed;z-index:44;left:0;top:0;width:var(--rb-size,52px);height:var(--rb-size,52px);margin:0;display:grid;place-items:center;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;color:var(--alt);transform:translate(-50%,-50%) scale(.96);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s .35s,color .18s}
+.reset-btn{all:unset;touch-action:none;box-sizing:border-box;position:fixed;z-index:44;left:0;top:0;width:var(--rb-size,52px);height:var(--rb-size,52px);margin:0;display:grid;place-items:center;cursor:pointer;opacity:0;visibility:hidden;pointer-events:none;color:var(--alt);transform:translate(-50%,-50%) scale(.96);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s .35s,color .18s}
 .reset-btn.on{opacity:.65;visibility:visible;pointer-events:auto;transform:translate(-50%,-50%) scale(1);transition:opacity .28s,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s,color .18s}
 .reset-btn:hover,.reset-btn:focus-visible{opacity:1;color:var(--pink)}
 .reset-btn:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
@@ -2188,17 +2188,18 @@ showHud();nudgeSpace(true);
   }
 
   // ---------- pointer ----------
-  pad.addEventListener('pointerdown', function (e) {
+  function beginGrip(e, fromReset) {
     if (grip || e.button !== 0) return;
     if (root.hasAttribute('data-flying')) { cancelAnimationFrame(flyRaf); root.removeAttribute('data-flying'); intro = false; svg.style.opacity = ''; }
     if (homeAnim) { var r = root.getBoundingClientRect(); ph.x = r.left + r.width / 2; ph.y = r.top + r.height / 2; homeAnim.cancel(); homeAnim = null; root.style.transform = tf(ph.x, ph.y); }
     cancelAnimationFrame(springRaf);
     var dNow = Math.hypot(px, py), dc = Math.min(dNow, .95 * R), raw = dNow > .5 ? R * dc / (R - dc) : 0;
     grip = { id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, hist: [],
-      o: dNow > .5 ? { x: raw * px / dNow, y: raw * py / dNow } : { x: 0, y: 0 }, slop: e.pointerType === 'touch' ? 8 : 4 };
+      o: dNow > .5 ? { x: raw * px / dNow, y: raw * py / dNow } : { x: 0, y: 0 }, slop: e.pointerType === 'touch' ? 8 : 4, fromReset: !!fromReset };
     try { pad.setPointerCapture(e.pointerId); } catch (_) {}
     pad.setAttribute('data-held', ''); root.setAttribute('data-held', '');
-  });
+  }
+  pad.addEventListener('pointerdown', function (e) { beginGrip(e, false); });
   pad.addEventListener('pointermove', function (e) {
     var g = grip; if (!g || g.id !== e.pointerId) return;
     var dx = e.clientX - g.sx, dy = e.clientY - g.sy, rx = g.o.x + dx, ry = g.o.y + dy;
@@ -2216,13 +2217,13 @@ showHud();nudgeSpace(true);
     var g = grip; if (!g || g.id !== id) return;
     grip = null; skip = true; setTimeout(function () { skip = false; }, 60);
     try { pad.releasePointerCapture(id); } catch (_) {}
-    var d = Math.hypot(px, py), p = d / ARM, ux = dir.ux, uy = dir.uy, vx = 0, vy = 0;
+    var d = Math.hypot(px, py), p = d / ARM, ux = dir.ux, uy = dir.uy, vx = 0, vy = 0, tapReset = false;
     if (!cancelled && g.hist.length > 1) {
       var a = g.hist[0], b = g.hist[g.hist.length - 1], dt = b.t - a.t;
       if (dt > 0 && performance.now() - b.t < 50) { vx = (b.x - a.x) / dt * 1000; vy = (b.y - a.y) / dt * 1000; }
     }
     var fm = Math.hypot(vx, vy); if (fm > FINGER_MAX) { vx *= FINGER_MAX / fm; vy *= FINGER_MAX / fm; }
-    if (!g.moved) { relaxIcon(); if (!cancelled) nextSection(); }
+    if (!g.moved) { relaxIcon(); if (!cancelled) { if (g.fromReset) tapReset = true; else nextSection(); } }
     else {
       var fire = armed && !cancelled, launch = fire ? LAUNCH * Math.min(p, 1.5) : .5 * LAUNCH * Math.min(p, 1);
       var v0x = vx - ux * launch, v0y = vy - uy * launch, m = Math.hypot(v0x, v0y);
@@ -2233,6 +2234,7 @@ showHud();nudgeSpace(true);
       if (mq.matches) { fx.style.opacity = 0; setTimeout(function () { setPos(0, 0); }, 200); } else spring({ x: v0x, y: v0y });
     }
     armed = false; pad.removeAttribute('data-held'); root.removeAttribute('data-held'); setArmed(false);
+    if (tapReset) doReset();
   }
   pad.addEventListener('pointerup', function (e) { release(e.pointerId, false); });
   pad.addEventListener('pointercancel', function (e) { release(e.pointerId, true); });
@@ -2274,7 +2276,16 @@ showHud();nudgeSpace(true);
     buzz(16);
     resetShow(false);
   }
-  resetBtn.addEventListener('click', doReset);
+  resetBtn.addEventListener('click', function () { if (skip) return; doReset(); });   // keyboard / assistive click; pointer taps are handled in release()
+  // press-and-drag on the reset slot = pick the ball back up and re-sling it, scene untouched. A plain tap (no drag) still resets.
+  resetBtn.addEventListener('pointerdown', function (e) {
+    if (grip || e.button !== 0) return;
+    cancelAnimationFrame(flyRaf); cancelAnimationFrame(springRaf);
+    root.removeAttribute('data-flying'); intro = false; svg.style.opacity = '';
+    setPos(0, 0); placeHome();
+    beginGrip(e, true);
+    e.preventDefault();
+  });
   addEventListener('keydown', function (e) {
     if (e.key !== 'r' && e.key !== 'R') return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
