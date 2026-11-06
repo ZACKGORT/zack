@@ -665,13 +665,10 @@ html.lf-on .lf{display:block}
 .sling-button__pad{position:relative;display:block;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:50%;background:none;cursor:grab;outline:none;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .sling-button__pad::after{content:'';position:absolute;inset:-6px;border-radius:50%}
 .sling-button__pad[data-held]{cursor:grabbing}
-.sling-prox{position:fixed;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:44;opacity:0;transition:opacity .16s ease}
-.sling-prox[data-on]{opacity:1}
-.sling-prox ellipse{fill:color-mix(in srgb,var(--pink) 7%,transparent);stroke:var(--pink);stroke-width:1.5;stroke-dasharray:4 6;stroke-linecap:round}
-.sling-prox[data-on] ellipse{animation:sl-prox-dash 1.4s linear infinite}
-@keyframes sl-prox-dash{to{stroke-dashoffset:-20}}
-html[data-slprox],html[data-slprox] *{cursor:grab!important}
-@media(prefers-reduced-motion:reduce){.sling-prox{transition:none}.sling-prox[data-on] ellipse{animation:none}}
+.sling-prox{position:fixed;left:0;top:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:44;opacity:0;visibility:hidden;contain:strict;transition:opacity .16s ease,visibility 0s .16s}
+.sling-prox[data-on]{opacity:1;visibility:visible;transition:opacity .16s ease,visibility 0s}
+.sling-prox ellipse{fill:color-mix(in srgb,var(--pink) 7%,transparent);stroke:var(--pink);stroke-width:1.5;stroke-dasharray:4 6;stroke-linecap:round;vector-effect:non-scaling-stroke;transform-box:view-box;transform-origin:0 0}
+@media(prefers-reduced-motion:reduce){.sling-prox{transition:none}}
 .sling-button__pad:focus-visible .sling-button__face{box-shadow:0 0 0 3px var(--sl-well),0 0 0 5px var(--sl-accent)}
 .sling-button__face{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:var(--sl-pad);color:var(--sl-icon);transition:transform 160ms var(--sl-ease-out),background-color .7s ease,color .7s ease}
 .sling-button__pad[data-held] .sling-button__face{transform:scale(.97)}
@@ -819,12 +816,15 @@ const figs=$$('.fig').map(el=>({el,img:$('img',el),on:false}));
 let busy=false,lastPct=-1;const kick=()=>{if(!busy){busy=true;requestAnimationFrame(tick)}};
 function tick(){busy=false;const y=scrollY,vh=innerHeight;let more=false;
 /* toolbar ink: flip to the section's colours the moment the hero is no longer under the toolbar (same 32px threshold as the observer below, but synchronous with every scroll frame so it can't lag or miss a landing) */
-if(!document.hidden)document.body.classList.toggle('sc',hero.getBoundingClientRect().bottom<=32);
-if(y<vh*1.2&&!RM){const p=clamp(y/hero.offsetHeight);hero.style.opacity=1-.62*p;hero.style.transform=`translateY(${14*Math.sin(Math.PI*p)}%)`;ttl.style.transform=`translateX(${-80*p}%)`}
-const mx=document.documentElement.scrollHeight-vh,pr=mx>0?clamp(y/mx):0,pc=Math.round(pr*100);bar.style.transform=`scaleX(${pr})`;if(pc!==lastPct){pct.textContent=pc+'%';lastPct=pc}
-nav.classList.toggle('ov',hero.getBoundingClientRect().bottom>nav.getBoundingClientRect().top);
-if(!flat()){for(const s of stages)if(s.on){const r=s.el.getBoundingClientRect(),d=r.height-vh;s.tgt=d>0?clamp(-r.top/d):1;s.p=s.p<0?s.tgt:s.p+(s.tgt-s.p)*.22;if(Math.abs(s.tgt-s.p)<.002)s.p=s.tgt;else more=true;if(s.p!==s.last){paint(s);s.last=s.p}}
-for(const f of figs)if(f.on){const r=f.el.getBoundingClientRect();f.img.style.transform=`translateY(${clamp((r.top+r.height/2-vh/2)/vh,-1,1)*-5}%) scale(1.12)`}}
+/* measure first, then write: every layout read happens before any style write, so a scroll frame costs one style/layout flush instead of one per element */
+const fl=flat(),hv=y<vh*1.2&&!RM,hb=hero.getBoundingClientRect().bottom,heroH=hv?hero.offsetHeight:0,mx=document.documentElement.scrollHeight-vh,navT=nav.getBoundingClientRect().top;
+let sr=null,fr=null;if(!fl){sr=[];for(const s of stages)if(s.on)sr.push(s.el.getBoundingClientRect());fr=[];for(const f of figs)if(f.on)fr.push(f.el.getBoundingClientRect())}
+if(!document.hidden)document.body.classList.toggle('sc',hb<=32);
+if(hv){const p=clamp(y/heroH);hero.style.opacity=1-.62*p;hero.style.transform=`translateY(${14*Math.sin(Math.PI*p)}%)`;ttl.style.transform=`translateX(${-80*p}%)`}
+const pr=mx>0?clamp(y/mx):0,pc=Math.round(pr*100);bar.style.transform=`scaleX(${pr})`;if(pc!==lastPct){pct.textContent=pc+'%';lastPct=pc}
+nav.classList.toggle('ov',hb>navT);
+if(!fl){let i=0;for(const s of stages)if(s.on){const r=sr[i++],d=r.height-vh;s.tgt=d>0?clamp(-r.top/d):1;s.p=s.p<0?s.tgt:s.p+(s.tgt-s.p)*.22;if(Math.abs(s.tgt-s.p)<.002)s.p=s.tgt;else more=true;if(s.p!==s.last){paint(s);s.last=s.p}}
+let j=0;for(const f of figs)if(f.on){const r=fr[j++];f.img.style.transform=`translateY(${clamp((r.top+r.height/2-vh/2)/vh,-1,1)*-5}%) scale(1.12)`}}
 if(more)kick()}
 addEventListener('scroll',kick,{passive:true});addEventListener('resize',kick);
 function setFlat(){const f=flat();stages.forEach(s=>{s.el.classList.toggle('flat',f);s.p=-1;s.last=-1;if(f){s.tiles.forEach(t=>{t.style.transform=t.style.opacity=''});s.grid.style.transform=''}});if(f)figs.forEach(g=>g.img.style.transform='');kick()}
@@ -851,12 +851,14 @@ const go=(y,inst)=>{navY=y;navDir=Math.sign(y-scrollY);navUntil=performance.now(
    3) embeds only start loading once the page is at rest, so they can't land mid-glide. User input cancels a jump's clamp, so you're never fought. */
 ['wheel','touchstart','touchmove','keydown','pointerdown','mousedown'].forEach(k=>addEventListener(k,()=>{userT=performance.now();navUntil=0},{capture:true,passive:true}));
 addEventListener('pointermove',e=>{if(e.buttons)userT=performance.now()},{capture:true,passive:true});
-addEventListener('scroll',()=>{const n=performance.now(),y=scrollY,rest=n-lastSc>140;prevSc=lastSc;lastSc=n;gY=y;
+addEventListener('scroll',()=>{const n=performance.now(),rest=n-lastSc>140;prevSc=lastSc;lastSc=n;
+if(n>=navUntil&&n>=guardUntil)return;/* nothing to police: don't even read the scroll offset */
+const y=scrollY;gY=y;
 if(n<navUntil){if(navDir>0&&y>navY+3||navDir<0&&y<navY-3){scrollTo({top:navY,behavior:'auto'});gY=gA=navY;return}gA=y;return}
 if(n-userT<450){gA=y;return}
 if(n<guardUntil&&rest&&Math.abs(y-gA)>Math.max(120,innerHeight*.15)){scrollTo({top:gA,behavior:'auto'});gY=gA;return}
 gA=y},{passive:true});
-const armGuard=()=>{guardUntil=performance.now()+3000};
+const armGuard=fresh=>{guardUntil=performance.now()+3000;if(fresh)gA=scrollY};   /* fresh = an embed is about to load: remember where the page is resting right now */
 const whenIdle=fn=>{const t=()=>{const n=performance.now();if(n<navUntil||n-lastSc<250)setTimeout(t,120);else fn()};t()};
 /* sections above a jump target (lazy images, content-visibility) change height while the smooth scroll runs, so a single measured y lands short: once the scroll goes idle, re-measure and re-aim until it sits on the target; any user input cancels */
 let chaseT=0;const chase=yOf=>{clearTimeout(chaseT);let n=0,idle=0,last=scrollY,ks=['wheel','touchstart','keydown','pointerdown'],stop=false;const off=e=>{if(e&&e.type==='keydown'&&/^(Shift|Control|Alt|Meta|CapsLock)$/.test(e.key))return;stop=true;clearTimeout(chaseT);ks.forEach(k=>removeEventListener(k,off))};ks.forEach(k=>addEventListener(k,off,{passive:true}));const tick=()=>{if(stop)return;const c=scrollY;idle=Math.abs(c-last)<1?idle+1:0;last=c;if(idle>=3){const d=clamp(yOf(),0,Math.max(0,maxY()));if(Math.abs(d-c)>4&&n++<6){go(d);idle=0}else{off();return}}chaseT=setTimeout(tick,120)};chaseT=setTimeout(tick,250)};
@@ -1024,7 +1026,7 @@ const MINW=()=>view==='m'?200:MINW0,capW=()=>Math.min(CAP,innerWidth-2*M,view===
 const fit=()=>{const w=ev.clientWidth;if(!w)return;const s=w/VW;ev.style.setProperty('--vw',VW);ev.style.setProperty('--s',s);ev.style.setProperty('--h',Math.ceil(ev.clientHeight/s))};
 new ResizeObserver(fit).observe(ev);fit();
 /* only one-ish live page at a time: load the frame when the embed is within ~a screen of the viewport, drop it when it's far away (a docked/pulled-out widget keeps its page) */
-{const fr=$('iframe',ev);if(fr){let seen=false,pend=false;fr.addEventListener('load',armGuard);const io=new IntersectionObserver(es=>{es.forEach(en=>{seen=en.isIntersecting;if(en.isIntersecting){if(!fr.getAttribute('src')&&!pend){pend=true;whenIdle(()=>{pend=false;if(seen&&!fr.getAttribute('src')){armGuard();fr.src=fr.dataset.src}})}}else if(fr.getAttribute('src')&&!W.classList.contains('fl')&&!W.classList.contains('live'))fr.removeAttribute('src')})},{rootMargin:'100% 0px'});io.observe(slot)}}
+{const fr=$('iframe',ev);if(fr){let seen=false,pend=false;fr.addEventListener('load',()=>armGuard());const io=new IntersectionObserver(es=>{es.forEach(en=>{seen=en.isIntersecting;if(en.isIntersecting){if(!fr.getAttribute('src')&&!pend){pend=true;whenIdle(()=>{pend=false;if(seen&&!fr.getAttribute('src')){armGuard(true);fr.src=fr.dataset.src}})}}else if(fr.getAttribute('src')&&!W.classList.contains('fl')&&!W.classList.contains('live'))fr.removeAttribute('src')})},{rootMargin:'100% 0px'});io.observe(slot)}}
 let full=false,pre=null,mode='docked',x=0,y=0,w=0,tx=0,ty=0,tw=0,fw=0,raf=0,last=0,g=null,rz=null,near=false,pull={x:0,y:0},ptr={x:0,y:0},off={x:0,y:0};
 const home=()=>{const r=slot.getBoundingClientRect();return{x:r.left,y:r.top,w:r.width}};
 const hint=()=>{if(eth)eth.textContent=full?'double-click to restore':(mode==='drag'||mode==='pull')?'drop on the dashed box to dock':(mode==='free'||mode==='home')?'double-click to expand':'double-click to expand · drag to float'};
@@ -1166,7 +1168,8 @@ function escOnce(){if(vwOpen()){closeVw();return true}if(!cm.hidden){closeCm();r
 const topB=document.createElement('button');topB.id='hm';topB.type='button';topB.textContent='HOME';topB.setAttribute('aria-label','Back to home (top of page)');document.body.append(topB);
 const root=document.documentElement;let q=0;
 const anyOpen=()=>vwOpen()||!!mw||wgs.some(w=>w.isConnected&&(!w._live||w._live()));
-const sync=()=>{q=0;const past=!!hero&&scrollY>=hero.offsetHeight*.9;root.classList.toggle('esc-on',anyOpen());root.classList.toggle('top-on',past);esc.classList.toggle('pst',past)};
+let heroH2=hero?hero.offsetHeight:0;if(hero)new ResizeObserver(()=>{heroH2=hero.offsetHeight}).observe(hero);
+const sync=()=>{q=0;const past=!!hero&&scrollY>=heroH2*.9;root.classList.toggle('esc-on',anyOpen());root.classList.toggle('top-on',past);esc.classList.toggle('pst',past)};
 const kick=()=>{if(!q)q=requestAnimationFrame(sync)};
 new MutationObserver(kick).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','hidden']});
 addEventListener('scroll',kick,{passive:true});
@@ -1456,6 +1459,8 @@ function peek(){if(RM||peeking||scrollY>10)return;peeking=true;pAbort=false;scro
 ['wheel','touchstart','keydown','pointerdown'].forEach(n=>addEventListener(n,()=>{if(peeking)pAbort=true},{passive:true,capture:true}));
 ['pointermove','pointerdown','keydown','wheel','touchstart'].forEach(n=>addEventListener(n,()=>{if(!it.classList.contains('on'))arm()},{passive:true}));
 let spT=0;addEventListener('keydown',e=>{if(e.key===' ')spT=performance.now()},true);
+/* tap/click anywhere outside the "please scroll" toast puts it away (the idle timer re-arms from that same press, exactly as after "acknowledge") */
+addEventListener('pointerdown',e=>{if(it.classList.contains('on')&&!it.contains(e.target)){it.classList.remove('on');if(peeking)pAbort=false/* a dismiss-tap isn't navigation: let the peek glide back to the top */}},{capture:true,passive:true});
 it.querySelector('[data-a]').addEventListener('click',e=>{if(e.detail===0&&performance.now()-spT<600)return;e.currentTarget.blur();it.classList.remove('on');au.currentTime=0;aShow();au.play().catch(aOff);pAbort=true;step(1);arm()});
 const gt=document.createElement('div');gt.className='nt gt';gt.setAttribute('role','status');gt.setAttribute('aria-live','polite');gt.innerHTML='<p>Well, if we\u2019re just hanging out, I brought my guitar\u2026</p><div class="row"><button type="button" data-v>vibe</button><button type="button" data-n>no vibe</button></div>';document.body.append(gt);let gtTm=0;
 const gtOff=()=>{clearTimeout(gtTm);gt.classList.remove('on')};
@@ -1671,8 +1676,8 @@ const hOf=e=>{const li=e.target.closest&&e.target.closest('li');return li?(li.da
 const hOut=()=>{hov='';hSync();hUnpin()};
 hud.addEventListener('pointerover',e=>hGo(hOf(e)));hud.addEventListener('focusin',e=>hGo(hOf(e)));
 hud.addEventListener('pointerleave',hOut);hud.addEventListener('focusout',e=>{if(!hud.contains(e.relatedTarget))hOut()});
-const cSync=()=>{let c=-1;STOPS.forEach((el,j)=>{if(yOf(el)<=scrollY+8)c=j});const id=c>=0?STOPS[c].id:'',st=id==='about-content'?'about':id;let g='';
-hud.querySelectorAll('li[data-s]').forEach(li=>{const on=li.dataset.s===st;li.classList.toggle('cur',on);if(on)g=li.classList.contains('grp')?li.dataset.k:(li.dataset.g||'')});
+let hudLis=null;const cSync=()=>{let c=-1;STOPS.forEach((el,j)=>{if(yOf(el)<=scrollY+8)c=j});const id=c>=0?STOPS[c].id:'',st=id==='about-content'?'about':id;let g='';
+(hudLis||(hudLis=[...hud.querySelectorAll('li[data-s]')])).forEach(li=>{const on=li.dataset.s===st;li.classList.toggle('cur',on);if(on)g=li.classList.contains('grp')?li.dataset.k:(li.dataset.g||'')});
 if(g!==curGrp){curGrp=g;hSync();hClamp()}};
 addEventListener('scroll',()=>{if(!hudOn||hudOff||cf)return;cf=requestAnimationFrame(()=>{cf=0;cSync()})},{passive:true});
 function nudgeSpace(sticky){if(!hudOn||hudOff)return;[hot('Space'),scrolled&&hot('Shift+Space')].forEach(l=>{if(!l)return;l.classList.add('nudge');clearTimeout(l._n);if(!sticky)l._n=setTimeout(()=>l.classList.remove('nudge'),3200)})}
@@ -1708,7 +1713,8 @@ showHud();nudgeSpace(true);
   // ---------- physics audio: scale notes on letters + subtle haptic collisions; mute via #sfx or M ----------
   // Scale applied across the seed statement letters (¡Viva la CX! + craft experience + byline): C major pentatonic, sequential by piece index.
   var SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00]; // C4–A5 pentatonic
-  var sfxMuted = false, actx = null, master = null;
+  var sfxMuted = false, actx = null, master = null, voices = 0, MAXV = 14, lastResume = 0, lastBuzz = 0;
+  var activated = function () { return !navigator.userActivation || navigator.userActivation.hasBeenActive; };
   try { sfxMuted = localStorage.getItem('zcx-sfx') === '0'; } catch (e) {}
   function ensureAudio() {
     if (actx) return actx;
@@ -1726,12 +1732,17 @@ showHud();nudgeSpace(true);
     try { localStorage.setItem('zcx-sfx', sfxMuted ? '0' : '1'); } catch (e) {}
   }
   function buzz(ms, intensity) {
-    if (sfxMuted || !navigator.vibrate) return;
+    if (sfxMuted || !navigator.vibrate || !activated()) return;   // vibrate() is refused before a tap anyway
+    var n = performance.now(); if (n - lastBuzz < 60) return; lastBuzz = n;   // a letter cascade is one buzz, not forty
     try { navigator.vibrate(Math.max(8, Math.min(40, ms | 0))); } catch (e) {}
   }
   function tone(freq, dur, type, vol, slide) {
-    if (sfxMuted || !ensureAudio()) return;
-    if (actx.state === 'suspended') actx.resume().catch(function () {});
+    if (sfxMuted || voices >= MAXV) return;   // cap polyphony: a falling-letter cascade can ask for dozens of notes in one frame
+    if (!actx && !(activated() && ensureAudio())) return;
+    if (actx.state !== 'running') {   // a suspended context would queue every note and blast them all on resume: drop them, retry resume at most twice a second
+      var nw = performance.now(); if (actx.state === 'suspended' && nw - lastResume > 500) { lastResume = nw; actx.resume().catch(function () {}); }
+      return;
+    }
     var t0 = actx.currentTime, o = actx.createOscillator(), g = actx.createGain(), f = actx.createBiquadFilter();
     o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t0);
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * slide), t0 + dur);
@@ -1740,8 +1751,12 @@ showHud();nudgeSpace(true);
     g.gain.linearRampToValueAtTime((vol == null ? .18 : vol), t0 + .012);
     g.gain.exponentialRampToValueAtTime(.0008, t0 + Math.max(.04, dur));
     o.connect(f); f.connect(g); g.connect(master);
+    voices++; o.onended = function () { voices--; o.disconnect(); f.disconnect(); g.disconnect(); };   // free the nodes as soon as the note ends
     o.start(t0); o.stop(t0 + dur + .02);
   }
+  // warm the audio context on the first gesture so the first collision after it is audible instead of dropped
+  var warm = function () { if (activated() && !sfxMuted) { var a = ensureAudio(); if (a && a.state === 'suspended') a.resume().catch(function () {}); } removeEventListener('pointerdown', warm, true); removeEventListener('keydown', warm, true); };
+  addEventListener('pointerdown', warm, true); addEventListener('keydown', warm, true);
   function noteFor(i) { return SCALE[i % SCALE.length]; }
   function sfxLetter(i, strength) {
     var f = noteFor(i), s = clamp(strength || .6, .2, 1.4);
@@ -1811,9 +1826,10 @@ showHud();nudgeSpace(true);
         M.Engine.update(engine, STEP); acc -= STEP;
       }
       draw(acc / STEP);
-      var rel = pieces.filter(function (p) { return p.rel; }), pend = pieces.some(function (p) { return !p.rel && p.pending; });
-      if (!rel.length && !pend) return;
-      var settled = !pend && rel.every(function (p) { return p.body.isSleeping || p.body.speed < .05; });
+      var nrel = 0, pend = false, quiet0 = true;
+      for (var pi = 0; pi < pieces.length; pi++) { var pp = pieces[pi]; if (pp.rel) { nrel++; if (!(pp.body.isSleeping || pp.body.speed < .05)) quiet0 = false; } else if (pp.pending) pend = true; }
+      if (!nrel && !pend) return;
+      var settled = !pend && quiet0;
       if (settled && !drag) { if (quiet == null) quiet = now; if (now - quiet > o.restore * 1000) { restore(); return; } } else quiet = null;
       raf = requestAnimationFrame(frame);
     }
@@ -2343,37 +2359,47 @@ showHud();nudgeSpace(true);
   // It only shows while the cursor is inside it. Pressing inside the zone pulls the ball to the cursor (a critically damped spring that keeps the ball's
   // own momentum, so it glides in rather than snapping) and then hands over to the normal grab, so you can sling it straight away.
   var PROX_PAD = 40, PROX_LEAD = .09, PROX_STRETCH = 150, PROX_SKIP = 'a[href],button,input,textarea,select,summary,label,iframe,[role="button"],[contenteditable]';
-  var prx = el('svg', 'sling-prox', 1), pre = el('ellipse', '', 1), proxOn = false, catching = null, cur = { x: 0, y: 0, ok: false, type: 'mouse', over: false };
-  prx.setAttribute('aria-hidden', 'true'); prx.appendChild(pre); document.body.appendChild(prx);
-  function locked() { return document.documentElement.classList.contains('wlock'); }
+  var prx = el('svg', 'sling-prox', 1), pre = el('ellipse', '', 1), proxOn = false, proxQ = false, proxKey = '', catching = null, cur = { x: 0, y: 0, ok: false, type: 'mouse', t: null };
+  prx.setAttribute('aria-hidden', 'true');
+  pre.setAttribute('rx', 100); pre.setAttribute('ry', 100);   // a fixed unit-ish circle: the zone is drawn with transform only, so moving it never dirties layout
+  prx.appendChild(pre); document.body.appendChild(prx);
+  var root$ = document.documentElement;
+  // loose = in flight, or parked away from home. While flying that's a flag read; the home-slot geometry (a layout read) is only needed for a parked ball.
   function isLoose() {
     if (grip || catching || intro || !shown || mode !== 'live' || root.hasAttribute('data-off')) return false;
-    var h = homePt();
-    return root.hasAttribute('data-flying') || Math.hypot(ph.x - h.x, ph.y - h.y) > 40;
+    if (root.hasAttribute('data-flying')) return true;
+    var h = homePt(); return Math.hypot(ph.x - h.x, ph.y - h.y) > 40;
   }
+  var PG = { cx: 0, cy: 0, a: 0, b: 0, ang: 0, c: 1, s: 0 };   // reused: no per-frame allocation
   function proxGeom() {
     var sp = Math.hypot(ph.vx, ph.vy), b = wellR + PROX_PAD, stretch = Math.min(sp * PROX_LEAD, PROX_STRETCH),
         ang = sp > 20 ? Math.atan2(ph.vy, ph.vx) : 0, c = Math.cos(ang), sn = Math.sin(ang), sh = stretch * .55;
-    return { cx: ph.x + c * sh, cy: ph.y + sn * sh, a: b + stretch, b: b, ang: ang, c: c, s: sn };
+    PG.cx = ph.x + c * sh; PG.cy = ph.y + sn * sh; PG.a = b + stretch; PG.b = b; PG.ang = ang; PG.c = c; PG.s = sn;
+    return PG;
   }
   function inProx(x, y) {
     var g = proxGeom(), dx = x - g.cx, dy = y - g.cy, u = dx * g.c + dy * g.s, v = -dx * g.s + dy * g.c;
     return u * u / (g.a * g.a) + v * v / (g.b * g.b) <= 1;
   }
-  function proxHide() {
-    if (!proxOn) return;
-    proxOn = false; prx.removeAttribute('data-on'); document.documentElement.removeAttribute('data-slprox');
-  }
-  function proxUpdate() {
-    if (!cur.ok || cur.type === 'touch' || cur.over || !isLoose() || locked() || !inProx(cur.x, cur.y)) { proxHide(); return; }
-    var g = proxGeom();
-    pre.setAttribute('cx', g.cx.toFixed(1)); pre.setAttribute('cy', g.cy.toFixed(1)); pre.setAttribute('rx', g.a.toFixed(1)); pre.setAttribute('ry', g.b.toFixed(1));
-    pre.setAttribute('transform', 'rotate(' + (g.ang * 180 / Math.PI).toFixed(1) + ' ' + g.cx.toFixed(1) + ' ' + g.cy.toFixed(1) + ')');
-    if (!proxOn) { proxOn = true; prx.setAttribute('data-on', ''); document.documentElement.setAttribute('data-slprox', ''); }
-  }
   function overUi(t) { var u = t && t.closest ? t.closest(PROX_SKIP) : null; return !!u && u !== pad && !pad.contains(u); }
-  addEventListener('pointermove', function (e) { cur.x = e.clientX; cur.y = e.clientY; cur.ok = true; cur.type = e.pointerType; cur.over = overUi(e.target); proxUpdate(); }, { passive: true });
-  document.documentElement.addEventListener('pointerleave', function () { cur.ok = false; proxHide(); });
+  function locked() { return root$.classList.contains('wlock'); }
+  function proxHide() { if (proxOn) { proxOn = false; prx.removeAttribute('data-on'); } }
+  function proxUpdate() {
+    if (!cur.ok || cur.type === 'touch' || mode !== 'live' || !isLoose() || !inProx(cur.x, cur.y) || overUi(cur.t) || locked()) { proxHide(); return; }
+    var g = PG, key = Math.round(g.cx * 2) + ',' + Math.round(g.cy * 2) + ',' + Math.round(g.a) + ',' + Math.round(g.ang * 100);
+    if (key !== proxKey) {   // skip identical frames (parked ball)
+      proxKey = key;
+      pre.style.transform = 'translate(' + g.cx.toFixed(1) + 'px,' + g.cy.toFixed(1) + 'px) rotate(' + g.ang.toFixed(3) + 'rad) scale(' + (g.a / 100).toFixed(3) + ',' + (g.b / 100).toFixed(3) + ')';
+    }
+    if (!proxOn) { proxOn = true; prx.setAttribute('data-on', ''); }
+  }
+  // pointermove is just bookkeeping; the zone test runs at most once per frame (and every frame of a flight anyway, from the physics tick)
+  addEventListener('pointermove', function (e) {
+    cur.x = e.clientX; cur.y = e.clientY; cur.ok = true; cur.type = e.pointerType; cur.t = e.target;
+    if (mode !== 'live' || proxQ || (!proxOn && !shown)) return;
+    proxQ = true; requestAnimationFrame(function () { proxQ = false; proxUpdate(); });
+  }, { passive: true });
+  root$.addEventListener('pointerleave', function () { cur.ok = false; proxHide(); });
   function endCatch() {
     if (!catching) return;
     cancelAnimationFrame(catching.raf);
