@@ -800,12 +800,23 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     bT: 0, bClip: "bail", big: false, boardLocal: null,
     landT: 0, shake: 0, camRoll: 0, spin: 0, sector: 0,
     forced: null, steerOverride: null, spaceWas: false,
-    strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
+    relArm: 0, strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false
   };
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
 
+  function resetRun() {
+    if (!running) return;
+    S.mode = "ride"; S.big = false; S.boardLocal = null; S.s = 10; S.lat = 0; S.latV = 0; S.v = 0;
+    S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0; S.phase = 0; S.wRide = 0; S.pushing = false;
+    S.ol = null; S.oT = -1; S.landT = 0; S.cp = { s: 10, v: 8 }; S.sector = 0; S.beat = false;
+    S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
+    S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0;
+    for (var i = 0; i < hoops.length; i++) hoops[i].got = false;
+    held.clear(); touchHeld.clear(); flash();
+  }
   addEventListener("keydown", function (e) {
+    if (e.code === "Escape") { e.preventDefault(); resetRun(); return; }
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) >= 0) e.preventDefault();
     held.add(e.code);
   });
@@ -980,7 +991,7 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     if (S.mode === "ride" && S.ollieReq > 0 && S.v > 0.6) {
       S.mode = "ollie"; S.oT = 0; S.ollieReq = 0; S.pushing = false;
       S.popMul = Math.min(4.4, popOf(S.s, S.v) * (1 + 1.2 * (S.relCharge || 0)));
-      S.relDip = S.cb * (0.10 + 0.13 * S.chargeV); S.relCharge = 0;
+      S.relDip = S.cb * (0.10 + 0.13 * S.chargeV); S.relArm = S.cb * (0.35 + 0.65 * S.chargeV); S.relCharge = 0;
       S.airT = 0.55 * Math.sqrt(S.popMul);
       S.olBX = board.position.x;
       Audio.pop();
@@ -1089,7 +1100,7 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     var cdip = 0;
     if (S.mode === "ride") cdip = S.cb * (0.10 + 0.13 * S.chargeV) + S.strain * 0.08;
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.22)));
-    pelvis.position.set(ol ? ol.pdx : 0, o[0] - tuck * 0.07 - dip - cdip, 0);
+    pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.06 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
     pelvis.quaternion.set(o[2], o[3], o[4], o[5]);
     var qs = new T.Quaternion(o[6], o[7], o[8], o[9]);
     var qh = new T.Quaternion(o[10], o[11], o[12], o[13]);
@@ -1097,9 +1108,9 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     chest.quaternion.identity().slerp(qs, 0.55);
     if (tuck > 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), tuck * 0.28));
     if (S.mode === "ride") {
-      var lean = S.cb * (0.28 + 0.24 * S.chargeV) + S.strain * (0.10 + 0.30 * S.strain) + S.strain * 0.09 * Math.sin(S.phase * PI * 2);
+      var lean = S.cb * (0.34 + 0.30 * S.chargeV) + S.strain * (0.10 + 0.30 * S.strain) + S.strain * 0.09 * Math.sin(S.phase * PI * 2);
       if (lean !== 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), lean));
-      if (S.strain > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.22));
+      if (S.strain > 0.02 || S.cb > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.22 + S.cb * 0.16));
     }
     neck.quaternion.identity().slerp(qh, 0.4);
     head.quaternion.identity().slerp(qh, 0.6);
@@ -1149,9 +1160,21 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     [[0, wL, eL], [1, wR, eR]].forEach(function (e) {
       var A = arms[e[0]];
       var Sh = rig.worldToLocal(A.up.getWorldPosition(new V()));
-      var pl = e[2].clone().sub(Sh.clone().add(e[1]).multiplyScalar(0.5));
+      var wT = e[1], eT = e[2], side = e[0] === 0 ? -1 : 1;
+      var hw = 0, uw = 0, kU = 0;
+      if (S.mode === "ride") hw = sm(S.cb);
+      else if (ol) { hw = S.relArm * (1 - sm((S.oT - 0.32) / 0.32)); kU = sm(S.oT / 0.13); }
+      if (hw > 0.001) {
+        var Hw = new V(Sh.x + 0.05 + 0.10 * S.chargeV, Sh.y - 0.48, Sh.z + side * 0.04);
+        var Eh = new V(Sh.x - 0.22, Sh.y - 0.26, Sh.z + side * 0.30);
+        var Uw = new V(Sh.x + 0.16, Sh.y + 0.50, Sh.z + side * 0.10);
+        var Eu = new V(Sh.x - 0.20, Sh.y + 0.20, Sh.z + side * 0.35);
+        var tw = Hw.clone().lerp(Uw, kU), te = Eh.clone().lerp(Eu, kU);
+        wT = wT.clone().lerp(tw, hw); eT = eT.clone().lerp(te, hw);
+      }
+      var pl = eT.clone().sub(Sh.clone().add(wT).multiplyScalar(0.5));
       if (pl.lengthSq() < 1e-6) pl.set(0, -1, -1);
-      ik(A.up, A.lo, 0.27, 0.27, e[1], pl);
+      ik(A.up, A.lo, 0.27, 0.27, wT, pl);
     });
     wheels.forEach(function (w) { w.rotation.z = -S.spin; });
     var rise = S.ol ? Math.max(0, S.ol.by - BH) : 0;
