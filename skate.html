@@ -167,6 +167,24 @@ button { cursor:pointer; }
   #banner { transition:none; }
   #popBurst.on, #popBurst.on i, #popBurst.on .core { animation:none !important; opacity:0; }
 }
+
+/* Custom cursor — fades when idle (system cursor cannot opacity-fade) */
+#cur {
+  position: fixed; left: 0; top: 0; width: 14px; height: 14px;
+  margin: -7px 0 0 -7px; border-radius: 50%;
+  border: 2px solid var(--ink); background: rgba(243,240,232,.55);
+  pointer-events: none; z-index: 20;
+  opacity: 0; transform: translate(0,0) scale(1);
+  transition: opacity .35s ease, transform .12s ease, background .15s ease;
+  will-change: transform, opacity;
+}
+#cur.on { opacity: 1; }
+#cur.idle { opacity: 0; transform: scale(0.6); }
+#cur.hot { background: var(--ink); }
+body.live, body.live * { cursor: none !important; }
+body.live #card, body.live #card * { cursor: auto !important; }
+body.live #steepWrap, body.live #steepWrap *,
+body.live #volWrap, body.live #volWrap * { cursor: pointer !important; }
 </style>
 </head>
 <body>
@@ -227,6 +245,7 @@ button { cursor:pointer; }
     <button type="button" id="bJump" data-k="Space" aria-label="Ollie: hold to charge, release to launch">Jump<span class="hint">hold &middot; release</span></button>
   </div>
 </div>
+<div id="cur" aria-hidden="true"></div>
 <p id="err" hidden></p>
 <script>
 addEventListener("error", function (e) {
@@ -1012,6 +1031,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     document.getElementById("card").hidden = false;
     document.body.classList.remove("live");
     var mEl = document.getElementById("m"); if (mEl) mEl.style.opacity = 0;
+    if (curEl) { curEl.classList.remove("on", "hot", "idle"); curVisible = false; curIdle = true; }
   }
   addEventListener("keydown", function (e) {
     usingTouch = false;
@@ -1124,6 +1144,25 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   var camOff = 0, camPit = 0.22, drag = null;
   var mouseX = null, mouseY = null, mouseMoveT = 0;
+  var curEl = document.getElementById("cur");
+  var curVisible = false, curIdle = true;
+  function showCur() {
+    if (!curEl || !running) return;
+    curVisible = true; curIdle = false;
+    curEl.classList.add("on");
+    curEl.classList.remove("idle");
+  }
+  function hideCurIdle() {
+    if (!curEl || curIdle) return;
+    curIdle = true;
+    curEl.classList.add("idle");
+  }
+  function placeCur(x, y) {
+    if (!curEl) return;
+    curEl.style.left = x + "px";
+    curEl.style.top = y + "px";
+  }
+
   var paraX = 0, paraY = 0;
   // Vertical swipe → Möbius pitch (steepness). Horizontal drag still looks around.
   var pitchSwipe = null; // { id, y0, steep0, moved }
@@ -1140,6 +1179,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
   addEventListener("pointerdown", function (e) {
     if (!running || overUI(e)) return;
     if (e.pointerType === "mouse") {
+      mouseMoveT = performance.now();
+      mouseX = e.clientX; mouseY = e.clientY;
+      showCur(); placeCur(mouseX, mouseY);
+      if (curEl) curEl.classList.add("hot");
       if (e.button === 0) held.add("Mouse0");          // left click = ollie
       else if (e.button === 2) held.add("Mouse2");     // right click (hold) = tuck / hard push
       else drag = [e.clientX, e.clientY];              // middle drag = look
@@ -1153,6 +1196,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
   });
   addEventListener("pointerup", function (e) {
+    if (curEl) curEl.classList.remove("hot");
     if (stick && stick.id === e.pointerId) stopStick();
     if (e.button === 0) held.delete("Mouse0");
     if (e.button === 2) held.delete("Mouse2");
@@ -1167,12 +1211,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (pitchSwipe && (!e || pitchSwipe.id === e.pointerId)) pitchSwipe = null;
     drag = null;
   });
-  document.addEventListener("mouseleave", function () { mouseX = null; mouseY = null; });
+  document.addEventListener("mouseleave", function () {
+    mouseX = null; mouseY = null;
+    if (curEl) { curEl.classList.remove("on"); curEl.classList.add("idle"); curVisible = false; curIdle = true; }
+  });
   addEventListener("pointermove", function (e) {
     if (stick && stick.id === e.pointerId) { stickUpdate(e); return; }
     if (e.pointerType === "mouse") {
-      if (mouseX !== e.clientX || mouseY !== e.clientY) mouseMoveT = performance.now();
+      if (mouseX !== e.clientX || mouseY !== e.clientY) {
+        mouseMoveT = performance.now();
+        showCur();
+      }
       mouseX = e.clientX; mouseY = e.clientY;
+      placeCur(mouseX, mouseY);
     }
     // Active pitch swipe (vertical dominant)
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
@@ -1567,9 +1618,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // Crouch depth + carve leg angulation (inside compresses, outside extends)
     if (S.mode === "ride" && (S.cb > 0.02 || carveAmt > 0.05)) {
       var cd = S.cb * (0.18 + 0.14 * S.chargeV);
-      aL.y -= cd * 0.28; aR.y -= cd * 0.28;
-      aL.x += cd * 0.04; aR.x += cd * 0.04;
-      kL.y -= cd * 0.12; kR.y -= cd * 0.12;
+      // Compress into the crouch, but keep ankles from sinking through the deck —
+      // back foot (aR) shifts slightly toward the tail and stays higher for the heel-up load
+      aL.y -= cd * 0.16; aR.y -= cd * 0.08;
+      aL.x += cd * 0.02; aR.x -= cd * 0.10; // back foot toward tail (-x)
+      kL.y -= cd * 0.08; kR.y -= cd * 0.04;
       kL.z *= (1 - cd * 0.25); kR.z *= (1 - cd * 0.25);
       if (carveAmt > 0.04) {
         var edge = Math.min(1, Math.abs(S.roll) / 0.38);
@@ -1639,15 +1692,43 @@ function olFeet(ol,bq,w0,c0L,c0R){
         Y = new V(0, 1, 0).addScaledVector(X, -X.y);
         if (Y.lengthSq() < 1e-4) Y.set(0, 1, 0); Y.normalize();
       }
+      // Crouch ollie setup: back-foot heel rises, ball/toes stay on the deck (not heel-stomp through the board)
+      var crouchP = 0;
+      if (!res && S.mode === "ride" && S.cb > 0.02) {
+        // legs[0]=left/front in regular, legs[1]=right/back — back foot loads the tail harder
+        var isBack = (e[0] === 1);
+        var load = sm(S.cb) * (0.55 + 0.45 * S.chargeV);
+        crouchP = load * (isBack ? 0.55 : 0.18); // radians of plantar flex (toe-down / heel-up)
+        if (crouchP > 0.001) {
+          // Pivot around the ball of the foot so the heel lifts instead of punching below the deck
+          var Xh = X.clone(); Xh.y = 0; if (Xh.lengthSq() < 1e-8) Xh.set(1, 0, 0); Xh.normalize();
+          var Xb = new V(Math.cos(crouchP) * Xh.x, -Math.sin(crouchP), Math.cos(crouchP) * Xh.z);
+          var Yb = new V(Math.sin(crouchP) * Xh.x, Math.cos(crouchP), Math.sin(crouchP) * Xh.z);
+          // Ball contact sits on the deck; ankle is derived from ball + sole offset
+          var deckY = BH + 0.012;
+          var ball = new V(a.x, deckY, a.z).addScaledVector(Xh, BALL * 0.15);
+          // Prefer keeping the existing horizontal ankle, but raise it with heel lift
+          var ankleFromBall = ball.clone().addScaledVector(Xb, -BALL).addScaledVector(Yb, SOLE);
+          // Blend: don't teleport the ankle, ease into the heel-up pose
+          a = a.clone();
+          a.y = lerp(a.y, Math.max(a.y, ankleFromBall.y), load);
+          a.x = lerp(a.x, ankleFromBall.x, load * 0.35);
+          a.z = lerp(a.z, ankleFromBall.z, load * 0.35);
+          X = Xb; Y = Yb;
+          // Re-run IK so the knee follows the lifted heel
+          ik(Lg.up, Lg.lo, 0.43, 0.43, a, pl);
+        }
+      }
       Lg.ft.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(X, Y, new V().crossVectors(X, Y)));
       Lg.ft.position.copy(a).addScaledVector(Y, -0.09);
       var flex;
       if (res) {
         flex = res[e[0]].pit; // ollie-authored: heel-up on the pop foot
       } else {
-        // Coasting: heels stay flat on the deck; light toe flex only under crouch load
+        // Coasting: heels flat. Crouch: extra toe bend on the back foot (toes stay planted, heel already risen via crouchP)
         var raw = cl(Math.asin(cl(-X.y, -1, 1)), 0, 0.9) * (1 - sm((Lg.ft.position.y - 0.05) / 0.12));
-        flex = cl(raw * 0.2 + (S.mode === "ride" ? S.cb * 0.22 : 0), 0, 0.4);
+        var toePress = (S.mode === "ride" ? S.cb * (e[0] === 1 ? 0.38 : 0.12) : 0);
+        flex = cl(raw * 0.2 + toePress + crouchP * 0.25, 0, 0.7);
       }
       Lg.fore.rotation.z = cl(flex, 0, 0.9);
     });
@@ -1816,6 +1897,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var streaks = document.getElementById("streaks");
     streaks.style.opacity = reduce ? "0" : String(cl((S.v - 11) / 22, 0, 0.5));
     if (banT > 0) { banT -= dt; if (banT <= 0) document.getElementById("banner").classList.remove("on"); }
+    // Cursor idle fade (~0.9s after last move, matching steer quieting)
+    if (running && mouseX != null && !curIdle) {
+      var idleSec = (performance.now() - mouseMoveT) / 1000;
+      if (idleSec > 0.9) hideCurIdle();
+    }
+    if (!running && curEl) { curEl.classList.remove("on"); curVisible = false; }
     if (pitchHintT > 0) {
       pitchHintT -= dt;
       if (pitchHintT <= 0 && pitchHintEl) pitchHintEl.classList.remove("on");
@@ -1913,6 +2000,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
     document.getElementById("card").hidden = true;
     document.body.classList.add("live");
     Audio.ensure();
+    mouseMoveT = performance.now();
+    if (mouseX != null) { showCur(); placeCur(mouseX, mouseY); }
   }
   document.getElementById("go").addEventListener("click", startRun);
   document.getElementById("go").addEventListener("pointerup", function (e) {
