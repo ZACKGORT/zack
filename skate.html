@@ -1580,13 +1580,17 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.v = Math.max(0, S.v + acc * dt);
 
     var grip = air ? 0.4 : 1;
-    // Centre-line bias: a faint pull toward the middle lane while steering, and a firm one when hands-off
-    // (no steer input) — which also cancels most of the curve/bank drift so an idle rider holds the centre.
-    S.cK = (S.cK || 0) + ((1 - cl(Math.abs(steer) * 2.2, 0, 1)) - (S.cK || 0)) * Math.min(1, dt * 3);
+    // Centre-line bias, only after extended idle: once there has been no steering input for CENTER_DELAY seconds the
+    // rider is gradually pulled to the middle lane over CENTER_RAMP seconds (and the curve/bank drift is cancelled).
+    // Any steering input drops it away again, so normal riding is untouched.
+    var CENTER_DELAY = 4, CENTER_RAMP = 3;
+    S.idleT = Math.abs(steer) < 0.05 ? (S.idleT || 0) + dt : 0;
+    var cT = sm(cl((S.idleT - CENTER_DELAY) / CENTER_RAMP, 0, 1));
+    S.cK = (S.cK || 0) + (cT - (S.cK || 0)) * Math.min(1, dt * 3);
     var aLat = (S.v * S.v * curvOf(S.s) - 9.8 * Math.sin(f.bank)) * (1 - 0.88 * S.cK);
     aLat += -steer * (15 + Math.min(S.v, 24) * 0.35) * (1 + 1.35 * S.cb) * (1 - 0.4 * S.aero);  // crouch = sharper slalom, tuck = less
     aLat += -S.latV * (3.4 + 1.1 * S.cb);  // more damping when low = tighter carves
-    aLat += -S.lat * (0.55 + 3.6 * S.cK);
+    aLat += -S.lat * 3.6 * S.cK;
     S.latV += aLat * grip * dt;
     S.lat += S.latV * dt;
     // Edge walls: the rider can never leave the sides of the ribbon.
