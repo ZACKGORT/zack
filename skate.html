@@ -167,24 +167,6 @@ button { cursor:pointer; }
   #banner { transition:none; }
   #popBurst.on, #popBurst.on i, #popBurst.on .core { animation:none !important; opacity:0; }
 }
-
-/* Custom cursor — fades when idle (system cursor cannot opacity-fade) */
-#cur {
-  position: fixed; left: 0; top: 0; width: 14px; height: 14px;
-  margin: -7px 0 0 -7px; border-radius: 50%;
-  border: 2px solid var(--ink); background: rgba(243,240,232,.55);
-  pointer-events: none; z-index: 20;
-  opacity: 0; transform: translate(0,0) scale(1);
-  transition: opacity .35s ease, transform .12s ease, background .15s ease;
-  will-change: transform, opacity;
-}
-#cur.on { opacity: 1; }
-#cur.idle { opacity: 0; transform: scale(0.6); }
-#cur.hot { background: var(--ink); }
-body.live, body.live * { cursor: none !important; }
-body.live #card, body.live #card * { cursor: auto !important; }
-body.live #steepWrap, body.live #steepWrap *,
-body.live #volWrap, body.live #volWrap * { cursor: pointer !important; }
 </style>
 </head>
 <body>
@@ -245,7 +227,6 @@ body.live #volWrap, body.live #volWrap * { cursor: pointer !important; }
     <button type="button" id="bJump" data-k="Space" aria-label="Ollie: hold to charge, release to launch">Jump<span class="hint">hold &middot; release</span></button>
   </div>
 </div>
-<div id="cur" aria-hidden="true"></div>
 <p id="err" hidden></p>
 <script>
 addEventListener("error", function (e) {
@@ -667,11 +648,17 @@ function olFeet(ol,bq,w0,c0L,c0R){
   // even at the minimum it stays steeper than the small undulation, so the run never flattens or climbs.
   var STEEP_MIN = 14, STEEP_MAX = 38;
   var steepT = 26, steepNow = 26 * PI / 180, builtSteep = steepNow, dsc = [0];
+  // Reusable temps — sample/makeFrame run many times per frame; avoid GC stutters
+  var _mp = new V(), _mpA = new V(), _mpB = new V(), _tng = new V(), _b = new V(), _n = new V(), _n2 = new V();
+  var _smT = new V(), _smN = new V(), _smB = new V(), _smP = new V();
+  var _sampleOut = { s:0, p:null, T:null, N:null, B:null, yaw:0, slope:0, bank:0, halfW:5.6, gap:false };
   function descentAt(s) {
-    var f = s / DS, n = dsc.length;
-    if (f < 0) return dsc[0] - s * Math.tan(steepNow);
+    if (!frames.length) return -s * Math.tan(steepNow);
+    var base = frames[0].s;
+    var f = (s - base) / DS, n = dsc.length;
+    if (f <= 0) return dsc[0] - (s - base) * Math.tan(steepNow);
     var i = Math.floor(f);
-    if (i >= n - 1) return dsc[n - 1] - (s - (n - 1) * DS) * Math.tan(steepNow);
+    if (i >= n - 1) return dsc[n - 1] - (s - (base + (n - 1) * DS)) * Math.tan(steepNow);
     return lerp(dsc[i], dsc[i + 1], f - i);
   }
   function slopeOf(s) {
@@ -761,43 +748,89 @@ function olFeet(ol,bq,w0,c0L,c0R){
       nextHoop += 240;
     }
   }
+  // Write Möbius point into out (reused); no allocation
+  function mobiusPointInto(out, s, v) {
+    var u = s / MOBIUS_R, c = Math.cos(u / 2), sn = Math.sin(u / 2);
+    var radialX = Math.sin(u), radialZ = -Math.cos(u);
+    out.set((MOBIUS_R + v * c) * radialX, 3 * Math.sin(u * 2) + v * sn + descentAt(s), -(MOBIUS_R + v * c) * Math.cos(u));
+    return out;
+  }
   function mobiusPoint(s, v) {
-    var u=s/MOBIUS_R, radialX=Math.sin(u), radialZ=-Math.cos(u);
-    var c=Math.cos(u/2), sn=Math.sin(u/2);
-    return new V((MOBIUS_R+v*c)*radialX, 3*Math.sin(u*2)+v*sn+descentAt(s), -(MOBIUS_R+v*c)*Math.cos(u));
+    return mobiusPointInto(new V(), s, v);
+  }
+  function pruneTrack(behind) {
+    // Drop frames/obstacles far behind the rider so arrays stay bounded
+    var cut = Math.max(0, S.s - behind);
+    if (frames.length > 80 && frames[0].s < cut - 20) {
+      var fi = 0;
+      while (fi < frames.length - 40 && frames[fi].s < cut - 15) fi++;
+      if (fi > 0) {
+        frames.splice(0, fi);
+        dsc.splice(0, fi);
+      }
+    }
+    while (curbs.length && curbs[0].s < cut - 30) curbs.shift();
+    while (hoops.length && hoops[0].s < cut - 30) hoops.shift();
   }
   function buildUntil(target) {
-    ensureGaps(target+40); ensureCurbs(target+40); ensureHoops(target+40);
-    if (!frames.length) frames.push(makeFrame(0,mobiusPoint(0,0),0));
-    while ((frames.length-1)*DS < target) {
-      var s=frames[frames.length-1].s+DS;
-      dsc[frames.length]=dsc[frames.length-1]-DS*Math.tan(steepNow);
-      frames.push(makeFrame(s,mobiusPoint(s,0),s/MOBIUS_R));
+    ensureGaps(target + 40); ensureCurbs(target + 40); ensureHoops(target + 40);
+    if (!frames.length) {
+      frames.push(makeFrame(0, mobiusPointInto(_mp, 0, 0).clone(), 0));
+      if (!dsc.length) dsc = [0];
+    }
+    while (frames[frames.length - 1].s < target) {
+      var s = frames[frames.length - 1].s + DS;
+      dsc.push(dsc[dsc.length - 1] - DS * Math.tan(steepNow));
+      frames.push(makeFrame(s, mobiusPointInto(_mp, s, 0).clone(), s / MOBIUS_R));
     }
   }
-  function makeFrame(s,p,yaw) {
-    var u=s/MOBIUS_R, eps=0.001;
-    var Tng=mobiusPoint(s+eps,0).sub(mobiusPoint(s-eps,0)).normalize();
+  function makeFrame(s, p, yaw) {
+    var u = s / MOBIUS_R, eps = 0.001;
+    mobiusPointInto(_mpA, s + eps, 0);
+    mobiusPointInto(_mpB, s - eps, 0);
+    _tng.copy(_mpA).sub(_mpB).normalize();
     // The width vector is the derivative across v; it reverses after one lap.
-    var B=mobiusPoint(s,1).sub(mobiusPoint(s,-1)).normalize();
-    B.addScaledVector(Tng,-B.dot(Tng)).normalize();
-    var N=new V().crossVectors(B,Tng).normalize();
+    mobiusPointInto(_mpA, s, 1);
+    mobiusPointInto(_mpB, s, -1);
+    _b.copy(_mpA).sub(_mpB).normalize();
+    _b.addScaledVector(_tng, -_b.dot(_tng)).normalize();
+    _n.crossVectors(_b, _tng).normalize();
     // A modest bank follows the loop; frame stays continuous through the twist.
-    var bank=0.12*Math.sin(u*1.5);
-    var N2=N.clone().multiplyScalar(Math.cos(bank)).addScaledVector(B,Math.sin(bank));
-    B=new V().crossVectors(Tng,N2).normalize();
-    N=new V().crossVectors(B,Tng).normalize();
-    return {s:s,p:p.clone(),T:Tng,N:N,B:B,yaw:yaw,slope:Math.asin(cl(-Tng.y,-1,1)),bank:bank,halfW:halfWOf(s),gap:inGap(s)};
+    var bank = 0.12 * Math.sin(u * 1.5);
+    _n2.copy(_n).multiplyScalar(Math.cos(bank)).addScaledVector(_b, Math.sin(bank));
+    _b.crossVectors(_tng, _n2).normalize();
+    _n.crossVectors(_b, _tng).normalize();
+    return {
+      s: s, p: p.clone(), T: _tng.clone(), N: _n.clone(), B: _b.clone(),
+      yaw: yaw, slope: Math.asin(cl(-_tng.y, -1, 1)), bank: bank, halfW: halfWOf(s), gap: inGap(s)
+    };
   }
   function sample(s) {
-    s=Math.max(0,s); buildUntil(s+DS*2);
-    var f=s/DS,i=Math.min(frames.length-2,Math.floor(f)),u=f-i,a=frames[i],b=frames[i+1];
-    var Tng=a.T.clone().lerp(b.T,u).normalize(),N=a.N.clone().lerp(b.N,u);
-    var B=new V().crossVectors(Tng,N); if(B.lengthSq()<1e-8) B.copy(a.B); B.normalize();
-    N=new V().crossVectors(B,Tng).normalize();
-    return {s:s,p:a.p.clone().lerp(b.p,u),T:Tng,N:N,B:B,
-      yaw:a.yaw+(b.yaw-a.yaw)*u,slope:a.slope*(1-u)+b.slope*u,
-      bank:a.bank*(1-u)+b.bank*u,halfW:a.halfW*(1-u)+b.halfW*u,gap:inGap(s)};
+    s = Math.max(0, s);
+    buildUntil(s + DS * 2);
+    // Index relative to the first kept frame (pruning may drop the origin)
+    var base = frames[0].s;
+    var f = (s - base) / DS;
+    var i = Math.max(0, Math.min(frames.length - 2, Math.floor(f)));
+    var u = (s - frames[i].s) / DS;
+    if (u < 0) u = 0; else if (u > 1) u = 1;
+    var a = frames[i], b = frames[i + 1];
+    _smT.copy(a.T).lerp(b.T, u).normalize();
+    _smN.copy(a.N).lerp(b.N, u);
+    _smB.crossVectors(_smT, _smN);
+    if (_smB.lengthSq() < 1e-8) _smB.copy(a.B);
+    _smB.normalize();
+    _smN.crossVectors(_smB, _smT).normalize();
+    _smP.copy(a.p).lerp(b.p, u);
+    // Clone only the returned vectors (callers often hold two samples at once, e.g. camera)
+    return {
+      s: s, p: _smP.clone(), T: _smT.clone(), N: _smN.clone(), B: _smB.clone(),
+      yaw: a.yaw + (b.yaw - a.yaw) * u,
+      slope: a.slope * (1 - u) + b.slope * u,
+      bank: a.bank * (1 - u) + b.bank * u,
+      halfW: a.halfW * (1 - u) + b.halfW * u,
+      gap: inGap(s)
+    };
   }
 
   // The rendered ribbon is sampled from the Mobius surface above; its seam
@@ -836,8 +869,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     buildUntil(s1 + 10);
     var whiteP = [], whiteI = [], blackP = [], blackI = [];
-    var i0 = Math.max(0, Math.floor(s0 / DS));
-    var i1 = Math.min(frames.length - 2, Math.ceil(s1 / DS));
+    var base = frames[0].s;
+    var i0 = Math.max(0, Math.floor((s0 - base) / DS));
+    var i1 = Math.min(frames.length - 2, Math.ceil((s1 - base) / DS));
     for (var i = i0; i <= i1; i++) {
       var a = frames[i], b = frames[i + 1];
       var mid = (a.s + b.s) * 0.5;
@@ -965,23 +999,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
       trackG.add(tag);
     }
   }
-  var rebT = 0;
+  var rebT = 0, pruneT = 0;
   function updateSteep(dt) {
     var tgt = steepT * PI / 180;
     steepNow += cl(tgt - steepNow, -dt * 0.35, dt * 0.35);
     rebT += dt;
+    pruneT += dt;
     if (Math.abs(steepNow - builtSteep) > 0.004 && rebT > 0.12) {
       rebT = 0; builtSteep = steepNow;
-      var keep = Math.max(2, Math.ceil((S.s + 20) / DS) + 1);
-      if (frames.length > keep) { frames.length = keep; dsc.length = keep; }
+      // Keep frames only a short distance ahead of the rider; rebuild will regenerate
+      var keepS = S.s + 24;
+      while (frames.length > 2 && frames[frames.length - 1].s > keepS) {
+        frames.pop(); dsc.pop();
+      }
       builtKey = -999;
+    }
+    if (pruneT > 2.5) {
+      pruneT = 0;
+      pruneTrack(180);
     }
   }
   function syncTrack() {
-    var key = Math.floor(S.s / 22);
+    // Rebuild less often (was /22) — geometry creation was a major hitch source
+    var key = Math.floor(S.s / 48);
     if (key === builtKey) return;
     builtKey = key;
-    rebuild(Math.max(0, S.s - 50), S.s + 230);
+    rebuild(Math.max(0, S.s - 70), S.s + 260);
   }
 
   var ridges = new T.Group();
@@ -1031,7 +1074,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
     document.getElementById("card").hidden = false;
     document.body.classList.remove("live");
     var mEl = document.getElementById("m"); if (mEl) mEl.style.opacity = 0;
-    if (curEl) { curEl.classList.remove("on", "hot", "idle"); curVisible = false; curIdle = true; }
   }
   addEventListener("keydown", function (e) {
     usingTouch = false;
@@ -1144,25 +1186,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   var camOff = 0, camPit = 0.22, drag = null;
   var mouseX = null, mouseY = null, mouseMoveT = 0;
-  var curEl = document.getElementById("cur");
-  var curVisible = false, curIdle = true;
-  function showCur() {
-    if (!curEl || !running) return;
-    curVisible = true; curIdle = false;
-    curEl.classList.add("on");
-    curEl.classList.remove("idle");
-  }
-  function hideCurIdle() {
-    if (!curEl || curIdle) return;
-    curIdle = true;
-    curEl.classList.add("idle");
-  }
-  function placeCur(x, y) {
-    if (!curEl) return;
-    curEl.style.left = x + "px";
-    curEl.style.top = y + "px";
-  }
-
   var paraX = 0, paraY = 0;
   // Vertical swipe → Möbius pitch (steepness). Horizontal drag still looks around.
   var pitchSwipe = null; // { id, y0, steep0, moved }
@@ -1179,10 +1202,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
   addEventListener("pointerdown", function (e) {
     if (!running || overUI(e)) return;
     if (e.pointerType === "mouse") {
-      mouseMoveT = performance.now();
-      mouseX = e.clientX; mouseY = e.clientY;
-      showCur(); placeCur(mouseX, mouseY);
-      if (curEl) curEl.classList.add("hot");
       if (e.button === 0) held.add("Mouse0");          // left click = ollie
       else if (e.button === 2) held.add("Mouse2");     // right click (hold) = tuck / hard push
       else drag = [e.clientX, e.clientY];              // middle drag = look
@@ -1196,7 +1215,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
   });
   addEventListener("pointerup", function (e) {
-    if (curEl) curEl.classList.remove("hot");
     if (stick && stick.id === e.pointerId) stopStick();
     if (e.button === 0) held.delete("Mouse0");
     if (e.button === 2) held.delete("Mouse2");
@@ -1211,19 +1229,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (pitchSwipe && (!e || pitchSwipe.id === e.pointerId)) pitchSwipe = null;
     drag = null;
   });
-  document.addEventListener("mouseleave", function () {
-    mouseX = null; mouseY = null;
-    if (curEl) { curEl.classList.remove("on"); curEl.classList.add("idle"); curVisible = false; curIdle = true; }
-  });
+  document.addEventListener("mouseleave", function () { mouseX = null; mouseY = null; });
   addEventListener("pointermove", function (e) {
     if (stick && stick.id === e.pointerId) { stickUpdate(e); return; }
     if (e.pointerType === "mouse") {
-      if (mouseX !== e.clientX || mouseY !== e.clientY) {
-        mouseMoveT = performance.now();
-        showCur();
-      }
+      if (mouseX !== e.clientX || mouseY !== e.clientY) mouseMoveT = performance.now();
       mouseX = e.clientX; mouseY = e.clientY;
-      placeCur(mouseX, mouseY);
     }
     // Active pitch swipe (vertical dominant)
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
@@ -1618,11 +1629,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // Crouch depth + carve leg angulation (inside compresses, outside extends)
     if (S.mode === "ride" && (S.cb > 0.02 || carveAmt > 0.05)) {
       var cd = S.cb * (0.18 + 0.14 * S.chargeV);
-      // Compress into the crouch, but keep ankles from sinking through the deck —
-      // back foot (aR) shifts slightly toward the tail and stays higher for the heel-up load
-      aL.y -= cd * 0.16; aR.y -= cd * 0.08;
-      aL.x += cd * 0.02; aR.x -= cd * 0.10; // back foot toward tail (-x)
-      kL.y -= cd * 0.08; kR.y -= cd * 0.04;
+      aL.y -= cd * 0.28; aR.y -= cd * 0.28;
+      aL.x += cd * 0.04; aR.x += cd * 0.04;
+      kL.y -= cd * 0.12; kR.y -= cd * 0.12;
       kL.z *= (1 - cd * 0.25); kR.z *= (1 - cd * 0.25);
       if (carveAmt > 0.04) {
         var edge = Math.min(1, Math.abs(S.roll) / 0.38);
@@ -1692,43 +1701,15 @@ function olFeet(ol,bq,w0,c0L,c0R){
         Y = new V(0, 1, 0).addScaledVector(X, -X.y);
         if (Y.lengthSq() < 1e-4) Y.set(0, 1, 0); Y.normalize();
       }
-      // Crouch ollie setup: back-foot heel rises, ball/toes stay on the deck (not heel-stomp through the board)
-      var crouchP = 0;
-      if (!res && S.mode === "ride" && S.cb > 0.02) {
-        // legs[0]=left/front in regular, legs[1]=right/back — back foot loads the tail harder
-        var isBack = (e[0] === 1);
-        var load = sm(S.cb) * (0.55 + 0.45 * S.chargeV);
-        crouchP = load * (isBack ? 0.55 : 0.18); // radians of plantar flex (toe-down / heel-up)
-        if (crouchP > 0.001) {
-          // Pivot around the ball of the foot so the heel lifts instead of punching below the deck
-          var Xh = X.clone(); Xh.y = 0; if (Xh.lengthSq() < 1e-8) Xh.set(1, 0, 0); Xh.normalize();
-          var Xb = new V(Math.cos(crouchP) * Xh.x, -Math.sin(crouchP), Math.cos(crouchP) * Xh.z);
-          var Yb = new V(Math.sin(crouchP) * Xh.x, Math.cos(crouchP), Math.sin(crouchP) * Xh.z);
-          // Ball contact sits on the deck; ankle is derived from ball + sole offset
-          var deckY = BH + 0.012;
-          var ball = new V(a.x, deckY, a.z).addScaledVector(Xh, BALL * 0.15);
-          // Prefer keeping the existing horizontal ankle, but raise it with heel lift
-          var ankleFromBall = ball.clone().addScaledVector(Xb, -BALL).addScaledVector(Yb, SOLE);
-          // Blend: don't teleport the ankle, ease into the heel-up pose
-          a = a.clone();
-          a.y = lerp(a.y, Math.max(a.y, ankleFromBall.y), load);
-          a.x = lerp(a.x, ankleFromBall.x, load * 0.35);
-          a.z = lerp(a.z, ankleFromBall.z, load * 0.35);
-          X = Xb; Y = Yb;
-          // Re-run IK so the knee follows the lifted heel
-          ik(Lg.up, Lg.lo, 0.43, 0.43, a, pl);
-        }
-      }
       Lg.ft.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(X, Y, new V().crossVectors(X, Y)));
       Lg.ft.position.copy(a).addScaledVector(Y, -0.09);
       var flex;
       if (res) {
         flex = res[e[0]].pit; // ollie-authored: heel-up on the pop foot
       } else {
-        // Coasting: heels flat. Crouch: extra toe bend on the back foot (toes stay planted, heel already risen via crouchP)
+        // Coasting: heels stay flat on the deck; light toe flex only under crouch load
         var raw = cl(Math.asin(cl(-X.y, -1, 1)), 0, 0.9) * (1 - sm((Lg.ft.position.y - 0.05) / 0.12));
-        var toePress = (S.mode === "ride" ? S.cb * (e[0] === 1 ? 0.38 : 0.12) : 0);
-        flex = cl(raw * 0.2 + toePress + crouchP * 0.25, 0, 0.7);
+        flex = cl(raw * 0.2 + (S.mode === "ride" ? S.cb * 0.22 : 0), 0, 0.4);
       }
       Lg.fore.rotation.z = cl(flex, 0, 0.9);
     });
@@ -1897,12 +1878,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var streaks = document.getElementById("streaks");
     streaks.style.opacity = reduce ? "0" : String(cl((S.v - 11) / 22, 0, 0.5));
     if (banT > 0) { banT -= dt; if (banT <= 0) document.getElementById("banner").classList.remove("on"); }
-    // Cursor idle fade (~0.9s after last move, matching steer quieting)
-    if (running && mouseX != null && !curIdle) {
-      var idleSec = (performance.now() - mouseMoveT) / 1000;
-      if (idleSec > 0.9) hideCurIdle();
-    }
-    if (!running && curEl) { curEl.classList.remove("on"); curVisible = false; }
     if (pitchHintT > 0) {
       pitchHintT -= dt;
       if (pitchHintT <= 0 && pitchHintEl) pitchHintEl.classList.remove("on");
@@ -2000,8 +1975,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
     document.getElementById("card").hidden = true;
     document.body.classList.add("live");
     Audio.ensure();
-    mouseMoveT = performance.now();
-    if (mouseX != null) { showCur(); placeCur(mouseX, mouseY); }
   }
   document.getElementById("go").addEventListener("click", startRun);
   document.getElementById("go").addEventListener("pointerup", function (e) {
