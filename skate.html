@@ -825,17 +825,24 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
 
   function resetRun() {
-    if (!running) return;
     S.mode = "ride"; S.big = false; S.boardLocal = null; S.s = 10; S.lat = 0; S.latV = 0; S.v = 0;
     S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0; S.phase = 0; S.wRide = 0; S.pushing = false;
     S.ol = null; S.oT = -1; S.landT = 0; S.cp = { s: 10, v: 8 }; S.sector = 0; S.beat = false;
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
-    S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0;
+    S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0;
     for (var i = 0; i < hoops.length; i++) hoops[i].got = false;
     held.clear(); touchHeld.clear(); flash();
   }
+  function hardReset() {
+    // Full restart: stop sim, show start screen, zero state
+    running = false;
+    resetRun();
+    document.getElementById("card").hidden = false;
+    document.body.classList.remove("live");
+    document.getElementById("m").style.opacity = 0;
+  }
   addEventListener("keydown", function (e) {
-    if (e.code === "Escape") { e.preventDefault(); resetRun(); return; }
+    if (e.code === "Escape") { e.preventDefault(); hardReset(); return; }
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) >= 0) e.preventDefault();
     held.add(e.code);
   });
@@ -1122,9 +1129,9 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     var tuck = S.mode === "ride" ? cl((S.v - 10) / 16, 0, 1) : 0;
     var dip = S.landT > 0 ? Math.sin((S.landT / 0.18) * PI) * 0.065 : 0;  // slightly deeper land absorption
     var cdip = 0;
-    if (S.mode === "ride") cdip = S.cb * (0.14 + 0.18 * S.chargeV) + S.strain * 0.09;  // deeper committed crouch
+    if (S.mode === "ride") cdip = S.cb * (0.20 + 0.18 * S.chargeV) + S.strain * 0.09;
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.20)));
-    pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.08 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
+    pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.11 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
     pelvis.quaternion.set(o[2], o[3], o[4], o[5]);
     var qs = new T.Quaternion(o[6], o[7], o[8], o[9]);
     var qh = new T.Quaternion(o[10], o[11], o[12], o[13]);
@@ -1132,10 +1139,10 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     chest.quaternion.identity().slerp(qs, 0.55);
     if (tuck > 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), tuck * 0.28));
     if (S.mode === "ride") {
-      // Stronger forward lean + shoulder roll while charging (gathers energy like Mixamo crouch)
-      var lean = S.cb * (0.42 + 0.38 * S.chargeV) + S.strain * (0.12 + 0.32 * S.strain) + S.strain * 0.09 * Math.sin(S.phase * PI * 2);
+      // Moderate forward lean while charging — enough to read crouch without breaking arm relation
+      var lean = S.cb * (0.28 + 0.22 * S.chargeV) + S.strain * (0.08 + 0.18 * S.strain);
       if (lean !== 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), lean));
-      if (S.strain > 0.02 || S.cb > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.24 + S.cb * 0.20));
+      if (S.strain > 0.02 || S.cb > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.16 + S.cb * 0.12));
     }
     neck.quaternion.identity().slerp(qh, 0.4);
     head.quaternion.identity().slerp(qh, 0.6);
@@ -1144,6 +1151,14 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     var aL = new V(o[14], o[15], o[16]), aR = new V(o[17], o[18], o[19]);
     var tL = new V(o[20], o[21], o[22]), tR = new V(o[23], o[24], o[25]);
     var kL = new V(o[26], o[27], o[28]), kR = new V(o[29], o[30], o[31]);
+    // Crouch: deeper knees + consolidated COM
+    if (S.mode === "ride" && S.cb > 0.02) {
+      var cd = S.cb * (0.18 + 0.14 * S.chargeV);
+      aL.y -= cd * 0.28; aR.y -= cd * 0.28;
+      aL.x += cd * 0.04; aR.x += cd * 0.04;
+      kL.y -= cd * 0.12; kR.y -= cd * 0.12;
+      kL.z *= (1 - cd * 0.25); kR.z *= (1 - cd * 0.25);
+    }
     var spread = -S.roll * 0.42;
     var wL = new V(o[32], o[33], o[34]), wR = new V(o[35], o[36], o[37]);
     var eL = new V(o[38], o[39], o[40]), eR = new V(o[41], o[42], o[43]);
@@ -1182,21 +1197,30 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
       var flex = res ? res[e[0]].pit : cl(Math.asin(cl(-X.y, -1, 1)), 0, 0.9) * (1 - sm((Lg.ft.position.y - 0.05) / 0.12));
       Lg.fore.rotation.z = cl(flex, 0, 0.9);
     });
+    // Arms: pure mocap on ground; crouch lowers; air matches reference (out for balance)
     [[0, wL, eL], [1, wR, eR]].forEach(function (e) {
       var A = arms[e[0]];
       var Sh = rig.worldToLocal(A.up.getWorldPosition(new V()));
-      var wT = e[1], eT = e[2], side = e[0] === 0 ? -1 : 1;
-      var hw = 0, uw = 0, kU = 0;
-      if (S.mode === "ride") hw = sm(S.cb);
-      else if (ol) { hw = S.relArm * (1 - sm((S.oT - 0.28) / 0.34)); kU = sm(S.oT / 0.12); }
-      if (hw > 0.001) {
-        // Deeper, more gathered arm pose while charging (mirrors Mixamo jump crouch energy)
-        var Hw = new V(Sh.x + 0.04 + 0.12 * S.chargeV, Sh.y - 0.52 - 0.06 * S.chargeV, Sh.z + side * 0.05);
-        var Eh = new V(Sh.x - 0.24, Sh.y - 0.28, Sh.z + side * 0.32);
-        var Uw = new V(Sh.x + 0.18, Sh.y + 0.52, Sh.z + side * 0.12);   // higher reach on release
-        var Eu = new V(Sh.x - 0.22, Sh.y + 0.22, Sh.z + side * 0.38);
-        var tw = Hw.clone().lerp(Uw, kU), te = Eh.clone().lerp(Eu, kU);
-        wT = wT.clone().lerp(tw, hw); eT = eT.clone().lerp(te, hw);
+      var wT = e[1].clone(), eT = e[2].clone();
+      var side = e[0] === 0 ? 1 : -1;
+      if (ol) {
+        // Reference ollie air: arms out to sides at ~shoulder height for balance
+        var airW = sm(Math.min(1, S.oT / 0.12)) * (1 - sm(Math.max(0, (S.oT - S.airT * 0.72) / 0.28)));
+        var out = 0.32 * airW;
+        var raise = 0.12 * airW;
+        wT.x = lerp(wT.x, Sh.x + side * out, airW);
+        wT.y = lerp(wT.y, Sh.y + raise, airW * 0.7);
+        wT.z = lerp(wT.z, Sh.z + 0.06, airW * 0.4);
+        eT.x = lerp(eT.x, Sh.x + side * out * 0.7, airW);
+        eT.y = lerp(eT.y, Sh.y + raise * 0.4, airW * 0.7);
+        eT.z = lerp(eT.z, Sh.z + 0.04, airW * 0.4);
+      } else if (S.mode === "ride" && S.cb > 0.05) {
+        // Crouch: hands lower with the body
+        var hw = sm(S.cb);
+        wT.y = lerp(wT.y, Sh.y - 0.38, hw * 0.85);
+        eT.y = lerp(eT.y, Sh.y - 0.18, hw * 0.85);
+        wT.x = lerp(wT.x, Sh.x + side * 0.16, hw * 0.5);
+        eT.x = lerp(eT.x, Sh.x + side * 0.12, hw * 0.5);
       }
       var pl = eT.clone().sub(Sh.clone().add(wT).multiplyScalar(0.5));
       if (pl.lengthSq() < 1e-6) pl.set(0, -1, -1);
