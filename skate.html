@@ -176,7 +176,7 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W E T Y</b> push · <b>S G</b> brake · <b>A F</b> left · <b>D H</b> right · <b>Q R</b> tuck (tap = hard push, hold = aero) · mouse position steers · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
+  <p class="keys"><b>W T</b> push (hold while moving = tuck) · <b>S G</b> brake · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
 </section>
 <div id="flash"></div>
 <div id="pitchHint" aria-hidden="true">SWIPE ↕ PITCH</div>
@@ -501,7 +501,8 @@ function olliePose(t,base){
   var py=lin(HK,t)+(by-BH)*sm((t-.28)/.08),pdx=kf(PDX,t)+bx*.6;
   var w=sm(t/.12)*(1-sm((t-(OL.end-.3))/.3)),dy=py-j[0],wa=.5*w,p=mix(base,j,w);
   p[0]=py;p[1]=0;
-  [34,37,40,43].forEach(function(k){p[k]=lerp(base[k],j[k]+dy,wa)});
+  [33,36,39,42].forEach(function(k){p[k]=lerp(base[k],j[k]+dy,wa)});
+  [34,37,40,43].forEach(function(k){p[k]=lerp(base[k],j[k],wa)});
   [32,35,38,41].forEach(function(k){p[k]=lerp(base[k],j[k],wa)+pdx}); /* arms travel with the hips */
   return {p:p,pitch:pitch,by:by,bx:bx,pdx:pdx,t:t}}
 function olFeet(ol,bq,w0,c0L,c0R){
@@ -990,7 +991,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   });
 
   var camOff = 0, camPit = 0.22, drag = null;
-  var mouseX = null;
+  var mouseX = null, mouseMoveT = 0;
   // Vertical swipe → Möbius pitch (steepness). Horizontal drag still looks around.
   var pitchSwipe = null; // { id, y0, steep0, moved }
   var pitchHintEl = document.getElementById("pitchHint");
@@ -1036,7 +1037,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   document.addEventListener("mouseleave", function () { mouseX = null; });
   addEventListener("pointermove", function (e) {
     if (stick && stick.id === e.pointerId) { stickUpdate(e); return; }
-    if (e.pointerType === "mouse") mouseX = e.clientX;
+    if (e.pointerType === "mouse") { if (mouseX !== e.clientX) mouseMoveT = performance.now(); mouseX = e.clientX; }
     // Active pitch swipe (vertical dominant)
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
       var dx = e.clientX - pitchSwipe.x0;
@@ -1072,12 +1073,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
       // skater leans toward the cursor: left of centre = left, right = right
       var half = innerWidth / 2, d = (mouseX - half) / half;
       var a = Math.max(0, Math.abs(d) - 0.06) / 0.5;
-      s = -Math.sign(d) * Math.min(1, a);
+      var idle = (performance.now() - mouseMoveT) / 1000;           // cursor left idle: its steering influence fades out
+      s = -Math.sign(d) * Math.min(1, a) * (1 - cl((idle - 0.7) / 0.5, 0, 1));
     }
     return cl(s, -1, 1);
   }
   function goKey() {
-    return down("KeyW") || down("ArrowUp") || down("KeyT") || down("KeyE") || down("KeyY") ||
+    return down("KeyW") || down("ArrowUp") || down("KeyT") ||
       (autoPush && usingTouch && !S.forced);
   }
   function stopKey() { return down("KeyS") || down("ArrowDown") || down("KeyG"); }
@@ -1170,9 +1172,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.ollieReq = Math.max(0, (S.ollieReq || 0) - dt);
     var bkNow = stopKey();
     // Right click: tap/short hold = hard push. Long hold at speed = aero tuck (hands behind the back).
-    var rc = down("Mouse2") || down("KeyQ") || down("KeyR");
+    var rc = down("Mouse2");
+    var pk = held.has("KeyW") || held.has("KeyT") || held.has("ArrowUp");   // keyboard push held: tap = push, hold while moving = tuck
     S.rcT = rc ? S.rcT + dt : 0;
-    var wantAero = rc && !bkNow && S.mode === "ride" && !S.crouch && S.rcT > 0.4 && S.v > (S.aeroOn ? 5 : 8);
+    S.pkT = pk ? (S.pkT || 0) + dt : 0;
+    var wantAero = !bkNow && S.mode === "ride" && !S.crouch && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
     if (wantAero && !S.aeroOn) banner("TUCK");
     S.aeroOn = wantAero;
     S.aero += ((wantAero ? 1 : 0) - S.aero) * Math.min(1, dt * (wantAero ? 6 : 9));
@@ -1515,6 +1519,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
       }
       var pl = eT.clone().sub(Sh.clone().add(wT).multiplyScalar(0.5));
       if (pl.lengthSq() < 1e-6) pl.set(0, -1, -1);
+      if (ol) {
+        var cc = rig.worldToLocal(chest.getWorldPosition(new V()));
+        var outv = Sh.clone().sub(cc); outv.y = 0;
+        if (outv.lengthSq() < 1e-6) outv.set(side, 0, 0);
+        pl = outv.normalize().multiplyScalar(0.7); pl.y = -0.7;
+        var rv = wT.clone().sub(Sh);
+        if (rv.length() > 0.49) wT.copy(Sh).add(rv.setLength(0.49));
+      }
       ik(A.up, A.lo, 0.27, 0.27, wT, pl);
     });
     wheels.forEach(function (w) { w.rotation.z = -S.spin; });
