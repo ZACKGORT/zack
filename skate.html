@@ -98,7 +98,7 @@ button { cursor:pointer; }
   <div class="hud-l">
     <div class="k">Inkline</div>
     <div id="spd">0</div>
-    <div class="unit">km/h · <span id="grade">0°</span> grade</div>
+    <div class="unit">km/h · <span id="grade">0°</span> grade · <span id="lap">lap 1</span></div>
   </div>
   <div class="hud-r">
     <div class="k">Distance</div>
@@ -112,9 +112,9 @@ button { cursor:pointer; }
   <div id="edge">Edge</div>
 </div>
 <section id="card">
-  <p class="k">Downhill</p>
+  <p class="k">One-sided course · Möbius topology</p>
   <h1>Inkline</h1>
-  <p class="deck">A pen-and-ink descent. The ribbon gets steeper, you get faster, and every ollie carries farther.</p>
+  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, thread the gaps, and ollie through the seam.</p>
   <div class="row">
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
@@ -329,18 +329,14 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   });
   var wheels = [];
   [-0.27, 0.27].forEach(function (x) {
-    put(board, new T.BoxGeometry(0.07, 0.028, 0.16), MM("#3a3a40"), x, -0.012, 0);
-    [-0.078, 0.078].forEach(function (z) {
+    put(board, new T.BoxGeometry(0.07, 0.028, 0.24), MM("#3a3a40"), x, -0.012, 0);
+    [-0.12, 0.12].forEach(function (z) {
       var piv = grp(board, x, -0.04, z);
       // Cylinder along Y by default; rotate 90° about X so axle = Z (across deck)
       var w = new T.Mesh(new T.CylinderGeometry(0.038, 0.038, 0.026, 14), MM("#e6decc"));
       w.rotation.x = Math.PI / 2;
       w.userData.noInk = 1;
       piv.add(w);
-      var rim = new T.Mesh(new T.TorusGeometry(0.038, 0.006, 6, 14), MM("#141414"));
-      rim.rotation.y = Math.PI / 2;
-      rim.userData.noInk = 1;
-      piv.add(rim);
       wheels.push(piv);
     });
   });
@@ -480,41 +476,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
   var DS = 1.7;
   var frames = [], gaps = [], curbs = [], hoops = [];
   var gapCursor = 210, nextCurb = 250, nextHoop = 320;
+  // --- TRUE MOBIUS COURSE -------------------------------------------------
+  // One lap is a closed centerline; the transverse frame reverses after 2π.
+  // Surface: (R + v cos(u/2)) radial(u), y = v sin(u/2).
+  // Thus (u=2π,v) == (u=0,-v): the defining Mobius identification.
+  var MOBIUS_R = 92, MOBIUS_LAP = 2 * PI * MOBIUS_R;
   function slopeOf(s) {
-    if (s < 12) return 0.045;
-    var x = s - 12;
-    var deg = 18 * (1 - Math.exp(-x / 45)) + 32 * (1 - Math.exp(-x / 1100));
-    return deg * PI / 180;
+    var u = s / MOBIUS_R;
+    return 0.18 * Math.cos(u) + 0.10 * Math.sin(2*u);
   }
-  function curvOf(s) {
-    if (s < 100) return 0;
-    var t = Math.min(1, (s - 100) / 1500);
-    var amp = 0.0032 + t * 0.0135;
-    return Math.sin(s * 0.028) * amp + Math.sin(s * 0.011 + 0.7) * amp * 0.65;
-  }
-  function halfWOf(s) {
-    var t = 1 - Math.exp(-Math.max(0, s - 12) / 1700);
-    return 6.15 - t * 2.05;
-  }
+  function curvOf(s) { return Math.sin(s / MOBIUS_R) / MOBIUS_R; }
+  function halfWOf(s) { return 5.6; }
   function popOf(s, v) {
     return Math.min(3.2, (1 + Math.pow(Math.max(0, s) / 850, 1.05)) * (0.82 + Math.min(v, 26) * 0.025));
   }
-  function expectedV(s) {
-    var g = 9.8 * Math.sin(slopeOf(s));
-    var a = 0.0052, b = 0.15;
-    if (g <= 0.35) return 8;
-    return Math.min(32, (-b + Math.sqrt(b * b + 4 * a * g)) / (2 * a));
-  }
+  function expectedV(s) { return Math.min(32, 10 + 0.025 * Math.max(0, s)); }
   function gapLength(s) {
     var v = expectedV(s), p = popOf(s, v), air = 0.55 * Math.sqrt(p);
     return Math.max(3.4, Math.min(15.5, v * air * 0.58));
   }
+  // Gaps/obstacles are distributed along distance, not reset at the seam.
   function ensureGaps(upto) {
     var guard = 0;
     while (gapCursor < upto && guard++ < 800) {
       var glen = gapLength(gapCursor);
       gaps.push([gapCursor, gapCursor + glen]);
-      gapCursor = gapCursor + glen + 74 + ((gaps.length * 53) % 38);
+      gapCursor += glen + 74 + ((gaps.length * 53) % 38);
     }
   }
   function inGap(s) {
@@ -534,14 +521,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
       if (!inGap(nextCurb) && !inGap(nextCurb + 3)) {
         var hsh = hash(Math.floor(nextCurb));
         if (hsh > 0.28) {
-          var side = hsh > 0.62 ? 1 : -1;
-          var hw = halfWOf(nextCurb);
-          curbs.push({
-            s: nextCurb,
-            lat: side * hw * (0.28 + (hsh * 0.37) % 0.28),
-            span: 1.7 + (hsh * 2.1) % 1.3,
-            h: 0.28 + (hsh * 0.22) % 0.2
-          });
+          var side = hsh > 0.62 ? 1 : -1, hw = halfWOf(nextCurb);
+          curbs.push({s:nextCurb, lat:side*hw*(0.28+(hsh*0.37)%0.28), span:1.7+(hsh*2.1)%1.3, h:0.28+(hsh*0.22)%0.2});
         }
       }
       nextCurb += 46;
@@ -549,67 +530,50 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   function ensureHoops(upto) {
     while (nextHoop < upto) {
-      if (!inGap(nextHoop) && !inGap(nextHoop + 4)) hoops.push({ s: nextHoop, got: false });
+      if (!inGap(nextHoop) && !inGap(nextHoop + 4)) hoops.push({s:nextHoop,got:false});
       nextHoop += 240;
     }
   }
+  function mobiusPoint(s, v) {
+    var u=s/MOBIUS_R, radialX=Math.sin(u), radialZ=-Math.cos(u);
+    var c=Math.cos(u/2), sn=Math.sin(u/2);
+    return new V((MOBIUS_R+v*c)*radialX, 8*Math.sin(u*2)+v*sn, -(MOBIUS_R+v*c)*Math.cos(u));
+  }
   function buildUntil(target) {
-    ensureGaps(target + 40);
-    ensureCurbs(target + 40);
-    ensureHoops(target + 40);
-    if (!frames.length) {
-      frames.push(makeFrame(0, new V(0, 42, 0), 0));
-    }
-    while ((frames.length - 1) * DS < target) {
-      var prev = frames[frames.length - 1];
-      var s = prev.s + DS;
-      var slope = slopeOf(s);
-      var yaw = prev.yaw + curvOf(s) * DS;
-      var h = Math.cos(slope) * DS;
-      var p = prev.p.clone();
-      p.x += -Math.sin(yaw) * h;
-      p.z += -Math.cos(yaw) * h;
-      p.y -= Math.sin(slope) * DS;
-      frames.push(makeFrame(s, p, yaw));
+    ensureGaps(target+40); ensureCurbs(target+40); ensureHoops(target+40);
+    if (!frames.length) frames.push(makeFrame(0,new V(0,8,-MOBIUS_R),0));
+    while ((frames.length-1)*DS < target) {
+      var s=frames[frames.length-1].s+DS;
+      frames.push(makeFrame(s,mobiusPoint(s,0),s/MOBIUS_R));
     }
   }
-  function makeFrame(s, p, yaw) {
-    var slope = slopeOf(s);
-    var Tng = new V(-Math.sin(yaw) * Math.cos(slope), -Math.sin(slope), -Math.cos(yaw) * Math.cos(slope));
-    var worldUp = new V(0, 1, 0);
-    var B = new V().crossVectors(Tng, worldUp);
-    if (B.lengthSq() < 1e-8) B.set(1, 0, 0);
-    B.normalize();
-    var N = new V().crossVectors(B, Tng).normalize();
-    var curv = curvOf(s);
-    var designV = 8 + Math.min(24, Math.max(0, s - 80) / 80);
-    var bank = cl((designV * designV) * curv / 9.8, -0.6, 0.6);
-    var N2 = N.clone().multiplyScalar(Math.cos(bank)).addScaledVector(B, Math.sin(bank));
-    B = new V().crossVectors(Tng, N2).normalize();
-    N = new V().crossVectors(B, Tng).normalize();
-    return { s: s, p: p, T: Tng, N: N, B: B, yaw: yaw, slope: slope, bank: bank, halfW: halfWOf(s), gap: inGap(s) };
+  function makeFrame(s,p,yaw) {
+    var u=s/MOBIUS_R, eps=0.001;
+    var Tng=mobiusPoint(s+eps,0).sub(mobiusPoint(s-eps,0)).normalize();
+    // The width vector is the derivative across v; it reverses after one lap.
+    var B=mobiusPoint(s,1).sub(mobiusPoint(s,-1)).normalize();
+    B.addScaledVector(Tng,-B.dot(Tng)).normalize();
+    var N=new V().crossVectors(B,Tng).normalize();
+    // A modest bank follows the loop; frame stays continuous through the twist.
+    var bank=0.12*Math.sin(u*1.5);
+    var N2=N.clone().multiplyScalar(Math.cos(bank)).addScaledVector(B,Math.sin(bank));
+    B=new V().crossVectors(Tng,N2).normalize();
+    N=new V().crossVectors(B,Tng).normalize();
+    return {s:s,p:p.clone(),T:Tng,N:N,B:B,yaw:yaw,slope:slopeOf(s),bank:bank,halfW:halfWOf(s),gap:inGap(s)};
   }
   function sample(s) {
-    if (s < 0) s = 0;
-    buildUntil(s + DS * 2);
-    var f = s / DS, i = Math.min(frames.length - 2, Math.floor(f)), u = f - i;
-    var a = frames[i], b = frames[i + 1];
-    var Tng = a.T.clone().lerp(b.T, u).normalize();
-    var N = a.N.clone().lerp(b.N, u);
-    var B = new V().crossVectors(Tng, N);
-    if (B.lengthSq() < 1e-8) B.copy(a.B);
-    B.normalize();
-    N = new V().crossVectors(B, Tng).normalize();
-    var yaw = a.yaw + Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw)) * u;
-    return {
-      s: s, p: a.p.clone().lerp(b.p, u), T: Tng, N: N, B: B, yaw: yaw,
-      slope: a.slope * (1 - u) + b.slope * u,
-      bank: a.bank * (1 - u) + b.bank * u,
-      halfW: a.halfW * (1 - u) + b.halfW * u,
-      gap: inGap(s)
-    };
+    s=Math.max(0,s); buildUntil(s+DS*2);
+    var f=s/DS,i=Math.min(frames.length-2,Math.floor(f)),u=f-i,a=frames[i],b=frames[i+1];
+    var Tng=a.T.clone().lerp(b.T,u).normalize(),N=a.N.clone().lerp(b.N,u);
+    var B=new V().crossVectors(Tng,N); if(B.lengthSq()<1e-8) B.copy(a.B); B.normalize();
+    N=new V().crossVectors(B,Tng).normalize();
+    return {s:s,p:a.p.clone().lerp(b.p,u),T:Tng,N:N,B:B,
+      yaw:a.yaw+(b.yaw-a.yaw)*u,slope:a.slope*(1-u)+b.slope*u,
+      bank:a.bank*(1-u)+b.bank*u,halfW:a.halfW*(1-u)+b.halfW*u,gap:inGap(s)};
   }
 
+  // The rendered ribbon is sampled from the Mobius surface above; its seam
+  // is identified with reversed width, not duplicated as a second edge.
   var trackG = new T.Group(); scene.add(trackG);
   var labelCache = {};
   function labelTex(str, big) {
@@ -817,7 +781,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     resetRun();
     document.getElementById("card").hidden = false;
     document.body.classList.remove("live");
-    document.getElementById("m").style.opacity = 0;
+    var mEl = document.getElementById("m"); if (mEl) mEl.style.opacity = 0;
   }
   addEventListener("keydown", function (e) {
     if (e.code === "Escape") { e.preventDefault(); hardReset(); return; }
@@ -934,9 +898,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   function respawn() {
     S.mode = "ride"; S.big = false; S.boardLocal = null;
-    S.s = Math.max(10, S.cp.s - 6);
+    // Restart well back from the wipeout (and never inside a gap) so there's a run-up to rebuild speed.
+    S.s = Math.max(10, S.s - 90);
+    for (var g = 0; g < 40 && S.s > 10 && (inGap(S.s) || inGap(S.s + 4)); g++) S.s = Math.max(10, S.s - 4);
+    S.cp = { s: S.s, v: 6 };
     S.lat = 0; S.latV = 0; S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0;
-    S.v = Math.max(8, Math.min(S.cp.v * 0.74, expectedV(S.s) * 0.88));
+    S.v = 6;
     S.phase = 0; S.wRide = 0; S.pushing = false; S.ol = null; S.oT = -1; S.landT = 0;
     S.shake = 0.35; flash(); banner("BACK ON");
     builtKey = -999;
@@ -1055,10 +1022,15 @@ function olFeet(ol,bq,w0,c0L,c0R){
     aLat += -S.latV * 3.4;
     S.latV += aLat * grip * dt;
     S.lat += S.latV * dt;
-    var yawTarget = steer * 0.62 * (1 + 0.35 * S.cb);
+    // Edge walls: the rider can never leave the sides of the ribbon.
+    var wall = f.halfW - 0.3, pinned = false;
+    if (S.lat >= wall) { S.lat = wall; if (S.latV > 0) S.latV = 0; pinned = steer < 0; }
+    else if (S.lat <= -wall) { S.lat = -wall; if (S.latV < 0) S.latV = 0; pinned = steer > 0; }
+    var yawTarget = steer * 0.62 * (1 + 0.35 * S.cb) * (pinned ? 0.15 : 1);
     S.yawOff += (yawTarget - S.yawOff) * Math.min(1, dt * 5.2);
     var tgtRoll = cl(-steer * 0.34 * (1 + 0.6 * S.cb) - S.latV * 0.02, -0.48 - 0.2 * S.cb, 0.48 + 0.2 * S.cb);
     if (air) tgtRoll *= 0.65;
+    if (pinned) tgtRoll *= 0.2;
     S.roll += (tgtRoll - S.roll) * Math.min(1, dt * 7);
     S.s += S.v * dt;
     S.spin = (S.spin + S.v * dt / 0.04) % (PI * 2);
@@ -1223,7 +1195,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     rig.updateMatrixWorld(true);
   }
 
-  var look = new V();
+  var look = new V(), camUpS = new V(0, 1, 0);
   function frameCamera(dt) {
     var f = sample(S.s);
     var ahead = sample(S.s + 8 + Math.min(S.v, 30) * 0.16);
@@ -1231,8 +1203,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var lookAt = ahead.p.clone().addScaledVector(ahead.N, 0.7).addScaledVector(ahead.B, S.lat * 0.35);
     var dist = 6.6 + Math.min(S.v, 30) * 0.08;
     var behind = f.T.clone().multiplyScalar(-dist);
-    if (Math.abs(camOff) > 0.001) behind.applyAxisAngle(new V(0, 1, 0), camOff);
-    var camUp = new V(0, 1, 0).lerp(f.N, 0.3).normalize();
+    // Camera "up" follows the ribbon's surface normal so the skater is always upright on screen;
+    // the world rolls around him through the Mobius twist.
+    if (!cam.userData.ready) camUpS.copy(f.N); else camUpS.lerp(f.N, 1 - Math.exp(-9 * dt)).normalize();
+    var camUp = camUpS.clone();
+    if (Math.abs(camOff) > 0.001) behind.applyAxisAngle(camUp, camOff);
     var want = rider.clone().add(behind).addScaledVector(camUp, 2.25 + Math.sin(camPit) * 1.35);
     if (S.shake > 0 && !reduce) {
       want.x += (Math.random() - 0.5) * S.shake;
@@ -1258,6 +1233,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var f = sample(S.s);
     document.getElementById("spd").textContent = String(Math.round(S.v * 3.6));
     document.getElementById("grade").textContent = Math.round(f.slope * 180 / PI) + "°";
+    var lapEl=document.getElementById("lap"); if(lapEl) lapEl.textContent="lap "+(Math.floor(S.s/MOBIUS_LAP)+1);
     document.getElementById("dist").textContent = S.s >= 1000 ? (S.s / 1000).toFixed(2) + " km" : Math.floor(S.s) + " m";
     document.getElementById("pop").textContent = "×" + popOf(S.s, S.v).toFixed(2);
     var best = Math.max(S.best, S.s);
