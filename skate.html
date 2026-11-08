@@ -14,6 +14,10 @@
 html, body { margin:0; height:100%; background:var(--paper); color:var(--ink);
   font-family:Outfit, "Avenir Next", ui-sans-serif, system-ui, sans-serif;
   overflow:hidden; touch-action:none; }
+body.cursor-idle, body.cursor-idle * { cursor: none !important; }
+body.cursor-idle button, body.cursor-idle a, body.cursor-idle input {
+  cursor: none !important;
+}
 canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
 button, a { font:inherit; color:inherit; }
 button { cursor:pointer; }
@@ -572,20 +576,25 @@ var FR={z:0,
  x:[[0,.24],[.14,.24],[.30,.24],[.36,.28],[.46,.37],[.58,.37],[.70,.31],[.85,.24],[1.3,.24]],
  n:[[0,0],[.40,0],[.50,.012],[.62,.012],[.72,0],[1.3,0]],
  yaw:[[0,44],[.30,44],[.36,38],[.46,30],[.58,31],[.72,40],[.9,44],[1.3,44]],
- pit:[[0,0],[.22,.02],[.34,0],[.44,.10],[.58,.16],[.72,.04],[.9,0],[1.3,0]]};
+ // Front foot stays mostly flat; light toe flex only while leveling the board in the air
+ pit:[[0,0],[.22,0],[.34,0],[.44,.06],[.58,.12],[.72,.04],[.9,0],[1.3,0]]};
 var BK={z:-.02,
- x:[[0,-.15],[.10,-.18],[.18,-.28],[.24,-.38],[.28,-.42],[.32,-.40],[.38,-.34],[.48,-.26],[.60,-.20],[.74,-.17],[1.3,-.16]],
- n:[[0,0],[.22,0],[.28,.01],[.32,.04],[.40,.07],[.52,.05],[.64,.015],[.76,0],[1.3,0]],
- yaw:[[0,82],[.16,84],[.26,88],[.32,92],[.40,86],[.55,80],[.72,82],[1.3,82]],
- // Heel flat at rest → rises through preload → max toe-down at the snap → settles flat on land
- pit:[[0,0],[.08,.06],[.14,.18],[.20,.36],[.26,.58],[.30,.78],[.34,.62],[.40,.32],[.50,.12],[.62,.03],[.78,0],[1.3,0]]};
+ // Coast: ball sits over the rear bolts. Into the pop the foot slides onto the tail.
+ x:[[0,-.16],[.10,-.18],[.16,-.24],[.22,-.34],[.26,-.40],[.30,-.44],[.34,-.42],[.40,-.34],[.50,-.24],[.64,-.18],[.80,-.16],[1.3,-.16]],
+ n:[[0,0],[.18,0],[.24,.005],[.28,.02],[.32,.045],[.40,.07],[.52,.05],[.64,.015],[.76,0],[1.3,0]],
+ yaw:[[0,82],[.14,84],[.22,88],[.28,94],[.34,96],[.42,88],[.55,80],[.72,82],[1.3,82]],
+ // Heel FLAT on the deck at rest. Heel rises as weight loads the bent toes on the tail —
+ // the snap is a toe press, not a heel stomp. Then the foot peels off and returns flat.
+ pit:[[0,0],[.06,0],[.10,.04],[.14,.14],[.18,.30],[.22,.48],[.26,.68],[.30,.86],[.34,.72],[.40,.38],[.50,.14],[.62,.04],[.78,0],[1.3,0]]};
 var PDX=[[0,0],[.2,-.03],[.28,-.09],[.36,-.08],[.44,-.04],[.54,.02],[.66,.03],[.9,0],[1.3,0]];
 var JMAP=[[0,0],[.12,2],[.26,10],[.33,16],[.58,24],[.87,33],[1.0,40],[1.3,50]];
 var HK=[[0,.93],[.12,.90],[.26,.64],[.33,.85],[.39,.92],[.48,.89],[.58,.84],[.74,.88],[.85,.90],[.93,.72],[1.05,.80],[1.3,.93]];
 function olliePose(t,base){
   var j=fr(CLIP.jump,lin(JMAP,t)/30,false),pitch,by,bx;
-  if(t<OL.lift){ /* tail stomp: board pivots on the rear wheels until the tail meets the ground */
-    pitch=TP*sm((t-.21)/.09);by=.27*Math.sin(pitch)+.085*Math.cos(pitch);bx=.27*(Math.cos(pitch)-1)-.085*Math.sin(pitch)}
+  if(t<OL.lift){
+    /* Toe-press snap: heel is already rising (see BK.pit). Board only tips once weight is on the bent toes,
+       pivoting on the rear trucks — not a heel stomp into the tail. */
+    pitch=TP*sm((t-.24)/.08);by=.27*Math.sin(pitch)+.085*Math.cos(pitch);bx=.27*(Math.cos(pitch)-1)-.085*Math.sin(pitch)}
   else if(t<OL.land){
     var yL=.27*Math.sin(TP)+.085*Math.cos(TP),xL=.27*(Math.cos(TP)-1)-.085*Math.sin(TP),s=t-OL.lift,T1=OL.apex-OL.lift,vy=2*(APEX_Y-yL)/T1,g=vy/T1;
     by=Math.max(BH,yL+vy*s-.5*g*s*s);
@@ -1200,6 +1209,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap"); }
   canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse") { mouseMoveT = performance.now(); setCursorIdle(false); }
     if (!running || overUI(e)) return;
     if (e.pointerType === "mouse") {
       if (e.button === 0) held.add("Mouse0");          // left click = ollie
@@ -1230,10 +1240,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
     drag = null;
   });
   document.addEventListener("mouseleave", function () { mouseX = null; mouseY = null; });
+  var cursorIdle = false;
+  function setCursorIdle(on) {
+    if (on === cursorIdle) return;
+    cursorIdle = on;
+    document.body.classList.toggle("cursor-idle", on);
+  }
   addEventListener("pointermove", function (e) {
     if (stick && stick.id === e.pointerId) { stickUpdate(e); return; }
     if (e.pointerType === "mouse") {
-      if (mouseX !== e.clientX || mouseY !== e.clientY) mouseMoveT = performance.now();
+      if (mouseX !== e.clientX || mouseY !== e.clientY) {
+        mouseMoveT = performance.now();
+        setCursorIdle(false);
+      }
       mouseX = e.clientX; mouseY = e.clientY;
     }
     // Active pitch swipe (vertical dominant)
@@ -1701,17 +1720,29 @@ function olFeet(ol,bq,w0,c0L,c0R){
         Y = new V(0, 1, 0).addScaledVector(X, -X.y);
         if (Y.lengthSq() < 1e-4) Y.set(0, 1, 0); Y.normalize();
       }
+      if (!res) {
+        // Coasting / land: sole parallel to the deck so the heel stays planted. Only a soft toe flex under crouch.
+        // X along the board (rig +X when board is flat), Y = deck normal.
+        X.set(1, 0, 0);
+        Y.set(0, 1, 0);
+        if (S.mode === "ride" && S.cb > 0.05) {
+          // Slight plantar flex when crouched — still heel-down, weight shifting toward the balls
+          var cf = S.cb * (0.12 + 0.1 * S.chargeV);
+          X.set(Math.cos(cf), -Math.sin(cf), 0);
+          Y.set(Math.sin(cf), Math.cos(cf), 0);
+        }
+      }
       Lg.ft.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(X, Y, new V().crossVectors(X, Y)));
       Lg.ft.position.copy(a).addScaledVector(Y, -0.09);
       var flex;
       if (res) {
-        flex = res[e[0]].pit; // ollie-authored: heel-up on the pop foot
+        // Ollie-authored plantar flexion: heel rises, weight on the bent toes for the snap
+        flex = res[e[0]].pit;
       } else {
-        // Coasting: heels stay flat on the deck; light toe flex only under crouch load
-        var raw = cl(Math.asin(cl(-X.y, -1, 1)), 0, 0.9) * (1 - sm((Lg.ft.position.y - 0.05) / 0.12));
-        flex = cl(raw * 0.2 + (S.mode === "ride" ? S.cb * 0.22 : 0), 0, 0.4);
+        // Heel stays flat; only a little toe bend when charging a crouch
+        flex = S.mode === "ride" ? S.cb * (0.18 + 0.14 * S.chargeV) : 0;
       }
-      Lg.fore.rotation.z = cl(flex, 0, 0.9);
+      Lg.fore.rotation.z = cl(flex, 0, 0.95);
     });
     // Arms: pure mocap on ground; crouch lowers; ollie rises at apex then settles; aero tucks
     [[0, wL, eL], [1, wR, eR]].forEach(function (e) {
@@ -1881,6 +1912,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (pitchHintT > 0) {
       pitchHintT -= dt;
       if (pitchHintT <= 0 && pitchHintEl) pitchHintEl.classList.remove("on");
+    }
+    // Fade system cursor once the pointer has sat still (steering influence already goes quiet)
+    if (running && !usingTouch) {
+      var idleSec = (performance.now() - mouseMoveT) / 1000;
+      setCursorIdle(idleSec > 1.4);
+    } else {
+      setCursorIdle(false);
     }
     Audio.tick(S.v, f.slope, S.mode === "ollie");
   }
