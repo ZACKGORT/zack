@@ -1587,8 +1587,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.idleT = Math.abs(steer) < 0.05 ? (S.idleT || 0) + dt : 0;
     var cT = sm(cl((S.idleT - CENTER_DELAY) / CENTER_RAMP, 0, 1));
     S.cK = (S.cK || 0) + (cT - (S.cK || 0)) * Math.min(1, dt * 3);
+    // How much crouching sharpens the slalom (steer force, yaw, lean, snap). 1 = old/aggressive, 0 = same as standing.
+    var CROUCH_CARVE = 0.5, ccv = S.cb * CROUCH_CARVE;
     var aLat = (S.v * S.v * curvOf(S.s) - 9.8 * Math.sin(f.bank)) * (1 - 0.88 * S.cK);
-    aLat += -steer * (15 + Math.min(S.v, 24) * 0.35) * (1 + 1.35 * S.cb) * (1 - 0.4 * S.aero);  // crouch = sharper slalom, tuck = less
+    aLat += -steer * (15 + Math.min(S.v, 24) * 0.35) * (1 + 1.35 * ccv) * (1 - 0.4 * S.aero);  // crouch = sharper slalom, tuck = less
     aLat += -S.latV * (3.4 + 1.1 * S.cb);  // more damping when low = tighter carves
     aLat += -S.lat * 3.6 * S.cK;
     S.latV += aLat * grip * dt;
@@ -1598,16 +1600,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (S.lat >= wall) { S.lat = wall; if (S.latV > 0) S.latV = 0; pinned = steer < 0; }
     else if (S.lat <= -wall) { S.lat = -wall; if (S.latV < 0) S.latV = 0; pinned = steer > 0; }
     // Crouch unlocks more hip/lean authority for slalom carving
-    var crouchBoost = 1 + 0.85 * S.cb * (0.55 + 0.45 * S.chargeV);
-    var yawTarget = steer * 0.62 * (1 + 0.55 * S.cb) * crouchBoost * (pinned ? 0.15 : 1);
-    S.yawOff += (yawTarget - S.yawOff) * Math.min(1, dt * (5.2 + 2.4 * S.cb));
-    var rollAuth = 0.34 * (1 + 0.95 * S.cb) * (0.7 + 0.3 * crouchBoost);
-    var maxRoll = 0.48 + 0.38 * S.cb + 0.12 * S.chargeV;
+    var crouchBoost = 1 + 0.85 * ccv * (0.55 + 0.45 * S.chargeV);
+    var yawTarget = steer * 0.62 * (1 + 0.55 * ccv) * crouchBoost * (pinned ? 0.15 : 1);
+    S.yawOff += (yawTarget - S.yawOff) * Math.min(1, dt * (5.2 + 2.4 * ccv));
+    var rollAuth = 0.34 * (1 + 0.95 * ccv) * (0.7 + 0.3 * crouchBoost);
+    var maxRoll = 0.48 + 0.38 * ccv + 0.12 * S.chargeV * CROUCH_CARVE;
     var tgtRoll = cl(-steer * rollAuth - S.latV * (0.02 + 0.018 * S.cb), -maxRoll, maxRoll);
     if (air) tgtRoll *= 0.65;
     if (pinned) tgtRoll *= 0.2;
     // Faster roll response when crouched so hips snap into the carve
-    S.roll += (tgtRoll - S.roll) * Math.min(1, dt * (7 + 5.5 * S.cb));
+    S.roll += (tgtRoll - S.roll) * Math.min(1, dt * (7 + 5.5 * ccv));
     S.s += S.v * dt;
     S.spin = (S.spin + S.v * dt / 0.04) % (PI * 2);
 
