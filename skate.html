@@ -1671,7 +1671,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var wL = new V(o[32], o[33], o[34]), wR = new V(o[35], o[36], o[37]);
     var eL = new V(o[38], o[39], o[40]), eR = new V(o[41], o[42], o[43]);
     if (S.mode !== "bail") {
-      wL.z += spread; wR.z += spread;
+      // Ollie arms are pure mocap (see olliePose): no carve spread in the air, eased back in after touchdown
+      var spreadK = ol ? 0 : 1 - sm(S.landBlend || 0);
+      wL.z += spread * spreadK; wR.z += spread * spreadK;
       wL.y += tuck * 0.05; wR.y += tuck * 0.05;
       if (carveAmt > 0.04) {
         var armUp = 0.14 * carveAmt * Math.min(1, Math.abs(S.roll) / 0.35);
@@ -1753,42 +1755,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var aw = S.mode === "ride" ? sm(S.aero) : 0;
       var olliePole = null;
       if (ol) {
-        // Ollie arms: lift in the air, then fully release back to mocap before/at land
-        // so there's no bent-elbow intermediate when coasting starts.
-        var ot = ol.t;
-        var rise = 0;
-        if (ot > OL.lift && ot < OL.land) {
-          var u = (ot - OL.lift) / Math.max(0.05, OL.land - OL.lift);
-          var peak = (OL.apex - OL.lift) / Math.max(0.05, OL.land - OL.lift);
-          if (u < peak) rise = sm(u / peak);
-          else {
-            // Drop arm raise early on the way down so we meet cruise pose at touchdown
-            var down = (u - peak) / Math.max(0.05, 1 - peak);
-            rise = 1 - sm(Math.pow(down, 0.85));
-          }
-        }
-        // After OL.land: no artificial arm offsets — pure mocap into the coast
-        var recover = (S.relArm || 0) * (1 - sm(Math.min(1, (S.oT || 0) / 0.18)));
-        var airWide = 0;
-        if (ot > OL.lift && ot < OL.land) {
-          airWide = sm(Math.min(1, (ot - OL.lift) / 0.1)) * (1 - sm(Math.max(0, (ot - (OL.apex + 0.06)) / Math.max(0.08, OL.land - OL.apex - 0.06))));
-        }
-        var up = 0.36 * rise + 0.08 * airWide + 0.12 * recover;
-        var out = 0.14 * rise + 0.08 * airWide + 0.10 * recover;
-        var fwd = 0.04 * rise + 0.02 * recover;
-        if (up > 0.002 || out > 0.002) {
-          wT.y += up;
-          eT.y += up * 0.8;
-          wT.x += side * out;
-          eT.x += side * out;
-          wT.z += fwd;
-          eT.z += fwd * 0.45;
-        }
-        // Pole only while arms are actually raised; fade so IK doesn't hold a bent shape into land
-        if (rise > 0.12 || airWide > 0.12) {
-          var poleW = cl(Math.max(rise, airWide), 0, 1);
-          olliePole = new V(side * 0.7 * poleW, 0.2 * poleW, -0.15 * poleW);
-          if (olliePole.lengthSq() < 0.05) olliePole = null;
+        // Ollie arms: exact mocap from olliePose (wrist/elbow targets + default elbow pole), same as
+        // ollie-arm-reference. Only the first ~0.2s eases in from the last ground pose (crouch/coast),
+        // on the same curve as the pelvis dip, so the launch doesn't snap.
+        var ab = S.armPrev && S.armPrev[e[0]];
+        if (ab) {
+          var kb = 1 - sm(Math.min(1, (S.oT || 0) / 0.2));
+          if (kb > 0.001) { wT.lerp(ab.w, kb); eT.lerp(ab.e, kb); }
         }
       } else if (aw > 0.01) {
         // Aero tuck: both hands rest on the small of the back, elbows flared out behind.
@@ -1804,6 +1777,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
         eT.x = lerp(eT.x, Sh.x + side * 0.12, hw * 0.5);
       }
       // Landing/coasting: pure mocap targets + natural pole (no residual offsets)
+      if (!ol) { (S.armPrev = S.armPrev || [])[e[0]] = { w: wT.clone(), e: eT.clone() }; }
       var pl = olliePole || eT.clone().sub(Sh.clone().add(wT).multiplyScalar(0.5));
       if (pl.lengthSq() < 1e-6) pl.set(side, 0.2, -0.5);
       ik(A.up, A.lo, 0.27, 0.27, wT, pl);
