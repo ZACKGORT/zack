@@ -855,7 +855,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     mode: "ride", phase: 0, pushing: false, wRide: 0, cruiseT: 0,
     oT: -1, ol: null, popMul: 1, airT: 0.55, olBX: 0,
     bT: 0, bClip: "bail", big: false, boardLocal: null,
-    landT: 0, shake: 0, camRoll: 0, spin: 0, sector: 0,
+    landT: 0, landD: 0.18, landAmp: 0.065, shake: 0, camRoll: 0, spin: 0, sector: 0,
     forced: null, steerOverride: null, goofy: false, rcT: 0, aero: 0, aeroOn: false, spaceWas: false,
     relArm: 0, strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false
@@ -1144,7 +1144,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var f = sample(S.s);
     if (inGap(S.s) || Math.abs(S.lat) > f.halfW - 0.05 || S.drop < -0.4) { respawn(); return; }
     S.mode = "ride"; S.boardLocal = null; S.v *= 0.5; S.drop = 0;
-    S.phase = 0; S.wRide = 0; S.pushing = false; S.landT = 0.1;
+    S.phase = 0; S.wRide = 0; S.pushing = false; S.landT = S.landD = 0.1; S.landAmp = 0.04;
   }
 
   var E = new T.Euler(), Q = new T.Quaternion();
@@ -1220,7 +1220,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       air = clearance() > 0.12;
       if (S.oT >= ollieDur(S.airT)) {
         var sketch = Math.abs(S.roll) > 0.58 && S.v > 18;
-        S.mode = "ride"; S.ol = null; S.oT = -1; S.wRide = 0; S.phase = 0; S.landT = 0.18;
+        S.mode = "ride"; S.ol = null; S.oT = -1; S.wRide = 0; S.phase = 0; S.landT = S.landD = 0.34; S.landAmp = 0.05 + 0.045 * cl(S.airT / 1.1, 0, 1);
         if (sketch || inGap(S.s) || Math.abs(S.lat) > sample(S.s).halfW - 0.02) { bail(true); return; }
         Audio.thud();
         S.shake = Math.max(S.shake, 0.14);
@@ -1323,7 +1323,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
       if (S.wRide > 0) o = mix(base, fr(CLIP.ride, S.phase * CLIP.ride.dur, true), S.wRide);
     }
     var tuck = S.mode === "ride" ? cl((S.v - 10) / 16, 0, 1) : 0;
-    var dip = S.landT > 0 ? Math.sin((S.landT / 0.18) * PI) * 0.065 : 0;  // slightly deeper land absorption
+    var dip = 0;
+    if (S.landT > 0) {  // landing absorb: fast compress, slower rise, small rebound; depth scales with air time
+      var le = 1 - S.landT / S.landD, lu = (le - 0.28) / 0.72;
+      dip = S.landAmp * (le < 0.28 ? sm(le / 0.28) : (1 - sm(lu)) - 0.14 * Math.sin(lu * PI) * (1 - lu));
+    }
     var cdip = 0;
     if (S.mode === "ride") cdip = S.cb * (0.20 + 0.18 * S.chargeV) + S.strain * 0.09 + S.aero * 0.22;
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.20)));
