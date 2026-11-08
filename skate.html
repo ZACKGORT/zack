@@ -332,9 +332,15 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     put(board, new T.BoxGeometry(0.07, 0.028, 0.16), MM("#3a3a40"), x, -0.012, 0);
     [-0.078, 0.078].forEach(function (z) {
       var piv = grp(board, x, -0.04, z);
+      // Cylinder along Y by default; rotate 90° about X so axle = Z (across deck)
       var w = new T.Mesh(new T.CylinderGeometry(0.038, 0.038, 0.026, 14), MM("#e6decc"));
-      w.rotation.x = PI / 2; piv.add(w);
-      put(piv, new T.TorusGeometry(0.038, 0.006, 6, 14), MM("#141414"), 0, 0, 0).rotation.y = PI / 2;
+      w.rotation.x = Math.PI / 2;
+      w.userData.noInk = 1;
+      piv.add(w);
+      var rim = new T.Mesh(new T.TorusGeometry(0.038, 0.006, 6, 14), MM("#141414"));
+      rim.rotation.y = Math.PI / 2;
+      rim.userData.noInk = 1;
+      piv.add(rim);
       wheels.push(piv);
     });
   });
@@ -399,80 +405,52 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     return P[P.length - 1][1];
   }
 
-  // Ollie phases + board physics tuned against Mixamo Jump energy curve
-  // (deep crouch → explosive extension → readable hang → soft absorption)
-  var OL = { pop: 0.26, lift: 0.30, apex: 0.56, land: 0.90, end: 1.32 }, TP = 0.48, APEX_Y = 0.68, DECK = 0.0975;
-  var FR = { z: 0.01,   // front foot: more aggressive forward slide + slight style yaw
-    x:   [[0, 0.22], [0.12, 0.23], [0.26, 0.26], [0.34, 0.32], [0.44, 0.41], [0.56, 0.43], [0.68, 0.36], [0.82, 0.27], [1.0, 0.23], [1.32, 0.22]],
-    n:   [[0, 0], [0.34, 0], [0.46, 0.018], [0.58, 0.022], [0.70, 0.008], [0.9, 0], [1.32, 0]],
-    yaw: [[0, 42], [0.28, 40], [0.36, 32], [0.46, 24], [0.58, 26], [0.72, 34], [0.9, 40], [1.32, 42]],
-    pit: [[0, 0], [0.22, 0.06], [0.30, 0.02], [0.40, 0.14], [0.54, 0.22], [0.68, 0.08], [0.86, 0], [1.32, 0]] };
-  var BK = { z: -0.025, // back foot: sharper tail scoop, higher pop pitch, cleaner recovery
-    x:   [[0, -0.14], [0.10, -0.18], [0.18, -0.34], [0.24, -0.44], [0.29, -0.46], [0.34, -0.40], [0.42, -0.30], [0.52, -0.22], [0.64, -0.17], [0.78, -0.15], [1.32, -0.14]],
-    n:   [[0, 0], [0.28, 0], [0.36, 0.04], [0.44, 0.08], [0.54, 0.06], [0.66, 0.02], [0.78, 0], [1.32, 0]],
-    yaw: [[0, 80], [0.18, 86], [0.28, 94], [0.36, 90], [0.48, 78], [0.66, 80], [0.9, 80], [1.32, 80]],
-    pit: [[0, 0], [0.12, 0], [0.20, 0.18], [0.26, 0.72], [0.31, 0.58], [0.40, 0.26], [0.50, 0.10], [0.62, 0.02], [0.8, 0], [1.32, 0]] };
-  var PDX = [[0, 0], [0.16, -0.04], [0.26, -0.11], [0.34, -0.10], [0.44, -0.05], [0.54, 0.01], [0.68, 0.04], [0.9, 0.01], [1.32, 0]];
-  // Map normalized ollie time → jump-clip frame so body extension matches the FBX explosive rise
-  var JMAP = [[0, 0], [0.10, 1], [0.22, 6], [0.30, 12], [0.40, 18], [0.56, 26], [0.78, 34], [0.95, 40], [1.15, 46], [1.32, 52]];
-  // Hip height curve: deeper crouch, stronger rise with board, softer landing dip
-  var HK = [[0, 0.93], [0.10, 0.88], [0.22, 0.58], [0.30, 0.78], [0.38, 0.94], [0.48, 0.96], [0.58, 0.90], [0.72, 0.88], [0.86, 0.86], [0.96, 0.70], [1.10, 0.82], [1.32, 0.93]];
+  /* ---------- ollie: ported verbatim from skater-main (board is the physical object; each foot authored in BOARD space) ---------- */
+  var OL={pop:.30,lift:.32,apex:.58,land:.87,end:1.3},TP=.43,APEX_Y=.62,DECK=.0975;
+/* per foot: x = ball-of-foot position along the deck, n = lift off the grip, yaw = angle from board axis (toes toward +z), pit = toe-down roll of the ankle, z = heel line across deck.
+   FRONT: sits over the front bolts, then drags forward toward the nose as the board leaves the ground, pressing the nose down to level it.
+   BACK: slides onto the tail during the crouch, plantar-flexes hard (toes down, heel up) to snap the tail, then peels off and rides back up to the rear bolts. */
+var FR={z:0,
+ x:[[0,.24],[.14,.24],[.30,.24],[.36,.28],[.46,.37],[.58,.37],[.70,.31],[.85,.24],[1.3,.24]],
+ n:[[0,0],[.40,0],[.50,.012],[.62,.012],[.72,0],[1.3,0]],
+ yaw:[[0,44],[.30,44],[.36,38],[.46,30],[.58,31],[.72,40],[.9,44],[1.3,44]],
+ pit:[[0,0],[.26,.04],[.34,0],[.44,.12],[.58,.2],[.72,.05],[.9,0],[1.3,0]]};
+var BK={z:-.02,
+ x:[[0,-.15],[.12,-.17],[.20,-.31],[.26,-.40],[.31,-.41],[.36,-.37],[.44,-.30],[.54,-.24],[.64,-.20],[.74,-.18],[1.3,-.17]],
+ n:[[0,0],[.31,0],[.38,.03],[.46,.06],[.56,.05],[.66,.015],[.74,0],[1.3,0]],
+ yaw:[[0,82],[.20,84],[.30,90],[.38,86],[.50,76],[.70,80],[.9,82],[1.3,82]],
+ pit:[[0,0],[.14,0],[.24,.12],[.30,.62],[.34,.50],[.42,.22],[.52,.08],[.64,0],[1.3,0]]};
+var PDX=[[0,0],[.2,-.03],[.28,-.09],[.36,-.08],[.44,-.04],[.54,.02],[.66,.03],[.9,0],[1.3,0]];
+var JMAP=[[0,0],[.12,2],[.26,10],[.33,16],[.58,24],[.87,33],[1.0,40],[1.3,50]];
+var HK=[[0,.93],[.12,.90],[.26,.64],[.33,.85],[.39,.92],[.48,.89],[.58,.84],[.74,.88],[.85,.90],[.93,.72],[1.05,.80],[1.3,.93]];
+function olliePose(t,base){
+  var j=fr(CLIP.jump,lin(JMAP,t)/30,false),pitch,by,bx;
+  if(t<OL.lift){ /* tail stomp: board pivots on the rear wheels until the tail meets the ground */
+    pitch=TP*sm((t-.21)/.09);by=.27*Math.sin(pitch)+.085*Math.cos(pitch);bx=.27*(Math.cos(pitch)-1)-.085*Math.sin(pitch)}
+  else if(t<OL.land){
+    var yL=.27*Math.sin(TP)+.085*Math.cos(TP),xL=.27*(Math.cos(TP)-1)-.085*Math.sin(TP),s=t-OL.lift,T1=OL.apex-OL.lift,vy=2*(APEX_Y-yL)/T1,g=vy/T1;
+    by=Math.max(BH,yL+vy*s-.5*g*s*s);
+    var up=sm(s/.12),lev=sm((t-.42)/.22);pitch=lerp(TP,.7,up)*(1-lev)-.03*lev*sm((OL.land-t)/.2);bx=lerp(xL,0,up)}
+  else{pitch=-.03*(1-sm((t-OL.land)/.1));by=BH;bx=0}
+  var py=lin(HK,t)+(by-BH)*sm((t-.28)/.08),pdx=kf(PDX,t)+bx*.6;
+  var w=sm(t/.12)*(1-sm((t-(OL.end-.3))/.3)),dy=py-j[0],wa=.5*w,p=mix(base,j,w);
+  p[0]=py;p[1]=0;
+  [34,37,40,43].forEach(function(k){p[k]=lerp(base[k],j[k]+dy,wa)});
+  [32,35,38,41].forEach(function(k){p[k]=lerp(base[k],j[k],wa)+pdx}); /* arms travel with the hips */
+  return {p:p,pitch:pitch,by:by,bx:bx,pdx:pdx,t:t}}
+function olFeet(ol,bq,w0,c0L,c0R){
+  var t=ol.t,out=[];
+  [[FR,c0L],[BK,c0R]].forEach(function(e){
+    var K=e[0],yaw=kf(K.yaw,t)*PI/180,p=kf(K.pit,t),bxx=kf(K.x,t),n=kf(K.n,t);
+    var Xh=new V(Math.cos(yaw),0,Math.sin(yaw));
+    var Xb=new V(Math.cos(p)*Xh.x,-Math.sin(p),Math.cos(p)*Xh.z),Yb=new V(Math.sin(p)*Xh.x,Math.cos(p),Math.sin(p)*Xh.z);
+    var kick=bxx<-.39?(-.39-bxx)*.42:0;
+    var B=new V(bxx,DECK+n+kick,K.z+BALL*Math.cos(p)*Xh.z); /* ball of foot on the deck */
+    var A=B.addScaledVector(Xb,-BALL).addScaledVector(Yb,SOLE).applyQuaternion(bq).add(board.position);
+    A.lerp(e[1],1-w0);
+    out.push({A:A,X:Xb.applyQuaternion(bq),Y:Yb.applyQuaternion(bq),yaw:yaw,pit:p})});
+  return out}
 
-  function olliePose(t, base, mul) {
-    var j = fr(CLIP.jump, lin(JMAP, t) / 30, false), pitch, by, bx;
-    if (t < OL.lift) {
-      // Snap the tail: faster, more decisive pop (Mixamo explosive extension energy)
-      var popT = sm((t - 0.18) / 0.10);
-      pitch = TP * popT;
-      by = 0.29 * Math.sin(pitch) + 0.09 * Math.cos(pitch);
-      bx = 0.29 * (Math.cos(pitch) - 1) - 0.09 * Math.sin(pitch);
-    } else if (t < OL.land) {
-      var yL = 0.29 * Math.sin(TP) + 0.09 * Math.cos(TP);
-      var xL = 0.29 * (Math.cos(TP) - 1) - 0.09 * Math.sin(TP);
-      var s = t - OL.lift, T1 = OL.apex - OL.lift;
-      // Higher apex + slightly softer gravity → more hang on charged pops
-      var vy = 2 * (APEX_Y - yL) / T1, g = vy / T1 * 0.92;
-      by = Math.max(BH, yL + vy * s - 0.5 * g * s * s);
-      var up = sm(s / 0.11);
-      var lev = sm((t - 0.40) / 0.26);           // board levels a touch later for style
-      pitch = lerp(TP, 0.78, up) * (1 - lev) - 0.04 * lev * sm((OL.land - t) / 0.18);
-      bx = lerp(xL, 0, up);
-    } else {
-      // Soft absorption on landing
-      var landW = sm((t - OL.land) / 0.14);
-      pitch = -0.04 * (1 - landW);
-      by = BH; bx = 0;
-    }
-    by = BH + (by - BH) * mul;
-    // Body rides the board tightly during the pop, then floats with it
-    var bodyLift = sm((t - 0.16) / 0.14);
-    var py = lin(HK, t) + (by - BH) * bodyLift;
-    var pdx = kf(PDX, t) + bx * 0.55;
-    // Commit to jump clip faster and hold it longer through the air
-    var w = sm(t / 0.10) * (1 - sm((t - (OL.end - 0.28)) / 0.28));
-    var dy = py - j[0], wa = 0.62 * w;
-    var p = mix(base, j, w);
-    p[0] = py; p[1] = 0;
-    // Lift lower body with the hips so knees stay natural under the board
-    [34, 37, 40, 43].forEach(function (k) { p[k] = lerp(base[k], j[k] + dy, wa); });
-    [32, 35, 38, 41].forEach(function (k) { p[k] = lerp(base[k], j[k], wa) + pdx; });
-    return { p: p, pitch: pitch, by: by, bx: bx, pdx: pdx, t: t };
-  }
-  function olFeet(ol, bq, w0, c0L, c0R) {
-    var t = ol.t, out = [];
-    [[FR, c0L], [BK, c0R]].forEach(function (e) {
-      var KK = e[0], yaw = kf(KK.yaw, t) * PI / 180, p = kf(KK.pit, t), bxx = kf(KK.x, t), n = kf(KK.n, t);
-      var Xh = new V(Math.cos(yaw), 0, Math.sin(yaw));
-      var Xb = new V(Math.cos(p) * Xh.x, -Math.sin(p), Math.cos(p) * Xh.z);
-      var Yb = new V(Math.sin(p) * Xh.x, Math.cos(p), Math.sin(p) * Xh.z);
-      var kick = bxx < -0.40 ? (-0.40 - bxx) * 0.48 : 0;  // stronger visual tail scoop on hard pops
-      var B = new V(bxx, DECK + n + kick, KK.z + BALL * Math.cos(p) * Xh.z);
-      var A = B.addScaledVector(Xb, -BALL).addScaledVector(Yb, SOLE).applyQuaternion(bq).add(board.position);
-      A.lerp(e[1], 1 - w0);
-      out.push({ A: A, X: Xb.applyQuaternion(bq), Y: Yb.applyQuaternion(bq), yaw: yaw, pit: p });
-    });
-    return out;
-  }
 
   var DOWN = new V(0, -1, 0), a1 = new V();
   function aim(o, t) {
@@ -909,14 +887,14 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   function stopKey() { return down("KeyS") || down("ArrowDown") || down("KeyG"); }
 
   function mapOllie(rt, airDur) {
-    // Snappier pop window, longer readable air, softer landing absorption
-    var pop = 0.22, land = 0.28;
-    if (rt < pop) return (rt / pop) * OL.lift;
-    var a = rt - pop;
+    // real seconds -> ollie timeline units (OL.*), same pacing scheme as skater-main
+    var pre = S.preT || OL.lift;
+    if (rt < pre) return (rt / pre) * OL.lift;
+    var a = rt - pre;
     if (a < airDur) return OL.lift + (a / Math.max(airDur, 0.05)) * (OL.land - OL.lift);
-    return OL.land + Math.min(1, (a - airDur) / land) * (OL.end - OL.land);
+    return Math.min(OL.end, OL.land + (a - airDur));
   }
-  function ollieDur(airDur) { return 0.22 + airDur + 0.28; }
+  function ollieDur(airDur) { return (S.preT || OL.lift) + airDur + (OL.end - OL.land); }
   function clearance() {
     if (S.mode === "ollie" && S.ol) return Math.max(0, S.ol.by - BH);
     return 0;
@@ -1023,14 +1001,16 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
       S.relDip = S.cb * (0.14 + 0.16 * S.chargeV);
       S.relArm = S.cb * (0.42 + 0.70 * S.chargeV);
       S.relCharge = 0;
-      S.airT = 0.58 * Math.sqrt(S.popMul);   // slightly longer hang on big pops
+      S.airT = 0.58 * Math.sqrt(S.popMul);
+      S.preT = OL.lift / (1 + 0.6 * cl((S.popMul - 1) / 1.1, 0, 1));
+      APEX_Y = 0.62 * S.popMul;
       S.olBX = board.position.x;
       Audio.pop();
     }
     if (S.mode === "ollie") {
       S.oT += dt;
       var base = fr(CLIP.cruise, S.cruiseT, true);
-      S.ol = olliePose(mapOllie(S.oT, S.airT), base, S.popMul);
+      S.ol = olliePose(mapOllie(S.oT, S.airT), base);
       air = clearance() > 0.12;
       if (S.oT >= ollieDur(S.airT)) {
         var sketch = Math.abs(S.roll) > 0.58 && S.v > 18;
@@ -1081,7 +1061,7 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     if (air) tgtRoll *= 0.65;
     S.roll += (tgtRoll - S.roll) * Math.min(1, dt * 7);
     S.s += S.v * dt;
-    S.spin += S.v * dt / 0.04;
+    S.spin = (S.spin + S.v * dt / 0.04) % (PI * 2);
 
     f = sample(S.s);
     var clr = clearance();
@@ -1204,16 +1184,7 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
       var wT = e[1].clone(), eT = e[2].clone();
       var side = e[0] === 0 ? 1 : -1;
       if (ol) {
-        // Reference ollie air: arms out to sides at ~shoulder height for balance
-        var airW = sm(Math.min(1, S.oT / 0.12)) * (1 - sm(Math.max(0, (S.oT - S.airT * 0.72) / 0.28)));
-        var out = 0.32 * airW;
-        var raise = 0.12 * airW;
-        wT.x = lerp(wT.x, Sh.x + side * out, airW);
-        wT.y = lerp(wT.y, Sh.y + raise, airW * 0.7);
-        wT.z = lerp(wT.z, Sh.z + 0.06, airW * 0.4);
-        eT.x = lerp(eT.x, Sh.x + side * out * 0.7, airW);
-        eT.y = lerp(eT.y, Sh.y + raise * 0.4, airW * 0.7);
-        eT.z = lerp(eT.z, Sh.z + 0.04, airW * 0.4);
+        // ollie arms: straight from olliePose (mocap blend), as in skater-main
       } else if (S.mode === "ride" && S.cb > 0.05) {
         // Crouch: hands lower with the body
         var hw = sm(S.cb);
