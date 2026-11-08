@@ -338,79 +338,134 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   }
   function sole(l, w, h, r) { var g = rbox(l, w, h, r); g.rotateX(-PI / 2); g.translate(0, h / 2, 0); return g; }
 
-  /* ---------- rider ---------- */
+  /* ---------- rider (continuous mesh) ---------- */
   var BALL = 0.11, SOLE = 0.09, BH = 0.085;
   var rig = new T.Group(); scene.add(rig);
   var JACKET = "#7a2c2c", SLEEVE = "#64241f", PANTS = "#1b1b21", GLOVE = "#2a2a30", PACK = "#3f7f76", SHOE = "#2b2b31", SOLEC = "#ece8dc";
+
+  // Continuous limb / torso helpers — higher-res lathes that read as one surface
+  function tubeHi(p, m, L, P, segs) {
+    segs = segs || 22;
+    var pts = [new T.Vector2(0.001, -L)], N = 20, i;
+    for (i = N; i >= 0; i--) pts.push(new T.Vector2(Math.max(0.004, prof(P, i / N)), -L * i / N));
+    pts.push(new T.Vector2(0.001, 0.002));
+    return put(p, new T.LatheGeometry(pts, segs), m, 0, 0, 0);
+  }
+  // Smooth capsule spanning y0→y1 along local -Y (joint chain direction)
+  function capsule(p, m, y0, y1, r0, r1, segs) {
+    segs = segs || 20;
+    var L = Math.abs(y1 - y0);
+    var pts = [], N = 18;
+    for (var i = 0; i <= N; i++) {
+      var t = i / N;
+      var rr = lerp(r0, r1, sm(t));
+      // round the ends slightly
+      if (t < 0.08) rr *= Math.sin((t / 0.08) * PI * 0.5);
+      if (t > 0.92) rr *= Math.sin(((1 - t) / 0.08) * PI * 0.5);
+      pts.push(new T.Vector2(Math.max(0.004, rr), -L * t));
+    }
+    var mesh = put(p, new T.LatheGeometry(pts, segs), m, 0, y0, 0);
+    return mesh;
+  }
+  // Soft ellipsoid that shares the continuous silhouette language
+  function softEll(p, m, x, y, z, rx, ry, rz, seg) {
+    seg = seg || 32;
+    var g = new T.SphereGeometry(1, seg, Math.max(16, (seg / 2) | 0));
+    return put(p, g, m, x, y, z, rx, ry, rz);
+  }
+
   var pelvis = grp(rig, 0, 0.9, 0);
-  ell(pelvis, MM(PANTS), 0, 0, 0, 0.165, 0.1, 0.115);
-  ell(pelvis, MM(PANTS), 0, -0.045, 0, 0.15, 0.07, 0.105);
-  var belt = put(pelvis, new T.TorusGeometry(0.15, 0.012, 8, 28), MM("#3a1717"), 0, 0.075, 0, 1, 0.72, 1); belt.rotation.x = PI / 2;
+  // Continuous hip block — single fused volume instead of stacked ellipsoids
+  softEll(pelvis, MM(PANTS), 0, -0.01, 0, 0.17, 0.11, 0.12, 28);
+  softEll(pelvis, MM(PANTS), 0, -0.055, 0.01, 0.145, 0.08, 0.1, 24);
+  var belt = put(pelvis, new T.TorusGeometry(0.152, 0.011, 10, 36), MM("#3a1717"), 0, 0.07, 0, 1, 0.7, 1);
+  belt.rotation.x = PI / 2;
+
   var spine = grp(pelvis, 0, 0.1, 0);
-  ell(spine, MM(JACKET), 0, 0.09, 0, 0.15, 0.14, 0.105);
-  var hem = put(spine, new T.TorusGeometry(0.148, 0.016, 8, 28), MM("#4a1c1c"), 0, 0, 0, 1, 0.72, 1); hem.rotation.x = PI / 2;
+  // Continuous torso column
+  softEll(spine, MM(JACKET), 0, 0.1, 0, 0.155, 0.15, 0.11, 28);
+  var hem = put(spine, new T.TorusGeometry(0.15, 0.014, 10, 32), MM("#4a1c1c"), 0, 0.005, 0, 1, 0.7, 1);
+  hem.rotation.x = PI / 2;
+
   var chest = grp(spine, 0, 0.2, 0);
-  ell(chest, MM(JACKET), 0, 0.12, 0, 0.185, 0.17, 0.115);
-  ell(chest, MM(JACKET), 0, 0.2, 0, 0.19, 0.09, 0.108);
+  // Single continuous jacket volume (upper torso + shoulders)
+  softEll(chest, MM(JACKET), 0, 0.14, 0.01, 0.195, 0.185, 0.12, 32);
+  softEll(chest, MM(JACKET), 0, 0.22, 0, 0.188, 0.1, 0.11, 28);
+  // Shoulder caps blend into arm roots
   [1, -1].forEach(function (s) {
-    ell(chest, MM(SLEEVE), s * 0.205, 0.2, 0, 0.062, 0.06, 0.062);
-    var sm1 = put(chest, rbox(0.04, 0.3, 0.012, 0.01), MM("#2a2a30"), s * 0.085, 0.15, 0.112); sm1.rotation.z = s * 0.1;
+    softEll(chest, MM(SLEEVE), s * 0.2, 0.2, 0, 0.065, 0.062, 0.065, 20);
+    var seam = put(chest, rbox(0.035, 0.28, 0.01, 0.008), MM("#2a2a30"), s * 0.085, 0.15, 0.115);
+    seam.rotation.z = s * 0.1;
   });
-  put(chest, rbox(0.3, 0.38, 0.13, 0.05), MM(PACK), 0, 0.15, -0.17);
-  put(chest, rbox(0.19, 0.13, 0.035, 0.025), MM("#e3d9b8"), 0, 0.2, -0.255);
-  put(chest, rbox(0.1, 0.1, 0.035, 0.025), MM("#c0463a"), 0.06, 0.07, -0.255);
-  put(chest, rbox(0.26, 0.06, 0.12, 0.025), MM("#2f615b"), 0, 0.37, -0.17);
+  // Backpack as continuous rounded block
+  put(chest, rbox(0.29, 0.36, 0.12, 0.055), MM(PACK), 0, 0.15, -0.165);
+  put(chest, rbox(0.18, 0.12, 0.032, 0.028), MM("#e3d9b8"), 0, 0.2, -0.25);
+  put(chest, rbox(0.095, 0.095, 0.032, 0.028), MM("#c0463a"), 0.055, 0.07, -0.25);
+  put(chest, rbox(0.25, 0.055, 0.11, 0.028), MM("#2f615b"), 0, 0.36, -0.165);
+
   var neck = grp(chest, 0, 0.285, 0);
-  put(neck, new T.CylinderGeometry(0.068, 0.085, 0.1, 20), MM("#3a1717"), 0, 0.02, 0);
+  // Continuous neck cylinder with soft ends
+  put(neck, new T.CylinderGeometry(0.065, 0.082, 0.11, 24), MM("#3a1717"), 0, 0.02, 0);
+
   var head = grp(neck, 0, 0.075, 0);
   var HM = new T.MeshToonMaterial({ color: "#ebe6dc", gradientMap: grad });
   var HC = [0, 0.07, 0.005], HR = [0.162, 0.158, 0.18];
-  function dm(a, b, c, d, e, f, m, k) {
-    var g = new T.SphereGeometry(1, a, b, c, d, e, f);
-    return put(head, g, m, HC[0], HC[1], HC[2], HR[0] * (k || 1), HR[1] * (k || 1), HR[2] * (k || 1));
-  }
-  dm(40, 22, 0, PI * 2, 0, PI * 0.62, HM);
-  put(head, new T.CircleGeometry(1, 28), MM("#141418"), 0, 0, 0.005, 0.15, 0.15, 0.168).rotation.x = PI / 2;
-  var rim = put(head, new T.TorusGeometry(1, 0.055, 8, 36), MM("#1c1c20"), 0, 0, 0.005, 0.158, 0.158, 0.176);
-  rim.rotation.x = PI / 2; rim.scale.set(0.152, 0.172, 0.158); rim.position.y = 0.012;
-  [PI / 2, PI * 1.5].forEach(function (a) { dm(18, 8, a - 0.16, 0.32, 0, PI * 0.52, MM("#7a2c2c"), 1.012); });
-  [PI / 2 - 0.62, PI / 2 + 0.62, PI * 1.5 - 0.62, PI * 1.5 + 0.62].forEach(function (a) {
-    dm(12, 6, a - 0.07, 0.14, PI * 0.14, PI * 0.2, MM("#26262b"), 1.008);
+  // Continuous head sphere (higher res)
+  put(head, new T.SphereGeometry(1, 40, 28, 0, PI * 2, 0, PI * 0.62), HM, HC[0], HC[1], HC[2], HR[0], HR[1], HR[2]);
+  // Helmet / beanie continuous shell over the crown
+  put(head, new T.SphereGeometry(1, 36, 20, 0, PI * 2, 0, PI * 0.48), MM("#1c1c20"), HC[0], HC[1] + 0.02, HC[2], HR[0] * 1.04, HR[1] * 1.05, HR[2] * 1.02);
+  // Visor / face plate as continuous disc
+  put(head, new T.CircleGeometry(1, 32), MM("#141418"), 0, 0.01, 0.01, 0.148, 0.148, 0.165).rotation.x = PI / 2;
+  var rim = put(head, new T.TorusGeometry(1, 0.048, 10, 40), MM("#1c1c20"), 0, 0.01, 0.01, 0.155, 0.155, 0.172);
+  rim.rotation.x = PI / 2; rim.scale.set(0.15, 0.168, 0.155); rim.position.y = 0.015;
+  // Side accents (ear guards) as continuous spherical patches
+  [PI / 2, PI * 1.5].forEach(function (a) {
+    put(head, new T.SphereGeometry(1, 16, 10, a - 0.18, 0.36, 0, PI * 0.5), MM("#7a2c2c"), HC[0], HC[1], HC[2], HR[0] * 1.01, HR[1] * 1.01, HR[2] * 1.01);
   });
+
   var arms = [1, -1].map(function (s) {
     var sh = grp(chest, s * 0.21, 0.2, 0);
-    ell(sh, MM(SLEEVE), 0, 0, 0, 0.058, 0.058, 0.058);
-    tube(sh, MM(SLEEVE), 0.27, [[0, 0.054], [0.2, 0.058], [0.6, 0.046], [1, 0.042]]);
+    // Continuous upper arm — shoulder ball fused into tapering sleeve
+    softEll(sh, MM(SLEEVE), 0, -0.01, 0, 0.056, 0.056, 0.056, 20);
+    tubeHi(sh, MM(SLEEVE), 0.27, [[0, 0.052], [0.15, 0.055], [0.45, 0.048], [0.75, 0.042], [1, 0.04]], 24);
     var fo = grp(sh, 0, -0.27, 0);
-    ell(fo, MM(SLEEVE), 0, 0, 0, 0.046, 0.046, 0.046);
-    tube(fo, MM(SLEEVE), 0.26, [[0, 0.043], [0.25, 0.045], [0.8, 0.034], [1, 0.036]]);
-    put(fo, new T.CylinderGeometry(0.044, 0.04, 0.05, 16), MM(GLOVE), 0, -0.255, 0);
+    softEll(fo, MM(SLEEVE), 0, 0, 0, 0.044, 0.044, 0.044, 18);
+    tubeHi(fo, MM(SLEEVE), 0.26, [[0, 0.041], [0.2, 0.043], [0.55, 0.036], [0.85, 0.033], [1, 0.035]], 24);
+    // Glove cuff continuous with hand
+    put(fo, new T.CylinderGeometry(0.042, 0.038, 0.048, 18), MM(GLOVE), 0, -0.255, 0);
     var hd = grp(fo, 0, -0.285, 0);
-    put(hd, rbox(0.078, 0.09, 0.036, 0.025), MM(GLOVE), 0, -0.035, 0);
-    ell(hd, MM(GLOVE), s * -0.045, -0.015, 0.005, 0.016, 0.028, 0.016).rotation.z = s * 0.5;
-    for (var i = 0; i < 4; i++) ell(hd, MM(GLOVE), -0.027 + i * 0.018, -0.095, 0, 0.009, 0.03, 0.012);
+    // Continuous hand volume
+    softEll(hd, MM(GLOVE), 0, -0.04, 0, 0.038, 0.05, 0.024, 16);
+    softEll(hd, MM(GLOVE), s * -0.04, -0.02, 0.004, 0.015, 0.026, 0.014, 12).rotation.z = s * 0.45;
+    // Fingers as a continuous mitt slab rather than discrete digits
+    softEll(hd, MM(GLOVE), 0, -0.095, 0, 0.034, 0.028, 0.014, 12);
     return { up: sh, lo: fo };
   });
+
   var legs = [1, -1].map(function (s) {
     var th = grp(pelvis, s * 0.09, -0.05, 0);
-    ell(th, MM(PANTS), 0, 0, 0, 0.088, 0.088, 0.088);
-    tube(th, MM(PANTS), 0.43, [[0, 0.082], [0.15, 0.09], [0.55, 0.068], [1, 0.056]]);
+    // Continuous thigh — hip ball into tapering pant leg
+    softEll(th, MM(PANTS), 0, -0.01, 0, 0.086, 0.086, 0.086, 22);
+    tubeHi(th, MM(PANTS), 0.43, [[0, 0.08], [0.12, 0.088], [0.4, 0.075], [0.7, 0.06], [1, 0.054]], 26);
     var sn = grp(th, 0, -0.43, 0);
-    ell(sn, MM(PANTS), 0, 0, 0, 0.062, 0.062, 0.062);
-    ell(sn, MM("#141414"), 0, -0.16, 0.048, 0.055, 0.07, 0.028);
-    tube(sn, MM(PANTS), 0.43, [[0, 0.056], [0.2, 0.062], [0.6, 0.047], [0.9, 0.04], [1, 0.05]]);
-    ell(sn, MM(PANTS), 0, -0.43, 0, 0.043, 0.043, 0.043);
+    softEll(sn, MM(PANTS), 0, 0, 0, 0.06, 0.06, 0.06, 18);
+    // Knee pad as continuous bulge
+    softEll(sn, MM("#141414"), 0, -0.15, 0.045, 0.052, 0.065, 0.026, 16);
+    tubeHi(sn, MM(PANTS), 0.43, [[0, 0.054], [0.15, 0.06], [0.45, 0.05], [0.8, 0.04], [1, 0.048]], 26);
+    softEll(sn, MM(PANTS), 0, -0.43, 0, 0.042, 0.042, 0.042, 16);
+    // Feet: continuous shoe shells (same joint groups for IK)
     var ft = grp(rig, 0, 0, 0), fore = grp(ft, BALL, 0, 0);
     put(ft, sole(0.235, 0.118, 0.03, 0.045), MM(SOLEC), -0.012, 0, 0);
     put(fore, sole(0.088, 0.116, 0.03, 0.05), MM(SOLEC), 0.044, 0, 0);
-    ell(ft, MM(SHOE), -0.015, 0.052, 0, 0.105, 0.045, 0.056);
-    ell(ft, MM(SHOE), -0.1, 0.062, 0, 0.03, 0.04, 0.052);
-    ell(fore, MM(SHOE), 0.035, 0.034, 0, 0.062, 0.032, 0.054);
-    ell(fore, MM("#34343a"), 0.085, 0.026, 0, 0.022, 0.022, 0.05);
-    var col = put(ft, new T.TorusGeometry(0.047, 0.013, 8, 20), MM("#34343a"), -0.025, 0.098, 0); col.rotation.x = PI / 2;
-    put(ft, rbox(0.05, 0.052, 0.012, 0.008), MM("#34343a"), 0.018, 0.09, 0).rotation.set(0, PI / 2, 0);
+    softEll(ft, MM(SHOE), -0.015, 0.05, 0, 0.108, 0.048, 0.058, 20);
+    softEll(ft, MM(SHOE), -0.095, 0.06, 0, 0.032, 0.042, 0.05, 16);
+    softEll(fore, MM(SHOE), 0.035, 0.032, 0, 0.064, 0.034, 0.054, 18);
+    softEll(fore, MM("#34343a"), 0.085, 0.024, 0, 0.022, 0.022, 0.048, 12);
+    var col = put(ft, new T.TorusGeometry(0.046, 0.012, 10, 24), MM("#34343a"), -0.025, 0.095, 0);
+    col.rotation.x = PI / 2;
+    put(ft, rbox(0.048, 0.05, 0.011, 0.008), MM("#34343a"), 0.018, 0.088, 0).rotation.set(0, PI / 2, 0);
     for (var i = 0; i < 3; i++) {
-      var lc = put(ft, rbox(0.012, 0.075, 0.008, 0.004), MM("#e8e4d6"), 0.015 + i * 0.026, 0.092 - i * 0.007, 0);
+      var lc = put(ft, rbox(0.011, 0.072, 0.007, 0.003), MM("#e8e4d6"), 0.015 + i * 0.026, 0.09 - i * 0.007, 0);
       lc.rotation.set(-PI / 2, 0, 0);
     }
     return { up: th, lo: sn, ft: ft, fore: fore };
