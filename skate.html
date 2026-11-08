@@ -60,7 +60,6 @@ button { cursor:pointer; }
 #power .bar i { position:absolute; left:0; top:0; bottom:0; width:0; background:var(--ink); }
 #power.max .bar i { background:#7a2c2c; }
 #power .bar u { position:absolute; left:0; top:-3px; bottom:-3px; width:2px; background:var(--ink); }
-@media (pointer:coarse), (max-width:820px) { body.live #power { bottom:calc(148px + env(safe-area-inset-bottom)); } }
 #steepWrap { pointer-events:auto; display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:4px; }
 #steep { width:96px; accent-color:#141414; touch-action:pan-x; margin:0; }
 #flash { position:fixed; inset:0; background:var(--paper); opacity:0; pointer-events:none; z-index:4; }
@@ -70,29 +69,50 @@ button { cursor:pointer; }
 #streaks i { position:absolute; left:50%; top:50%; width:1px; height:42vh; margin-left:-0.5px;
   background:linear-gradient(to bottom, transparent, rgba(20,20,20,.45), transparent);
   transform-origin:top center; transform:rotate(calc(var(--i) * 22.5deg)); }
-/* ---- Mobile control bar ---- */
-#touch { display:none; position:fixed; z-index:3; left:0; right:0; bottom:0;
-  padding:10px 10px calc(10px + env(safe-area-inset-bottom));
-  flex-direction:column; gap:8px; pointer-events:none;
-  background:linear-gradient(to top, rgba(243,240,232,.92) 60%, transparent); }
-#touch .row { display:flex; gap:8px; width:100%; pointer-events:none; }
-#touch button { pointer-events:auto; flex:1; min-height:56px; background:var(--paper); border:2px solid var(--ink);
-  letter-spacing:0.06em; text-transform:uppercase; font-size:12px; font-weight:560;
-  border-radius:4px; user-select:none; -webkit-user-select:none; touch-action:manipulation;
-  display:flex; align-items:center; justify-content:center; gap:4px; }
-#touch button.hot { background:var(--ink); color:var(--paper); }
-#touch button.wide { flex:1.35; }
-#touch button.accent { border-color:#7a2c2c; }
-#touch button.accent.hot { background:#7a2c2c; color:var(--paper); border-color:#7a2c2c; }
-#touch .hint { font-size:9px; letter-spacing:0.04em; opacity:0.7; margin-top:1px; font-weight:460; text-transform:none; }
+/* ---- Mobile controls: floating stick (left thumb) + action cluster (right thumb) ---- */
+#touch { display:none; position:fixed; inset:0; z-index:3; pointer-events:none;
+  --j:104px; --t:76px; --s:60px; --sb:128px;
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+#stick { position:absolute; left:0; top:0; width:var(--sb); height:var(--sb);
+  margin:calc(var(--sb) / -2) 0 0 calc(var(--sb) / -2);
+  border:2px solid var(--ink); border-radius:50%; background:rgba(243,240,232,.55);
+  opacity:.5; transition:opacity .15s ease; will-change:transform; }
+#stick.idle { left:calc(18px + env(safe-area-inset-left)); top:auto; bottom:calc(26px + env(safe-area-inset-bottom));
+  margin:0; transform:none; opacity:.85; }
+#stick.on { opacity:1; background:rgba(243,240,232,.8); }
+#stick .lb { position:absolute; font-size:9px; letter-spacing:.14em; font-weight:560; text-transform:uppercase; color:var(--muted); }
+#stick .lb.u { left:50%; top:7px; transform:translateX(-50%); }
+#stick .lb.d { left:50%; bottom:7px; transform:translateX(-50%); }
+#stick .lb.l { left:9px; top:50%; transform:translateY(-50%); }
+#stick .lb.r { right:9px; top:50%; transform:translateY(-50%); }
+#stickKnob { position:absolute; left:50%; top:50%; width:calc(var(--sb) * .42); height:calc(var(--sb) * .42);
+  margin:calc(var(--sb) * -.21) 0 0 calc(var(--sb) * -.21); border-radius:50%; background:var(--ink); }
+#acts { position:absolute; right:calc(14px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom));
+  width:calc(var(--j) + var(--t) + 14px); height:calc(var(--j) + var(--s) + 12px); }
+#acts button { pointer-events:auto; position:absolute; border-radius:50%; padding:0;
+  background:var(--paper); color:var(--ink); border:2px solid var(--ink); box-shadow:3px 3px 0 var(--ink);
+  font-weight:560; font-size:12px; letter-spacing:.08em; text-transform:uppercase; line-height:1.05;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  touch-action:none; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none;
+  transition:transform .06s ease, box-shadow .06s ease; }
+#acts button.hot { background:var(--ink); color:var(--paper); transform:translate(2px,2px); box-shadow:1px 1px 0 var(--ink); }
+#acts .hint { font-size:8.5px; letter-spacing:.04em; opacity:.7; font-weight:460; text-transform:none; margin-top:2px; }
+#acts #bJump { right:0; bottom:0; width:var(--j); height:var(--j); font-size:14px;
+  border-color:#7a2c2c; box-shadow:3px 3px 0 #7a2c2c; }
+#acts #bJump.hot { background:#7a2c2c; border-color:#7a2c2c; box-shadow:1px 1px 0 #7a2c2c; }
+#acts #bJump::after { content:""; position:absolute; inset:-14px; border-radius:50%; }
+#acts #bTuck { right:calc(var(--j) + 10px); bottom:4px; width:var(--t); height:var(--t); }
+#acts #bSwitch { right:6px; bottom:calc(var(--j) + 12px); width:var(--s); height:var(--s); font-size:9px; letter-spacing:.03em; }
+#acts #bAuto { right:calc(var(--j) + 16px); bottom:calc(var(--t) + 16px); width:64px; height:32px; border-radius:16px;
+  font-size:10px; box-shadow:2px 2px 0 var(--ink); }
+#acts #bAuto[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
 #pitchHint { position:fixed; left:50%; top:calc(50% - 40px); transform:translate(-50%,-50%);
   z-index:2; pointer-events:none; opacity:0; transition:opacity .25s ease;
   font-family:Fraunces, Georgia, serif; font-size:15px; letter-spacing:0.04em;
   background:var(--paper); border:2px solid var(--ink); padding:6px 14px; white-space:nowrap; }
 #pitchHint.on { opacity:1; }
 @media (pointer:coarse), (max-width:820px) {
-  body.live #touch { display:flex; }
-  body.live #air, body.live #edge { bottom:calc(138px + env(safe-area-inset-bottom)); }
+  body.live #touch { display:block; }
   body.live .keys { display:none; }
   #steep { width:72px; }
   .hud-l { left:12px; }
@@ -103,11 +123,16 @@ button { cursor:pointer; }
   #card h1 { font-size:clamp(40px, 11vw, 64px); }
   #card .deck { font-size:14px; }
 }
+@media (pointer:coarse) and (orientation:portrait), (max-width:820px) and (orientation:portrait) {
+  body.live #power { bottom:calc(214px + env(safe-area-inset-bottom)); }
+  body.live #air, body.live #edge { bottom:calc(214px + env(safe-area-inset-bottom)); }
+}
 @media (pointer:coarse) and (max-height:520px) {
-  body.live #touch { padding:6px 8px calc(6px + env(safe-area-inset-bottom)); gap:6px; }
-  #touch button { min-height:46px; font-size:11px; }
-  body.live #power { bottom:calc(120px + env(safe-area-inset-bottom)); }
-  body.live #air, body.live #edge { bottom:calc(112px + env(safe-area-inset-bottom)); }
+  #touch { --j:88px; --t:64px; --s:48px; --sb:112px; }
+  #stick.idle { bottom:calc(14px + env(safe-area-inset-bottom)); }
+  #acts { bottom:calc(12px + env(safe-area-inset-bottom)); }
+  #acts button { font-size:11px; }
+  body.live #power { width:min(260px, 34vw); }
 }
 #err { position:fixed; left:12px; bottom:12px; z-index:5; color:#7a2c2c; background:var(--paper);
   border:2px solid #7a2c2c; padding:8px 10px; max-width:min(420px, calc(100% - 24px)); }
@@ -151,20 +176,20 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W</b> push · <b>S</b> brake · <b>A</b> left · <b>D</b> right · <b>T F G H</b> same as W A S D · mouse position steers · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> on-screen LEFT / RIGHT · PUSH · BRAKE · JUMP (hold to charge) · TUCK · <b>vertical swipe</b> on the track to pitch the Möbius slope steeper or flatter</p>
+  <p class="keys"><b>W E T Y</b> push · <b>S G</b> brake · <b>A F</b> left · <b>D H</b> right · <b>Q R</b> tuck (tap = hard push, hold = aero) · mouse position steers · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
 </section>
 <div id="flash"></div>
 <div id="pitchHint" aria-hidden="true">SWIPE ↕ PITCH</div>
 <div id="touch" aria-label="Mobile controls">
-  <div class="row">
-    <button type="button" data-k="KeyA" aria-label="Steer left">◀ LEFT</button>
-    <button type="button" data-k="KeyW" class="wide" aria-label="Push">PUSH</button>
-    <button type="button" data-k="KeyD" aria-label="Steer right">RIGHT ▶</button>
+  <div id="stick" class="idle" aria-hidden="true">
+    <span class="lb u">auto</span><span class="lb d">brake</span><span class="lb l">&#9664;</span><span class="lb r">&#9654;</span>
+    <i id="stickKnob"></i>
   </div>
-  <div class="row">
-    <button type="button" data-k="KeyS" aria-label="Brake">BRAKE</button>
-    <button type="button" data-k="Space" class="wide accent" aria-label="Ollie — hold to charge">JUMP<span class="hint">hold · charge</span></button>
-    <button type="button" data-k="Mouse2" aria-label="Tuck / hard push">TUCK<span class="hint">hold · aero</span></button>
+  <div id="acts">
+    <button type="button" id="bAuto" aria-pressed="true" aria-label="Auto push on or off">Auto</button>
+    <button type="button" id="bTuck" data-k="Mouse2" aria-label="Tuck, hold for aero">Tuck<span class="hint">hold</span></button>
+    <button type="button" id="bSwitch" data-k="Switch" aria-label="Switch stance">Switch</button>
+    <button type="button" id="bJump" data-k="Space" aria-label="Ollie: hold to charge, release to launch">Jump<span class="hint">hold &middot; release</span></button>
   </div>
 </div>
 <p id="err" hidden></p>
@@ -844,22 +869,22 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
     S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
     for (var i = 0; i < hoops.length; i++) hoops[i].got = false;
-    held.clear(); touchHeld.clear(); flash();
+    held.clear(); touchHeld.clear(); touchSteer = 0; if (stick) applyStick(); flash();
   }
   function hardReset() {
     // Full restart: stop sim, show start screen, zero state
     running = false;
+    stopStick();
     resetRun();
     document.getElementById("card").hidden = false;
     document.body.classList.remove("live");
     var mEl = document.getElementById("m"); if (mEl) mEl.style.opacity = 0;
   }
   addEventListener("keydown", function (e) {
+    usingTouch = false;
     if (e.code === "Escape") { e.preventDefault(); hardReset(); return; }
     // Shift = switch stance. Goofy is the exact mirror of regular; only flips while rolling on the ground.
-    if ((e.code === "ShiftLeft" || e.code === "ShiftRight") && !e.repeat && running && S.mode === "ride") {
-      S.goofy = !S.goofy; banner(S.goofy ? "SWITCH · GOOFY" : "SWITCH · REGULAR");
-    }
+    if ((e.code === "ShiftLeft" || e.code === "ShiftRight") && !e.repeat) switchStance();
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) >= 0) e.preventDefault();
     held.add(e.code);
   });
@@ -867,28 +892,96 @@ function olFeet(ol,bq,w0,c0L,c0R){
   addEventListener("blur", function () {
     held.clear();
     touchHeld.clear();
-    document.querySelectorAll("#touch button.hot").forEach(function (b) { b.classList.remove("hot"); });
+    stopStick();
+    document.querySelectorAll("#acts button.hot").forEach(function (b) { b.classList.remove("hot"); });
     pitchSwipe = null; drag = null;
   });
   function down(code) {
     if (S.forced) return S.forced.has(code);
     return held.has(code) || touchHeld.has(code);
   }
+  // ---- Touch controls -------------------------------------------------------
+  // Left thumb: floating analog stick. Touch anywhere on the left half and the base appears under the thumb.
+  //   left/right = steer (analog), up = push, down = brake. The base follows the thumb, so it never runs out of travel.
+  // Right thumb: JUMP (hold to charge, release to launch), TUCK (tap = hard push, hold = aero), SWITCH stance.
+  // AUTO keeps pushing for you up to cruising speed so the left thumb only has to steer and brake.
   var touchHeld = new Set();
-  // Robust multi-touch button binding (supports simultaneous JUMP + LEFT etc.)
-  document.querySelectorAll("#touch button").forEach(function (btn) {
+  var touchSteer = 0;          // analog steer from the stick, +1 = left (same sign as steerAxis)
+  var usingTouch = false;      // true after the first finger, false again on the first key press
+  var autoPush = true;
+  try { if (localStorage.getItem("inkline-autopush") === "0") autoPush = false; } catch (_) {}
+  function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {} }
+  function switchStance() {
+    if (!running || S.mode !== "ride") return;
+    S.goofy = !S.goofy; banner(S.goofy ? "SWITCH · GOOFY" : "SWITCH · REGULAR");
+  }
+  addEventListener("pointerdown", function (e) { if (e.pointerType !== "mouse") usingTouch = true; }, true);
+
+  var stickEl = document.getElementById("stick"), knobEl = document.getElementById("stickKnob");
+  var autoBtn = document.getElementById("bAuto"), upLb = stickEl.querySelector(".lb.u");
+  var stick = null;            // { id, ox, oy, x, y } while a thumb is down
+  var STICK_R = 54;            // px of travel for full deflection
+  function syncAuto() {
+    autoBtn.setAttribute("aria-pressed", autoPush ? "true" : "false");
+    upLb.textContent = autoPush ? "auto" : "push";
+  }
+  syncAuto();
+  autoBtn.addEventListener("pointerdown", function (e) {
+    e.preventDefault(); e.stopPropagation();
+    autoPush = !autoPush; syncAuto(); buzz(8);
+    try { localStorage.setItem("inkline-autopush", autoPush ? "1" : "0"); } catch (_) {}
+  });
+  function setTouch(code, on) { if (on) touchHeld.add(code); else touchHeld.delete(code); }
+  function applyStick() {
+    var x = stick ? stick.x : 0, y = stick ? stick.y : 0;
+    var dz = 0.14, ax = Math.abs(x);
+    var sx = ax < dz ? 0 : Math.pow((ax - dz) / (1 - dz), 1.15) * (x > 0 ? 1 : -1);   // +x = right
+    touchSteer = -sx;
+    setTouch("KeyW", y < -0.4);
+    setTouch("KeyS", y > 0.4);
+  }
+  function inStickZone(e) { return e.clientX < innerWidth * 0.52 && e.clientY > innerHeight * 0.2; }
+  function stickStart(e) {
+    stick = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: 0, y: 0 };
+    stickEl.classList.remove("idle"); stickEl.classList.add("on");
+    stickEl.style.transform = "translate(" + stick.ox + "px," + stick.oy + "px)";
+    buzz(6);
+    stickUpdate(e);
+  }
+  function stickUpdate(e) {
+    var dx = e.clientX - stick.ox, dy = e.clientY - stick.oy, d = Math.hypot(dx, dy);
+    if (d > STICK_R) {         // drag the anchor along with the thumb
+      var k = (d - STICK_R) / d;
+      stick.ox += dx * k; stick.oy += dy * k;
+      dx = e.clientX - stick.ox; dy = e.clientY - stick.oy;
+      stickEl.style.transform = "translate(" + stick.ox + "px," + stick.oy + "px)";
+    }
+    stick.x = dx / STICK_R; stick.y = dy / STICK_R;
+    knobEl.style.transform = "translate(" + dx + "px," + dy + "px)";
+    applyStick();
+  }
+  function stopStick() {
+    stick = null; touchSteer = 0;
+    touchHeld.delete("KeyW"); touchHeld.delete("KeyS");
+    stickEl.classList.remove("on"); stickEl.classList.add("idle");
+    stickEl.style.transform = ""; knobEl.style.transform = "";
+  }
+
+  // Action buttons: multi-touch safe (hold JUMP while steering), pointer-captured so a sliding thumb never drops the input.
+  document.querySelectorAll("#acts button[data-k]").forEach(function (btn) {
     var code = btn.getAttribute("data-k");
     function on(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      touchHeld.add(code);
+      e.preventDefault(); e.stopPropagation();
       btn.classList.add("hot");
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (code === "Switch") { switchStance(); buzz(10); return; }
+      touchHeld.add(code);
+      buzz(code === "Space" ? 12 : 8);
     }
     function off(e) {
-      touchHeld.delete(code);
       btn.classList.remove("hot");
       try { if (e && e.pointerId != null) btn.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (code !== "Switch") touchHeld.delete(code);
     }
     btn.addEventListener("pointerdown", on);
     btn.addEventListener("pointerup", off);
@@ -917,12 +1010,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
       else if (e.button === 2) held.add("Mouse2");     // right click (hold) = tuck / hard push
       else drag = [e.clientX, e.clientY];              // middle drag = look
     } else if (e.target === canvas || e.target === document.body) {
-      // Touch on track: prepare for either look-drag or vertical pitch swipe
-      pitchSwipe = { id: e.pointerId, x0: e.clientX, y0: e.clientY, steep0: steepT, moved: 0 };
-      drag = null;
+      // Left half: floating stick. Elsewhere: look-drag or vertical pitch swipe.
+      if (!stick && inStickZone(e)) { stickStart(e); return; }
+      if (!pitchSwipe) {
+        pitchSwipe = { id: e.pointerId, x0: e.clientX, y0: e.clientY, steep0: steepT, moved: 0 };
+        drag = null;
+      }
     }
   });
   addEventListener("pointerup", function (e) {
+    if (stick && stick.id === e.pointerId) stopStick();
     if (e.button === 0) held.delete("Mouse0");
     if (e.button === 2) held.delete("Mouse2");
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
@@ -931,12 +1028,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (e.pointerType !== "mouse" || e.button === 1) drag = null;
   });
   addEventListener("pointercancel", function (e) {
+    if (stick && (!e || stick.id === e.pointerId)) stopStick();
     held.delete("Mouse0"); held.delete("Mouse2");
     if (pitchSwipe && (!e || pitchSwipe.id === e.pointerId)) pitchSwipe = null;
     drag = null;
   });
   document.addEventListener("mouseleave", function () { mouseX = null; });
   addEventListener("pointermove", function (e) {
+    if (stick && stick.id === e.pointerId) { stickUpdate(e); return; }
     if (e.pointerType === "mouse") mouseX = e.clientX;
     // Active pitch swipe (vertical dominant)
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
@@ -968,6 +1067,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var s = 0;
     if (down("KeyA") || down("ArrowLeft") || down("KeyF")) s += 1;
     if (down("KeyD") || down("ArrowRight") || down("KeyH")) s -= 1;
+    if (s === 0 && touchSteer !== 0 && !S.forced) s = touchSteer;
     if (s === 0 && mouseX != null && !drag && !S.forced) {
       // skater leans toward the cursor: left of centre = left, right = right
       var half = innerWidth / 2, d = (mouseX - half) / half;
@@ -976,7 +1076,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     return cl(s, -1, 1);
   }
-  function goKey() { return down("KeyW") || down("ArrowUp") || down("KeyT"); }
+  function goKey() {
+    return down("KeyW") || down("ArrowUp") || down("KeyT") || down("KeyE") || down("KeyY") ||
+      (autoPush && usingTouch && !S.forced);
+  }
   function stopKey() { return down("KeyS") || down("ArrowDown") || down("KeyG"); }
 
   function mapOllie(rt, airDur) {
@@ -1067,7 +1170,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.ollieReq = Math.max(0, (S.ollieReq || 0) - dt);
     var bkNow = stopKey();
     // Right click: tap/short hold = hard push. Long hold at speed = aero tuck (hands behind the back).
-    var rc = down("Mouse2");
+    var rc = down("Mouse2") || down("KeyQ") || down("KeyR");
     S.rcT = rc ? S.rcT + dt : 0;
     var wantAero = rc && !bkNow && S.mode === "ride" && !S.crouch && S.rcT > 0.4 && S.v > (S.aeroOn ? 5 : 8);
     if (wantAero && !S.aeroOn) banner("TUCK");
