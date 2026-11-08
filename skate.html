@@ -100,7 +100,7 @@ button { cursor:pointer; }
   <div class="hud-l">
     <div class="k">Inkline</div>
     <div id="spd">0</div>
-    <div class="unit">km/h · <span id="grade">0°</span> grade · <span id="lap">lap 1</span></div>
+    <div class="unit">km/h · <span id="grade">0°</span> grade · <span id="lap">lap 1</span> · <span id="stance">regular</span></div>
   </div>
   <div class="hud-r">
     <div class="k">Distance</div>
@@ -122,7 +122,7 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W</b> push · <b>S</b> brake · <b>A</b> left · <b>D</b> right · <b>T F G H</b> same as W A S D · mouse position steers · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>right click</b> hard push · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look</p>
+  <p class="keys"><b>W</b> push · <b>S</b> brake · <b>A</b> left · <b>D</b> right · <b>T F G H</b> same as W A S D · mouse position steers · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look</p>
 </section>
 <div id="flash"></div>
 <p id="err" hidden></p>
@@ -789,7 +789,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     oT: -1, ol: null, popMul: 1, airT: 0.55, olBX: 0,
     bT: 0, bClip: "bail", big: false, boardLocal: null,
     landT: 0, shake: 0, camRoll: 0, spin: 0, sector: 0,
-    forced: null, steerOverride: null, spaceWas: false,
+    forced: null, steerOverride: null, goofy: false, rcT: 0, aero: 0, aeroOn: false, spaceWas: false,
     relArm: 0, strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false
   };
@@ -800,7 +800,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0; S.phase = 0; S.wRide = 0; S.pushing = false;
     S.ol = null; S.oT = -1; S.landT = 0; S.cp = { s: 10, v: 8 }; S.sector = 0; S.beat = false;
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
-    S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0;
+    S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
     for (var i = 0; i < hoops.length; i++) hoops[i].got = false;
     held.clear(); touchHeld.clear(); flash();
   }
@@ -814,6 +814,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   addEventListener("keydown", function (e) {
     if (e.code === "Escape") { e.preventDefault(); hardReset(); return; }
+    // Shift = switch stance. Goofy is the exact mirror of regular; only flips while rolling on the ground.
+    if ((e.code === "ShiftLeft" || e.code === "ShiftRight") && !e.repeat && running && S.mode === "ride") {
+      S.goofy = !S.goofy; banner(S.goofy ? "SWITCH · GOOFY" : "SWITCH · REGULAR");
+    }
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) >= 0) e.preventDefault();
     held.add(e.code);
   });
@@ -966,7 +970,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.cb += ((S.crouch ? 1 : 0) - S.cb) * Math.min(1, dt * (S.crouch ? 12 : 8));
     S.ollieReq = Math.max(0, (S.ollieReq || 0) - dt);
     var bkNow = stopKey();
-    var hard = down("Mouse2") && !bkNow && S.mode === "ride" && !S.crouch;
+    // Right click: tap/short hold = hard push. Long hold at speed = aero tuck (hands behind the back).
+    var rc = down("Mouse2");
+    S.rcT = rc ? S.rcT + dt : 0;
+    var wantAero = rc && !bkNow && S.mode === "ride" && !S.crouch && S.rcT > 0.4 && S.v > (S.aeroOn ? 5 : 8);
+    if (wantAero && !S.aeroOn) banner("TUCK");
+    S.aeroOn = wantAero;
+    S.aero += ((wantAero ? 1 : 0) - S.aero) * Math.min(1, dt * (wantAero ? 6 : 9));
+    var hard = rc && !bkNow && S.mode === "ride" && !S.crouch && !S.aeroOn;
     S.strain += ((hard ? cl(0.22 + S.v / 26, 0, 1) : 0) - S.strain) * Math.min(1, dt * 4);
 
     if (S.mode === "bail") {
@@ -1037,8 +1048,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
     var f = sample(S.s);
     var acc = 9.8 * Math.sin(f.slope) * 1.02;
-    acc -= S.v * 0.15;
-    acc -= S.v * S.v * 0.0052;
+    acc -= S.v * 0.15 * (1 - 0.3 * S.aero);
+    acc -= S.v * S.v * 0.0052 * (1 - 0.5 * S.aero);   // tucked = much less drag
     if (!air && S.mode === "ride" && !S.crouch && fw && !bk && S.v < 9.6) acc += S.v < 3 ? 11 : 7.4;
     if (!air && hard) acc += 10.5 * Math.max(0.18, 1 - S.v / 45);
     if (!air && bk) acc -= 10 + S.v * 0.45;
@@ -1047,7 +1058,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
     var grip = air ? 0.4 : 1;
     var aLat = S.v * S.v * curvOf(S.s) - 9.8 * Math.sin(f.bank);
-    aLat += -steer * (15 + Math.min(S.v, 24) * 0.35) * (1 + 0.9 * S.cb);
+    aLat += -steer * (15 + Math.min(S.v, 24) * 0.35) * (1 + 0.9 * S.cb) * (1 - 0.4 * S.aero);  // tucked = less steering
     aLat += -S.latV * 3.4;
     S.latV += aLat * grip * dt;
     S.lat += S.latV * dt;
@@ -1110,7 +1121,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var tuck = S.mode === "ride" ? cl((S.v - 10) / 16, 0, 1) : 0;
     var dip = S.landT > 0 ? Math.sin((S.landT / 0.18) * PI) * 0.065 : 0;  // slightly deeper land absorption
     var cdip = 0;
-    if (S.mode === "ride") cdip = S.cb * (0.20 + 0.18 * S.chargeV) + S.strain * 0.09;
+    if (S.mode === "ride") cdip = S.cb * (0.20 + 0.18 * S.chargeV) + S.strain * 0.09 + S.aero * 0.22;
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.20)));
     pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.11 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
     pelvis.quaternion.set(o[2], o[3], o[4], o[5]);
@@ -1124,9 +1135,20 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var lean = S.cb * (0.28 + 0.22 * S.chargeV) + S.strain * (0.08 + 0.18 * S.strain);
       if (lean !== 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), lean));
       if (S.strain > 0.02 || S.cb > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.16 + S.cb * 0.12));
+      if (S.aero > 0.01) {
+        // Aero tuck: fold forward at the waist (pelvis-local +x is the hip axis, the chest faces +z).
+        Q.setFromAxisAngle(new V(1, 0, 0), 0.9 * sm(S.aero) * 0.5);
+        spine.quaternion.premultiply(Q);
+        chest.quaternion.premultiply(Q);
+      }
     }
     neck.quaternion.identity().slerp(qh, 0.4);
     head.quaternion.identity().slerp(qh, 0.6);
+    if (S.mode === "ride" && S.aero > 0.01) {
+      var hl = 0.9 * sm(S.aero);
+      neck.quaternion.multiply(Q.setFromAxisAngle(new V(1, 0, 0), -hl * 0.55));
+      head.quaternion.multiply(Q.setFromAxisAngle(new V(1, 0, 0), -hl * 0.4));
+    }
     rig.updateMatrixWorld(true);
 
     var aL = new V(o[14], o[15], o[16]), aR = new V(o[17], o[18], o[19]);
@@ -1184,8 +1206,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var Sh = rig.worldToLocal(A.up.getWorldPosition(new V()));
       var wT = e[1].clone(), eT = e[2].clone();
       var side = e[0] === 0 ? 1 : -1;
+      var aw = S.mode === "ride" ? sm(S.aero) : 0;
       if (ol) {
         // ollie arms: straight from olliePose (mocap blend), as in skater-main
+      } else if (aw > 0.01) {
+        // Aero tuck: both hands rest on the small of the back, elbows flared out behind.
+        var hb = rig.worldToLocal(spine.localToWorld(new V(side * 0.06, 0.03, -0.17)));
+        var eb = rig.worldToLocal(spine.localToWorld(new V(side * 0.34, 0.24, -0.22)));
+        wT.lerp(hb, aw); eT.lerp(eb, aw);
       } else if (S.mode === "ride" && S.cb > 0.05) {
         // Crouch: hands lower with the body
         var hw = sm(S.cb);
@@ -1219,6 +1247,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     z.normalize();
     var y = new V().crossVectors(z, x).normalize();
     basis.makeBasis(x, y, z);
+    rig.scale.z = S.goofy ? -1 : 1; // mirror across the board's long axis = goofy stance
     rig.position.copy(f.p).addScaledVector(f.B, S.lat).addScaledVector(f.N, S.drop);
     rig.quaternion.setFromRotationMatrix(basis);
     rig.updateMatrixWorld(true);
@@ -1262,6 +1291,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var f = sample(S.s);
     document.getElementById("spd").textContent = String(Math.round(S.v * 3.6));
     document.getElementById("grade").textContent = Math.round(f.slope * 180 / PI) + "°";
+    var stEl=document.getElementById("stance"); if(stEl) stEl.textContent = S.goofy ? "goofy" : "regular";
     var lapEl=document.getElementById("lap"); if(lapEl) lapEl.textContent="lap "+(Math.floor(S.s/MOBIUS_LAP)+1);
     document.getElementById("dist").textContent = S.s >= 1000 ? (S.s / 1000).toFixed(2) + " km" : Math.floor(S.s) + " m";
     document.getElementById("pop").textContent = "×" + popOf(S.s, S.v).toFixed(2);
