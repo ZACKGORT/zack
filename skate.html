@@ -1226,19 +1226,23 @@ function olFeet(ol,bq,w0,c0L,c0R){
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.20)));
     pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.11 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
     pelvis.quaternion.set(o[2], o[3], o[4], o[5]);
-    // Crouch hip pivot: hips lead the carve for better slalom read
-    // Local axes (from existing lean/aero): +z ≈ forward lean axis on chest; +x ≈ waist fold.
-    // Extra pelvis roll + yaw so the hips drop into the turn while the torso lags.
-    if (S.mode === "ride" && S.cb > 0.04) {
-      var hp = sm(S.cb) * (0.65 + 0.55 * S.chargeV);           // how much the hips "unlock"
-      var hipRoll = S.roll * 0.72 * hp;                          // hips lean harder than whole-body roll
-      var hipYaw  = -S.yawOff * 0.55 * hp;                       // hips rotate into the turn
-      var hipTwist = -steerAxis() * 0.18 * hp;                   // small active twist toward steer
-      // Order: yaw (Y) then roll-like (Z) — matches the way the board faces +z / hips span x
-      pelvis.quaternion.multiply(Q.setFromEuler(E.set(hipYaw * 0.35, hipRoll + hipTwist * 0.4, hipYaw)));
-      // Shift COM slightly toward the inside edge of the carve
-      pelvis.position.x += S.roll * 0.09 * hp;
-      pelvis.position.z += Math.abs(S.roll) * 0.03 * hp;
+    // ---- Slalom / carve angulation ----
+    // Hips drive into the turn, torso stays more upright and counters (classic "C" shape),
+    // outside leg lengthens, inside leg compresses, arms counter-balance.
+    var carveAmt = 0;
+    if (S.mode === "ride") {
+      var rollMag = Math.min(1, Math.abs(S.roll) / 0.42);
+      var crouchAmt = sm(S.cb) * (0.55 + 0.45 * S.chargeV);
+      carveAmt = cl(rollMag * (0.35 + 0.65 * crouchAmt) + crouchAmt * 0.25, 0, 1);
+    }
+    if (carveAmt > 0.02) {
+      var hipRoll = S.roll * (0.55 + 0.5 * carveAmt);
+      var hipYaw  = -S.yawOff * (0.4 + 0.35 * carveAmt);
+      var hipPitch = -0.06 * carveAmt;
+      pelvis.quaternion.multiply(Q.setFromEuler(E.set(hipYaw * 0.4 + hipPitch, hipRoll, hipYaw * 0.7)));
+      pelvis.position.x += S.roll * 0.11 * carveAmt;
+      pelvis.position.z += 0.04 * carveAmt;
+      pelvis.position.y -= 0.02 * carveAmt;
     }
     var qs = new T.Quaternion(o[6], o[7], o[8], o[9]);
     var qh = new T.Quaternion(o[10], o[11], o[12], o[13]);
@@ -1246,18 +1250,18 @@ function olFeet(ol,bq,w0,c0L,c0R){
     chest.quaternion.identity().slerp(qs, 0.55);
     if (tuck > 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), tuck * 0.28));
     if (S.mode === "ride") {
-      // Moderate forward lean while charging — enough to read crouch without breaking arm relation
       var lean = S.cb * (0.28 + 0.22 * S.chargeV) + S.strain * (0.08 + 0.18 * S.strain);
       if (lean !== 0) chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), lean));
-      // Counter-rotate upper body a little so the hip pivot reads as independent (torso lags the hips)
-      if (S.cb > 0.05) {
-        var counter = sm(S.cb) * S.roll * 0.28 * (0.6 + 0.4 * S.chargeV);
-        spine.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), -counter * 0.55));
-        chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), -counter));
+      // Angulation: torso counters hip lean so shoulders stay flatter than hips
+      if (carveAmt > 0.02) {
+        var ang = carveAmt * S.roll;
+        spine.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), -ang * 0.45));
+        chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), -ang * 0.7));
+        spine.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.yawOff * 0.12 * carveAmt));
+        chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.yawOff * 0.18 * carveAmt));
       }
       if (S.strain > 0.02 || S.cb > 0.02) neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.strain * 0.16 + S.cb * 0.12));
       if (S.aero > 0.01) {
-        // Aero tuck: fold forward at the waist (pelvis-local +x is the hip axis, the chest faces +z).
         Q.setFromAxisAngle(new V(1, 0, 0), 0.9 * sm(S.aero) * 0.5);
         spine.quaternion.premultiply(Q);
         chest.quaternion.premultiply(Q);
@@ -1270,28 +1274,57 @@ function olFeet(ol,bq,w0,c0L,c0R){
       neck.quaternion.multiply(Q.setFromAxisAngle(new V(1, 0, 0), -hl * 0.55));
       head.quaternion.multiply(Q.setFromAxisAngle(new V(1, 0, 0), -hl * 0.4));
     }
+    // Look into the turn while carving
+    if (S.mode === "ride" && carveAmt > 0.05) {
+      var lookIn = -S.yawOff * 0.55 * carveAmt - S.roll * 0.2 * carveAmt;
+      neck.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), lookIn * 0.45));
+      head.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), lookIn * 0.7));
+    }
     rig.updateMatrixWorld(true);
 
     var aL = new V(o[14], o[15], o[16]), aR = new V(o[17], o[18], o[19]);
     var tL = new V(o[20], o[21], o[22]), tR = new V(o[23], o[24], o[25]);
     var kL = new V(o[26], o[27], o[28]), kR = new V(o[29], o[30], o[31]);
-    // Crouch: deeper knees + consolidated COM + inside-leg bias for slalom
-    if (S.mode === "ride" && S.cb > 0.02) {
+    // Crouch depth + carve leg angulation (inside compresses, outside extends)
+    if (S.mode === "ride" && (S.cb > 0.02 || carveAmt > 0.05)) {
       var cd = S.cb * (0.18 + 0.14 * S.chargeV);
       aL.y -= cd * 0.28; aR.y -= cd * 0.28;
       aL.x += cd * 0.04; aR.x += cd * 0.04;
       kL.y -= cd * 0.12; kR.y -= cd * 0.12;
       kL.z *= (1 - cd * 0.25); kR.z *= (1 - cd * 0.25);
-      // Load the inside edge: compress the leg on the inside of the carve
-      var inside = S.roll; // positive roll → weight right leg more (sign matches spread)
-      var load = cd * 0.14 * Math.min(1, Math.abs(S.roll) / 0.35);
-      if (inside > 0.02) { aR.y -= load; kR.y -= load * 0.55; aL.y += load * 0.25; }
-      else if (inside < -0.02) { aL.y -= load; kL.y -= load * 0.55; aR.y += load * 0.25; }
+      if (carveAmt > 0.04) {
+        var edge = Math.min(1, Math.abs(S.roll) / 0.38);
+        var load = (0.1 + cd * 0.16) * edge * carveAmt;
+        var push = (0.05 + cd * 0.08) * edge * carveAmt;
+        var kneeIn = 0.07 * edge * carveAmt;
+        if (S.roll > 0.02) {
+          aR.y -= load; kR.y -= load * 0.6; aR.x += kneeIn;
+          aL.y += push * 0.6; kL.y += push * 0.35; aL.x += kneeIn * 0.4;
+        } else if (S.roll < -0.02) {
+          aL.y -= load; kL.y -= load * 0.6; aL.x -= kneeIn;
+          aR.y += push * 0.6; kR.y += push * 0.35; aR.x -= kneeIn * 0.4;
+        }
+      }
     }
-    var spread = -S.roll * (0.42 + 0.28 * S.cb);  // wider arm counter-balance when hips are low
+    // Arms: wide counter-balance — outside arm rises & opens, inside arm drops
+    var spread = -S.roll * (0.42 + 0.35 * carveAmt);
     var wL = new V(o[32], o[33], o[34]), wR = new V(o[35], o[36], o[37]);
     var eL = new V(o[38], o[39], o[40]), eR = new V(o[41], o[42], o[43]);
-    if (S.mode !== "bail") { wL.z += spread; wR.z += spread; wL.y += tuck * 0.05; wR.y += tuck * 0.05; }
+    if (S.mode !== "bail") {
+      wL.z += spread; wR.z += spread;
+      wL.y += tuck * 0.05; wR.y += tuck * 0.05;
+      if (carveAmt > 0.04) {
+        var armUp = 0.14 * carveAmt * Math.min(1, Math.abs(S.roll) / 0.35);
+        var armOut = 0.1 * carveAmt;
+        if (S.roll > 0.02) {
+          wL.y += armUp; eL.y += armUp * 0.6; wL.z -= armOut; eL.z -= armOut * 0.5;
+          wR.y -= armUp * 0.45; eR.y -= armUp * 0.25;
+        } else if (S.roll < -0.02) {
+          wR.y += armUp; eR.y += armUp * 0.6; wR.z += armOut; eR.z += armOut * 0.5;
+          wL.y -= armUp * 0.45; eL.y -= armUp * 0.25;
+        }
+      }
+    }
 
     if (S.mode === "bail" && S.boardLocal) {
       board.position.copy(S.boardLocal.p);
@@ -1326,7 +1359,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var flex = res ? res[e[0]].pit : cl(Math.asin(cl(-X.y, -1, 1)), 0, 0.9) * (1 - sm((Lg.ft.position.y - 0.05) / 0.12));
       Lg.fore.rotation.z = cl(flex, 0, 0.9);
     });
-    // Arms: pure mocap on ground; crouch lowers; air matches reference (out for balance)
+    // Arms: pure mocap on ground; crouch lowers; ollie rises at apex then settles; aero tucks
     [[0, wL, eL], [1, wR, eR]].forEach(function (e) {
       var A = arms[e[0]];
       var Sh = rig.worldToLocal(A.up.getWorldPosition(new V()));
@@ -1334,7 +1367,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var side = e[0] === 0 ? 1 : -1;
       var aw = S.mode === "ride" ? sm(S.aero) : 0;
       if (ol) {
-        // ollie arms: straight from olliePose (mocap blend), as in skater-main
+        // Ollie arms: rise at the apex, then settle on the way down
+        var ot = ol.t;
+        var rise = 0;
+        if (ot > OL.lift && ot < OL.land) {
+          var u = (ot - OL.lift) / Math.max(0.05, OL.land - OL.lift);
+          var peak = (OL.apex - OL.lift) / Math.max(0.05, OL.land - OL.lift);
+          if (u < peak) rise = sm(u / peak);
+          else rise = 1 - sm((u - peak) / Math.max(0.05, 1 - peak));
+          rise = Math.pow(rise, 0.85); // soft settle
+        } else if (ot >= OL.land && ot < OL.end) {
+          rise = 0.15 * (1 - sm((ot - OL.land) / (OL.end - OL.land)));
+        }
+        // Residual raise from a charged crouch release
+        var chargeArm = (S.relArm || 0) * (1 - sm(Math.min(1, (S.oT || 0) / 0.35)));
+        rise = cl(rise + chargeArm * 0.35, 0, 1.15);
+        if (rise > 0.01) {
+          var up = 0.42 * rise;
+          var out = 0.12 * rise;
+          var fwd = 0.06 * rise;
+          wT.y += up;
+          eT.y += up * 0.55;
+          wT.x += side * out;
+          eT.x += side * out * 0.7;
+          wT.z += fwd;
+          eT.z += fwd * 0.5;
+        }
       } else if (aw > 0.01) {
         // Aero tuck: both hands rest on the small of the back, elbows flared out behind.
         var hb = rig.worldToLocal(spine.localToWorld(new V(side * 0.06, 0.03, -0.17)));
