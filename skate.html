@@ -863,24 +863,29 @@ function olFeet(ol,bq,w0,c0L,c0R){
       nextCurb += 34 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 22);
     }
   }
-  // Rings follow the red line: a gold trail on the ground between obstacles, and a jump arc of rings
-  // over every obstacle (peaking just above its height), so riding the line and ollieing collects them all.
-  // A node's rings are generated once the next node exists, so the line is known across the whole span.
+  // Rings follow the red line, but only in occasional strings: a short line of small rings on the ground in
+  // some stretches, and a jump arc over some obstacles (peaking just above the obstacle). A node's rings are
+  // generated once the next node exists, so the line is known across the whole span.
   function ensureHoops(upto) {
     for (var i = 0; i < lineNodes.length - 1; i++) {
       var n = lineNodes[i], nx = lineNodes[i + 1];
       if (n.gen) continue;
       n.gen = true;
-      var k, rs;
-      if (!n.start) {
+      var k, rs, hs = hash(n.s * 1.37 + 5.1), hs2 = hash(n.s * 2.11 + 8.3);
+      if (!n.start && hs < 0.4) {
         var peak = (n.h || 0.4) + 0.35;
         for (k = -3; k <= 3; k++) {
-          rs = n.s + k * 2.2;
+          rs = n.s + k * 1.7;
           rings.push({ s: rs, lat: lineLat(rs), h: 1.0 + peak * (1 - (k / 3.4) * (k / 3.4)), got: false, ver: -1 });
         }
       }
-      for (rs = (n.start ? 30 : n.s + 8); rs <= nx.s - 8; rs += 3.0) {
-        rings.push({ s: rs, lat: lineLat(rs), h: 1.0, got: false, ver: -1 });
+      var from = n.start ? 40 : n.s + 9, cnt = 6 + Math.floor(hs2 * 7), len = cnt * 1.6;
+      if ((n.start || hs2 > 0.45) && nx.s - 9 - from > len) {
+        var st = from + hs * Math.max(0, nx.s - 9 - from - len);
+        for (var q = 0; q < cnt; q++) {
+          rs = st + q * 1.6;
+          rings.push({ s: rs, lat: lineLat(rs), h: 1.0, got: false, ver: -1 });
+        }
       }
     }
   }
@@ -1178,8 +1183,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
   /* ---------- rings: gold, spinning, pen-and-ink outlined; they burst when you pass through ---------- */
   var ringG = new T.Group(); scene.add(ringG);
   var fxG = new T.Group(); scene.add(fxG);
-  var R_GEO = new T.TorusGeometry(0.42, 0.075, 8, 22), R_OUT = new T.TorusGeometry(0.42, 0.118, 8, 22);
-  var R_MINI = new T.TorusGeometry(0.2, 0.05, 6, 12), R_SPARK = new T.OctahedronGeometry(0.1);
+  var R_GEO = new T.TorusGeometry(0.17, 0.032, 8, 20), R_OUT = new T.TorusGeometry(0.17, 0.052, 8, 20);
+  var R_MINI = new T.TorusGeometry(0.075, 0.02, 6, 10), R_SPARK = new T.OctahedronGeometry(0.04);
   var GOLD = MM("#f0b429"), SPARKM = new T.MeshBasicMaterial({ color: 0xfff1b0 });
   var ringPool = [], parts = [], partPool = [], shells = [], shellPool = [];
   function ringGroup() {
@@ -1227,7 +1232,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // burst of tiny rings and sparks
     for (var i = 0; i < 14; i++) {
       var o = spawnPart(i % 2 === 0); if (!o) break;
-      var a = Math.random() * PI * 2, b = (Math.random() - 0.5) * PI, sp = 3 + Math.random() * 6;
+      var a = Math.random() * PI * 2, b = (Math.random() - 0.5) * PI, sp = 2 + Math.random() * 4;
       o.v.set(Math.cos(a) * Math.cos(b), Math.sin(b) + 0.35, Math.sin(a) * Math.cos(b)).multiplyScalar(sp).addScaledVector(r.T, S.v * 0.7);
       o.spin.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
       o.m.position.copy(r.p);
@@ -1246,7 +1251,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       r.g.position.copy(r.p); r.g.quaternion.copy(r.q);
       var sp = r.g.children[0];
       sp.rotation.y = ringClock * 3.4 + r.s * 0.7;
-      sp.position.y = Math.sin(ringClock * 2.4 + r.s) * 0.05;
+      sp.position.y = Math.sin(ringClock * 2.4 + r.s) * 0.03;
     }
     for (var j = parts.length - 1; j >= 0; j--) {
       var o = parts[j]; o.life += dt;
