@@ -97,6 +97,15 @@ button { cursor:pointer; }
   55% { opacity:0.75; }
   100% { transform:scale(var(--s, 4)); opacity:0; border-width:1.5px; }
 }
+/* Record */
+#recWrap { pointer-events:auto; display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:6px; }
+#recBtn { background:var(--paper); color:var(--ink); border:2px solid var(--ink); min-height:28px; padding:0 10px;
+  letter-spacing:0.12em; font-size:11px; font-weight:560; text-transform:uppercase; box-shadow:2px 2px 0 var(--ink); }
+#recBtn:hover { background:var(--ink); color:var(--paper); }
+#recBtn.on { background:#7a2c2c; color:var(--paper); border-color:#7a2c2c; box-shadow:2px 2px 0 #5a1c1c; }
+#recBtn:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
+#recTime { font-variant-numeric:tabular-nums; letter-spacing:0.04em; color:var(--muted); font-size:12px; min-width:3.2em; text-align:right; }
+#recTime.on { color:#7a2c2c; font-weight:560; }
 /* Volume */
 #volWrap { pointer-events:auto; display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:4px; }
 #vol, #mvol { width:72px; accent-color:#141414; touch-action:pan-x; margin:0; }
@@ -264,6 +273,7 @@ button { cursor:pointer; }
     <div class="unit" id="steepWrap">slope <input id="steep" type="range" min="14" max="38" step="1" value="26" aria-label="Slope steepness"><span id="steepV">26°</span></div>
     <div class="unit" id="volWrap">fx <input id="vol" type="range" min="0" max="100" step="1" value="40" aria-label="Effects volume"><span id="volV">40</span></div>
     <div class="unit" id="mvolWrap">music <input id="mvol" type="range" min="0" max="100" step="1" value="40" aria-label="Music volume"><span id="mvolV">40</span></div>
+    <div class="unit" id="recWrap"><button type="button" id="recBtn" aria-pressed="false" title="Record up to 60s (R)">Rec</button><span id="recTime">60s</span></div>
   </div>
   <div id="banner"></div>
   <div id="power" aria-hidden="true"><div class="pl"><span class="k">Crouch</span><b id="pwr-d">0 m</b></div><div class="bar"><i id="pwr-f"></i><u></u></div></div>
@@ -278,7 +288,7 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W T ↑</b> push (tap at speed = hard push · hold = tuck) · <b>Alt</b> brake / slow · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space / S / G / ↓</b> or left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
+  <p class="keys"><b>W T ↑</b> push (tap at speed = hard push · hold = tuck) · <b>Alt</b> brake / slow · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space / S / G / ↓</b> or left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look · <b>R</b> record clip (max 60s)<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
 </section>
 <div id="flash"></div>
 <div id="popBurst" aria-hidden="true">
@@ -1480,7 +1490,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     pitchHintEl.classList.add("on");
     pitchHintT = 0.9;
   }
-  function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap, #volWrap, #mp"); }
+  function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap, #volWrap, #mvolWrap, #recWrap, #mp"); }
   canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   addEventListener("pointerdown", function (e) {
     if (e.pointerType === "mouse") { mouseMoveT = performance.now(); setCursorIdle(false); }
@@ -2253,7 +2263,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   /* ---------- audio ---------- */
   var Audio = (function () {
-    var ctx, roll, wind, drone, master, noiseBuf;
+    var ctx, roll, wind, drone, master, noiseBuf, recDest = null;
     var vol = 0.4, mvol = 0.4;          // vol = sound effects (game engine), mvol = SoundCloud music
     var asleep = false, volHook = null, mvolHook = null;   // asleep = idle auto-mute: master faded to 0 and the context suspended
     try {
@@ -2269,6 +2279,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
       if (!AC) return null;
       ctx = new AC();
       master = ctx.createGain(); master.gain.value = asleep ? 0 : vol * 0.55; master.connect(ctx.destination);
+      try {
+        recDest = ctx.createMediaStreamDestination();
+        master.connect(recDest);
+      } catch (_) { recDest = null; }
       noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -2373,6 +2387,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
         wind.g.gain.setTargetAtTime(Math.min(0.14, Math.max(0, v - 9) * 0.007), t, 0.15);
         drone.g.gain.setTargetAtTime(0.025 + Math.min(0.05, slope * 0.08), t, 0.2);
         drone.frequency.setTargetAtTime(46 + slope * 30 + v * 0.35, t, 0.25);
+      },
+      // MediaStream of game SFX for clip recording (null if unavailable)
+      getCaptureStream: function () {
+        ensure();
+        return recDest ? recDest.stream : null;
       }
     };
   })();
@@ -2389,6 +2408,221 @@ function olFeet(ol,bq,w0,c0L,c0R){
   document.getElementById("go").addEventListener("pointerup", function (e) {
     if (e.pointerType !== "mouse") startRun();
   });
+
+  /* ---------- clip recorder (composited canvas + HUD stats + game SFX, max 60s) ---------- */
+  var Rec = (function () {
+    var MAX = 60;
+    var rec = null, chunks = [], startedAt = 0, active = false;
+    var btn = document.getElementById("recBtn"), timeEl = document.getElementById("recTime");
+    var out = document.createElement("canvas");
+    var octx = out.getContext("2d");
+    var vStream = null;
+    function fmt(sec) {
+      sec = Math.max(0, Math.ceil(sec));
+      var m = Math.floor(sec / 60), s = sec % 60;
+      return m + ":" + (s < 10 ? "0" : "") + s;
+    }
+    function ui() {
+      if (!btn) return;
+      btn.classList.toggle("on", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      btn.textContent = active ? "Stop" : "Rec";
+      if (timeEl) {
+        timeEl.classList.toggle("on", active);
+        if (!active) timeEl.textContent = MAX + "s";
+      }
+    }
+    function pickMime() {
+      var opts = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+      for (var i = 0; i < opts.length; i++) {
+        if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(opts[i])) return opts[i];
+      }
+      return "video/webm";
+    }
+    function ensureSize() {
+      var w = canvas.width, h = canvas.height;
+      if (out.width !== w || out.height !== h) {
+        out.width = w; out.height = h;
+      }
+    }
+    function drawHud() {
+      var w = out.width, h = out.height;
+      var pad = Math.max(18, Math.round(w * 0.018));
+      var scale = Math.max(0.85, Math.min(1.35, w / 1280));
+      octx.save();
+      octx.textBaseline = "top";
+      // Left: brand + speed
+      octx.fillStyle = "rgba(94,90,84,0.95)";
+      octx.font = "560 " + Math.round(11 * scale) + "px Outfit, system-ui, sans-serif";
+      octx.letterSpacing = "0.18em";
+      octx.fillText("INKLINE", pad, pad);
+      var spd = Math.round(S.v * 3.6);
+      octx.fillStyle = "#141414";
+      octx.font = "560 " + Math.round(56 * scale) + "px Fraunces, Georgia, serif";
+      octx.letterSpacing = "-0.04em";
+      octx.fillText(String(spd), pad, pad + Math.round(16 * scale));
+      octx.fillStyle = "rgba(94,90,84,0.95)";
+      octx.font = "560 " + Math.round(12 * scale) + "px Outfit, system-ui, sans-serif";
+      octx.letterSpacing = "0.04em";
+      var f = sample(S.s);
+      var grade = Math.round(f.slope * 180 / Math.PI);
+      var stance = S.goofy ? "goofy" : "regular";
+      var lap = Math.floor(S.s / MOBIUS_LAP) + 1;
+      octx.fillText("km/h · " + grade + "° · lap " + lap + " · " + stance, pad, pad + Math.round(78 * scale));
+      // Right: distance + score
+      octx.textAlign = "right";
+      var rx = w - pad;
+      octx.fillStyle = "rgba(94,90,84,0.95)";
+      octx.font = "560 " + Math.round(11 * scale) + "px Outfit, system-ui, sans-serif";
+      octx.letterSpacing = "0.18em";
+      octx.fillText("DISTANCE", rx, pad);
+      var distStr = S.s >= 1000 ? (S.s / 1000).toFixed(2) + " km" : Math.floor(S.s) + " m";
+      octx.fillStyle = "#141414";
+      octx.font = "560 " + Math.round(32 * scale) + "px Fraunces, Georgia, serif";
+      octx.letterSpacing = "-0.03em";
+      octx.fillText(distStr, rx, pad + Math.round(16 * scale));
+      octx.fillStyle = "rgba(94,90,84,0.95)";
+      octx.font = "560 " + Math.round(13 * scale) + "px Outfit, system-ui, sans-serif";
+      octx.letterSpacing = "0.04em";
+      var y = pad + Math.round(56 * scale);
+      octx.fillText("pop ×" + popOf(S.s, S.v).toFixed(2), rx, y);
+      y += Math.round(18 * scale);
+      var best = Math.max(S.best, S.s);
+      var bestStr = best > 12 ? (best >= 1000 ? (best / 1000).toFixed(2) + " km" : Math.floor(best) + " m") : "—";
+      octx.fillText("best " + bestStr, rx, y);
+      y += Math.round(22 * scale);
+      octx.fillStyle = S.lineOn ? "#c4302b" : "#141414";
+      octx.font = "560 " + Math.round(18 * scale) + "px Fraunces, Georgia, serif";
+      octx.fillText("red line " + Math.floor(S.pts) + "  ×" + S.combo, rx, y);
+      y += Math.round(22 * scale);
+      octx.fillStyle = "#b8860b";
+      octx.fillText("rings " + S.rings, rx, y);
+      // REC badge
+      var left = Math.max(0, MAX - (performance.now() - startedAt) / 1000);
+      octx.textAlign = "left";
+      octx.fillStyle = "#7a2c2c";
+      octx.font = "560 " + Math.round(12 * scale) + "px Outfit, system-ui, sans-serif";
+      octx.letterSpacing = "0.14em";
+      octx.fillText("● REC  " + fmt(left), pad, h - pad - Math.round(14 * scale));
+      octx.restore();
+      if (timeEl) timeEl.textContent = fmt(left);
+      if (left <= 0) stop();
+    }
+    // Called each frame after the WebGL render while recording
+    function frame() {
+      if (!active) return;
+      ensureSize();
+      try {
+        octx.drawImage(canvas, 0, 0, out.width, out.height);
+        drawHud();
+      } catch (e) { /* tainted / lost context */ }
+    }
+    function download(blob) {
+      var a = document.createElement("a");
+      var url = URL.createObjectURL(blob);
+      var stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      a.href = url;
+      a.download = "inkline-" + stamp + ".webm";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      banner("CLIP SAVED");
+    }
+    function stop() {
+      if (!active) return;
+      active = false;
+      ui();
+      try {
+        if (rec && rec.state !== "inactive") rec.stop();
+        else if (chunks.length) {
+          download(new Blob(chunks, { type: rec && rec.mimeType ? rec.mimeType : "video/webm" }));
+          chunks = [];
+        }
+      } catch (e) { console.warn(e); }
+      if (vStream) {
+        try { vStream.getTracks().forEach(function (t) { t.stop(); }); } catch (_) {}
+        vStream = null;
+      }
+    }
+    function start() {
+      if (active) return;
+      if (!window.MediaRecorder) { banner("REC N/A"); return; }
+      Audio.ensure();
+      if (Audio.wake) Audio.wake();
+      ensureSize();
+      // Paint one frame so the stream has content immediately
+      try {
+        octx.drawImage(canvas, 0, 0, out.width, out.height);
+        drawHud();
+      } catch (_) {}
+      var fps = 30;
+      try {
+        vStream = out.captureStream(fps);
+      } catch (e) {
+        banner("REC FAIL");
+        console.warn(e);
+        return;
+      }
+      var stream = vStream;
+      try {
+        var aStream = Audio.getCaptureStream && Audio.getCaptureStream();
+        if (aStream && aStream.getAudioTracks().length) {
+          stream = new MediaStream();
+          vStream.getVideoTracks().forEach(function (t) { stream.addTrack(t); });
+          aStream.getAudioTracks().forEach(function (t) { stream.addTrack(t); });
+        }
+      } catch (_) {}
+      var mime = pickMime();
+      chunks = [];
+      try {
+        rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8e6 });
+      } catch (e1) {
+        try { rec = new MediaRecorder(stream); }
+        catch (e2) { banner("REC FAIL"); console.warn(e2); return; }
+      }
+      rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onerror = function (e) { console.warn(e); stop(); };
+      rec.onstop = function () {
+        var type = (rec && rec.mimeType) || mime || "video/webm";
+        if (chunks.length) download(new Blob(chunks, { type: type }));
+        chunks = [];
+        rec = null;
+      };
+      try {
+        rec.start(250);
+      } catch (e) {
+        banner("REC FAIL");
+        console.warn(e);
+        return;
+      }
+      active = true;
+      startedAt = performance.now();
+      ui();
+      banner("RECORDING");
+    }
+    function toggle() {
+      if (active) stop(); else start();
+    }
+    if (btn) btn.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      this.blur();
+      toggle();
+    });
+    addEventListener("keydown", function (e) {
+      if (e.code !== "KeyR" || e.repeat) return;
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+      toggle();
+    });
+    ui();
+    return { toggle: toggle, stop: stop, isActive: function () { return active; }, frame: frame };
+  })();
   var steepEl = document.getElementById("steep"), steepV = document.getElementById("steepV");
   function setSteep(v) {
     steepT = cl(v, STEEP_MIN, STEEP_MAX);
@@ -2638,6 +2872,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     frameCamera(dt);
     hud(dt);
     renderer.render(scene, cam);
+    if (Rec && Rec.frame) Rec.frame();
   }
   buildUntil(80);
   syncTrack();
