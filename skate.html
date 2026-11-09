@@ -99,7 +99,16 @@ button { cursor:pointer; }
 }
 /* Volume */
 #volWrap { pointer-events:auto; display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:4px; }
-#vol { width:72px; accent-color:#141414; touch-action:pan-x; margin:0; }
+#vol, #mvol { width:72px; accent-color:#141414; touch-action:pan-x; margin:0; }
+#mvolWrap { pointer-events:auto; display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:4px; }
+/* Red game line score */
+#lineRow { display:flex; align-items:baseline; justify-content:flex-end; gap:8px; transition:color .15s ease; }
+#lineRow b { font-family:Fraunces, Georgia, serif; font-weight:560; font-size:20px; letter-spacing:-0.02em; color:var(--ink); transition:color .15s ease; }
+#lineRow .cmb { font-weight:560; }
+#lineRow.on, #lineRow.on b { color:#c4302b; }
+#ringRow b { font-family:Fraunces, Georgia, serif; font-weight:560; font-size:20px; letter-spacing:-0.02em; color:#b8860b; display:inline-block; }
+#ringRow b.pop { animation:ringPop .22s ease-out; }
+@keyframes ringPop { 0% { transform:scale(1.5); } 100% { transform:scale(1); } }
 /* ---- Mobile controls: floating stick (left thumb) + action cluster (right thumb) ---- */
 #touch { display:none; position:fixed; inset:0; z-index:3; pointer-events:none;
   --j:104px; --t:76px; --s:60px; --sb:128px;
@@ -146,7 +155,7 @@ button { cursor:pointer; }
   body.live #touch { display:block; }
   body.live .keys { display:none; }
   #steep { width:72px; }
-  #vol { width:56px; }
+  #vol, #mvol { width:56px; }
   .hud-l { left:12px; }
   .hud-r { right:12px; }
   #spd { font-size:clamp(42px, 10vw, 72px); }
@@ -250,8 +259,11 @@ button { cursor:pointer; }
     <div id="dist">0 m</div>
     <div class="unit">pop <span id="pop">×1.00</span></div>
     <div class="unit">best <span id="best">—</span></div>
+    <div class="unit" id="lineRow">red line <b id="pts">0</b> <span class="cmb" id="combo">×1</span></div>
+    <div class="unit" id="ringRow">rings <b id="ringN">0</b></div>
     <div class="unit" id="steepWrap">slope <input id="steep" type="range" min="14" max="38" step="1" value="26" aria-label="Slope steepness"><span id="steepV">26°</span></div>
-    <div class="unit" id="volWrap">vol <input id="vol" type="range" min="0" max="100" step="1" value="40" aria-label="Master volume"><span id="volV">40</span></div>
+    <div class="unit" id="volWrap">fx <input id="vol" type="range" min="0" max="100" step="1" value="40" aria-label="Effects volume"><span id="volV">40</span></div>
+    <div class="unit" id="mvolWrap">music <input id="mvol" type="range" min="0" max="100" step="1" value="40" aria-label="Music volume"><span id="mvolV">40</span></div>
   </div>
   <div id="banner"></div>
   <div id="power" aria-hidden="true"><div class="pl"><span class="k">Crouch</span><b id="pwr-d">0 m</b></div><div class="bar"><i id="pwr-f"></i><u></u></div></div>
@@ -261,7 +273,7 @@ button { cursor:pointer; }
 <section id="card">
   <p class="k">One-sided course · Möbius topology</p>
   <h1>Inkline</h1>
-  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, and ollie through the seam.</p>
+  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, and ollie through the seam. Stay close to the red line for points.</p>
   <div class="row">
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
@@ -383,6 +395,9 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   var INK = new T.MeshBasicMaterial({ color: 0x141414, side: T.BackSide });
   var roadMat = new T.MeshBasicMaterial({ color: 0xf7f4ee, side: T.DoubleSide });
   var inkMat = new T.MeshBasicMaterial({ color: 0x141414, side: T.DoubleSide });
+  // Red game line: a solid centre line plus a faint proximity band showing the scoring zone.
+  var lineMat = new T.MeshBasicMaterial({ color: 0xc4302b, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  var bandMat = new T.MeshBasicMaterial({ color: 0xc4302b, side: T.DoubleSide, transparent: true, opacity: 0.12, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
 
   function grp(p, x, y, z) {
     var o = new T.Group(); o.position.set(x, y, z); p.add(o); return o;
@@ -728,6 +743,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
   /* ---------- track ---------- */
   var DS = 1.7;
   var frames = [], gaps = [], curbs = [], hoops = [];
+  var rings = [];   // Sonic-style rings: { s, lat, h, got, g (mesh group when on screen), p, q, ver }
+  // Red game line: threads through the centre of every obstacle, easing (smoothstep) between them so it
+  // crosses each one dead straight. Nodes are generated alongside curbs, so the line always reaches the horizon.
+  var lineNodes = [{ s: 0, lat: 0, span: 0, got: true, start: true }];
+  var LINE_PROX = 1.25;   // metres either side of the line that still scores
   var gapCursor = 210, nextCurb = 250, nextHoop = 320;
   // --- TRUE MOBIUS COURSE -------------------------------------------------
   // One lap is a closed centerline; the transverse frame reverses after 2π.
@@ -784,6 +804,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     return false;
   }
+  function lineLat(s) {
+    var n = lineNodes.length;
+    if (!n) return 0;
+    if (s <= lineNodes[0].s) return lineNodes[0].lat;
+    for (var i = 0; i < n - 1; i++) {
+      var a = lineNodes[i], b = lineNodes[i + 1];
+      if (s <= b.s) return lerp(a.lat, b.lat, sm((s - a.s) / Math.max(0.001, b.s - a.s)));
+    }
+    return lineNodes[n - 1].lat;
+  }
   function hash(n) {
     var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
     return x - Math.floor(x);
@@ -826,16 +856,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
             lat = side * hw * (0.08 + (hsh * 0.18) % 0.2);
           }
           curbs.push({ s: nextCurb, lat: lat, span: span, h: h, depth: depth, tier: tier });
+          lineNodes.push({ s: nextCurb, lat: lat, span: span, h: h, got: false });
         }
       }
       // Tighter spacing so height variety shows up often
       nextCurb += 34 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 22);
     }
   }
+  // Rings follow the red line: a gold trail on the ground between obstacles, and a jump arc of rings
+  // over every obstacle (peaking just above its height), so riding the line and ollieing collects them all.
+  // A node's rings are generated once the next node exists, so the line is known across the whole span.
   function ensureHoops(upto) {
-    while (nextHoop < upto) {
-      if (!inGap(nextHoop) && !inGap(nextHoop + 4)) hoops.push({s:nextHoop,got:false});
-      nextHoop += 240;
+    for (var i = 0; i < lineNodes.length - 1; i++) {
+      var n = lineNodes[i], nx = lineNodes[i + 1];
+      if (n.gen) continue;
+      n.gen = true;
+      var k, rs;
+      if (!n.start) {
+        var peak = (n.h || 0.4) + 0.35;
+        for (k = -3; k <= 3; k++) {
+          rs = n.s + k * 2.2;
+          rings.push({ s: rs, lat: lineLat(rs), h: 1.0 + peak * (1 - (k / 3.4) * (k / 3.4)), got: false, ver: -1 });
+        }
+      }
+      for (rs = (n.start ? 30 : n.s + 8); rs <= nx.s - 8; rs += 3.0) {
+        rings.push({ s: rs, lat: lineLat(rs), h: 1.0, got: false, ver: -1 });
+      }
     }
   }
   // Write Möbius point into out (reused); no allocation
@@ -860,7 +906,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
       }
     }
     while (curbs.length && curbs[0].s < cut - 30) curbs.shift();
+    while (lineNodes.length > 2 && lineNodes[1].s < cut - 30) lineNodes.shift();
     while (hoops.length && hoops[0].s < cut - 30) hoops.shift();
+    if (rings.length && rings.some(function (r) { return r.s < cut - 30; })) {
+      rings = rings.filter(function (r) { if (r.s < cut - 30) { ringRelease(r); return false; } return true; });
+    }
   }
   function buildUntil(target) {
     ensureGaps(target + 40); ensureCurbs(target + 40); ensureHoops(target + 40);
@@ -955,7 +1005,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     while (trackG.children.length) {
       var ch = trackG.children.pop();
       if (ch.geometry) ch.geometry.dispose();
-      if (ch.material && ch.material !== inkMat && ch.material !== roadMat) ch.material.dispose();
+      if (ch.material && ch.material !== inkMat && ch.material !== roadMat && ch.material !== lineMat && ch.material !== bandMat) ch.material.dispose();
     }
     buildUntil(s1 + 10);
     var whiteP = [], whiteI = [], blackP = [], blackI = [];
@@ -1030,6 +1080,22 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     mesh(whiteP, whiteI, roadMat);
     mesh(blackP, blackI, inkMat);
+    // Red game line + proximity band, following the surface frame by frame
+    function lineRibbon(P, I, hw, lift) {
+      for (var k = i0; k <= i1; k++) {
+        var fa = frames[k], fb = frames[k + 1], la = lineLat(fa.s), lb = lineLat(fb.s);
+        var a1 = fa.p.clone().addScaledVector(fa.B, la - hw).addScaledVector(fa.N, lift);
+        var a2 = fa.p.clone().addScaledVector(fa.B, la + hw).addScaledVector(fa.N, lift);
+        var b1 = fb.p.clone().addScaledVector(fb.B, lb - hw).addScaledVector(fb.N, lift);
+        var b2 = fb.p.clone().addScaledVector(fb.B, lb + hw).addScaledVector(fb.N, lift);
+        addQuad(P, I, a1, a2, b2, b1);
+      }
+    }
+    var bandP = [], bandI = [], redP = [], redI = [];
+    lineRibbon(bandP, bandI, LINE_PROX, 0.03);
+    lineRibbon(redP, redI, 0.11, 0.05);
+    mesh(bandP, bandI, bandMat);
+    mesh(redP, redI, lineMat);
 
     curbs.forEach(function (c) {
       if (c.s < s0 - 2 || c.s > s1 + 2) return;
@@ -1050,14 +1116,6 @@ function olFeet(ol,bq,w0,c0L,c0R){
         lip.quaternion.copy(box.quaternion);
         trackG.add(lip);
       }
-    });
-    hoops.forEach(function (h) {
-      if (h.s < s0 - 2 || h.s > s1 + 2) return;
-      var f = sample(h.s);
-      var ring = new T.Mesh(new T.TorusGeometry(0.95, 0.045, 8, 28), inkMat);
-      ring.position.copy(f.p).addScaledVector(f.N, 1.85);
-      ring.quaternion.setFromRotationMatrix(new T.Matrix4().makeBasis(f.B, f.N, f.T));
-      trackG.add(ring);
     });
     if (s0 < 30 && s1 > 24) {
       var f = sample(26), hw = f.halfW;
@@ -1117,6 +1175,114 @@ function olFeet(ol,bq,w0,c0L,c0R){
     rebuild(Math.max(0, S.s - 70), S.s + 260);
   }
 
+  /* ---------- rings: gold, spinning, pen-and-ink outlined; they burst when you pass through ---------- */
+  var ringG = new T.Group(); scene.add(ringG);
+  var fxG = new T.Group(); scene.add(fxG);
+  var R_GEO = new T.TorusGeometry(0.42, 0.075, 8, 22), R_OUT = new T.TorusGeometry(0.42, 0.118, 8, 22);
+  var R_MINI = new T.TorusGeometry(0.2, 0.05, 6, 12), R_SPARK = new T.OctahedronGeometry(0.1);
+  var GOLD = MM("#f0b429"), SPARKM = new T.MeshBasicMaterial({ color: 0xfff1b0 });
+  var ringPool = [], parts = [], partPool = [], shells = [], shellPool = [];
+  function ringGroup() {
+    var g = ringPool.pop();
+    if (g) { g.visible = true; return g; }
+    g = new T.Group();
+    var spin = new T.Group(); g.add(spin);
+    spin.add(new T.Mesh(R_GEO, GOLD));
+    spin.add(new T.Mesh(R_OUT, INK));
+    ringG.add(g);
+    return g;
+  }
+  function ringRelease(r) {
+    if (r.g) { r.g.visible = false; ringPool.push(r.g); r.g = null; }
+  }
+  function ringPos(r) {
+    if (r.p && r.ver === builtSteep) return;
+    var f = sample(r.s);
+    r.p = f.p.addScaledVector(f.B, r.lat).addScaledVector(f.N, r.h);
+    r.q = new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(f.B, f.N, f.T));
+    r.T = f.T.clone();
+    r.ver = builtSteep;
+  }
+  function spawnPart(mini) {
+    var o = partPool.pop();
+    if (!o) {
+      if (parts.length > 160) return null;
+      o = { m: new T.Mesh(mini ? R_MINI : R_SPARK, mini ? GOLD : SPARKM), v: new V(), spin: new V(), life: 0, max: 1, mini: mini };
+      fxG.add(o.m);
+    }
+    o.m.geometry = mini ? R_MINI : R_SPARK; o.m.material = mini ? GOLD : SPARKM; o.mini = mini;
+    o.m.visible = true; parts.push(o); return o;
+  }
+  function explodeRing(r) {
+    ringPos(r);
+    // expanding shell flash (own material so it can fade)
+    var sh = shellPool.pop();
+    if (!sh) {
+      if (shells.length < 12) {
+        sh = { m: new T.Mesh(R_GEO, new T.MeshBasicMaterial({ color: 0xffe28a, transparent: true, depthWrite: false })), t: 0 };
+        fxG.add(sh.m);
+      }
+    }
+    if (sh) { sh.t = 0; sh.m.position.copy(r.p); sh.m.quaternion.copy(r.q); sh.m.visible = true; shells.push(sh); }
+    // burst of tiny rings and sparks
+    for (var i = 0; i < 14; i++) {
+      var o = spawnPart(i % 2 === 0); if (!o) break;
+      var a = Math.random() * PI * 2, b = (Math.random() - 0.5) * PI, sp = 3 + Math.random() * 6;
+      o.v.set(Math.cos(a) * Math.cos(b), Math.sin(b) + 0.35, Math.sin(a) * Math.cos(b)).multiplyScalar(sp).addScaledVector(r.T, S.v * 0.7);
+      o.spin.set(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+      o.m.position.copy(r.p);
+      o.life = 0; o.max = 0.45 + Math.random() * 0.3;
+    }
+  }
+  var ringClock = 0;
+  function updateRings(dt) {
+    ringClock += dt;
+    var lo = S.s - 12, hi = S.s + 190;
+    for (var i = 0; i < rings.length; i++) {
+      var r = rings[i];
+      if (r.got || r.s < lo || r.s > hi) { if (r.g) ringRelease(r); continue; }
+      ringPos(r);
+      if (!r.g) r.g = ringGroup();
+      r.g.position.copy(r.p); r.g.quaternion.copy(r.q);
+      var sp = r.g.children[0];
+      sp.rotation.y = ringClock * 3.4 + r.s * 0.7;
+      sp.position.y = Math.sin(ringClock * 2.4 + r.s) * 0.05;
+    }
+    for (var j = parts.length - 1; j >= 0; j--) {
+      var o = parts[j]; o.life += dt;
+      if (o.life >= o.max) { o.m.visible = false; parts.splice(j, 1); partPool.push(o); continue; }
+      o.v.y -= 7 * dt;
+      o.m.position.addScaledVector(o.v, dt);
+      o.m.rotation.x += o.spin.x * dt; o.m.rotation.y += o.spin.y * dt;
+      var k = 1 - o.life / o.max;
+      o.m.scale.setScalar(Math.max(0.01, k * (o.mini ? 1 : 1.3)));
+    }
+    for (var q = shells.length - 1; q >= 0; q--) {
+      var sh = shells[q]; sh.t += dt;
+      var u = sh.t / 0.35;
+      if (u >= 1) { sh.m.visible = false; shells.splice(q, 1); shellPool.push(sh); continue; }
+      sh.m.scale.setScalar(1 + u * 2.4);
+      sh.m.material.opacity = 0.9 * (1 - u) * (1 - u);
+    }
+  }
+  function collectRings(s0) {
+    var rc = clearance() + 1.0, lo = Math.min(s0, S.s) - 0.5, hi = S.s + 0.5;
+    for (var i = 0; i < rings.length; i++) {
+      var r = rings[i];
+      if (r.got || r.s < lo || r.s > hi) continue;
+      if (Math.abs(S.lat - r.lat) < 1.0 && Math.abs(rc - r.h) < 0.85) {
+        r.got = true;
+        var now = performance.now();
+        S.ringChain = now - S.ringLast < 900 ? Math.min(S.ringChain + 1, 12) : 0;
+        S.ringLast = now;
+        S.rings++; S.pts += 3 * S.combo;
+        Audio.ring(S.ringChain);
+        explodeRing(r);
+        S.shake = Math.max(S.shake, 0.04);
+      }
+    }
+  }
+
   var ridges = new T.Group();
   (function () {
     var mat = new T.LineBasicMaterial({ color: 0x1a1a1a, transparent: true, opacity: 0.28 });
@@ -1143,8 +1309,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
     landT: 0, landD: 0.18, landAmp: 0.065, landBlend: 0, shake: 0, camRoll: 0, spin: 0, sector: 0,
     forced: null, steerOverride: null, goofy: false, rcT: 0, aero: 0, aeroOn: false, spaceWas: false,
     relArm: 0, strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
-    cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false
+    cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false,
+    pts: 0, combo: 1, lineRun: 0, lineGrace: 0, lineMax: 10, lineOn: false, bestPts: 0, ptsSaved: 0,
+    rings: 0, ringChain: 0, ringLast: 0
   };
+  try { S.bestPts = S.ptsSaved = Number(localStorage.getItem("inkline-best-pts") || 0); } catch (e) {}
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
 
   function resetRun() {
@@ -1154,6 +1323,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
     S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
     for (var i = 0; i < hoops.length; i++) hoops[i].got = false;
+    for (var ln = 0; ln < lineNodes.length; ln++) lineNodes[ln].got = !!lineNodes[ln].start;
+    S.pts = 0; S.combo = 1; S.lineRun = 0; S.lineGrace = 0; S.lineMax = 10; S.lineOn = false;
+    S.rings = 0; S.ringChain = 0;
+    for (var rg = 0; rg < rings.length; rg++) rings[rg].got = false;
     held.clear(); touchHeld.clear(); touchSteer = 0; if (stick) applyStick(); flash();
   }
   function hardReset() {
@@ -1396,6 +1569,49 @@ function olFeet(ol,bq,w0,c0L,c0R){
     return 0;
   }
 
+  /* ---------- red line scoring ---------- */
+  function saveBestPts(force) {
+    if (S.pts > S.bestPts) S.bestPts = S.pts;
+    if (S.bestPts - S.ptsSaved > (force ? 0 : 100)) {
+      S.ptsSaved = S.bestPts;
+      try { localStorage.setItem("inkline-best-pts", String(Math.floor(S.bestPts))); } catch (e) {}
+    }
+  }
+  // Called each sim step. Points only accrue on new ground (so a respawn can't be farmed), scaled by how
+  // tight to the line you are and by a combo that builds the longer you stay inside the proximity band.
+  function lineScore(dt, s0) {
+    var s1 = S.s, d = Math.abs(S.lat - lineLat(s1)), P = LINE_PROX;
+    var on = d < P && S.v > 2;
+    S.lineOn = on;
+    if (on) {
+      S.lineGrace = 0.35;
+      S.lineRun += Math.max(0, s1 - s0);
+      var ds = s1 - Math.max(s0, S.lineMax);
+      if (ds > 0) {
+        var q = d <= 0.4 * P ? 1 : 1 - sm((d - 0.4 * P) / (0.6 * P));
+        S.pts += ds * q * S.combo;
+      }
+      var nc = Math.min(5, 1 + Math.floor(S.lineRun / 60));
+      if (nc > S.combo) { S.combo = nc; banner("LINE ×" + nc); Audio.chime(); }
+    } else {
+      S.lineGrace -= dt;
+      if (S.lineGrace <= 0) { S.lineRun = 0; S.combo = 1; }
+    }
+    // Bonus for taking an obstacle on the line: cleared it, and crossed inside its footprint
+    for (var i = 0; i < lineNodes.length; i++) {
+      var n = lineNodes[i];
+      if (n.got) continue;
+      if (n.s > s1) break;
+      n.got = true;
+      if (Math.abs(S.lat - n.lat) < n.span * 0.5 + 0.22 && d < P) {
+        var bonus = Math.round(25 * S.combo);
+        S.pts += bonus; banner("+" + bonus + " OVER"); Audio.chime();
+      }
+    }
+    if (s1 > S.lineMax) S.lineMax = s1;
+    saveBestPts(false);
+  }
+
   var banT = 0;
   function banner(text) {
     var el = document.getElementById("banner");
@@ -1430,6 +1646,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   function bail(big) {
     if (S.mode === "bail") return;
+    S.lineRun = 0; S.combo = 1; S.lineOn = false; S.ringChain = 0; saveBestPts(true);
     S.mode = "bail"; S.big = big; S.bClip = big ? "bail2" : "bail"; S.bT = 0;
     S.fallVy = big ? 0.4 : 0; S.ol = null; S.oT = -1; S.pushing = false;
     S.boardLocal = {
@@ -1612,6 +1829,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (pinned) tgtRoll *= 0.2;
     // Faster roll response when crouched so hips snap into the carve
     S.roll += (tgtRoll - S.roll) * Math.min(1, dt * (7 + 5.5 * ccv));
+    var sPrev = S.s;
     S.s += S.v * dt;
     S.spin = (S.spin + S.v * dt / 0.04) % (PI * 2);
 
@@ -1629,14 +1847,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
         }
       }
     }
-    for (var h = 0; h < hoops.length; h++) {
-      var hoop = hoops[h];
-      if (hoop.got) continue;
-      if (hoop.s < S.s - 2) continue;
-      if (Math.abs(hoop.s - S.s) < 1.1 && clr > 0.75 && clr < 2.7 && Math.abs(S.lat) < 1.3) {
-        hoop.got = true; banner("LINED"); S.shake = Math.max(S.shake, 0.08);
-      }
-    }
+    lineScore(dt, sPrev);
+    collectRings(sPrev);
     if (S.mode === "ride" && !inGap(S.s) && Math.abs(S.lat) < f.halfW - 0.9 && S.s > S.cp.s + 14) {
       S.cp = { s: S.s, v: S.v };
     }
@@ -1961,6 +2173,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
     document.getElementById("pop").textContent = "×" + popOf(S.s, S.v).toFixed(2);
     var best = Math.max(S.best, S.s);
     document.getElementById("best").textContent = best > 12 ? (best >= 1000 ? (best / 1000).toFixed(2) + " km" : Math.floor(best) + " m") : "—";
+    var ptsEl = document.getElementById("pts");
+    if (ptsEl) {
+      var pv = String(Math.floor(S.pts));
+      if (ptsEl.textContent !== pv) ptsEl.textContent = pv;
+      var cv = "×" + S.combo, cEl = document.getElementById("combo");
+      if (cEl.textContent !== cv) cEl.textContent = cv;
+      document.getElementById("lineRow").classList.toggle("on", S.lineOn && S.mode !== "bail");
+    }
+    var rnEl = document.getElementById("ringN");
+    if (rnEl && rnEl.textContent !== String(S.rings)) {
+      rnEl.textContent = String(S.rings);
+      if (!reduce) { rnEl.classList.remove("pop"); void rnEl.offsetWidth; rnEl.classList.add("pop"); }
+    }
     document.getElementById("edge").classList.toggle("on", Math.abs(S.lat) > f.halfW * 0.8 && S.mode !== "bail");
     document.getElementById("air").classList.toggle("on", S.mode === "ollie" && clearance() > 0.15);
     var showP = S.crouch && S.holdT > 0.1;
@@ -1991,11 +2216,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
   /* ---------- audio ---------- */
   var Audio = (function () {
     var ctx, roll, wind, drone, master, noiseBuf;
-    var vol = 0.4;
-    var asleep = false, volHook = null;   // asleep = idle auto-mute: master faded to 0 and the context suspended
+    var vol = 0.4, mvol = 0.4;          // vol = sound effects (game engine), mvol = SoundCloud music
+    var asleep = false, volHook = null, mvolHook = null;   // asleep = idle auto-mute: master faded to 0 and the context suspended
     try {
       var sv = localStorage.getItem("inkline-vol");
       if (sv != null) vol = cl(Number(sv) / 100, 0, 1);
+      mvol = vol;                        // before the split, one slider drove both; start music from that value
+      var sm2 = localStorage.getItem("inkline-mvol");
+      if (sm2 != null) mvol = cl(Number(sm2) / 100, 0, 1);
     } catch (_) {}
     function ensure() {
       if (ctx) { if (ctx.state === "suspended" && !asleep) ctx.resume(); return ctx; }
@@ -2054,6 +2282,26 @@ function olFeet(ol,bq,w0,c0L,c0R){
         if (volHook) volHook(vol);
       },
       onVolume: function (fn) { volHook = fn; },
+      setMusicVolume: function (v) {
+        mvol = cl(v, 0, 1);
+        try { localStorage.setItem("inkline-mvol", String(Math.round(mvol * 100))); } catch (_) {}
+        if (mvolHook) mvolHook(mvol);
+      },
+      onMusicVolume: function (fn) { mvolHook = fn; },
+      getMusicVolume: function () { return mvol; },
+      ring: function (chain) {
+        // Sonic-style two-note ching; pitch climbs a semitone per ring while you keep collecting
+        if (!ensure()) return;
+        var r = Math.pow(2, (chain || 0) / 12);
+        blip(1320 * r, 1320 * r, 0.11, 0.09, "square");
+        blip(1760 * r, 1760 * r, 0.1, 0.22, "triangle");
+        blip(2640 * r, 2640 * r, 0.05, 0.3, "sine");
+      },
+      chime: function () {
+        if (!ensure()) return;
+        blip(660, 990, 0.12, 0.12, "sine");
+        blip(990, 1320, 0.08, 0.18, "sine");
+      },
       isAsleep: function () { return asleep; },
       // Idle auto-mute: fade the master out, then suspend the context so nothing runs while nobody is playing.
       sleep: function () {
@@ -2127,8 +2375,22 @@ function olFeet(ol,bq,w0,c0L,c0R){
       Audio.setVolume(v / 100);
       if (volV) volV.textContent = String(v);
       Audio.ensure();
+      var nowT = performance.now();
+      if (nowT - (volEl._ct || 0) > 180) { volEl._ct = nowT; Audio.chime(); }   // audible reference level while dragging
     });
     volEl.addEventListener("change", function () { volEl.blur(); });
+  }
+  var mvolEl = document.getElementById("mvol"), mvolV = document.getElementById("mvolV");
+  if (mvolEl) {
+    var initM = Math.round(Audio.getMusicVolume() * 100);
+    mvolEl.value = String(initM);
+    if (mvolV) mvolV.textContent = String(initM);
+    mvolEl.addEventListener("input", function () {
+      var v = Number(mvolEl.value);
+      Audio.setMusicVolume(v / 100);
+      if (mvolV) mvolV.textContent = String(v);
+    });
+    mvolEl.addEventListener("change", function () { mvolEl.blur(); });
   }
   var dl = document.getElementById("dl");
   if (dl) dl.href = /\.html?$/i.test(location.pathname) ? location.pathname : "/inkline.html";
@@ -2197,7 +2459,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
         var EV = SC.Widget.Events;
         widget.bind(EV.READY, function () {
           ready = true; loading = false;
-          widget.setVolume(Math.round(Audio.getVolume() * 100));
+          widget.setVolume(Math.round(Audio.getMusicVolume() * 100));
           widget.getSounds(function (list) { sounds = list || []; refreshCurrent(); });
           refreshCurrent(); ui();
           if (pendingPlay) { pendingPlay = false; widget.play(); }
@@ -2214,7 +2476,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       };
       document.head.appendChild(s);
     }
-    Audio.onVolume(function (v) { if (widget && ready) widget.setVolume(Math.round(v * 100)); });
+    Audio.onMusicVolume(function (v) { if (widget && ready) widget.setVolume(Math.round(v * 100)); });
 
     /* --- idle auto-mute: game sfx + music --- */
     function sleep() {
@@ -2308,8 +2570,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       widget.getPosition(function (pos) { var np = Math.max(0, Math.min(dur, pos + (e.key === "ArrowRight" ? 5000 : -5000))); widget.seekTo(np); setProg(np); });
     });
     ui();
-    // Desktop (fine pointer, wide window): open the player on load. Touch / narrow stays collapsed.
-    if (window.matchMedia && matchMedia("(min-width:821px) and (pointer:fine)").matches) setOpen(true);
+    // Player stays collapsed on load; it only expands if the person opts in via the toast (or opens the tab).
   })();
 
   window.__controlsTest = {
@@ -2335,6 +2596,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     syncTrack();
     placeRig();
     pose();
+    updateRings(dt);
     frameCamera(dt);
     hud(dt);
     renderer.render(scene, cam);
@@ -2343,6 +2605,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   syncTrack();
   placeRig();
   pose();
+  updateRings(0);
   frameCamera(1 / 60);
   renderer.render(scene, cam);
   requestAnimationFrame(loop);
