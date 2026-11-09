@@ -278,7 +278,7 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W T</b> push (hold while moving = tuck) · <b>S G</b> brake · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space</b> / left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
+  <p class="keys"><b>W T</b> push (hold while moving = tuck) · <b>Alt</b> brake / slow · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space / S / G / ↓</b> or left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
 </section>
 <div id="flash"></div>
 <div id="popBurst" aria-hidden="true">
@@ -1363,7 +1363,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (e.code === "Escape") { e.preventDefault(); hardReset(); return; }
     // Shift = switch stance. Goofy is the exact mirror of regular; only flips while rolling on the ground.
     if ((e.code === "ShiftLeft" || e.code === "ShiftRight") && !e.repeat) switchStance();
-    if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) >= 0) e.preventDefault();
+    if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "AltLeft", "AltRight"].indexOf(e.code) >= 0) e.preventDefault();
     held.add(e.code);
   });
   addEventListener("keyup", function (e) { held.delete(e.code); });
@@ -1416,7 +1416,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var sx = ax < dz ? 0 : Math.pow((ax - dz) / (1 - dz), 1.15) * (x > 0 ? 1 : -1);   // +x = right
     touchSteer = -sx;
     setTouch("KeyW", y < -0.4);
-    setTouch("KeyS", y > 0.4);
+    setTouch("AltLeft", y > 0.4);
   }
   function inStickZone(e) { return e.clientX < innerWidth * 0.52 && e.clientY > innerHeight * 0.2; }
   function stickStart(e) {
@@ -1440,7 +1440,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   function stopStick() {
     stick = null; touchSteer = 0;
-    touchHeld.delete("KeyW"); touchHeld.delete("KeyS");
+    touchHeld.delete("KeyW"); touchHeld.delete("AltLeft");
     stickEl.classList.remove("on"); stickEl.classList.add("idle");
     stickEl.style.transform = ""; knobEl.style.transform = "";
   }
@@ -1573,7 +1573,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     return down("KeyW") || down("ArrowUp") || down("KeyT") ||
       (autoPush && usingTouch && !S.forced);
   }
-  function stopKey() { return down("KeyS") || down("ArrowDown") || down("KeyG"); }
+  function stopKey() { return down("AltLeft") || down("AltRight"); }
 
   function mapOllie(rt, airDur) {
     // real seconds -> ollie timeline units (OL.*), same pacing scheme as skater-main
@@ -1703,7 +1703,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   function sim(dt) {
     var steer = steerAxis();
     var fw = goKey(), bk = stopKey();
-    var space = down("Space") || down("Mouse0");
+    var space = down("Space") || down("Mouse0") || down("KeyS") || down("KeyG") || down("ArrowDown");
     var wasCrouch = S.crouch;
     if (space && !S.spaceWas) { S.holdT = 0; S.armed = true; }
     if (space) S.holdT += dt;
