@@ -247,6 +247,38 @@ button { cursor:pointer; }
   #banner { transition:none; }
   #popBurst.on, #popBurst.on i, #popBurst.on .core { animation:none !important; opacity:0; }
 }
+
+/* Coffee / tip widget */
+#coffeeBtn { background:var(--paper); color:var(--ink); border:2px solid var(--ink);
+  min-height:36px; padding:0 12px; letter-spacing:0.06em; font-weight:560; font-size:13px;
+  display:inline-flex; align-items:center; gap:6px; box-shadow:2px 2px 0 var(--ink);
+  cursor:pointer; }
+#coffeeBtn:hover { background:var(--ink); color:var(--paper); }
+#coffeeBtn:focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
+#coffeeBtn .ico { font-size:16px; line-height:1; }
+#coffeeCard { position:fixed; z-index:6; left:50%; top:40%; transform:translate(-50%,-50%);
+  width:min(300px, calc(100% - 32px)); background:var(--card); border:2px solid var(--ink);
+  padding:16px 18px 14px; box-shadow:6px 6px 0 var(--ink); display:none; touch-action:none; }
+#coffeeCard.on { display:block; }
+#coffeeCard .drag { cursor:grab; user-select:none; margin:-4px -6px 10px; padding:6px 8px;
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  border-bottom:1px solid rgba(20,20,20,.18); }
+#coffeeCard .drag:active { cursor:grabbing; }
+#coffeeCard h2 { font-family:Fraunces, Georgia, serif; font-weight:560; font-size:22px;
+  letter-spacing:-0.025em; margin:0 0 8px; line-height:1.1; }
+#coffeeCard p { margin:0 0 12px; font-size:14px; line-height:1.45; color:var(--muted); }
+#coffeeCard a.venmo { display:inline-block; background:var(--ink); color:var(--paper);
+  border:2px solid var(--ink); min-height:40px; padding:0 16px; letter-spacing:0.08em;
+  font-weight:560; text-decoration:none; line-height:36px; }
+#coffeeCard a.venmo:hover { background:#2a2a2a; }
+#coffeeCard .x { background:transparent; border:0; font-size:20px; line-height:1; padding:4px 8px;
+  cursor:pointer; color:var(--muted); pointer-events:auto; z-index:2; position:relative; }
+#coffeeCard .x:hover { color:var(--ink); }
+#hudCoffee { pointer-events:auto; display:inline-flex; align-items:center; gap:4px;
+  margin-top:6px; background:transparent; border:0; padding:2px 0; color:var(--muted);
+  font-size:11px; letter-spacing:0.06em; cursor:pointer; font-weight:560; }
+#hudCoffee:hover { color:var(--ink); }
+#hudCoffee .ico { font-size:13px; }
 </style>
 </head>
 <body>
@@ -262,6 +294,7 @@ button { cursor:pointer; }
     <div class="k">Inkline</div>
     <div id="spd">0</div>
     <div class="unit">km/h · <span id="grade">0°</span> grade · <span id="lap">lap 1</span> · <span id="stance">regular</span></div>
+    <button type="button" id="hudCoffee" title="Buy me a coffee — more caffeine means more tricks!"><span class="ico" aria-hidden="true">☕</span> coffee</button>
   </div>
   <div class="hud-r">
     <div class="k">Distance</div>
@@ -286,10 +319,21 @@ button { cursor:pointer; }
   <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, and ollie through the seam. Stay close to the red line for points.</p>
   <div class="row">
     <button id="go" type="button">Start</button>
+    <button type="button" id="coffeeBtn" title="Buy me a coffee"><span class="ico" aria-hidden="true">☕</span> Coffee</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W / ↑</b> push · <b>Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / S / ↓</b> or click to ollie (hold to charge) · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK · SWITCH · swipe to pitch</p>
+  <p class="keys"><b>W / ↑</b> push · <b>S / G / Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / ↓</b> or click to ollie (hold to charge) · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK · SWITCH · swipe to pitch</p>
 </section>
+
+<aside id="coffeeCard" aria-label="Buy me a coffee" role="dialog">
+  <div class="drag" id="coffeeDrag">
+    <span class="k">Tip jar</span>
+    <button type="button" class="x" id="coffeeX" aria-label="Close">×</button>
+  </div>
+  <h2>More caffeine, more tricks</h2>
+  <p>If you enjoyed the ride — buy me a coffee. More caffeine means more tricks.</p>
+  <a class="venmo" href="https://account.venmo.com/u/whereiswolfgang" target="_blank" rel="noopener">Venmo · whereiswolfgang</a>
+</aside>
 <div id="flash"></div>
 <div id="popBurst" aria-hidden="true">
   <span class="core"></span>
@@ -1567,7 +1611,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     pitchHintEl.classList.add("on");
     pitchHintT = 0.9;
   }
-  function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap, #volWrap, #mvolWrap, #recWrap, #mp"); }
+  function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap, #volWrap, #mvolWrap, #recWrap, #mp, #coffeeBtn, #hudCoffee, #coffeeCard"); }
   canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   addEventListener("pointerdown", function (e) {
     if (e.pointerType === "mouse") { mouseMoveT = performance.now(); setCursorIdle(false); }
@@ -1660,7 +1704,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     return down("KeyW") || down("ArrowUp") || down("KeyT") ||
       (autoPush && usingTouch && !S.forced);
   }
-  function stopKey() { return down("AltLeft") || down("AltRight"); }
+  function stopKey() { return down("AltLeft") || down("AltRight") || down("KeyS") || down("KeyG"); }
 
   function mapOllie(rt, airDur) {
     // real seconds -> ollie timeline units (OL.*), same pacing scheme as skater-main
@@ -1790,7 +1834,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   function sim(dt) {
     var steer = steerAxis();
     var fw = goKey(), bk = stopKey();
-    var space = down("Space") || down("Mouse0") || down("KeyS") || down("KeyG") || down("ArrowDown");
+    var space = down("Space") || down("Mouse0") || down("ArrowDown");
     var wasCrouch = S.crouch;
     if (space && !S.spaceWas) { S.holdT = 0; S.armed = true; }
     if (space) S.holdT += dt;
@@ -2486,6 +2530,78 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (e.pointerType !== "mouse") startRun();
   });
 
+
+  /* ---------- coffee / tip widget (draggable) ---------- */
+  (function () {
+    var card = document.getElementById("coffeeCard");
+    var dragEl = document.getElementById("coffeeDrag");
+    var openers = [document.getElementById("coffeeBtn"), document.getElementById("hudCoffee")];
+    var closer = document.getElementById("coffeeX");
+    if (!card || !dragEl) return;
+    var drag = null;
+    function openCard() {
+      card.classList.add("on");
+      if (!card.style.left) {
+        card.style.left = "50%";
+        card.style.top = "40%";
+        card.style.transform = "translate(-50%,-50%)";
+      }
+    }
+    function closeCard() {
+      card.classList.remove("on");
+    }
+    openers.forEach(function (btn) {
+      if (!btn) return;
+      btn.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        if (card.classList.contains("on")) closeCard(); else openCard();
+        btn.blur();
+      });
+    });
+    if (closer) {
+      closer.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); e.stopPropagation();
+      });
+      closer.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        closeCard();
+      });
+    }
+    dragEl.addEventListener("pointerdown", function (e) {
+      if (e.target === closer || (e.target && e.target.closest && e.target.closest("#coffeeX"))) return;
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      e.preventDefault();
+      var r = card.getBoundingClientRect();
+      card.style.transform = "none";
+      card.style.left = r.left + "px";
+      card.style.top = r.top + "px";
+      drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+      try { dragEl.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    dragEl.addEventListener("pointermove", function (e) {
+      if (!drag) return;
+      var nx = drag.left + (e.clientX - drag.x);
+      var ny = drag.top + (e.clientY - drag.y);
+      nx = Math.max(8, Math.min(innerWidth - card.offsetWidth - 8, nx));
+      ny = Math.max(8, Math.min(innerHeight - card.offsetHeight - 8, ny));
+      card.style.left = nx + "px";
+      card.style.top = ny + "px";
+    });
+    function endDrag(e) {
+      if (!drag) return;
+      drag = null;
+      try { if (e && e.pointerId != null) dragEl.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    dragEl.addEventListener("pointerup", endDrag);
+    dragEl.addEventListener("pointercancel", endDrag);
+    addEventListener("keydown", function (e) {
+      if (e.code === "Escape" && card.classList.contains("on")) {
+        e.preventDefault();
+        closeCard();
+      }
+    });
+  })();
+
   /* ---------- clip recorder (composited canvas + HUD stats + game SFX, max 60s) ---------- */
   var Rec = (function () {
     var MAX = 60;
@@ -2769,7 +2885,25 @@ function olFeet(ol,bq,w0,c0L,c0R){
     mvolEl.addEventListener("change", function () { mvolEl.blur(); });
   }
   var dl = document.getElementById("dl");
-  if (dl) dl.href = /\.html?$/i.test(location.pathname) ? location.pathname : "/inkline.html";
+  if (dl) {
+    dl.addEventListener("click", function (e) {
+      e.preventDefault();
+      try {
+        var html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+        var blob = new Blob([html], { type: "text/html;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "inkline.html";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1500);
+      } catch (err) {
+        console.warn(err);
+        try { window.open(location.href, "_blank"); } catch (_) {}
+      }
+    });
+  }
 
 
   /* ---------- idle auto-mute + SoundCloud player (zackgort / works-in-prog) ---------- */
