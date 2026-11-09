@@ -2504,15 +2504,15 @@ function olFeet(ol,bq,w0,c0L,c0R){
       octx.fillStyle = "#b8860b";
       octx.fillText("rings " + S.rings, rx, y);
       // REC badge
-      var left = Math.max(0, MAX - (performance.now() - startedAt) / 1000);
+      var left = startedAt ? Math.max(0, MAX - (performance.now() - startedAt) / 1000) : MAX;
       octx.textAlign = "left";
       octx.fillStyle = "#7a2c2c";
       octx.font = "560 " + Math.round(12 * scale) + "px Outfit, system-ui, sans-serif";
       octx.letterSpacing = "0.14em";
       octx.fillText("● REC  " + fmt(left), pad, h - pad - Math.round(14 * scale));
       octx.restore();
-      if (timeEl) timeEl.textContent = fmt(left);
-      if (left <= 0) stop();
+      if (timeEl && active) timeEl.textContent = fmt(left);
+      if (active && startedAt && left <= 0) stop();
     }
     // Called each frame after the WebGL render while recording
     function frame() {
@@ -2550,17 +2550,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
         vStream = null;
       }
     }
+    function paintNow() {
+      ensureSize();
+      try {
+        // Fresh WebGL frame so we never grab an empty backbuffer
+        if (renderer && scene && cam) renderer.render(scene, cam);
+        octx.fillStyle = "#f3f0e8";
+        octx.fillRect(0, 0, out.width, out.height);
+        octx.drawImage(canvas, 0, 0, out.width, out.height);
+        drawHud();
+      } catch (_) {}
+      // Push a frame into captureStream producers that support it
+      try {
+        if (vStream) {
+          var vt = vStream.getVideoTracks()[0];
+          if (vt && typeof vt.requestFrame === "function") vt.requestFrame();
+        }
+      } catch (_) {}
+    }
     function start() {
       if (active) return;
       if (!window.MediaRecorder) { banner("REC N/A"); return; }
       Audio.ensure();
       if (Audio.wake) Audio.wake();
-      ensureSize();
-      // Paint one frame so the stream has content immediately
-      try {
-        octx.drawImage(canvas, 0, 0, out.width, out.height);
-        drawHud();
-      } catch (_) {}
+      // Seed the composite canvas with the live scene before opening the stream
+      vStream = null;
+      paintNow();
       var fps = 60;
       try {
         vStream = out.captureStream(fps);
@@ -2569,6 +2584,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
         console.warn(e);
         return;
       }
+      // Paint again + requestFrame so the track's first sample is the scene, not black
+      paintNow();
       var stream = vStream;
       try {
         var aStream = Audio.getCaptureStream && Audio.getCaptureStream();
@@ -2594,17 +2611,27 @@ function olFeet(ol,bq,w0,c0L,c0R){
         chunks = [];
         rec = null;
       };
-      try {
-        rec.start(250);
-      } catch (e) {
-        banner("REC FAIL");
-        console.warn(e);
-        return;
-      }
+      // Start on the next frame after one more painted scene so the encoder's first keyframe isn't black
       active = true;
       startedAt = performance.now();
       ui();
       banner("RECORDING");
+      requestAnimationFrame(function () {
+        if (!active) return;
+        paintNow();
+        requestAnimationFrame(function () {
+          if (!active) return;
+          paintNow();
+          try {
+            rec.start(250);
+          } catch (e) {
+            banner("REC FAIL");
+            console.warn(e);
+            active = false;
+            ui();
+          }
+        });
+      });
     }
     function toggle() {
       if (active) stop(); else start();
