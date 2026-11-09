@@ -385,23 +385,98 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   addEventListener("resize", size);
   size();
 
-  var grad = (function () {
+  /* ========== FULL TOON SHADING SYSTEM ========== */
+  function makeGradientMap(stops) {
     var c = document.createElement("canvas");
-    c.width = 4; c.height = 1;
+    c.width = stops.length; c.height = 1;
     var g = c.getContext("2d");
-    ["#3a3a3a", "#8a8a8a", "#d4d4d4", "#ffffff"].forEach(function (col, i) {
+    stops.forEach(function (col, i) {
       g.fillStyle = col; g.fillRect(i, 0, 1, 1);
     });
     var t = new T.CanvasTexture(c);
     t.magFilter = t.minFilter = T.NearestFilter;
-    t.colorSpace = T.SRGBColorSpace;
+    t.colorSpace = T.NoColorSpace;
+    t.needsUpdate = true;
     return t;
-  })();
-  var mats = {};
-  function MM(c) {
-    if (mats[c]) return mats[c];
-    return (mats[c] = new T.MeshToonMaterial({ color: c, gradientMap: grad }));
   }
+  // Warm paper-friendly 4-tone ramp
+  var grad = makeGradientMap(["#2e2a26", "#6b645c", "#c9c0b4", "#f5f0e6"]);
+  // Harder 3-tone for helmet / bright surfaces
+  var gradHard = makeGradientMap(["#1a1816", "#8a847a", "#f0ebe3"]);
+  // High-contrast dark ramp for gloves / pants / shoes
+  var gradDark = makeGradientMap(["#0c0c0c", "#2a2a2a", "#5a5a5a", "#b0b0b0"]);
+
+  var mats = {};
+  function MM(c, opts) {
+    opts = opts || {};
+    var key = String(c) + (opts.hard ? "|h" : "") + (opts.dark ? "|d" : "");
+    if (mats[key]) return mats[key];
+    var gmap = opts.hard ? gradHard : (opts.dark ? gradDark : grad);
+    var m = new T.MeshToonMaterial({
+      color: c,
+      gradientMap: gmap,
+      emissive: opts.emissive || 0x000000,
+      emissiveIntensity: opts.emissiveIntensity || 0
+    });
+    return (mats[key] = m);
+  }
+
+  // Optional custom quantised toon + rim (for drop-in use)
+  function createToonShaderMaterial(colorHex, steps, rimPower, rimStrength) {
+    steps = steps || 4;
+    rimPower = rimPower == null ? 3.0 : rimPower;
+    rimStrength = rimStrength == null ? 0.22 : rimStrength;
+    var col = new T.Color(colorHex);
+    return new T.ShaderMaterial({
+      uniforms: {
+        uColor: { value: col },
+        uSteps: { value: steps },
+        uRimPower: { value: rimPower },
+        uRimStrength: { value: rimStrength },
+        uAmbient: { value: new T.Color(0xc9c4b8) },
+        uAmbientIntensity: { value: 0.55 },
+        uLightDir: { value: new T.Vector3(-0.4, 0.85, 0.35).normalize() },
+        uLightColor: { value: new T.Color(0xfff8ee) },
+        uLightIntensity: { value: 1.15 }
+      },
+      vertexShader: [
+        "varying vec3 vNormal;",
+        "varying vec3 vView;",
+        "void main() {",
+        "  vNormal = normalize(normalMatrix * normal);",
+        "  vec4 mv = modelViewMatrix * vec4(position, 1.0);",
+        "  vView = -mv.xyz;",
+        "  gl_Position = projectionMatrix * mv;",
+        "}"
+      ].join("\n"),
+      fragmentShader: [
+        "uniform vec3 uColor;",
+        "uniform float uSteps;",
+        "uniform float uRimPower;",
+        "uniform float uRimStrength;",
+        "uniform vec3 uAmbient;",
+        "uniform float uAmbientIntensity;",
+        "uniform vec3 uLightDir;",
+        "uniform vec3 uLightColor;",
+        "uniform float uLightIntensity;",
+        "varying vec3 vNormal;",
+        "varying vec3 vView;",
+        "void main() {",
+        "  vec3 N = normalize(vNormal);",
+        "  vec3 V = normalize(vView);",
+        "  float NdotL = max(dot(N, uLightDir), 0.0);",
+        "  float toon = floor(NdotL * uSteps) / uSteps;",
+        "  toon = mix(0.18, 1.0, toon);",
+        "  vec3 diffuse = uColor * uLightColor * (toon * uLightIntensity);",
+        "  vec3 ambient = uColor * uAmbient * uAmbientIntensity;",
+        "  float rim = pow(1.0 - max(dot(N, V), 0.0), uRimPower) * uRimStrength;",
+        "  vec3 rimCol = mix(uColor, vec3(1.0), 0.35) * rim;",
+        "  gl_FragColor = vec4(ambient + diffuse + rimCol, 1.0);",
+        "}"
+      ].join("\n")
+    });
+  }
+
   var INK = new T.MeshBasicMaterial({ color: 0x141414, side: T.BackSide });
   var roadMat = new T.MeshBasicMaterial({ color: 0xf7f4ee, side: T.DoubleSide });
   var inkMat = new T.MeshBasicMaterial({ color: 0x141414, side: T.DoubleSide });
@@ -486,8 +561,8 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
 
   var pelvis = grp(rig, 0, 0.9, 0);
   // Continuous hip block — single fused volume instead of stacked ellipsoids
-  softEll(pelvis, MM(PANTS), 0, -0.01, 0, 0.17, 0.11, 0.12, 28);
-  softEll(pelvis, MM(PANTS), 0, -0.055, 0.01, 0.145, 0.08, 0.1, 24);
+  softEll(pelvis, MM(PANTS, { dark: true }), 0, -0.01, 0, 0.17, 0.11, 0.12, 28);
+  softEll(pelvis, MM(PANTS, { dark: true }), 0, -0.055, 0.01, 0.145, 0.08, 0.1, 24);
   var belt = put(pelvis, new T.TorusGeometry(0.152, 0.011, 10, 36), MM("#3a1717"), 0, 0.07, 0, 1, 0.7, 1);
   belt.rotation.x = PI / 2;
 
@@ -519,15 +594,16 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   softEll(neck, MM("#c4a882"), 0, 0.07, 0.01, 0.055, 0.04, 0.05, 14);
 
   var head = grp(neck, 0, 0.08, 0);
-  var HM = new T.MeshToonMaterial({ color: "#ebe6dc", gradientMap: grad });
+  var HM = MM("#ebe6dc");
   var HC = [0, 0.048, 0.0], HR = [0.115, 0.12, 0.125];
   // Head / face under the shell (jaw and cheeks peek out a little)
   put(head, new T.SphereGeometry(1, 32, 22, 0, PI * 2, 0, PI * 0.72), HM, HC[0], HC[1], HC[2], HR[0], HR[1], HR[2]);
   softEll(head, HM, 0, -0.02, 0.04, 0.08, 0.06, 0.07, 16); // subtle jaw
 
   // ---- Simplified full-face downhill helmet: shiny white, black visor ----
-  var HELM = new T.MeshPhongMaterial({ color: 0xf5f5f2, shininess: 95, specular: 0xffffff });
-  var VISOR = new T.MeshPhongMaterial({ color: 0x0a0a0c, shininess: 120, specular: 0x444444 });
+  // Helmet & visor on the toon path
+  var HELM = MM("#f5f5f2", { hard: true, emissive: 0x222018, emissiveIntensity: 0.12 });
+  var VISOR = MM("#0a0a0c", { dark: true, emissive: 0x050508, emissiveIntensity: 0.08 });
   // Single upper shell
   put(head, new T.SphereGeometry(1, 32, 20, 0, PI * 2, 0, PI * 0.52), HELM, HC[0], HC[1] + 0.015, HC[2] - 0.005, HR[0] * 1.08, HR[1] * 1.1, HR[2] * 1.06);
   // Simple chin bar
@@ -551,34 +627,34 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
     softEll(fo, MM(SLEEVE), 0, 0, 0, 0.044, 0.044, 0.044, 18);
     tubeHi(fo, MM(SLEEVE), 0.26, [[0, 0.041], [0.2, 0.043], [0.55, 0.036], [0.85, 0.033], [1, 0.035]], 24);
     // Glove cuff continuous with hand
-    put(fo, new T.CylinderGeometry(0.042, 0.038, 0.048, 18), MM(GLOVE), 0, -0.255, 0);
+    put(fo, new T.CylinderGeometry(0.042, 0.038, 0.048, 18), MM(GLOVE, { dark: true }), 0, -0.255, 0);
     var hd = grp(fo, 0, -0.285, 0);
     // Continuous hand volume
-    softEll(hd, MM(GLOVE), 0, -0.04, 0, 0.038, 0.05, 0.024, 16);
-    softEll(hd, MM(GLOVE), s * -0.04, -0.02, 0.004, 0.015, 0.026, 0.014, 12).rotation.z = s * 0.45;
+    softEll(hd, MM(GLOVE, { dark: true }), 0, -0.04, 0, 0.038, 0.05, 0.024, 16);
+    softEll(hd, MM(GLOVE, { dark: true }), s * -0.04, -0.02, 0.004, 0.015, 0.026, 0.014, 12).rotation.z = s * 0.45;
     // Fingers as a continuous mitt slab rather than discrete digits
-    softEll(hd, MM(GLOVE), 0, -0.095, 0, 0.034, 0.028, 0.014, 12);
+    softEll(hd, MM(GLOVE, { dark: true }), 0, -0.095, 0, 0.034, 0.028, 0.014, 12);
     return { up: sh, lo: fo };
   });
 
   var legs = [1, -1].map(function (s) {
     var th = grp(pelvis, s * 0.09, -0.05, 0);
     // Continuous thigh — hip ball into tapering pant leg
-    softEll(th, MM(PANTS), 0, -0.01, 0, 0.086, 0.086, 0.086, 22);
-    tubeHi(th, MM(PANTS), 0.43, [[0, 0.08], [0.12, 0.088], [0.4, 0.075], [0.7, 0.06], [1, 0.054]], 26);
+    softEll(th, MM(PANTS, { dark: true }), 0, -0.01, 0, 0.086, 0.086, 0.086, 22);
+    tubeHi(th, MM(PANTS, { dark: true }), 0.43, [[0, 0.08], [0.12, 0.088], [0.4, 0.075], [0.7, 0.06], [1, 0.054]], 26);
     var sn = grp(th, 0, -0.43, 0);
-    softEll(sn, MM(PANTS), 0, 0, 0, 0.06, 0.06, 0.06, 18);
+    softEll(sn, MM(PANTS, { dark: true }), 0, 0, 0, 0.06, 0.06, 0.06, 18);
     // Knee pad as continuous bulge
     softEll(sn, MM("#141414"), 0, -0.15, 0.045, 0.052, 0.065, 0.026, 16);
-    tubeHi(sn, MM(PANTS), 0.43, [[0, 0.054], [0.15, 0.06], [0.45, 0.05], [0.8, 0.04], [1, 0.048]], 26);
-    softEll(sn, MM(PANTS), 0, -0.43, 0, 0.042, 0.042, 0.042, 16);
+    tubeHi(sn, MM(PANTS, { dark: true }), 0.43, [[0, 0.054], [0.15, 0.06], [0.45, 0.05], [0.8, 0.04], [1, 0.048]], 26);
+    softEll(sn, MM(PANTS, { dark: true }), 0, -0.43, 0, 0.042, 0.042, 0.042, 16);
     // Feet: continuous shoe shells (same joint groups for IK)
     var ft = grp(rig, 0, 0, 0), fore = grp(ft, BALL, 0, 0);
     put(ft, sole(0.235, 0.118, 0.03, 0.045), MM(SOLEC), -0.012, 0, 0);
     put(fore, sole(0.088, 0.116, 0.03, 0.05), MM(SOLEC), 0.044, 0, 0);
-    softEll(ft, MM(SHOE), -0.015, 0.05, 0, 0.108, 0.048, 0.058, 20);
-    softEll(ft, MM(SHOE), -0.095, 0.06, 0, 0.032, 0.042, 0.05, 16);
-    softEll(fore, MM(SHOE), 0.035, 0.032, 0, 0.064, 0.034, 0.054, 18);
+    softEll(ft, MM(SHOE, { dark: true }), -0.015, 0.05, 0, 0.108, 0.048, 0.058, 20);
+    softEll(ft, MM(SHOE, { dark: true }), -0.095, 0.06, 0, 0.032, 0.042, 0.05, 16);
+    softEll(fore, MM(SHOE, { dark: true }), 0.035, 0.032, 0, 0.064, 0.034, 0.054, 18);
     softEll(fore, MM("#34343a"), 0.085, 0.024, 0, 0.022, 0.022, 0.048, 12);
     var col = put(ft, new T.TorusGeometry(0.046, 0.012, 10, 24), MM("#34343a"), -0.025, 0.095, 0);
     col.rotation.x = PI / 2;
