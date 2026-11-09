@@ -505,23 +505,52 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
 
   var neck = grp(chest, 0, 0.285, 0);
   // Continuous neck cylinder with soft ends
-  put(neck, new T.CylinderGeometry(0.065, 0.082, 0.11, 24), MM("#3a1717"), 0, 0.02, 0);
+  put(neck, new T.CylinderGeometry(0.055, 0.07, 0.095, 24), MM("#3a1717"), 0, 0.018, 0);
 
-  var head = grp(neck, 0, 0.075, 0);
+  var head = grp(neck, 0, 0.065, 0);
   var HM = new T.MeshToonMaterial({ color: "#ebe6dc", gradientMap: grad });
-  var HC = [0, 0.07, 0.005], HR = [0.162, 0.158, 0.18];
-  // Continuous head sphere (higher res)
-  put(head, new T.SphereGeometry(1, 40, 28, 0, PI * 2, 0, PI * 0.62), HM, HC[0], HC[1], HC[2], HR[0], HR[1], HR[2]);
-  // Helmet / beanie continuous shell over the crown
-  put(head, new T.SphereGeometry(1, 36, 20, 0, PI * 2, 0, PI * 0.48), MM("#1c1c20"), HC[0], HC[1] + 0.02, HC[2], HR[0] * 1.04, HR[1] * 1.05, HR[2] * 1.02);
-  // Visor / face plate as continuous disc
-  put(head, new T.CircleGeometry(1, 32), MM("#141418"), 0, 0.01, 0.01, 0.148, 0.148, 0.165).rotation.x = PI / 2;
-  var rim = put(head, new T.TorusGeometry(1, 0.048, 10, 40), MM("#1c1c20"), 0, 0.01, 0.01, 0.155, 0.155, 0.172);
-  rim.rotation.x = PI / 2; rim.scale.set(0.15, 0.168, 0.155); rim.position.y = 0.015;
-  // Side accents (ear guards) as continuous spherical patches
-  [PI / 2, PI * 1.5].forEach(function (a) {
-    put(head, new T.SphereGeometry(1, 16, 10, a - 0.18, 0.36, 0, PI * 0.5), MM("#7a2c2c"), HC[0], HC[1], HC[2], HR[0] * 1.01, HR[1] * 1.01, HR[2] * 1.01);
+  // Slightly compact adult head proportions
+  var HC = [0, 0.05, 0.0], HR = [0.12, 0.125, 0.13];
+  // Face / head sphere under the shell
+  put(head, new T.SphereGeometry(1, 36, 24, 0, PI * 2, 0, PI * 0.65), HM, HC[0], HC[1], HC[2], HR[0], HR[1], HR[2]);
+
+  // ---- Full-face downhill helmet: shiny white shell, black visor ----
+  var HELM = new T.MeshPhongMaterial({ color: 0xf5f5f2, shininess: 95, specular: 0xffffff });
+  var HELM2 = new T.MeshPhongMaterial({ color: 0xe8e8e4, shininess: 80, specular: 0xdddddd });
+  var VISOR = new T.MeshPhongMaterial({ color: 0x0a0a0c, shininess: 120, specular: 0x444444 });
+  var HELM_ACC = MM("#1a1a1e");
+  // Main upper shell — glossy white
+  put(head, new T.SphereGeometry(1, 36, 22, 0, PI * 2, 0, PI * 0.55), HELM, HC[0], HC[1] + 0.018, HC[2] - 0.004, HR[0] * 1.07, HR[1] * 1.09, HR[2] * 1.05);
+  // Rear occipital coverage
+  softEll(head, HELM, 0, 0.008, -0.08, 0.095, 0.08, 0.07, 18);
+  // Side / ear protectors
+  [1, -1].forEach(function (s) {
+    softEll(head, HELM, s * 0.115, 0.008, 0.004, 0.036, 0.06, 0.052, 14);
+    softEll(head, HELM2, s * 0.12, -0.012, 0.012, 0.026, 0.042, 0.038, 12);
   });
+  // Chin bar
+  softEll(head, HELM, 0, -0.06, 0.07, 0.088, 0.048, 0.06, 18);
+  softEll(head, HELM2, 0, -0.07, 0.095, 0.075, 0.035, 0.036, 14);
+  // Chin bar side struts
+  [1, -1].forEach(function (s) {
+    softEll(head, HELM, s * 0.085, -0.035, 0.052, 0.026, 0.036, 0.032, 12);
+  });
+  // Black visor / peak
+  var peak = put(head, rbox(0.21, 0.024, 0.088, 0.012), VISOR, 0, 0.085, 0.115);
+  peak.rotation.x = -0.32;
+  softEll(head, VISOR, 0, 0.08, 0.128, 0.095, 0.015, 0.038, 12);
+  // Black goggle / eye-port
+  put(head, new T.CircleGeometry(1, 24), VISOR, 0, 0.035, 0.11, 0.08, 0.048, 1).rotation.x = PI / 2;
+  var gRim = put(head, new T.TorusGeometry(1, 0.024, 8, 28), VISOR, 0, 0.035, 0.11, 0.084, 0.052, 0.026);
+  gRim.rotation.x = PI / 2;
+  // Chin vent (dark)
+  softEll(head, VISOR, 0, -0.052, 0.12, 0.038, 0.015, 0.012, 10);
+  // Dark ear-pod accents
+  [1, -1].forEach(function (s) {
+    softEll(head, HELM_ACC, s * 0.125, 0.02, 0.012, 0.018, 0.03, 0.026, 10);
+  });
+  // Top vent ridge
+  softEll(head, HELM2, 0, 0.13, -0.012, 0.026, 0.012, 0.05, 10);
 
   var arms = [1, -1].map(function (s) {
     var sh = grp(chest, s * 0.21, 0.2, 0);
