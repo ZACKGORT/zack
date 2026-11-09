@@ -278,7 +278,7 @@ button { cursor:pointer; }
     <button id="go" type="button">Start</button>
     <a id="dl" href="#" download="inkline.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W T</b> push (hold while moving = tuck) · <b>Alt</b> brake / slow · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space / S / G / ↓</b> or left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
+  <p class="keys"><b>W T ↑</b> push (tap at speed = hard push · hold = tuck) · <b>Alt</b> brake / slow · <b>A F</b> left · <b>D H</b> right · mouse position steers (goes quiet when the cursor sits idle) · <b>tap Space / S / G / ↓</b> or left click ollie · <b>hold</b> to crouch + charge, release to launch · <b>shift</b> switch stance (regular ⇄ goofy) · <b>right click</b> hard push · <b>hold right click</b> at speed to tuck (hands behind back, less drag) · <b>scroll</b> (or the slope slider) eases / steepens the descent · middle-drag to look<br><br><b>Mobile:</b> <b>left thumb</b> anywhere on the left half is a floating stick (← → steer, ↓ brake, ↑ push, or leave AUTO on) · <b>right thumb</b> JUMP (hold to charge, release to launch) · TUCK · SWITCH · <b>vertical swipe</b> on the upper right to pitch the Möbius slope steeper or flatter</p>
 </section>
 <div id="flash"></div>
 <div id="popBurst" aria-hidden="true">
@@ -1720,16 +1720,18 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.cb += ((S.crouch ? 1 : 0) - S.cb) * Math.min(1, dt * (S.crouch ? 12 : 8));
     S.ollieReq = Math.max(0, (S.ollieReq || 0) - dt);
     var bkNow = stopKey();
-    // Right click: tap/short hold = hard push. Long hold at speed = aero tuck (hands behind the back).
+    // Right click or W/T/↑: tap/short hold = hard push (works at speed). Long hold at speed = aero tuck.
     var rc = down("Mouse2");
-    var pk = held.has("KeyW") || held.has("KeyT") || held.has("ArrowUp");   // keyboard push held: tap = push, hold while moving = tuck
+    var pk = held.has("KeyW") || held.has("KeyT") || held.has("ArrowUp") ||
+             touchHeld.has("KeyW");   // stick ↑ also counts as keyboard-style push
     S.rcT = rc ? S.rcT + dt : 0;
     S.pkT = pk ? (S.pkT || 0) + dt : 0;
     var wantAero = !bkNow && S.mode === "ride" && !S.crouch && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
     if (wantAero && !S.aeroOn) banner("TUCK");
     S.aeroOn = wantAero;
     S.aero += ((wantAero ? 1 : 0) - S.aero) * Math.min(1, dt * (wantAero ? 6 : 9));
-    var hard = rc && !bkNow && S.mode === "ride" && !S.crouch && !S.aeroOn;
+    // Hard push while the key/button is held but before tuck kicks in — so a tap at speed still accelerates
+    var hard = (rc || pk) && !bkNow && S.mode === "ride" && !S.crouch && !S.aeroOn;
     S.strain += ((hard ? cl(0.22 + S.v / 26, 0, 1) : 0) - S.strain) * Math.min(1, dt * 4);
 
     if (S.mode === "bail") {
