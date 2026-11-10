@@ -1111,6 +1111,81 @@
                 }
             }
 
+            /* ---- slash command menu (/) ---- */
+            .slash {
+                position: fixed;
+                z-index: 70;
+                width: 280px;
+                max-height: min(420px, 70vh);
+                overflow-y: auto;
+                overflow-x: hidden;
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 14px;
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+                padding: 6px;
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(4px);
+                transition: opacity 0.14s ease, transform 0.14s ease, visibility 0s 0.14s;
+                scrollbar-width: thin;
+                scrollbar-color: var(--line) transparent;
+            }
+            .slash.on {
+                opacity: 1;
+                visibility: visible;
+                transform: none;
+                transition: opacity 0.14s ease, transform 0.14s ease;
+            }
+            .slash .si {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 8px 10px;
+                border-radius: 9px;
+                cursor: pointer;
+                color: var(--fg);
+                transition: background 0.12s;
+            }
+            .slash .si:hover,
+            .slash .si.sel {
+                background: var(--chip);
+            }
+            .slash .si.sel {
+                background: var(--fg);
+                color: var(--bg);
+            }
+            .slash .si.sel .sd {
+                color: inherit;
+                opacity: 0.75;
+            }
+            .slash .ic {
+                flex: none;
+                width: 22px;
+                height: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font: 600 11px/1 Satoshi, system-ui, sans-serif;
+                letter-spacing: -0.02em;
+                opacity: 0.7;
+                margin-top: 1px;
+            }
+            .slash .sl {
+                font: 500 13.5px/1.25 Satoshi, system-ui, sans-serif;
+            }
+            .slash .sd {
+                font: 400 12px/1.3 Satoshi, system-ui, sans-serif;
+                color: var(--muted);
+                margin-top: 1px;
+            }
+            .slash .empty {
+                padding: 14px 12px;
+                text-align: center;
+                color: var(--muted);
+                font: 400 13px Satoshi, system-ui, sans-serif;
+            }
+
             /* ---- slosh gauge (text size) — shown when nothing is being edited ---- */
             .sg-dock {
                 position: fixed;
@@ -2775,7 +2850,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     ["p", "YOUR NAME _/_ ==YOUR ROLE== _/_ https://example.com _/_ you@example.com _/_ City & Remote _/_ 20XX–2026 _/_ Skill, skill, skill, skill"],
                     ["sec", "START HERE_how this page works"],
                     ["p", "Every line on this page is a **statement**. Click one to edit it. Press ''Enter'' for a new statement, ''Shift+Enter'' for a line break inside one, and ''Cmd/Ctrl+Z'' to undo."],
-                    ["p", "While a line is open, a format bar appears: **bold**, ==highlight==, ++underline++, _italic_, ''key phrase'' and [links](https://example.com). You can also type the markers by hand; they work the same."],
+                    ["p", "Type ''/'' at the start of any line to open the command menu (Title, Dek, Role line, Outcome, Quote…). While a line is open, a format bar appears for **bold**, ==highlight==, ++underline++, _italic_, and [links](https://example.com)."],
                     ["p", "Use the field separator to split a line into parts: Company _/_ Title _/_ Dates _/_ Description. It renders as a quiet slash and keeps the line scannable."],
                     ["p", "Switch views in the HUD at the top: ==human== (this one), ==machine== (the same lines as a file tree), ==brutal== (a section as one continuous string), ==medium== (a reader-first column)."],
                     ["p", "Your edits save in this browser only. Open the tools panel to export JSON or DOCX, copy plain text or markdown, import a saved JSON, or reset to this placeholder text."],
@@ -3380,6 +3455,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     var d = t.closest(".blk");
                     setTimeout(function () {
                         if (!d.isConnected || document.activeElement === t) return;
+                        slashClose();
                         d.classList.remove("ef");
                         var i = els.indexOf(d),
                             b = B[i];
@@ -3409,6 +3485,168 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     }, 0);
                 });
 
+                /* ---------- slash command menu (/) ---------- */
+                var SLASH = [
+                    { id: "title", label: "Title", desc: "Main name / big heading", k: "title", ic: "H1" },
+                    { id: "dek", label: "Dek", desc: "One line that holds the rest", k: "dek", ic: "H2" },
+                    { id: "kicker", label: "Kicker", desc: "Small label above the title", k: "kicker", ic: "AB" },
+                    { id: "p", label: "Paragraph", desc: "Body text", k: "p", ic: "¶" },
+                    { id: "sec", label: "Section", desc: "Section divider / label", k: "sec", ic: "§" },
+                    { id: "role", label: "Role line", desc: "Company / Title / Dates / Scope", template: "**Company** _/_ ==Job Title== _/_ 01/2024 – Present _/_ ''What you owned'', ''what you shipped'', ''the result''." },
+                    { id: "outcome", label: "Outcome", desc: "Problem → Action → Result", template: "**Project Name** _/_ ==via Client== _/_ 2024 _/_ ''The problem''. ''What you did''. ''The result, with a number''." },
+                    { id: "quote", label: "Quote", desc: "Testimonial or standout line", template: "==Name== _/_ their role _/_ “Replace this with a short, real quote.”" },
+                    { id: "sig", label: "Signature", desc: "Closing line", k: "sig", ic: "—" },
+                ];
+                var slashEl = null,
+                    slashIdx = 0,
+                    slashQuery = "",
+                    slashFrom = -1,
+                    slashTa = null;
+
+                function slashClose() {
+                    if (slashEl) {
+                        slashEl.classList.remove("on");
+                        var el = slashEl;
+                        setTimeout(function () {
+                            if (el && el.parentNode) el.remove();
+                        }, 150);
+                        slashEl = null;
+                    }
+                    slashTa = null;
+                    slashFrom = -1;
+                    slashQuery = "";
+                }
+
+                function slashFilter(q) {
+                    q = (q || "").toLowerCase().trim();
+                    if (!q) return SLASH.slice();
+                    return SLASH.filter(function (c) {
+                        return (
+                            c.label.toLowerCase().indexOf(q) !== -1 ||
+                            c.desc.toLowerCase().indexOf(q) !== -1 ||
+                            c.id.indexOf(q) !== -1
+                        );
+                    });
+                }
+
+                function slashRender(items) {
+                    if (!slashEl) return;
+                    slashEl.innerHTML = "";
+                    if (!items.length) {
+                        var empty = document.createElement("div");
+                        empty.className = "empty";
+                        empty.textContent = "No matching commands";
+                        slashEl.appendChild(empty);
+                        return;
+                    }
+                    items.forEach(function (c, i) {
+                        var row = document.createElement("div");
+                        row.className = "si" + (i === slashIdx ? " sel" : "");
+                        row.setAttribute("role", "option");
+                        row.dataset.id = c.id;
+                        row.innerHTML =
+                            '<span class="ic">' +
+                            (c.ic || "·") +
+                            '</span><div><div class="sl">' +
+                            c.label +
+                            '</div><div class="sd">' +
+                            c.desc +
+                            "</div></div>";
+                        row.addEventListener("pointerdown", function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            slashRun(c);
+                        });
+                        slashEl.appendChild(row);
+                    });
+                }
+
+                function slashPlace(ta) {
+                    if (!slashEl || !ta) return;
+                    var rect = ta.getBoundingClientRect();
+                    var menuH = Math.min(420, window.innerHeight * 0.7);
+                    var top = rect.bottom + 6;
+                    if (top + 200 > window.innerHeight - 12) {
+                        top = Math.max(12, rect.top - menuH - 6);
+                    }
+                    var left = Math.min(rect.left, window.innerWidth - 296);
+                    left = Math.max(12, left);
+                    slashEl.style.top = top + "px";
+                    slashEl.style.left = left + "px";
+                }
+
+                function slashOpen(ta, from) {
+                    if (slashEl) slashClose();
+                    slashTa = ta;
+                    slashFrom = from;
+                    slashQuery = "";
+                    slashIdx = 0;
+                    slashEl = document.createElement("div");
+                    slashEl.className = "slash";
+                    slashEl.setAttribute("role", "listbox");
+                    slashEl.setAttribute("aria-label", "Insert block");
+                    document.body.appendChild(slashEl);
+                    slashRender(slashFilter(""));
+                    slashPlace(ta);
+                    requestAnimationFrame(function () {
+                        if (slashEl) slashEl.classList.add("on");
+                    });
+                }
+
+                function slashRun(cmd) {
+                    if (!slashTa || slashFrom < 0) {
+                        slashClose();
+                        return;
+                    }
+                    var ta = slashTa;
+                    var i = idx(ta);
+                    var b = B[i];
+                    if (!b) {
+                        slashClose();
+                        return;
+                    }
+                    if (cmd.template) {
+                        b.k = "p";
+                        b.t = cmd.template;
+                    } else if (cmd.k) {
+                        b.k = cmd.k;
+                        b.t = PH[cmd.k] || "";
+                    }
+                    slashClose();
+                    render();
+                    edit(i, (b.t || "").length, true);
+                    save();
+                }
+
+                function slashUpdate(ta) {
+                    var v = ta.value;
+                    // Trigger only when the entire line is a slash command (starts with /)
+                    var m = /^\/(.*)$/.exec(v);
+                    if (!m) {
+                        if (slashEl) slashClose();
+                        return;
+                    }
+                    var q = m[1] || "";
+                    if (!slashEl) {
+                        slashOpen(ta, 0);
+                    }
+                    slashQuery = q;
+                    slashIdx = 0;
+                    var items = slashFilter(q);
+                    slashRender(items);
+                    slashPlace(ta);
+                }
+
+                document.addEventListener(
+                    "mousedown",
+                    function (e) {
+                        if (slashEl && !slashEl.contains(e.target)) {
+                            slashClose();
+                        }
+                    },
+                    true
+                );
+
                 wrap.addEventListener("input", function (e) {
                     var t = e.target;
                     if (t.tagName !== "TEXTAREA") return;
@@ -3433,6 +3671,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     d.querySelector(".ed").dataset.v = v;
                     hq(e.isTrusted);
                     save();
+                    slashUpdate(t);
                 });
                 wrap.addEventListener("keydown", function (e) {
                     var t = e.target;
@@ -3441,6 +3680,36 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                         mvKey(e, t);
                         return;
                     }
+
+                    // Slash menu navigation
+                    if (slashEl && slashEl.classList.contains("on")) {
+                        var items = slashFilter(slashQuery);
+                        if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            slashIdx = items.length ? (slashIdx + 1) % items.length : 0;
+                            slashRender(items);
+                            return;
+                        }
+                        if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            slashIdx = items.length ? (slashIdx - 1 + items.length) % items.length : 0;
+                            slashRender(items);
+                            return;
+                        }
+                        if (e.key === "Enter" || e.key === "Tab") {
+                            e.preventDefault();
+                            if (items[slashIdx]) slashRun(items[slashIdx]);
+                            return;
+                        }
+                        if (e.key === "Escape") {
+                            e.preventDefault();
+                            t.value = "";
+                            t.dispatchEvent(new Event("input", { bubbles: true }));
+                            slashClose();
+                            return;
+                        }
+                    }
+
                     var i = idx(t),
                         b = B[i],
                         a = t.selectionStart,
