@@ -1111,6 +1111,7 @@
                 }
             }
 
+
             /* ---- slash command menu (/) ---- */
             .slash {
                 position: fixed;
@@ -3471,7 +3472,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     var d = t.closest(".blk");
                     setTimeout(function () {
                         if (!d.isConnected || document.activeElement === t) return;
-                        slashClose();
+                        if (typeof slashClose === "function") slashClose();
                         d.classList.remove("ef");
                         var i = els.indexOf(d),
                             b = B[i];
@@ -3501,6 +3502,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     }, 0);
                 });
 
+
                 /* ---------- slash command menu (/) ---------- */
                 var SLASH = [
                     { id: "title", label: "Title", desc: "Main name / big heading", k: "title", ic: "H1" },
@@ -3511,6 +3513,10 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     { id: "role", label: "Role line", desc: "Company / Title / Dates / Scope", template: "**Company** _/_ ==Job Title== _/_ 01/2024 – Present _/_ ''What you owned'', ''what you shipped'', ''the result''." },
                     { id: "outcome", label: "Outcome", desc: "Problem → Action → Result", template: "**Project Name** _/_ ==via Client== _/_ 2024 _/_ ''The problem''. ''What you did''. ''The result, with a number''." },
                     { id: "quote", label: "Quote", desc: "Testimonial or standout line", template: "==Name== _/_ their role _/_ “Replace this with a short, real quote.”" },
+                    { id: "image", label: "Image", desc: "Insert an image from a URL", action: "media", ic: "IMG" },
+                    { id: "video", label: "Video / MP4", desc: "Insert a video (.mp4, .webm)", action: "media", ic: "MP4" },
+                    { id: "embed", label: "Embed", desc: "YouTube, Vimeo, or any page", action: "embed", ic: "</>" },
+                    { id: "link", label: "Link", desc: "Add a hyperlink", action: "link", ic: "URL" },
                     { id: "sig", label: "Signature", desc: "Closing line", k: "sig", ic: "—" },
                 ];
                 var slashEl = null, slashIdx = 0, slashQuery = "", slashFrom = -1, slashTa = null;
@@ -3576,12 +3582,39 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     requestAnimationFrame(function () { if (slashEl) slashEl.classList.add("on"); });
                 }
                 function slashRun(cmd) {
-                    if (!slashTa || slashFrom < 0) { slashClose(); return; }
+                    if (!slashTa) { slashClose(); return; }
                     var ta = slashTa, i = idx(ta), b = B[i];
                     if (!b) { slashClose(); return; }
-                    if (cmd.template) { b.k = "p"; b.t = cmd.template; }
-                    else if (cmd.k) { b.k = cmd.k; b.t = PH[cmd.k] || ""; }
+
+                    // Clear the /query from the line first
+                    ta.value = "";
+                    b.t = "";
+                    ta.dispatchEvent(new Event("input", { bubbles: true }));
                     slashClose();
+
+                    if (cmd.action === "media") {
+                        // keep focus, open the existing URL bar for image/mp4
+                        edit(i, 0);
+                        setTimeout(function () { openUrl("media"); }, 30);
+                        return;
+                    }
+                    if (cmd.action === "embed") {
+                        edit(i, 0);
+                        setTimeout(function () { openUrl("embed"); }, 30);
+                        return;
+                    }
+                    if (cmd.action === "link") {
+                        edit(i, 0);
+                        setTimeout(function () { linkSel(); }, 30);
+                        return;
+                    }
+                    if (cmd.template) {
+                        b.k = "p";
+                        b.t = cmd.template;
+                    } else if (cmd.k) {
+                        b.k = cmd.k;
+                        b.t = PH[cmd.k] || "";
+                    }
                     render();
                     edit(i, (b.t || "").length, true);
                     save();
@@ -3656,6 +3689,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                             return;
                         }
                     }
+
                     var i = idx(t),
                         b = B[i],
                         a = t.selectionStart,
