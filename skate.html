@@ -408,8 +408,21 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   var PAPER = 0xf3f0e8;
 
   var canvas = document.getElementById("c");
-  var renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+  // Safari/WebKit: MSAA + high DPR is a major source of frame hitching.
+  // Cap resolution harder and skip antialias on WebKit; prefer the discrete GPU when available.
+  var isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(navigator.userAgent);
+  var isWebKit = /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(navigator.userAgent);
+  var safariLike = isSafari || isWebKit;
+  var dprCap = safariLike ? 1.25 : 1.75;
+  var renderer = new T.WebGLRenderer({
+    canvas: canvas,
+    antialias: !safariLike,
+    alpha: false,
+    powerPreference: "high-performance",
+    stencil: false,
+    depth: true
+  });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, dprCap));
   renderer.outputColorSpace = T.SRGBColorSpace;
   renderer.toneMapping = T.NoToneMapping;
   var scene = new T.Scene();
@@ -421,12 +434,20 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   scene.add(sun);
   scene.add(sun.target);
 
+  var _lastW = 0, _lastH = 0;
   function size() {
-    renderer.setSize(innerWidth, innerHeight, false);
-    cam.aspect = innerWidth / Math.max(1, innerHeight);
+    var w = innerWidth, h = innerHeight;
+    if (w === _lastW && h === _lastH) return;
+    _lastW = w; _lastH = h;
+    renderer.setSize(w, h, false);
+    cam.aspect = w / Math.max(1, h);
     cam.updateProjectionMatrix();
   }
   addEventListener("resize", size);
+  // iOS Safari fires orientationchange + visualViewport resize in bursts
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", size);
+  }
   size();
 
   /* ========== FULL TOON SHADING SYSTEM ========== */
@@ -1725,8 +1746,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
   }
   function syncTrack() {
-    // Rebuild less often (was /22) — geometry creation was a major hitch source
-    var key = Math.floor(S.s / 48);
+    // Rebuild less often (was /22) — geometry creation was a major hitch source.
+    // Safari benefits from an even coarser key so we spend fewer frames allocating meshes.
+    var stride = (typeof safariLike !== "undefined" && safariLike) ? 72 : 48;
+    var key = Math.floor(S.s / stride);
     if (key === builtKey) return;
     builtKey = key;
     rebuild(Math.max(0, S.s - 70), S.s + 260);
@@ -2761,31 +2784,57 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (!drag && running) camOff *= Math.exp(-0.55 * dt);
   }
 
+    // Cache HUD nodes once — repeated getElementById + unconditional textContent
+  // writes force layout work every frame and show up as Safari jank.
+  var hudEls = {
+    spd: document.getElementById("spd"),
+    grade: document.getElementById("grade"),
+    stance: document.getElementById("stance"),
+    lap: document.getElementById("lap"),
+    dist: document.getElementById("dist"),
+    pop: document.getElementById("pop"),
+    best: document.getElementById("best"),
+    pts: document.getElementById("pts"),
+    combo: document.getElementById("combo"),
+    lineRow: document.getElementById("lineRow"),
+    ringN: document.getElementById("ringN"),
+    edge: document.getElementById("edge"),
+    air: document.getElementById("air"),
+    banner: document.getElementById("banner"),
+    streaks: document.getElementById("streaks")
+  };
+  var hudPrev = { spd: "", grade: "", stance: "", lap: "", dist: "", pop: "", best: "", pts: "", combo: "", rings: "" };
+  function hudSet(el, key, val) {
+    if (!el) return;
+    if (hudPrev[key] === val) return;
+    hudPrev[key] = val;
+    el.textContent = val;
+  }
   function hud(dt) {
     var f = sample(S.s);
-    document.getElementById("spd").textContent = String(Math.round(S.v * 3.6));
-    document.getElementById("grade").textContent = Math.round(f.slope * 180 / PI) + "°";
-    var stEl=document.getElementById("stance"); if(stEl) stEl.textContent = S.goofy ? "goofy" : "regular";
-    var lapEl=document.getElementById("lap"); if(lapEl) lapEl.textContent="lap "+(Math.floor(S.s/MOBIUS_LAP)+1);
-    document.getElementById("dist").textContent = S.s >= 1000 ? (S.s / 1000).toFixed(2) + " km" : Math.floor(S.s) + " m";
-    document.getElementById("pop").textContent = "×" + popOf(S.s, S.v).toFixed(2);
+    hudSet(hudEls.spd, "spd", String(Math.round(S.v * 3.6)));
+    hudSet(hudEls.grade, "grade", Math.round(f.slope * 180 / PI) + "°");
+    hudSet(hudEls.stance, "stance", S.goofy ? "goofy" : "regular");
+    hudSet(hudEls.lap, "lap", "lap " + (Math.floor(S.s / MOBIUS_LAP) + 1));
+    hudSet(hudEls.dist, "dist", S.s >= 1000 ? (S.s / 1000).toFixed(2) + " km" : Math.floor(S.s) + " m");
+    hudSet(hudEls.pop, "pop", "×" + popOf(S.s, S.v).toFixed(2));
     var best = Math.max(S.best, S.s);
-    document.getElementById("best").textContent = best > 12 ? (best >= 1000 ? (best / 1000).toFixed(2) + " km" : Math.floor(best) + " m") : "—";
-    var ptsEl = document.getElementById("pts");
-    if (ptsEl) {
-      var pv = String(Math.floor(S.pts));
-      if (ptsEl.textContent !== pv) ptsEl.textContent = pv;
-      var cv = "×" + S.combo, cEl = document.getElementById("combo");
-      if (cEl.textContent !== cv) cEl.textContent = cv;
-      document.getElementById("lineRow").classList.toggle("on", S.lineOn && S.mode !== "bail");
+    hudSet(hudEls.best, "best", best > 12 ? (best >= 1000 ? (best / 1000).toFixed(2) + " km" : Math.floor(best) + " m") : "—");
+    if (hudEls.pts) {
+      hudSet(hudEls.pts, "pts", String(Math.floor(S.pts)));
+      hudSet(hudEls.combo, "combo", "×" + S.combo);
+      if (hudEls.lineRow) hudEls.lineRow.classList.toggle("on", S.lineOn && S.mode !== "bail");
     }
-    var rnEl = document.getElementById("ringN");
-    if (rnEl && rnEl.textContent !== String(S.rings)) {
-      rnEl.textContent = String(S.rings);
-      if (!reduce) { rnEl.classList.remove("pop"); void rnEl.offsetWidth; rnEl.classList.add("pop"); }
+    if (hudEls.ringN) {
+      var rs = String(S.rings);
+      if (hudPrev.rings !== rs) {
+        hudPrev.rings = rs;
+        hudEls.ringN.textContent = rs;
+        if (!reduce) { hudEls.ringN.classList.remove("pop"); void hudEls.ringN.offsetWidth; hudEls.ringN.classList.add("pop"); }
+      }
     }
-    document.getElementById("edge").classList.toggle("on", Math.abs(S.lat) > f.halfW * 0.8 && S.mode !== "bail");
-    document.getElementById("air").classList.toggle("on", S.mode === "ollie" && clearance() > 0.15);
+    if (hudEls.edge) hudEls.edge.classList.toggle("on", Math.abs(S.lat) > f.halfW * 0.8 && S.mode !== "bail");
+    if (hudEls.air) hudEls.air.classList.toggle("on", S.mode === "ollie" && clearance() > 0.15);
     var showP = S.crouch && S.holdT > 0.1;
     pwrEl.classList.toggle("on", showP);
     pwrEl.classList.toggle("max", S.charge >= 0.995);
@@ -2794,9 +2843,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
       pwrF.style.width = (S.charge * 100).toFixed(0) + "%";
       pwrD.textContent = Math.round(S.v * 0.55 * Math.sqrt(pm)) + " m";
     }
-    var streaks = document.getElementById("streaks");
-    streaks.style.opacity = reduce ? "0" : String(cl((S.v - 11) / 22, 0, 0.5));
-    if (banT > 0) { banT -= dt; if (banT <= 0) document.getElementById("banner").classList.remove("on"); }
+    if (hudEls.streaks) hudEls.streaks.style.opacity = reduce ? "0" : String(cl((S.v - 11) / 22, 0, 0.5));
+    if (banT > 0) { banT -= dt; if (banT <= 0 && hudEls.banner) hudEls.banner.classList.remove("on"); }
     if (pitchHintT > 0) {
       pitchHintT -= dt;
       if (pitchHintT <= 0 && pitchHintEl) pitchHintEl.classList.remove("on");
@@ -3522,6 +3570,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   var acc = 0, last = performance.now();
   var STEP = 1 / 60;
+  // Safari: cap catch-up so a slow frame does not cascade into 5 sim+pose spikes.
+  var MAX_STEPS = (typeof safariLike !== "undefined" && safariLike) ? 3 : 5;
   function loop(now) {
     requestAnimationFrame(loop);
     var dt = Math.min(0.05, (now - last) / 1000);
@@ -3529,7 +3579,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (running) {
       acc += dt;
       var n = 0;
-      while (acc >= STEP && n < 5) { sim(STEP); acc -= STEP; n++; }
+      while (acc >= STEP && n < MAX_STEPS) { sim(STEP); acc -= STEP; n++; }
+      // Drop leftover time instead of snowballing when we hit the step cap
+      if (n >= MAX_STEPS) acc = Math.min(acc, STEP * 0.5);
     }
     updateSteep(dt);
     syncTrack();
