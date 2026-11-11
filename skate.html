@@ -1803,7 +1803,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false,
     pts: 0, combo: 1, lineRun: 0, lineGrace: 0, lineMax: 10, lineOn: false, bestPts: 0, ptsSaved: 0,
     rings: 0, ringChain: 0, ringLast: 0,
-    kickflip: false, kfStart: -1
+    kickflip: false, kfStart: -1, tuckBreak: 0
   };
   try { S.bestPts = S.ptsSaved = Number(localStorage.getItem("inkline-best-pts") || 0); } catch (e) {}
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
@@ -1815,7 +1815,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
     S.switchT = -1; S.switchFlipped = false;
     S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
-    S.kickflip = false; S.kfStart = -1;
+    S.kickflip = false; S.kfStart = -1; S.tuckBreak = 0;
     // Reseed race line, coins, obstacles
     for (var rg = 0; rg < rings.length; rg++) ringRelease(rings[rg]);
     rings = []; curbs = [];
@@ -1965,15 +1965,23 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   function overUI(e) { return e.target && e.target.closest && e.target.closest("#card, #touch, #steepWrap, #volWrap, #mvolWrap, #recWrap, #mp, #coffeeBtn, #hudCoffee, #coffeeCard"); }
   canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+  // Sync mouse buttons from bitmask so left+right can be held together reliably
+  function syncMouseButtons(e) {
+    if (e.pointerType && e.pointerType !== "mouse") return;
+    if (typeof e.buttons === "number") {
+      if (e.buttons & 1) held.add("Mouse0"); else held.delete("Mouse0");
+      if (e.buttons & 2) held.add("Mouse2"); else held.delete("Mouse2");
+    }
+  }
   addEventListener("pointerdown", function (e) {
     if (e.pointerType === "mouse") { mouseMoveT = performance.now(); setCursorIdle(false); }
     if (!running || overUI(e)) return;
     if (e.pointerType === "mouse") {
-      if (e.button === 0) held.add("Mouse0");          // left click = ollie
-      else if (e.button === 2) held.add("Mouse2");     // right click (hold) = tuck / hard push
-      else drag = [e.clientX, e.clientY];              // middle drag = look
+      syncMouseButtons(e);
+      if (e.button === 0) held.add("Mouse0");
+      else if (e.button === 2) held.add("Mouse2");
+      else if (e.button === 1) drag = [e.clientX, e.clientY];
     } else if (e.target === canvas || e.target === document.body) {
-      // Left half: floating stick. Elsewhere: look-drag or vertical pitch swipe.
       if (!stick && inStickZone(e)) { stickStart(e); return; }
       if (!pitchSwipe) {
         pitchSwipe = { id: e.pointerId, x0: e.clientX, y0: e.clientY, steep0: steepT, moved: 0 };
@@ -1983,8 +1991,11 @@ function olFeet(ol,bq,w0,c0L,c0R){
   });
   addEventListener("pointerup", function (e) {
     if (stick && stick.id === e.pointerId) stopStick();
-    if (e.button === 0) held.delete("Mouse0");
-    if (e.button === 2) held.delete("Mouse2");
+    if (e.pointerType === "mouse") {
+      syncMouseButtons(e);
+      if (e.button === 0) held.delete("Mouse0");
+      if (e.button === 2) held.delete("Mouse2");
+    }
     if (pitchSwipe && pitchSwipe.id === e.pointerId) {
       pitchSwipe = null;
     }
@@ -1995,6 +2006,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     held.delete("Mouse0"); held.delete("Mouse2");
     if (pitchSwipe && (!e || pitchSwipe.id === e.pointerId)) pitchSwipe = null;
     drag = null;
+  });
+  // Fallback: plain mouse events catch multi-button combos some pointer stacks miss
+  addEventListener("mousedown", function (e) {
+    if (!running || overUI(e)) return;
+    if (e.button === 0) held.add("Mouse0");
+    if (e.button === 2) held.add("Mouse2");
+  });
+  addEventListener("mouseup", function (e) {
+    if (e.button === 0) held.delete("Mouse0");
+    if (e.button === 2) held.delete("Mouse2");
   });
   document.addEventListener("mouseleave", function () { mouseX = null; mouseY = null; });
   var cursorIdle = false;
@@ -2277,13 +2298,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
       S.armed = false;
     }
     // While tucked (right-click hold), left-click / Space overrides for an immediate ollie
-    if (space && !S.spaceWas && S.aeroOn && S.mode === "ride" && !S.fly) {
-      S.ollieReq = 0.2;
+    if (space && !S.spaceWas && (S.aeroOn || S.aero > 0.35) && S.mode === "ride" && !S.fly) {
+      S.ollieReq = 0.25;
       S.relCharge = 0.55;
       S.aeroOn = false;
       S.aero = 0;
+      S.rcT = 0;              // reset tuck hold so wantAero doesn't re-arm this frame
+      S.tuckBreak = 0.35;     // brief lockout so right-click must re-hold to tuck again
       S.armed = false;
       S.holdT = 0;
+      S.crouch = false;
+      S.cb = 0;
+      S.charge = 0;
+      S.chargeV = 0;
     }
     // Double-tap jump while ascending = kickflip (flat ollies + lip launches)
     if (space && !S.spaceWas && !S.kickflip) {
@@ -2314,7 +2341,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
              touchHeld.has("KeyW");   // stick ↑ also counts as keyboard-style push
     S.rcT = rc ? S.rcT + dt : 0;
     S.pkT = pk ? (S.pkT || 0) + dt : 0;
-    var wantAero = !bkNow && S.mode === "ride" && !S.crouch && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
+    if (S.tuckBreak > 0) S.tuckBreak = Math.max(0, S.tuckBreak - dt);
+    var wantAero = !bkNow && S.mode === "ride" && !S.crouch && S.tuckBreak <= 0 && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
     if (wantAero && !S.aeroOn) banner("TUCK");
     S.aeroOn = wantAero;
     S.aero += ((wantAero ? 1 : 0) - S.aero) * Math.min(1, dt * (wantAero ? 6 : 9));
