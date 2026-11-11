@@ -2736,6 +2736,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
 
   var look = new V(), camUpS = new V(0, 1, 0);
+  var introShift = 0;
   function frameCamera(dt) {
     var f = sample(S.s);
     var ahead = sample(S.s + 8 + Math.min(S.v, 30) * 0.16);
@@ -2780,6 +2781,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
     cam.lookAt(look);
     var fov = 45 + Math.min(S.v, 32) * 0.38;
     if (Math.abs(cam.fov - fov) > 0.15) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    // Title card up: slide the framing so the rider sits centered in the free space above the card
+    var cardEl = document.getElementById("card"), shiftT = 0;
+    if (!running && cardEl && !cardEl.hidden) {
+      var ch = innerHeight, ctop = cardEl.getBoundingClientRect().top;
+      shiftT = cl(ch * 0.5 - ctop * 0.5, 0, ch * 0.4);
+    }
+    introShift += (shiftT - introShift) * (reduce ? 1 : Math.min(1, dt * 5));
+    if (introShift < 0.5 && shiftT === 0) {
+      if (cam.view && cam.view.enabled) { cam.clearViewOffset(); }
+      introShift = 0;
+    } else {
+      cam.setViewOffset(innerWidth, innerHeight, 0, introShift, innerWidth, innerHeight);
+    }
     sun.position.copy(rider).add(new V(-12, 24, 14));
     sun.target.position.copy(rider);
     ridges.position.set(f.p.x, f.p.y - 8, f.p.z);
