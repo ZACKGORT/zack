@@ -2325,6 +2325,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
         S.kickflip = true;
         S.kfStart = performance.now() / 1000;
         banner("KICKFLIP");
+        Audio.swish();
       }
     }
     S.spaceWas = space;
@@ -3146,6 +3147,26 @@ function olFeet(ol,bq,w0,c0L,c0R){
       thud: function () {
         blip(110, 42, 0.28, 0.2);
         noiseHit(0.12, 0.12, 120, 0.6);
+      },
+      // Airy board-spin whoosh for kickflips
+      swish: function () {
+        if (!ensure()) return;
+        var t0 = ctx.currentTime;
+        // Broadband noise with a quick high→mid sweep = fabric/air swish
+        var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+        var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.85;
+        bp.frequency.setValueAtTime(3200, t0);
+        bp.frequency.exponentialRampToValueAtTime(480, t0 + 0.22);
+        var hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 220;
+        var g = ctx.createGain();
+        g.gain.setValueAtTime(0.001, t0);
+        g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.018);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.26);
+        src.connect(bp); bp.connect(hp); hp.connect(g); g.connect(master);
+        src.start(t0); src.stop(t0 + 0.28);
+        // Thin high layer for the "flick" edge
+        noiseHit(0.07, 0.08, 2400, 1.4);
+        blip(900, 280, 0.04, 0.16, "sine");
       },
       tick: function (v, slope, air) {
         if (!ctx) return;
