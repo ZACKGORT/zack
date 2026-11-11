@@ -42,10 +42,10 @@ button { cursor:pointer; }
   padding:6px 12px; letter-spacing:0.18em; font-size:12px; font-weight:560; }
 #air.on, #edge.on { opacity:1; }
 #edge.on { border-color:#7a2c2c; color:#7a2c2c; }
-#card { position:fixed; z-index:3; left:50%; bottom:calc(16px + env(safe-area-inset-bottom));
+#card { position:fixed; z-index:3; left:50%; top:calc(18px + env(safe-area-inset-top));
   transform:translateX(-50%); width:min(460px, calc(100% - 24px));
-  background:var(--card); border:2px solid var(--ink); padding:18px 20px 16px;
-  box-shadow:6px 6px 0 var(--ink); }
+  background:rgba(247,244,238,0.82); border:2px solid var(--ink); padding:18px 20px 16px;
+  box-shadow:6px 6px 0 var(--ink); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
 #card h1 { font-family:Fraunces, Georgia, serif; font-weight:560; font-size:clamp(48px, 12vw, 72px);
   line-height:0.85; letter-spacing:-0.045em; margin:4px 0 10px; }
 #card .by { margin:0 0 12px; color:var(--muted); font-size:13px; letter-spacing:0.02em; }
@@ -324,7 +324,7 @@ button { cursor:pointer; }
     <button type="button" id="coffeeBtn" title="Buy me a coffee"><span class="ico" aria-hidden="true">☕</span> Coffee</button>
     <a id="dl" href="https://zack.cx/skate#" download="skate.html">Download HTML</a>
   </div>
-  <p class="keys"><b>W / ↑</b> push · <b>S / G / Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / ↓</b> or click to ollie (hold to charge) · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK · SWITCH · swipe to pitch</p>
+  <p class="keys"><b>Space</b> start · <b>W / ↑</b> push · <b>S / G / Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / ↓</b> or click to ollie (hold to charge; left-click overrides tuck) · double-tap jump in air for kickflip · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK · SWITCH · swipe to pitch</p>
 </section>
 
 <aside id="coffeeCard" aria-label="Buy me a coffee" role="dialog">
@@ -354,7 +354,7 @@ button { cursor:pointer; }
     <button type="button" id="bAuto" aria-pressed="true" aria-label="Auto push on or off">Auto</button>
     <button type="button" id="bTuck" data-k="Mouse2" aria-label="Tuck, hold for aero">Tuck<span class="hint">hold</span></button>
     <button type="button" id="bSwitch" data-k="Switch" aria-label="Switch stance">Switch</button>
-    <button type="button" id="bJump" data-k="Space" aria-label="Ollie: hold to charge, release to launch">Jump<span class="hint">hold &middot; release</span></button>
+    <button type="button" id="bJump" data-k="Space" aria-label="Ollie: hold to charge, release to launch; double-tap in air for kickflip">Jump<span class="hint">hold · release · 2× flip</span></button>
   </div>
 </div>
 <aside id="mp" aria-label="Music player">
@@ -1798,11 +1798,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     oT: -1, ol: null, popMul: 1, airT: 0.55, olBX: 0,
     bT: 0, bClip: "bail", big: false, boardLocal: null,
     landT: 0, landD: 0.18, landAmp: 0.065, landBlend: 0, shake: 0, camRoll: 0, spin: 0, sector: 0,
-    forced: null, steerOverride: null, goofy: false, rcT: 0, aero: 0, aeroOn: false, spaceWas: false,
+    forced: null, steerOverride: null, goofy: false, switchT: -1, switchFlipped: false, switchDir: 1, rcT: 0, aero: 0, aeroOn: false, spaceWas: false,
     relArm: 0, strain: 0, cb: 0, charge: 0, chargeV: 0, holdT: 0, crouch: false, armed: false, relCharge: 0, relDip: 0,
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false,
     pts: 0, combo: 1, lineRun: 0, lineGrace: 0, lineMax: 10, lineOn: false, bestPts: 0, ptsSaved: 0,
-    rings: 0, ringChain: 0, ringLast: 0
+    rings: 0, ringChain: 0, ringLast: 0,
+    kickflip: false, kfStart: -1
   };
   try { S.bestPts = S.ptsSaved = Number(localStorage.getItem("inkline-best-pts") || 0); } catch (e) {}
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
@@ -1812,7 +1813,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0; S.fly = false; S.phase = 0; S.wRide = 0; S.pushing = false;
     S.ol = null; S.oT = -1; S.landT = 0; S.landBlend = 0; S.cp = { s: 10, v: 8 }; S.sector = 0; S.beat = false;
     S.strain = 0; S.cb = 0; S.charge = 0; S.chargeV = 0; S.crouch = false; S.armed = false;
+    S.switchT = -1; S.switchFlipped = false;
     S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
+    S.kickflip = false; S.kfStart = -1;
     // Reseed race line, coins, obstacles
     for (var rg = 0; rg < rings.length; rg++) ringRelease(rings[rg]);
     rings = []; curbs = [];
@@ -1866,7 +1869,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
   function buzz(ms) { try { if (navigator.vibrate) navigator.vibrate(ms); } catch (_) {} }
   function switchStance() {
     if (!running || S.mode !== "ride") return;
-    S.goofy = !S.goofy; banner(S.goofy ? "SWITCH · GOOFY" : "SWITCH · REGULAR");
+    if (S.switchT >= 0) return; // already mid-switch
+    // Torso leads, hips follow; board orientation commits at the midpoint.
+    S.switchT = 0;
+    S.switchFlipped = false;
+    S.switchDir = S.goofy ? -1 : 1; // twist toward the opposite stance
+    banner(S.goofy ? "SWITCH · REGULAR" : "SWITCH · GOOFY");
   }
   addEventListener("pointerdown", function (e) { if (e.pointerType !== "mouse") usingTouch = true; }, true);
 
@@ -2196,6 +2204,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       startFlight(sg * PIPE.xLip, PIPE.hLip + ollieLift, vx, up, sg * th);
       if (S.mode === "ollie") {
         S.mode = "ride"; S.ol = null; S.oT = -1; S.landT = 0; S.landBlend = 0;
+        // keep kickflip through lip air
       }
     }
   }
@@ -2238,13 +2247,18 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var impact = Math.max(0, -vn);
     S.fly = false; S.flySg = 0;
     S.lat = sg; S.latV = downWall; S.drop = 0; S.fallVy = 0;
-    if (impact > PIPE.bailImpact) { bail(impact > 15); return true; }
+    if (impact > PIPE.bailImpact) { S.kickflip = false; S.kfStart = -1; bail(impact > 15); return true; }
     var k = cl(impact / 8, 0, 1);
     S.landD = S.landT = 0.28 + 0.2 * k; S.landAmp = 0.03 + 0.09 * k; S.landBlend = k;
     S.shake = Math.max(S.shake, 0.05 + 0.22 * k);
     S.wRide = 0; S.phase = 0; S.pushing = false;
     if (impact > 1.5 && S.mode !== "ollie") Audio.thud();
-    if (t > 0.6) banner("AIR " + t.toFixed(1) + "s");
+    if (S.kickflip) {
+      banner("CLEAN FLIP");
+      S.kickflip = false; S.kfStart = -1;
+    } else if (t > 0.6) {
+      banner("AIR " + t.toFixed(1) + "s");
+    }
     return false;
   }
 
@@ -2262,8 +2276,32 @@ function olFeet(ol,bq,w0,c0L,c0R){
       else if (S.mode !== "ride" && S.holdT < 0.25) { S.ollieReq = 0.2; S.relCharge = 0; } // buffered tap
       S.armed = false;
     }
+    // While tucked (right-click hold), left-click / Space overrides for an immediate ollie
+    if (space && !S.spaceWas && S.aeroOn && S.mode === "ride" && !S.fly) {
+      S.ollieReq = 0.2;
+      S.relCharge = 0.55;
+      S.aeroOn = false;
+      S.aero = 0;
+      S.armed = false;
+      S.holdT = 0;
+    }
+    // Double-tap jump while ascending = kickflip (flat ollies + lip launches)
+    if (space && !S.spaceWas && !S.kickflip) {
+      var canFlip = false;
+      if (S.mode === "ollie" && S.oT >= 0) {
+        var mt = mapOllie(S.oT, S.airT);
+        canFlip = mt < OL.apex - 0.02;
+      } else if (S.fly && S.flyT < 0.38 && S.fvh > 0.5) {
+        canFlip = true;
+      }
+      if (canFlip) {
+        S.kickflip = true;
+        S.kfStart = performance.now() / 1000;
+        banner("KICKFLIP");
+      }
+    }
     S.spaceWas = space;
-    S.crouch = space && S.armed && S.mode === "ride";
+    S.crouch = space && S.armed && S.mode === "ride" && !S.aeroOn;
     // Slightly longer charge window feels more powerful; faster settle into the crouch
     S.charge = S.crouch ? cl((S.holdT - 0.10) / 0.95, 0, 1) : 0;
     S.chargeV += ((S.crouch ? S.charge : 0) - S.chargeV) * Math.min(1, dt * (S.crouch ? 14 : 7));
@@ -2283,6 +2321,21 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // Hard push while the key/button is held but before tuck kicks in — so a tap at speed still accelerates
     var hard = (rc || pk) && !bkNow && S.mode === "ride" && !S.crouch && !S.aeroOn;
     S.strain += ((hard ? cl(0.22 + S.v / 26, 0, 1) : 0) - S.strain) * Math.min(1, dt * 4);
+
+    // Stance switch: torso-lead / hips-follow timer (only while rolling)
+    if (S.switchT >= 0) {
+      var SWITCH_DUR = 0.52;
+      S.switchT += dt / SWITCH_DUR;
+      if (!S.switchFlipped && S.switchT >= 0.5) {
+        S.goofy = !S.goofy;
+        S.switchFlipped = true;
+      }
+      if (S.switchT >= 1) {
+        if (!S.switchFlipped) { S.goofy = !S.goofy; S.switchFlipped = true; }
+        S.switchT = -1;
+        S.switchFlipped = false;
+      }
+    }
 
     if (S.mode === "bail") {
       S.bT += dt;
@@ -2342,10 +2395,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
           sgO * thO
         );
         S.mode = "ride"; S.ol = null; S.oT = -1; S.landT = 0; S.landBlend = 0;
+        // keep kickflip through lip air
       } else if (S.oT >= ollieDur(S.airT)) {
         var sketch = Math.abs(S.roll) > 0.58 && S.v > 18;
         // Soft return to coast: longer absorb + blend window so arms/board ease into cruise
+        var wasFlip = S.kickflip;
         S.mode = "ride"; S.ol = null; S.oT = -1; S.wRide = 0; S.phase = 0;
+        S.kickflip = false; S.kfStart = -1;
         var airScale = cl(S.airT / 1.1, 0, 1);
         S.landD = 0.42 + 0.12 * airScale;
         S.landT = S.landD;
@@ -2356,7 +2412,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
           if (sketch || inGap(S.s) || Math.abs(S.lat) > sample(S.s).halfW - 0.02) { bail(true); return; }
           Audio.thud();
           S.shake = Math.max(S.shake, 0.1 + 0.06 * airScale);
-          if (Math.abs(S.roll) < 0.2 && Math.abs(S.latV) < 2.4 && S.v > 8) banner("CLEAN");
+          if (Math.abs(S.roll) < 0.2 && Math.abs(S.latV) < 2.4 && S.v > 8) banner(wasFlip ? "CLEAN FLIP" : "CLEAN");
         }
       }
     }
@@ -2445,8 +2501,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
         var c = curbs[i];
         if (c.s < S.s - 3) break;
         var hitR = (c.depth || 0.7) * 0.55 + 0.2;
-        if (Math.abs(c.s - S.s) < hitR && Math.abs(S.lat - c.lat) < c.span * 0.5 + 0.22 && clr < c.h - 0.02 && S.v > 2.2) {
-          bail(c.h > 0.55); return; // tall ledges are harsher wipeouts
+        if (Math.abs(c.s - S.s) < hitR && Math.abs(S.lat - c.lat) < c.span * 0.5 + 0.22 && S.v > 2.2) {
+          // Taller obstacles: top surface is skateable if you land near the lip
+          var topMargin = c.h > 0.45 ? Math.min(0.2, c.h * 0.32) : 0.02;
+          if (clr < c.h - topMargin) {
+            bail(c.h > 0.55); return;
+          }
         }
       }
     }
@@ -2530,6 +2590,36 @@ function olFeet(ol,bq,w0,c0L,c0R){
         chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.yawOff * 0.18 * carveAmt));
       }
     }
+    // ---- Stance switch: torso rotates first, hips catch up; board commits at midpoint ----
+    // Wind-up peaks at the stance flip (t=0.5), then releases in the mirrored frame so motion is continuous.
+    if (S.switchT >= 0) {
+      var st = cl(S.switchT, 0, 1);
+      // Triangle envelopes via smoothstep: climb to 1 at mid, descend to 0 at end.
+      // Torso leads (starts immediately, peaks earlier); hips lag (delayed start, peaks later).
+      var torsoU = st < 0.5
+        ? sm(cl(st / 0.42, 0, 1))
+        : sm(cl((1 - st) / 0.42, 0, 1));
+      var hipU = st < 0.5
+        ? sm(cl((st - 0.14) / 0.36, 0, 1))
+        : sm(cl((1 - st - 0.14) / 0.36, 0, 1));
+      // Peak twist ~150° — enough to read as a full stance change without over-rotating past the mirror.
+      var maxYaw = PI * 0.82;
+      // Wind in switchDir; after scale.z flips, invert local yaw so the world-space twist keeps going the same way.
+      var yawSign = S.switchDir * (S.switchFlipped ? -1 : 1);
+      var angT = yawSign * maxYaw * torsoU;
+      var angH = yawSign * maxYaw * hipU;
+      // Hips lag → board orientation follows the lower body
+      pelvis.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), angH));
+      // Cascade: spine less than chest so shoulders lead the twist
+      spine.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), angT * 0.8));
+      chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), angT));
+      // Deck yaws with the hips so the board commits when the lower body does
+      if (S.mode === "ride" && !S.fly) {
+        board.quaternion.multiply(Q.setFromAxisAngle(new V(0, 1, 0), angH * 0.9));
+      }
+      // Light load through the middle of the switch
+      pelvis.position.y -= Math.sin(st * PI) * 0.05;
+    }
     neck.quaternion.identity().slerp(qh, 0.4);
     head.quaternion.identity().slerp(qh, 0.6);
     if (S.mode === "ride") {
@@ -2601,10 +2691,37 @@ function olFeet(ol,bq,w0,c0L,c0R){
     } else if (ol) {
       var w0 = sm(Math.min(1, S.oT / 0.1));
       board.position.set(lerp(S.olBX, -0.095 + ol.bx, w0), ol.by, 0);
+      // Kickflip: rapid crispy 360° board roll around long axis (X)
+      var flipAng = 0, kfProg = 0;
+      if (S.kickflip && S.kfStart > 0) {
+        var elapsed = Math.max(0, performance.now() / 1000 - S.kfStart);
+        var total = 0.26;
+        kfProg = cl(elapsed / total, 0, 1);
+        var ease = kfProg < 0.5 ? 2 * kfProg * kfProg : 1 - Math.pow(-2 * kfProg + 2, 2) / 2;
+        flipAng = ease * Math.PI * 2;
+      }
       bq.setFromEuler(E.set(0, 0, ol.pitch));
+      if (flipAng) {
+        Q.setFromAxisAngle(new V(1, 0, 0), flipAng);
+        bq.multiply(Q);
+      }
       board.quaternion.copy(bq);
-      res = olFeet(ol, bq, w0, new V(base[14], base[15], base[16]), new V(base[17], base[18], base[19]));
+      var footBq = bq;
+      if (S.kickflip && kfProg > 0.05 && kfProg < 0.92) {
+        footBq = new T.Quaternion().setFromEuler(E.set(0, 0, ol.pitch));
+      }
+      res = olFeet(ol, footBq, w0, new V(base[14], base[15], base[16]), new V(base[17], base[18], base[19]));
       aL = res[0].A; aR = res[1].A;
+    } else if (S.fly && S.kickflip && S.kfStart > 0) {
+      var elapsedF = Math.max(0, performance.now() / 1000 - S.kfStart);
+      var kfProgF = cl(elapsedF / 0.26, 0, 1);
+      var easeF = kfProgF < 0.5 ? 2 * kfProgF * kfProgF : 1 - Math.pow(-2 * kfProgF + 2, 2) / 2;
+      var flipAngF = easeF * Math.PI * 2;
+      board.position.set(-0.095, BH, 0);
+      bq.setFromEuler(E.set(0, 0, 0));
+      Q.setFromAxisAngle(new V(1, 0, 0), flipAngF);
+      bq.multiply(Q);
+      board.quaternion.copy(bq);
     } else {
       // Keep the deck at the same board-space origin used by the ollie foot authoring.
       board.position.set(-0.095, BH, 0);
@@ -3030,6 +3147,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
   document.getElementById("go").addEventListener("click", startRun);
   document.getElementById("go").addEventListener("pointerup", function (e) {
     if (e.pointerType !== "mouse") startRun();
+  });
+  addEventListener("keydown", function (e) {
+    if (running) return;
+    if (e.code === "Space" || e.key === " ") {
+      e.preventDefault();
+      startRun();
+    }
   });
 
 
