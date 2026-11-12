@@ -1535,8 +1535,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
   var nextCurb = 80;
   var nextBlock = 130;
   var nextWallId = 1;
-  // Block unit size — 2-high wall (~1.0 m) is clearable with a charged ollie
-  var BLK_W = 0.52, BLK_D = 0.48, BLK_H = 0.50;
+  // Block unit size — 2-high wall (~0.84 m) clears with a medium–full charge, not a tap
+  var BLK_W = 0.50, BLK_D = 0.46, BLK_H = 0.42;
   var trackG = new T.Group(); scene.add(trackG);
   var blocksG = new T.Group(); scene.add(blocksG);
   var ridges = new T.Group(); scene.add(ridges);
@@ -1557,59 +1557,69 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     return lineNodes[n - 1].lat;
   }
-  // Short low curbs only — hop-able without a full charge. Block walls are the tall obstacle.
+  // Short low curbs — hop-able without a full charge. Offset from the race line so
+  // the coin path isn't a constant minefield; walls are the committed jump challenge.
   function ensureCurbs(upto) {
     while (nextCurb < upto) {
       var hsh = hash(Math.floor(nextCurb));
       var hsh2 = hash(Math.floor(nextCurb) * 3.17 + 9.1);
-      if (hsh > 0.32) {
-        // Sit near the race line so low hops still play with the coin path
-        var side = hsh2 > 0.66 ? 1 : (hsh2 > 0.33 ? -1 : 0);
-        var lat = lineLat(nextCurb) + side * (0.25 + hsh * 0.7);
-        var maxLat = PIPE.sA * 0.82;
+      // Keep clear of upcoming block walls (need run-up to charge)
+      var nearWall = false;
+      for (var wi = 0; wi < blocks.length; wi++) {
+        if (Math.abs(blocks[wi].s - nextCurb) < 28) { nearWall = true; break; }
+      }
+      if (!nearWall && hsh > 0.42) {
+        // Prefer one side of the line so you can stay on coins and steer around
+        var side = hsh2 > 0.5 ? 1 : -1;
+        var lat = lineLat(nextCurb) + side * (0.9 + hsh * 1.1);
+        var maxLat = PIPE.sA * 0.85;
         if (lat > maxLat) lat = maxLat;
         if (lat < -maxLat) lat = -maxLat;
-        var h = 0.15 + hsh * 0.12;          // ~0.15–0.27 m
-        var span = 1.05 + (hsh * 0.9) % 0.7;
-        var depth = 0.48 + (hsh2 * 0.2) % 0.15;
+        var h = 0.14 + hsh * 0.10;          // ~0.14–0.24 m
+        var span = 0.95 + (hsh * 0.7) % 0.55;
+        var depth = 0.45 + (hsh2 * 0.15) % 0.12;
         curbs.push({ s: nextCurb, lat: lat, span: span, h: h, depth: depth, tier: 0 });
         lineNodes.push({ s: nextCurb, lat: lat, span: span, h: h, got: false });
       }
-      nextCurb += 30 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 22);
+      nextCurb += 42 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 28);
     }
   }
-  // Coins follow the red line: elevated strings + arcs over obstacles (h = metres above surface)
+  // Coins follow the red line: chest-height strings + jump arcs that are actually reachable
   function ensureHoops() {
-    // Process every node, including the last — arcs don't need a next node. Previously
-    // the loop stopped at length-1, so the newest obstacle had no rings until the
-    // following curb was generated (rings appeared late when approaching it).
     for (var i = 0; i < lineNodes.length; i++) {
       var n = lineNodes[i], nx = lineNodes[i + 1];
       if (n.gen) continue;
       var canString = !!nx;
-      // Obstacle arcs can generate immediately; empty gaps wait for a next node
       if (!n.h && !n.start && !canString) continue;
       n.gen = true;
       var k, rs, hs = hash(n.s * 1.37 + 5.1), hs2 = hash(n.s * 2.11 + 8.3);
-      // Jump arc over an obstacle — generate as soon as the curb exists
-      if (!n.start && n.h && hs < 0.55) {
-        var peak = (n.h || 0.4) + 1.15;
+      var isWall = n.h >= 0.7; // block walls are the tall nodes
+      // Jump arc — peak sits just above the obstacle so a real ollie can thread it
+      if (!n.start && n.h && (isWall || hs < 0.5)) {
+        // Reachable peaks: short curb ~0.7–0.9, wall ~1.15–1.3 (charged ollie)
+        var peak = isWall ? Math.min(1.25, n.h + 0.35) : Math.min(0.85, n.h + 0.55);
         var arcLat = n.lat;
+        var step = isWall ? 2.1 : 1.6;
         for (k = -3; k <= 3; k++) {
-          rs = n.s + k * 1.7;
+          rs = n.s + k * step;
           var edge = Math.abs(k) / 3;
-          var lat = lerp(arcLat, lineLat(rs), edge * edge * 0.65);
-          rings.push({ s: rs, lat: lat, h: 0.95 + peak * (1 - (k / 3.4) * (k / 3.4)), got: false, ver: -1 });
+          // Blend toward race line at the edges so approach/exit rings read on the path
+          var lat = lerp(arcLat, lineLat(rs), edge * edge * 0.75);
+          var hRing = 0.5 + peak * (1 - (k / 3.5) * (k / 3.5));
+          rings.push({ s: rs, lat: lat, h: hRing, got: false, ver: -1 });
         }
       }
-      // Floating string along the line — chest-height, not on the deck
+      // Floating string along the line — leave a gap before the next obstacle
       if (canString) {
-        var from = n.start ? 35 : n.s + 10, cnt = 5 + Math.floor(hs2 * 6), len = cnt * 1.55;
-        if ((n.start || hs2 > 0.4) && nx.s - 10 - from > len) {
-          var st = from + hs * Math.max(0, nx.s - 10 - from - len);
+        var gapEnd = nx.s - (nx.h >= 0.7 ? 22 : 12); // longer run-up before walls
+        var from = n.start ? 35 : n.s + (n.h >= 0.7 ? 14 : 10);
+        var cnt = 4 + Math.floor(hs2 * 4);
+        var len = cnt * 1.7;
+        if ((n.start || hs2 > 0.45) && gapEnd - from > len + 4) {
+          var st = from + hs * Math.max(0, gapEnd - from - len);
           for (var q = 0; q < cnt; q++) {
-            rs = st + q * 1.55;
-            rings.push({ s: rs, lat: lineLat(rs), h: 1.05, got: false, ver: -1 });
+            rs = st + q * 1.7;
+            rings.push({ s: rs, lat: lineLat(rs), h: 0.95, got: false, ver: -1 });
           }
         }
       }
@@ -1754,15 +1764,17 @@ function olFeet(ol,bq,w0,c0L,c0R){
     while (nextBlock < upto) {
       var hsh = hash(Math.floor(nextBlock) * 1.91 + 4.2);
       var hsh2 = hash(Math.floor(nextBlock) * 2.53 + 7.7);
-      // Major obstacles on the race line so ring arcs lead into / over them
-      if (nextBlock > 110 && hsh > 0.5) {
-        var lat = lineLat(nextBlock) + (hsh2 - 0.5) * 0.55;
-        var maxLat = PIPE.sA * 0.7;
+      // Spaced major jumps: room to charge, ring arc telegraphs the line
+      if (nextBlock > 150 && hsh > 0.48) {
+        // Slightly off the pure centerline so a miss is steerable, not a guaranteed hit
+        var lat = lineLat(nextBlock) + (hsh2 - 0.5) * 0.9;
+        var maxLat = PIPE.sA * 0.65;
         if (lat > maxLat) lat = maxLat;
         if (lat < -maxLat) lat = -maxLat;
         spawnBlockWall(nextBlock, lat);
       }
-      nextBlock += 95 + Math.floor(hsh2 * 60);
+      // 150–230 m between wall slots → time to recover speed and charge
+      nextBlock += 150 + Math.floor(hsh2 * 80);
     }
   }
   function ensureCourse() {
