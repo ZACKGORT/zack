@@ -318,13 +318,13 @@ button { cursor:pointer; }
   <p class="k">One-sided course · Möbius topology</p>
   <h1>skate.cx</h1>
   <p class="by">a craft.experience exploration by zack.cx</p>
-  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, and ollie through the seam. Stay close to the red line for points.</p>
+  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, clear the block walls with a charged ollie, and ollie through the seam. Stay close to the red line for points.</p>
   <div class="row">
     <button id="go" type="button">Start</button>
     <button type="button" id="coffeeBtn" title="Buy me a coffee"><span class="ico" aria-hidden="true">☕</span> Coffee</button>
     <a id="dl" href="https://zack.cx/skate#" download="skate.html">Download HTML</a>
   </div>
-  <p class="keys"><b>Space</b> start · <b>W / ↑</b> push · <b>S / G / Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / ↓</b> or click to ollie (hold to charge; left-click overrides tuck) · double-tap jump in air for kickflip · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK · SWITCH · swipe to pitch</p>
+  <p class="keys"><b>Space</b> start · <b>W / ↑</b> push · <b>S / G / Alt</b> brake · <b>A D</b> steer · mouse also steers · <b>Space / ↓</b> or click to ollie (hold to charge; left-click overrides tuck) · double-tap jump in air for kickflip · <b>right-click</b> slam on descent after a charged ollie · <b>Shift</b> switch stance · <b>scroll</b> slope · <b>R</b> record<br><br><b>Mobile:</b> left stick · JUMP · TUCK / SLAM · SWITCH · swipe to pitch</p>
 </section>
 
 <aside id="coffeeCard" aria-label="Buy me a coffee" role="dialog">
@@ -1529,11 +1529,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   // Race line, coins (rings), and occasional ollie obstacles
   var frames = [], gaps = [], curbs = [], hoops = [], rings = [];
+  var blocks = []; // stackable collision blocks (walls)
   var lineNodes = [{ s: 0, lat: 0, span: 0, got: true, start: true }];
   var LINE_PROX = 1.35;
   var nextCurb = 80;
+  var nextBlock = 130;
+  var nextWallId = 1;
+  // Block unit size — 2-high wall (~1.0 m) is clearable with a charged ollie
+  var BLK_W = 0.52, BLK_D = 0.48, BLK_H = 0.50;
   var trackG = new T.Group(); scene.add(trackG);
+  var blocksG = new T.Group(); scene.add(blocksG);
   var ridges = new T.Group(); scene.add(ridges);
+  var blockMat = new T.MeshBasicMaterial({ color: 0x1a1a1a, side: T.DoubleSide });
+  var blockEdgeMat = new T.MeshBasicMaterial({ color: 0xf0b429, side: T.DoubleSide }); // gold edge accent
 
   function hash(n) {
     var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -1549,58 +1557,60 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     return lineNodes[n - 1].lat;
   }
-  // Obstacles sit in the half-pipe bowl (not out on the deck)
+  // Short low curbs only — hop-able without a full charge. Block walls are the tall obstacle.
   function ensureCurbs(upto) {
     while (nextCurb < upto) {
       var hsh = hash(Math.floor(nextCurb));
       var hsh2 = hash(Math.floor(nextCurb) * 3.17 + 9.1);
-      if (hsh > 0.28) {
-        var side = hsh > 0.55 ? 1 : (hsh > 0.38 ? -1 : (hsh2 > 0.5 ? 1 : -1));
-        var tier = hsh2, h, span, depth, lat;
-        if (tier < 0.4) {
-          h = 0.18 + hsh * 0.14;
-          span = 1.3 + (hsh * 1.4) % 1.1;
-          depth = 0.55 + (hsh2 * 0.25) % 0.2;
-          lat = side * (PIPE.sA * 0.35 + (hsh * PIPE.sA * 0.45) % (PIPE.sA * 0.4));
-        } else if (tier < 0.72) {
-          h = 0.36 + hsh * 0.22;
-          span = 1.6 + (hsh * 1.6) % 1.3;
-          depth = 0.7 + (hsh2 * 0.3) % 0.25;
-          lat = side * (PIPE.sA * 0.2 + (hsh * PIPE.sA * 0.5) % (PIPE.sA * 0.45));
-        } else {
-          h = 0.55 + hsh * 0.28;
-          span = 1.8 + (hsh * 1.8) % 1.5;
-          depth = 0.8 + (hsh2 * 0.35) % 0.25;
-          lat = side * (PIPE.sA * 0.15 + (hsh * PIPE.sA * 0.4) % (PIPE.sA * 0.4));
-        }
-        curbs.push({ s: nextCurb, lat: lat, span: span, h: h, depth: depth, tier: tier });
+      if (hsh > 0.32) {
+        // Sit near the race line so low hops still play with the coin path
+        var side = hsh2 > 0.66 ? 1 : (hsh2 > 0.33 ? -1 : 0);
+        var lat = lineLat(nextCurb) + side * (0.25 + hsh * 0.7);
+        var maxLat = PIPE.sA * 0.82;
+        if (lat > maxLat) lat = maxLat;
+        if (lat < -maxLat) lat = -maxLat;
+        var h = 0.15 + hsh * 0.12;          // ~0.15–0.27 m
+        var span = 1.05 + (hsh * 0.9) % 0.7;
+        var depth = 0.48 + (hsh2 * 0.2) % 0.15;
+        curbs.push({ s: nextCurb, lat: lat, span: span, h: h, depth: depth, tier: 0 });
         lineNodes.push({ s: nextCurb, lat: lat, span: span, h: h, got: false });
       }
-      nextCurb += 38 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 28);
+      nextCurb += 30 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 22);
     }
   }
   // Coins follow the red line: elevated strings + arcs over obstacles (h = metres above surface)
   function ensureHoops() {
-    for (var i = 0; i < lineNodes.length - 1; i++) {
+    // Process every node, including the last — arcs don't need a next node. Previously
+    // the loop stopped at length-1, so the newest obstacle had no rings until the
+    // following curb was generated (rings appeared late when approaching it).
+    for (var i = 0; i < lineNodes.length; i++) {
       var n = lineNodes[i], nx = lineNodes[i + 1];
       if (n.gen) continue;
+      var canString = !!nx;
+      // Obstacle arcs can generate immediately; empty gaps wait for a next node
+      if (!n.h && !n.start && !canString) continue;
       n.gen = true;
       var k, rs, hs = hash(n.s * 1.37 + 5.1), hs2 = hash(n.s * 2.11 + 8.3);
-      // Jump arc over an obstacle — peaks well above the curb
-      if (!n.start && hs < 0.42) {
+      // Jump arc over an obstacle — generate as soon as the curb exists
+      if (!n.start && n.h && hs < 0.55) {
         var peak = (n.h || 0.4) + 1.15;
+        var arcLat = n.lat;
         for (k = -3; k <= 3; k++) {
           rs = n.s + k * 1.7;
-          rings.push({ s: rs, lat: lineLat(rs), h: 0.95 + peak * (1 - (k / 3.4) * (k / 3.4)), got: false, ver: -1 });
+          var edge = Math.abs(k) / 3;
+          var lat = lerp(arcLat, lineLat(rs), edge * edge * 0.65);
+          rings.push({ s: rs, lat: lat, h: 0.95 + peak * (1 - (k / 3.4) * (k / 3.4)), got: false, ver: -1 });
         }
       }
       // Floating string along the line — chest-height, not on the deck
-      var from = n.start ? 35 : n.s + 10, cnt = 5 + Math.floor(hs2 * 6), len = cnt * 1.55;
-      if ((n.start || hs2 > 0.4) && nx.s - 10 - from > len) {
-        var st = from + hs * Math.max(0, nx.s - 10 - from - len);
-        for (var q = 0; q < cnt; q++) {
-          rs = st + q * 1.55;
-          rings.push({ s: rs, lat: lineLat(rs), h: 1.05, got: false, ver: -1 });
+      if (canString) {
+        var from = n.start ? 35 : n.s + 10, cnt = 5 + Math.floor(hs2 * 6), len = cnt * 1.55;
+        if ((n.start || hs2 > 0.4) && nx.s - 10 - from > len) {
+          var st = from + hs * Math.max(0, nx.s - 10 - from - len);
+          for (var q = 0; q < cnt; q++) {
+            rs = st + q * 1.55;
+            rings.push({ s: rs, lat: lineLat(rs), h: 1.05, got: false, ver: -1 });
+          }
         }
       }
     }
@@ -1612,9 +1622,152 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (rings.length && rings.some(function (r) { return r.s < cut - 30; })) {
       rings = rings.filter(function (r) { if (r.s < cut - 30) { ringRelease(r); return false; } return true; });
     }
+    // Drop long-gone intact blocks; keep hit ones until they've finished fading
+    if (blocks.length) {
+      blocks = blocks.filter(function (b) {
+        if (b.hit) return b.fade > 0.02;
+        if (b.s < cut - 40) { releaseBlockMesh(b); return false; }
+        return true;
+      });
+    }
+  }
+  function releaseBlockMesh(b) {
+    if (b.mesh) { blocksG.remove(b.mesh); if (b.mesh.geometry) b.mesh.geometry.dispose(); b.mesh = null; }
+    if (b.edge) { blocksG.remove(b.edge); if (b.edge.geometry) b.edge.geometry.dispose(); b.edge = null; }
+  }
+  function ensureBlockMesh(b) {
+    if (b.mesh) return;
+    var geo = new T.BoxGeometry(b.d, b.h, b.w);
+    b.mesh = new T.Mesh(geo, blockMat.clone());
+    b.mesh.material.transparent = true;
+    blocksG.add(b.mesh);
+    // Thin gold edge plate on top face for readability
+    b.edge = new T.Mesh(new T.BoxGeometry(b.d + 0.04, 0.03, b.w + 0.04), blockEdgeMat.clone());
+    b.edge.material.transparent = true;
+    blocksG.add(b.edge);
+  }
+  function scatterWall(wallId) {
+    var f0 = sample(S.s, S.lat);
+    var hitSpeed = Math.max(S.v, 4);
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      if (b.id !== wallId || b.hit) continue;
+      b.hit = true;
+      b.life = 0;
+      b.fade = 1;
+      ensureBlockMesh(b);
+      var f = sample(b.s, b.lat);
+      // World position at the block's center
+      b.p = f.p.clone().addScaledVector(f.N, b.h0 + b.h * 0.5);
+      var basis = new T.Matrix4().makeBasis(f.T, f.N, f.B);
+      b.q = new T.Quaternion().setFromRotationMatrix(basis);
+      // Impulse: along rider path + outward from impact + upward pop (taller rows fly further)
+      var out = (b.lat - S.lat);
+      if (Math.abs(out) < 0.08) out = (b.col || 0.15) * 0.4;
+      b.v = f.T.clone().multiplyScalar(hitSpeed * (0.35 + Math.random() * 0.35))
+        .addScaledVector(f.B, out * (2.2 + Math.random() * 2.5) + (Math.random() - 0.5) * 1.2)
+        .addScaledVector(f.N, 2.4 + b.row * 1.6 + Math.random() * 2.2);
+      b.spin = new V(
+        (Math.random() - 0.5) * 10,
+        (Math.random() - 0.5) * 8,
+        (Math.random() - 0.5) * 10
+      );
+    }
+  }
+  function updateBlocks(dt) {
+    var lo = S.s - 25, hi = S.s + 280;
+    for (var i = 0; i < blocks.length; i++) {
+      var b = blocks[i];
+      if (b.hit) {
+        // Free-body reaction after impact
+        b.life += dt;
+        if (b.v && b.p) {
+          b.v.y -= 14 * dt;
+          b.p.addScaledVector(b.v, dt);
+          b.v.multiplyScalar(0.992);
+          if (b.q && b.spin) {
+            var dq = new T.Quaternion().setFromEuler(new T.Euler(b.spin.x * dt, b.spin.y * dt, b.spin.z * dt));
+            b.q.multiply(dq);
+          }
+        }
+        // Fade after a short tumble window
+        if (b.life > 0.35) b.fade = Math.max(0, 1 - (b.life - 0.35) / 0.75);
+        if (b.mesh) {
+          b.mesh.position.copy(b.p);
+          if (b.q) b.mesh.quaternion.copy(b.q);
+          b.mesh.material.opacity = b.fade;
+          b.mesh.visible = b.fade > 0.02;
+        }
+        if (b.edge) {
+          // Keep the gold lip on the block's local "up" while tumbling
+          var up = new V(0, 1, 0);
+          if (b.q) up.applyQuaternion(b.q);
+          b.edge.position.copy(b.p).addScaledVector(up, b.h * 0.52);
+          if (b.q) b.edge.quaternion.copy(b.q);
+          b.edge.material.opacity = b.fade;
+          b.edge.visible = b.fade > 0.02;
+        }
+        if (b.fade <= 0.02) releaseBlockMesh(b);
+        continue;
+      }
+      // Intact blocks only need meshes while in the visible window
+      if (b.s < lo || b.s > hi) { releaseBlockMesh(b); continue; }
+      ensureBlockMesh(b);
+      var f = sample(b.s, b.lat);
+      var pos = f.p.clone().addScaledVector(f.N, b.h0 + b.h * 0.5);
+      var basis = new T.Matrix4().makeBasis(f.T, f.N, f.B);
+      var q = new T.Quaternion().setFromRotationMatrix(basis);
+      b.mesh.position.copy(pos);
+      b.mesh.quaternion.copy(q);
+      b.mesh.material.opacity = 1;
+      b.mesh.visible = true;
+      b.edge.position.copy(f.p).addScaledVector(f.N, b.h0 + b.h + 0.02);
+      b.edge.quaternion.copy(q);
+      b.edge.material.opacity = 1;
+      b.edge.visible = true;
+    }
+  }
+  function spawnBlockWall(s, lat) {
+    var wid = nextWallId++;
+    var cols = 3, rows = 2;
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var col = c - 1; // -1, 0, 1
+        blocks.push({
+          id: wid, s: s, lat: lat + col * BLK_W,
+          row: r, col: col,
+          h0: r * BLK_H, // base height above surface
+          w: BLK_W * 0.96, d: BLK_D, h: BLK_H * 0.96,
+          hit: false, life: 0, fade: 1,
+          mesh: null, edge: null,
+          p: null, q: null, v: null, spin: null
+        });
+      }
+    }
+    // Race-line node so arcs / strings can form over the wall (keep lineNodes sorted by s)
+    var node = { s: s, lat: lat, span: BLK_W * cols, h: BLK_H * rows, got: false };
+    var li = lineNodes.length;
+    while (li > 0 && lineNodes[li - 1].s > s) li--;
+    lineNodes.splice(li, 0, node);
+  }
+  function ensureBlocks(upto) {
+    while (nextBlock < upto) {
+      var hsh = hash(Math.floor(nextBlock) * 1.91 + 4.2);
+      var hsh2 = hash(Math.floor(nextBlock) * 2.53 + 7.7);
+      // Major obstacles on the race line so ring arcs lead into / over them
+      if (nextBlock > 110 && hsh > 0.5) {
+        var lat = lineLat(nextBlock) + (hsh2 - 0.5) * 0.55;
+        var maxLat = PIPE.sA * 0.7;
+        if (lat > maxLat) lat = maxLat;
+        if (lat < -maxLat) lat = -maxLat;
+        spawnBlockWall(nextBlock, lat);
+      }
+      nextBlock += 95 + Math.floor(hsh2 * 60);
+    }
   }
   function ensureCourse() {
-    ensureCurbs(S.s + 220);
+    ensureCurbs(S.s + 400);
+    ensureBlocks(S.s + 400);
     ensureHoops();
     pruneTrack(160);
   }
@@ -1685,7 +1838,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
   var ringClock = 0;
   function updateRings(dt) {
     ringClock += dt;
-    var lo = S.s - 12, hi = S.s + 180;
+    // Wide forward window so obstacle arc packs are visible well before you reach them
+    var lo = S.s - 18, hi = S.s + 320;
     for (var i = 0; i < rings.length; i++) {
       var r = rings[i];
       if (r.got || r.s < lo || r.s > hi) { if (r.g) ringRelease(r); continue; }
@@ -1790,7 +1944,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
   }
   var extrasKey = -999;
   function syncTrackExtras() {
-    var key = Math.floor(S.s / 20) * 1000 + Math.round(steepNow * 180 / PI);
+    // Finer step so ring/curb data stays well ahead of the rider
+    var key = Math.floor(S.s / 10) * 1000 + Math.round(steepNow * 180 / PI);
     if (key === extrasKey) return;
     extrasKey = key;
     ensureCourse();
@@ -1812,7 +1967,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
     cp: { s: 10, v: 8 }, best: 0, bestSaved: 0, record: 0, beat: false,
     pts: 0, combo: 1, lineRun: 0, lineGrace: 0, lineMax: 10, lineOn: false, bestPts: 0, ptsSaved: 0,
     rings: 0, ringChain: 0, ringLast: 0,
-    kickflip: false, kfStart: -1, tuckBreak: 0
+    kickflip: false, kfStart: -1, tuckBreak: 0,
+    slam: false, slamAmt: 0, slamWas: false, slamArmed: false, slamPow: 0, rcWas: false
   };
   try { S.bestPts = S.ptsSaved = Number(localStorage.getItem("inkline-best-pts") || 0); } catch (e) {}
   try { S.best = S.record = Number(localStorage.getItem("inkline-best-m") || 0); } catch (e) {}
@@ -1825,11 +1981,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.switchT = -1; S.switchFlipped = false;
     S.ollieReq = 0; S.relDip = 0; S.relArm = 0; S.shake = 0; S.holdT = 0; S.relCharge = 0; S.rcT = 0; S.aero = 0; S.aeroOn = false;
     S.kickflip = false; S.kfStart = -1; S.tuckBreak = 0;
+    S.slam = false; S.slamAmt = 0; S.slamWas = false; S.slamArmed = false; S.slamPow = 0; S.rcWas = false;
     // Reseed race line, coins, obstacles
     for (var rg = 0; rg < rings.length; rg++) ringRelease(rings[rg]);
     rings = []; curbs = [];
+    for (var bi = 0; bi < blocks.length; bi++) releaseBlockMesh(blocks[bi]);
+    blocks = [];
     lineNodes = [{ s: 0, lat: 0, span: 0, got: true, start: true }];
-    nextCurb = 80; extrasKey = -999;
+    nextCurb = 80; nextBlock = 130; nextWallId = 1; extrasKey = -999;
     S.pts = 0; S.combo = 1; S.lineRun = 0; S.lineGrace = 0; S.lineMax = 10; S.lineOn = false;
     S.rings = 0; S.ringChain = 0; S.ringLast = 0;
     ensureCourse();
@@ -2179,12 +2338,17 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (S.mode === "bail") return;
     S.lineRun = 0; S.combo = 1; S.lineOn = false; S.ringChain = 0; saveBestPts(true);
     S.mode = "bail"; S.big = big; S.bClip = "bail"; S.bT = 0;
-    S.fallVy = big ? 0.4 : 0; S.ol = null; S.oT = -1; S.pushing = false;
+    // Forward tumble — stay on the surface, pitch over along the path (no freefall drop)
+    S.fallVy = 0; S.drop = 0;
+    S.tumblePitch = 0;
+    S.tumbleRate = big ? 8.2 : 5.6;
+    S.ol = null; S.oT = -1; S.pushing = false;
     S.boardLocal = {
       p: board.position.clone(),
       q: board.quaternion.clone(),
-      v: new V((Math.random() - 0.5) * 1.4, big ? 2.2 : 1.2, (Math.random() - 0.5) * 1.6),
-      spin: new V(3 + Math.random() * 4, 2, 4 + Math.random() * 3)
+      // Board kicks forward + slight lift, then tumbles end-over-end
+      v: new V(1.1 + Math.random() * 0.6, 0.55 + (big ? 0.35 : 0.1), (Math.random() - 0.5) * 0.7),
+      spin: new V(11 + Math.random() * 5, 1.2 + Math.random(), 1.5 + Math.random() * 2)
     };
     S.shake = big ? 0.62 : 0.28;
     banner(big ? "WIPEOUT" : "CAUGHT");
@@ -2197,6 +2361,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     for (var g = 0; g < 40 && S.s > 10 && (inGap(S.s) || inGap(S.s + 4)); g++) S.s = Math.max(10, S.s - 4);
     S.cp = { s: S.s, v: 6 };
     S.lat = 0; S.latV = 0; S.yawOff = 0; S.roll = 0; S.drop = 0; S.fallVy = 0; S.fly = false;
+    S.tumblePitch = 0; S.tumbleRate = 0;
     S.v = 6;
     S.phase = 0; S.wRide = 0; S.pushing = false; S.ol = null; S.oT = -1; S.landT = 0;
     S.shake = 0.35; flash(); banner("BACK ON");
@@ -2206,6 +2371,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var f = sample(S.s);
     if (S.drop < -0.4) { respawn(); return; }
     S.mode = "ride"; S.boardLocal = null; S.v *= 0.5; S.drop = 0;
+    S.tumblePitch = 0; S.tumbleRate = 0;
     S.phase = 0; S.wRide = 0; S.pushing = false; S.landT = S.landD = 0.1; S.landAmp = 0.04;
   }
 
@@ -2247,7 +2413,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // Light air steer, but spring hard back to the exit lip so the path is vertical
     S.fvx += (-steer * 5.5 - S.fvx * 0.45) * dt;
     S.fvx += (home - S.fx) * 14 * dt;
-    S.fvh -= 9.8 * cs * dt;
+    // Slam: assertively drive down — strength scales with charged ollie power
+    if (S.slam) {
+      var sp = 0.35 + 0.65 * (S.slamPow || 0.5);
+      if (S.fvh > -2 * sp) S.fvh = -2 * sp;
+      S.fvh -= (22 + 28 * sp) * cs * dt;
+    } else {
+      S.fvh -= 9.8 * cs * dt;
+    }
     S.fx += S.fvx * dt; S.fh += S.fvh * dt;
     // Tight leash around the exit coping — never onto the deck
     var maxOff = 0.28;
@@ -2279,16 +2452,23 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.lat = sg; S.latV = downWall; S.drop = 0; S.fallVy = 0;
     if (impact > PIPE.bailImpact) { S.kickflip = false; S.kfStart = -1; bail(impact > 15); return true; }
     var k = cl(impact / 8, 0, 1);
-    S.landD = S.landT = 0.28 + 0.2 * k; S.landAmp = 0.03 + 0.09 * k; S.landBlend = k;
-    S.shake = Math.max(S.shake, 0.05 + 0.22 * k);
+    var slammed = S.slam || S.slamWas;
+    var sp = slammed ? (0.35 + 0.65 * (S.slamPow || 0.5)) : 0;
+    S.landD = S.landT = (slammed ? 0.4 + 0.22 * sp : 0.28) + 0.2 * k;
+    S.landAmp = (slammed ? 0.06 + 0.12 * sp : 0.03) + 0.09 * k;
+    S.landBlend = Math.max(k, slammed ? 0.7 + 0.3 * sp : 0);
+    S.shake = Math.max(S.shake, (slammed ? 0.1 + 0.16 * sp : 0.05) + 0.22 * k);
     S.wRide = 0; S.phase = 0; S.pushing = false;
+    S.slam = false; S.slamWas = false; S.slamAmt = 0; S.slamArmed = false; S.slamPow = 0;
     if (impact > 1.5 && S.mode !== "ollie") Audio.thud();
-    if (S.kickflip) {
+    if (slammed) { Audio.thud(); banner("SLAM"); }
+    else if (S.kickflip) {
       banner("CLEAN FLIP");
       S.kickflip = false; S.kfStart = -1;
     } else if (t > 0.6) {
       banner("AIR " + t.toFixed(1) + "s");
     }
+    if (S.kickflip) { S.kickflip = false; S.kfStart = -1; }
     return false;
   }
 
@@ -2352,7 +2532,30 @@ function olFeet(ol,bq,w0,c0L,c0R){
     S.rcT = rc ? S.rcT + dt : 0;
     S.pkT = pk ? (S.pkT || 0) + dt : 0;
     if (S.tuckBreak > 0) S.tuckBreak = Math.max(0, S.tuckBreak - dt);
-    var wantAero = !bkNow && S.mode === "ride" && !S.crouch && S.tuckBreak <= 0 && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
+    // ---- Air slam: only on charged (long-press) ollies; needs a FRESH right-click on descent ----
+    // Holding right-click from the ground no longer auto-triggers — rising edge only.
+    var rcEdge = rc && !S.rcWas;
+    if (rcEdge && !S.slam && S.slamArmed) {
+      var onDescent = false;
+      if (S.mode === "ollie" && S.oT >= 0 && !S.fly) {
+        onDescent = mapOllie(S.oT, S.airT) >= OL.apex - 0.02;
+      } else if (S.fly && S.fvh < 0.4) {
+        onDescent = true;
+      }
+      if (onDescent) {
+        S.slam = true;
+        S.slamWas = true;
+        S.slamAmt = S.slamPow; // power locked to the charge that launched the ollie
+        banner("SLAM");
+      }
+    }
+    S.rcWas = rc;
+    if (S.slam) {
+      S.slamAmt = Math.min(1, Math.max(S.slamAmt, S.slamPow) + dt * 6);
+    } else {
+      S.slamAmt = Math.max(0, S.slamAmt - dt * 4);
+    }
+    var wantAero = !bkNow && S.mode === "ride" && !S.crouch && S.tuckBreak <= 0 && !S.slam && ((rc && S.rcT > 0.4) || (pk && S.pkT > 0.3)) && S.v > (S.aeroOn ? 5 : 8);
     if (wantAero && !S.aeroOn) banner("TUCK");
     S.aeroOn = wantAero;
     S.aero += ((wantAero ? 1 : 0) - S.aero) * Math.min(1, dt * (wantAero ? 6 : 9));
@@ -2378,13 +2581,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (S.mode === "bail") {
       S.bT += dt;
       var clip = CLIP[S.bClip];
-      S.v = Math.max(0, S.v - (S.big ? 14 : 8) * dt);
-      S.s += S.v * dt * (S.big ? 0.25 : 0.85);
-      if (S.big) {
-        S.fallVy -= 18 * dt;
-        S.drop += S.fallVy * dt;
-        if (S.drop < -14) S.drop = -14;
-      }
+      // Slide forward while tumbling — keep momentum along the ribbon
+      S.v = Math.max(0, S.v - (S.big ? 11 : 7) * dt);
+      S.s += S.v * dt * (S.big ? 0.55 : 0.78);
+      S.tumblePitch = (S.tumblePitch || 0) + (S.tumbleRate || 6) * dt;
+      // Stay on the deck — lift is applied in placeRig so the body arcs over, not through
+      S.drop = 0;
       var b = S.boardLocal;
       b.v.y -= 9 * dt;
       b.p.addScaledVector(b.v, dt);
@@ -2399,7 +2601,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (S.mode === "ride" && S.ollieReq > 0 && S.v > 0.6 && !S.fly) {
       S.mode = "ollie"; S.oT = 0; S.ollieReq = 0; S.pushing = false;
       // Charged multiplier kept modest so high-speed ollies stay controllable
-      S.popMul = Math.min(3.4, popOf(S.s, S.v) * (1 + 1.12 * (S.relCharge || 0)));
+      var launchCharge = cl(S.relCharge || 0, 0, 1);
+      S.popMul = Math.min(3.4, popOf(S.s, S.v) * (1 + 1.12 * launchCharge));
       S.relDip = S.cb * (0.14 + 0.16 * S.chargeV);
       // Capture crouch amount for arm recovery, then clear crouch so pose can't keep applying it
       S.relArm = S.cb * (0.42 + 0.70 * S.chargeV);
@@ -2409,11 +2612,23 @@ function olFeet(ol,bq,w0,c0L,c0R){
       S.preT = OL.lift / (1 + 0.55 * cl((S.popMul - 1) / 1.1, 0, 1));
       APEX_Y = 0.55 * S.popMul;
       S.olBX = board.position.x;
+      // Slam only available after a real long-press charge (not a tap / tuck-override flick)
+      S.slam = false; S.slamWas = false; S.slamAmt = 0;
+      S.slamArmed = launchCharge >= 0.35;
+      S.slamPow = S.slamArmed ? launchCharge : 0;
+      // Ignore a right-click that was already held at launch so it can't auto-slam on descent
+      S.rcWas = down("Mouse2") || touchHeld.has("Mouse2");
       Audio.pop();
       firePopBurst();
     }
     if (S.mode === "ollie") {
-      S.oT += dt;
+      // Slam on descent: compress remaining air time; strength scales with charge
+      if (S.slam && mapOllie(S.oT, S.airT) >= OL.apex - 0.02) {
+        var spAir = 0.35 + 0.65 * (S.slamPow || 0.5);
+        S.oT += dt * (2.2 + 3.2 * spAir);
+      } else {
+        S.oT += dt;
+      }
       var base = fr(CLIP.cruise, S.cruiseT, true);
       S.ol = olliePose(mapOllie(S.oT, S.airT), base);
       air = clearance() > 0.12;
@@ -2438,19 +2653,36 @@ function olFeet(ol,bq,w0,c0L,c0R){
         var sketch = Math.abs(S.roll) > 0.58 && S.v > 18;
         // Soft return to coast: longer absorb + blend window so arms/board ease into cruise
         var wasFlip = S.kickflip;
+        var slammed = S.slam || S.slamWas;
+        var spLand = slammed ? (0.35 + 0.65 * (S.slamPow || 0.5)) : 0;
         S.mode = "ride"; S.ol = null; S.oT = -1; S.wRide = 0; S.phase = 0;
         S.kickflip = false; S.kfStart = -1;
         var airScale = cl(S.airT / 1.1, 0, 1);
-        S.landD = 0.42 + 0.12 * airScale;
-        S.landT = S.landD;
-        S.landAmp = 0.045 + 0.04 * airScale;
-        S.landBlend = 1; // 1 → 0 over ~0.45s in pose
+        if (slammed) {
+          // Weighty contact scales with the charge that powered the ollie
+          S.landD = 0.42 + 0.22 * spLand + 0.12 * airScale;
+          S.landT = S.landD;
+          S.landAmp = 0.06 + 0.12 * spLand + 0.04 * airScale;
+          S.landBlend = 0.7 + 0.3 * spLand;
+          S.shake = Math.max(S.shake, 0.12 + 0.16 * spLand + 0.06 * airScale);
+        } else {
+          S.landD = 0.42 + 0.12 * airScale;
+          S.landT = S.landD;
+          S.landAmp = 0.045 + 0.04 * airScale;
+          S.landBlend = 1; // 1 → 0 over ~0.45s in pose
+        }
+        S.slam = false; S.slamWas = false; S.slamAmt = 0; S.slamArmed = false; S.slamPow = 0;
         if (S.fly) { S.landT = 0; S.landBlend = 0; }   // still in freefall off the lip: landing is handled on touchdown
         else {
           if (sketch || inGap(S.s) || Math.abs(S.lat) > sample(S.s).halfW - 0.02) { bail(true); return; }
           Audio.thud();
-          S.shake = Math.max(S.shake, 0.1 + 0.06 * airScale);
-          if (Math.abs(S.roll) < 0.2 && Math.abs(S.latV) < 2.4 && S.v > 8) banner(wasFlip ? "CLEAN FLIP" : "CLEAN");
+          if (slammed) {
+            Audio.thud();
+            banner("SLAM");
+          } else {
+            S.shake = Math.max(S.shake, 0.1 + 0.06 * airScale);
+            if (Math.abs(S.roll) < 0.2 && Math.abs(S.latV) < 2.4 && S.v > 8) banner(wasFlip ? "CLEAN FLIP" : "CLEAN");
+          }
         }
       }
     }
@@ -2543,7 +2775,26 @@ function olFeet(ol,bq,w0,c0L,c0R){
           // Taller obstacles: top surface is skateable if you land near the lip
           var topMargin = c.h > 0.45 ? Math.min(0.2, c.h * 0.32) : 0.02;
           if (clr < c.h - topMargin) {
-            bail(c.h > 0.55); return;
+            bail(false); return; // short curb — caught, not a full wipeout
+          }
+        }
+      }
+      // Block walls: 2-high (~1.0 m) — clearable with a charged ollie
+      for (var bi = 0; bi < blocks.length; bi++) {
+        var b = blocks[bi];
+        if (b.hit) continue;
+        if (b.s < S.s - 4) continue;
+        if (b.s > S.s + 3) continue;
+        var hitDepth = b.d * 0.55 + 0.18;
+        if (Math.abs(b.s - S.s) < hitDepth && Math.abs(S.lat - b.lat) < b.w * 0.55 + 0.18 && S.v > 2.0) {
+          var blockTop = b.h0 + b.h;
+          // Must clear the top of the stack; topMargin lets a near-clear scrape over
+          if (clr < blockTop - 0.06) {
+            scatterWall(b.id);
+            Audio.thud();
+            banner("WIPEOUT");
+            bail(true);
+            return;
           }
         }
       }
@@ -2575,17 +2826,27 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var tuck = S.mode === "ride" ? cl((S.v - 10) / 16, 0, 1) : 0;
     var dip = 0;
     if (S.landT > 0 && S.landD > 0) {
-      // Landing absorb: gentle compress, slow rise, tiny rebound — eases into coast
+      // Landing absorb: compress, slow rise, tiny rebound — slam uses a deeper, slower curve
       var le = 1 - S.landT / S.landD;
-      var compress = sm(cl(le / 0.34, 0, 1));
-      var release = sm(cl((le - 0.34) / 0.66, 0, 1));
-      dip = S.landAmp * (compress * (1 - release) + 0.08 * Math.sin(release * PI) * (1 - release));
+      var heavy = S.landAmp > 0.1; // slam landings landAmp is elevated
+      var cWin = heavy ? 0.42 : 0.34;
+      var compress = sm(cl(le / cWin, 0, 1));
+      var release = sm(cl((le - cWin) / (1 - cWin), 0, 1));
+      var rebound = heavy ? 0.14 : 0.08;
+      dip = S.landAmp * (compress * (1 - release) + rebound * Math.sin(release * PI) * (1 - release));
     }
     var lb = sm(S.landBlend || 0); // smooth residual from air → coast
     var cdip = 0;
     if (S.mode === "ride") cdip = S.cb * (0.20 + 0.18 * S.chargeV) + S.strain * 0.09 + S.aero * 0.22;
     else if (ol) cdip = S.relDip * (1 - sm(Math.min(1, S.oT / 0.20)));
-    pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.11 : 0), o[0] - tuck * 0.07 - dip - cdip, 0);
+    // Air slam: body tucks hard, pelvis loads down — intensity follows charge power
+    var slamDip = 0;
+    if (S.slamAmt > 0.01 && (S.mode === "ollie" || S.fly)) {
+      var spPose = 0.35 + 0.65 * (S.slamPow || S.slamAmt);
+      slamDip = 0.12 * S.slamAmt * spPose;
+      tuck = Math.max(tuck, 0.7 * S.slamAmt * spPose);
+    }
+    pelvis.position.set((ol ? ol.pdx : 0) - (S.mode === "ride" ? S.cb * 0.11 : 0), o[0] - tuck * 0.07 - dip - cdip - slamDip, 0);
     pelvis.quaternion.set(o[2], o[3], o[4], o[5]);
     // ---- Slalom / carve angulation ----
     // Hips drive into the turn, torso stays more upright and counters (classic "C" shape),
@@ -2627,6 +2888,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
         spine.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.yawOff * 0.12 * carveAmt));
         chest.quaternion.multiply(Q.setFromAxisAngle(new V(0, 0, 1), S.yawOff * 0.18 * carveAmt));
       }
+    }
+    // Air slam: aggressive forward fold — body loads the downward inertia before impact
+    if (S.slamAmt > 0.05 && (S.mode === "ollie" || S.fly)) {
+      Q.setFromAxisAngle(new V(1, 0, 0), 0.55 * S.slamAmt);
+      spine.quaternion.premultiply(Q);
+      chest.quaternion.premultiply(Q);
     }
     // ---- Stance switch: torso leads, hips follow; board spins end-to-end with the hips ----
     // Board spin is quick but smooth (smootherstep). Feet stay planted on the deck.
@@ -2897,8 +3164,21 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var y = new V().crossVectors(z, x).normalize();
     basis.makeBasis(x, y, z);
     rig.scale.z = S.goofy ? -1 : 1; // mirror across the board's long axis = goofy stance
-    rig.position.copy(f.p).addScaledVector(f.N, S.drop);
+    // Forward tumble: pitch about the lateral axis, but lift the pivot so limbs
+    // arc over the surface instead of clipping through the deck.
+    var tumbleLift = 0;
+    if (S.mode === "bail" && S.tumblePitch > 0.001) {
+      var tp = Math.min(S.tumblePitch, PI);
+      // ~COM height × (1 − cos θ) keeps the body above the contact plane through the roll
+      tumbleLift = 0.55 * (1 - Math.cos(tp)) + 0.12 * Math.sin(tp);
+    }
+    rig.position.copy(f.p).addScaledVector(f.N, Math.max(0, S.drop) + tumbleLift);
     rig.quaternion.setFromRotationMatrix(basis);
+    if (S.mode === "bail" && S.tumblePitch > 0.001) {
+      // basis: x = forward, y = up, z = right → pitch forward = rotation about z
+      Q.setFromAxisAngle(new V(0, 0, 1), -S.tumblePitch);
+      rig.quaternion.multiply(Q);
+    }
     rig.updateMatrixWorld(true);
     // Contact shadow: board-sized oval on the surface, aligned to facing, ignores body lean
     var sf = f, hgt = 0;
@@ -3804,6 +4084,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     placeRig();
     pose();
     updateRings(dt);
+    updateBlocks(dt);
     frameCamera(dt);
     hud(dt);
     renderer.render(scene, cam);
@@ -3815,6 +4096,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   placeRig();
   pose();
   updateRings(0);
+  updateBlocks(0);
   frameCamera(1 / 60);
   renderer.render(scene, cam);
   requestAnimationFrame(loop);
