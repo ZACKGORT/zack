@@ -1236,54 +1236,75 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   }
 
   /* ---------- ollie: board is the physical object; each foot authored in BOARD space ---------- */
-  var OL={pop:.30,lift:.32,apex:.58,land:.87,end:1.3},TP=.43,APEX_Y=.62,DECK=.0975;
+  /* Phases (normalized t): STANCE → POP (~.24–.32) → SLIDE (~.32–.50) → LEVEL (~.50–.70) → LAND (~.87+)
+     Reference: back foot mid-tail for pop; front foot behind front bolts, slides toward nose to level. */
+  var OL={pop:.28,lift:.32,apex:.56,land:.86,end:1.28},TP=.48,APEX_Y=.62,DECK=.0975;
 /* per foot: x = ball-of-foot along the deck, n = lift off the grip, yaw = angle from board axis (toes toward +z),
    pit = plantar flexion (toe-down / heel-up), z = lateral on deck.
-   FRONT: over the front bolts; slides toward the nose in the air to level the board; heel stays mostly flat.
-   BACK: coasting = heel flat on the deck. Into the pop the heel rises and weight loads the bent toes on the
-   tail — the snap originates from that toe press, not a heel stomp — then the foot peels off and returns flat. */
-var FR={z:0,
- x:[[0,.24],[.14,.24],[.30,.24],[.36,.28],[.46,.37],[.58,.37],[.70,.31],[.85,.24],[1.3,.24]],
- n:[[0,0],[.40,0],[.50,.012],[.62,.012],[.72,0],[1.3,0]],
- yaw:[[0,44],[.30,44],[.36,38],[.46,30],[.58,31],[.72,40],[.9,44],[1.3,44]],
- // Front foot stays mostly flat; light toe flex only while leveling the board in the air
- pit:[[0,0],[.22,0],[.34,0],[.44,.06],[.58,.12],[.72,.04],[.9,0],[1.3,0]]};
-var BK={z:-.02,
- // Coast: ball sits over the rear bolts. Into the pop the foot slides onto the tail.
- x:[[0,-.16],[.10,-.18],[.16,-.24],[.22,-.34],[.26,-.40],[.30,-.44],[.34,-.42],[.40,-.34],[.50,-.24],[.64,-.18],[.80,-.16],[1.3,-.16]],
- n:[[0,0],[.18,0],[.24,.005],[.28,.02],[.32,.045],[.40,.07],[.52,.05],[.64,.015],[.76,0],[1.3,0]],
- yaw:[[0,82],[.14,84],[.22,88],[.28,94],[.34,96],[.42,88],[.55,80],[.72,82],[1.3,82]],
- // Heel FLAT on the deck at rest. Heel rises as weight loads the bent toes on the tail —
- // the snap is a toe press, not a heel stomp. Then the foot peels off and returns flat.
- pit:[[0,0],[.06,0],[.10,.04],[.14,.14],[.18,.30],[.22,.48],[.26,.68],[.30,.86],[.34,.72],[.40,.38],[.50,.14],[.62,.04],[.78,0],[1.3,0]]};
-var PDX=[[0,0],[.2,-.03],[.28,-.09],[.36,-.08],[.44,-.04],[.54,.02],[.66,.03],[.9,0],[1.3,0]];
-var JMAP=[[0,0],[.12,2],[.26,10],[.33,16],[.58,24],[.87,33],[1.0,40],[1.3,50]];
-var HK=[[0,.93],[.12,.90],[.26,.64],[.33,.85],[.39,.92],[.48,.89],[.58,.84],[.74,.88],[.85,.90],[.93,.72],[1.05,.80],[1.3,.93]];
+   FRONT: behind the front bolts; slides toward the nose after pop to level the board.
+   BACK: coasting over rear bolts; slides onto the tail for the snap (toe press), then peels off. */
+var FR={z:0.02,
+ // Stance: just behind front bolts (~0.22). After pop, slide hard toward nose (~0.42) then settle over bolts.
+ x:[[0,.22],[.14,.22],[.28,.22],[.34,.26],[.40,.34],[.48,.42],[.56,.40],[.68,.32],[.82,.24],[1.0,.22],[1.28,.22]],
+ n:[[0,0],[.38,0],[.46,.01],[.54,.02],[.66,.01],[.80,0],[1.28,0]],
+ yaw:[[0,42],[.28,42],[.36,36],[.44,28],[.54,26],[.66,34],[.82,40],[1.0,42],[1.28,42]],
+ // Flat at stance; slight toe flex while dragging / leveling
+ pit:[[0,0],[.24,0],[.36,.02],[.46,.08],[.56,.14],[.68,.06],[.84,0],[1.28,0]]};
+var BK={z:-.03,
+ // Coast over rear bolts; into pop the foot drives onto the tail (~−0.46), then returns over bolts for catch/land
+ x:[[0,-.16],[.10,-.18],[.16,-.26],[.22,-.36],[.26,-.42],[.30,-.46],[.34,-.44],[.42,-.34],[.52,-.22],[.66,-.16],[.84,-.16],[1.28,-.16]],
+ n:[[0,0],[.16,0],[.22,.005],[.28,.025],[.32,.05],[.40,.08],[.52,.055],[.64,.015],[.78,0],[1.28,0]],
+ yaw:[[0,80],[.12,82],[.20,88],[.26,94],[.32,98],[.40,90],[.52,82],[.70,80],[1.28,80]],
+ // Heel flat at rest → rises as toes load the tail (snap is a toe press) → peels off flat for catch
+ pit:[[0,0],[.05,0],[.10,.05],[.14,.16],[.18,.34],[.22,.52],[.26,.72],[.30,.90],[.34,.74],[.40,.36],[.50,.12],[.62,.03],[.78,0],[1.28,0]]};
+var PDX=[[0,0],[.18,-.03],[.26,-.10],[.34,-.09],[.42,-.04],[.52,.02],[.64,.03],[.88,0],[1.28,0]];
+var JMAP=[[0,0],[.12,2],[.24,9],[.32,15],[.56,24],[.86,33],[1.0,40],[1.28,50]];
+var HK=[[0,.93],[.12,.90],[.24,.62],[.32,.84],[.38,.92],[.48,.90],[.56,.85],[.74,.88],[.86,.90],[.94,.72],[1.06,.80],[1.28,.93]];
 function olliePose(t,base){
   var j=fr(CLIP.jump,lin(JMAP,t)/30,false),pitch,by,bx;
   if(t<OL.lift){
-    /* Toe-press snap: heel is already rising (see BK.pit). Board only tips once weight is on the bent toes,
+    /* Toe-press snap: heel already rising (BK.pit). Board tips once weight is on the bent toes,
        pivoting on the rear trucks — not a heel stomp into the tail. */
-    pitch=TP*sm((t-.24)/.08);by=.27*Math.sin(pitch)+.085*Math.cos(pitch);bx=.27*(Math.cos(pitch)-1)-.085*Math.sin(pitch)}
+    pitch=TP*sm((t-.22)/.10);by=.28*Math.sin(pitch)+.085*Math.cos(pitch);bx=.28*(Math.cos(pitch)-1)-.085*Math.sin(pitch)}
   else if(t<OL.land){
-    var yL=.27*Math.sin(TP)+.085*Math.cos(TP),xL=.27*(Math.cos(TP)-1)-.085*Math.sin(TP),s=t-OL.lift,T1=OL.apex-OL.lift,vy=2*(APEX_Y-yL)/T1,g=vy/T1;
+    var yL=.28*Math.sin(TP)+.085*Math.cos(TP),xL=.28*(Math.cos(TP)-1)-.085*Math.sin(TP),s=t-OL.lift,T1=OL.apex-OL.lift,vy=2*(APEX_Y-yL)/T1,g=vy/T1;
     by=Math.max(BH,yL+vy*s-.5*g*s*s);
-    var up=sm(s/.12),lev=sm((t-.42)/.22);pitch=lerp(TP,.7,up)*(1-lev)-.03*lev*sm((OL.land-t)/.2);bx=lerp(xL,0,up)}
-  else{pitch=-.03*(1-sm((t-OL.land)/.1));by=BH;bx=0}
-  var py=lin(HK,t)+(by-BH)*sm((t-.28)/.08),pdx=kf(PDX,t)+bx*.6;
-  var w=sm(t/.12)*(1-sm((t-(OL.end-.3))/.3)),dy=py-j[0],wa=.5*w,p=mix(base,j,w);
+    // LEVEL phase: front-foot slide levels the board (pitch → 0) while still airborne
+    var up=sm(s/.10),lev=sm((t-.40)/.20);pitch=lerp(TP,.55,up)*(1-lev)-.02*lev*sm((OL.land-t)/.18);bx=lerp(xL,0,up)}
+  else{pitch=-.02*(1-sm((t-OL.land)/.10));by=BH;bx=0}
+  var py=lin(HK,t)+(by-BH)*sm((t-.26)/.08),pdx=kf(PDX,t)+bx*.6;
+  var w=sm(t/.12)*(1-sm((t-(OL.end-.28))/.28)),dy=py-j[0],wa=.5*w,p=mix(base,j,w);
   p[0]=py;p[1]=0;
   [34,37,40,43].forEach(function(k){p[k]=lerp(base[k],j[k]+dy,wa)});
   [32,35,38,41].forEach(function(k){p[k]=lerp(base[k],j[k],wa)+pdx}); /* arms travel with the hips */
   return {p:p,pitch:pitch,by:by,bx:bx,pdx:pdx,t:t}}
 function olFeet(ol,bq,w0,c0L,c0R){
   var t=ol.t,out=[];
-  [[FR,c0L],[BK,c0R]].forEach(function(e){
-    var K=e[0],yaw=kf(K.yaw,t)*PI/180,p=kf(K.pit,t),bxx=kf(K.x,t),n=kf(K.n,t);
+  // Kickflip flick bias (reference: front foot ~45°, outer edge down, drag to heel-side corner, flick out+up)
+  var kfFlick = 0, kfProg = 0;
+  if (S.kickflip && S.kfStart > 0) {
+    var elapsed = Math.max(0, performance.now() / 1000 - S.kfStart);
+    kfProg = cl(elapsed / 0.34, 0, 1);
+    // Flick window early in the spin; catch as it finishes
+    kfFlick = kfProg < 0.45 ? sm(kfProg / 0.45) : (1 - sm((kfProg - 0.45) / 0.35));
+  }
+  [[FR,c0L,true],[BK,c0R,false]].forEach(function(e){
+    var K=e[0], isFront=e[2], yaw=kf(K.yaw,t)*PI/180, p=kf(K.pit,t), bxx=kf(K.x,t), n=kf(K.n,t);
+    var zOff = K.z;
+    if (isFront && kfFlick > 0.01) {
+      // Subtle foot-only flick: small outward roll + tiny edge lift — leg stays put
+      yaw = lerp(yaw, yaw - 0.22, kfFlick);       // slight toes-out
+      p = lerp(p, 0.12, kfFlick);                 // light outer-edge tip
+      zOff = lerp(zOff, zOff - 0.028, kfFlick);   // minimal lateral nudge
+      n = lerp(n, 0.018, kfFlick);                // tiny lift off the grip
+    } else if (!isFront && kfFlick > 0.01) {
+      // Back foot holds ready; soft plant as the board finishes the spin
+      if (kfProg > 0.55) n = lerp(n, 0, sm((kfProg - 0.55) / 0.3));
+    }
     var Xh=new V(Math.cos(yaw),0,Math.sin(yaw));
     var Xb=new V(Math.cos(p)*Xh.x,-Math.sin(p),Math.cos(p)*Xh.z),Yb=new V(Math.sin(p)*Xh.x,Math.cos(p),Math.sin(p)*Xh.z);
-    var kick=bxx<-.39?(-.39-bxx)*.42:0;
-    var B=new V(bxx,DECK+n+kick,K.z+BALL*Math.cos(p)*Xh.z); /* ball of foot on the deck */
+    var kick=bxx<-.40?(-.40-bxx)*.42:0;
+    var B=new V(bxx,DECK+n+kick,zOff+BALL*Math.cos(p)*Xh.z); /* ball of foot on the deck */
     var A=B.addScaledVector(Xb,-BALL).addScaledVector(Yb,SOLE).applyQuaternion(bq).add(board.position);
     A.lerp(e[1],1-w0);
     out.push({A:A,X:Xb.applyQuaternion(bq),Y:Yb.applyQuaternion(bq),yaw:yaw,pit:p})});
@@ -3012,13 +3033,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     } else if (ol) {
       var w0 = sm(Math.min(1, S.oT / 0.1));
       board.position.set(lerp(S.olBX, -0.095 + ol.bx, w0), ol.by, 0);
-      // Kickflip: rapid crispy 360° board roll around long axis (X)
+      // Kickflip: 360° board roll on long axis (X). Flick early, catch late — matches reference timing.
       var flipAng = 0, kfProg = 0;
       if (S.kickflip && S.kfStart > 0) {
         var elapsed = Math.max(0, performance.now() / 1000 - S.kfStart);
-        var total = 0.26;
+        var total = 0.34;
         kfProg = cl(elapsed / total, 0, 1);
-        var ease = kfProg < 0.5 ? 2 * kfProg * kfProg : 1 - Math.pow(-2 * kfProg + 2, 2) / 2;
+        // Ease-in during flick, steady through the spin, soft settle into catch
+        var ease = kfProg < 0.35
+          ? 0.5 * Math.pow(kfProg / 0.35, 1.6)
+          : 0.5 + 0.5 * sm((kfProg - 0.35) / 0.65);
         flipAng = ease * Math.PI * 2;
       }
       bq.setFromEuler(E.set(0, 0, ol.pitch));
@@ -3027,16 +3051,19 @@ function olFeet(ol,bq,w0,c0L,c0R){
         bq.multiply(Q);
       }
       board.quaternion.copy(bq);
+      // Feet don't ride the full board spin — they flick, then catch (reference)
       var footBq = bq;
-      if (S.kickflip && kfProg > 0.05 && kfProg < 0.92) {
+      if (S.kickflip && kfProg > 0.04 && kfProg < 0.90) {
         footBq = new T.Quaternion().setFromEuler(E.set(0, 0, ol.pitch));
       }
       res = olFeet(ol, footBq, w0, new V(base[14], base[15], base[16]), new V(base[17], base[18], base[19]));
       aL = res[0].A; aR = res[1].A;
     } else if (S.fly && S.kickflip && S.kfStart > 0) {
       var elapsedF = Math.max(0, performance.now() / 1000 - S.kfStart);
-      var kfProgF = cl(elapsedF / 0.26, 0, 1);
-      var easeF = kfProgF < 0.5 ? 2 * kfProgF * kfProgF : 1 - Math.pow(-2 * kfProgF + 2, 2) / 2;
+      var kfProgF = cl(elapsedF / 0.34, 0, 1);
+      var easeF = kfProgF < 0.35
+        ? 0.5 * Math.pow(kfProgF / 0.35, 1.6)
+        : 0.5 + 0.5 * sm((kfProgF - 0.35) / 0.65);
       var flipAngF = easeF * Math.PI * 2;
       board.position.set(-0.095, BH, 0);
       bq.setFromEuler(E.set(0, 0, 0));
@@ -3457,22 +3484,22 @@ function olFeet(ol,bq,w0,c0L,c0R){
         blip(110, 42, 0.28, 0.2);
         noiseHit(0.12, 0.12, 120, 0.6);
       },
-      // Airy board-spin whoosh for kickflips
+      // Airy board-spin whoosh for kickflips (matches ~0.34s flip window)
       swish: function () {
         if (!ensure()) return;
         var t0 = ctx.currentTime;
-        // Broadband noise with a quick high→mid sweep = fabric/air swish
+        // Broadband noise with a high→mid sweep = fabric/air swish
         var src = ctx.createBufferSource(); src.buffer = noiseBuf;
         var bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 0.85;
         bp.frequency.setValueAtTime(3200, t0);
-        bp.frequency.exponentialRampToValueAtTime(480, t0 + 0.22);
+        bp.frequency.exponentialRampToValueAtTime(420, t0 + 0.28);
         var hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 220;
         var g = ctx.createGain();
         g.gain.setValueAtTime(0.001, t0);
-        g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.018);
-        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.26);
+        g.gain.exponentialRampToValueAtTime(0.16, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.34);
         src.connect(bp); bp.connect(hp); hp.connect(g); g.connect(master);
-        src.start(t0); src.stop(t0 + 0.28);
+        src.start(t0); src.stop(t0 + 0.36);
         // Thin high layer for the "flick" edge
         noiseHit(0.07, 0.08, 2400, 1.4);
         blip(900, 280, 0.04, 0.16, "sine");
