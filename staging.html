@@ -1348,11 +1348,27 @@ function olFeet(ol,bq,w0,c0L,c0R){
   var camOff = 0, camPit = 0.22, drag = null, mouseX = null, mouseY = null, mouseMoveT = 0, paraX = 0, paraY = 0;
   var ridges = new T.Group(), banT = 0;
   var PIPE = { sB: 1e9, steerK: 1, dampK: 1 };
-  function frame(s, lat) {
+  function planeFrame(s, lat) {
     var c = Math.cos(GRADE), n = Math.sin(GRADE);
     var Nn = new V(n, c, 0);
     return { s: s, p: new V(s * c, -s * n, lat), T: new V(c, -n, 0), N: Nn, B: new V(0, 0, 1), N0: Nn.clone(), B0: new V(0, 0, 1),
              yaw: 0, slope: GRADE, bank: 0, halfW: 1e9, gap: false, th: 0, x: lat, h: 0 };
+  }
+  // Surface frame on the elevated ground: position, normal and tangents follow topoH(s, lat). Ts / Bl are the raw
+  // surface derivatives (used to turn a world-space heading back into (s, lat) motion); T / B / N are orthonormal.
+  function frame(s, lat) {
+    var c = Math.cos(GRADE), n = Math.sin(GRADE), e = 0.12;
+    var h = topoH(s, lat);
+    var hs = (topoH(s + e, lat) - topoH(s - e, lat)) / (2 * e);
+    var hl = (topoH(s, lat + e) - topoH(s, lat - e)) / (2 * e);
+    var N0 = new V(n, c, 0);
+    var Ts = new V(c, -n, 0).addScaledVector(N0, hs);
+    var Bl = new V(0, 0, 1).addScaledVector(N0, hl);
+    var N = new V().crossVectors(Bl, Ts).normalize();
+    var Tn = Ts.clone().normalize();
+    var B = new V().crossVectors(Tn, N);
+    return { s: s, p: new V(s * c + h * n, -s * n + h * c, lat), T: Tn, N: N, B: B, N0: N0, B0: new V(0, 0, 1), Ts: Ts, Bl: Bl,
+             yaw: 0, slope: GRADE, bank: 0, halfW: 1e9, gap: false, th: 0, x: lat, h: h, hs: hs, hl: hl };
   }
   function curFrame(s) { return frame(s === undefined ? S.s : s, S.lat); }
   function sample(s, lat) { return frame(s, lat || 0); }
@@ -1365,19 +1381,137 @@ function olFeet(ol,bq,w0,c0L,c0R){
   function banner(t) { var e = document.getElementById("banner"); e.textContent = t; e.classList.add("on"); banT = 1.15; }
   function flash() {} function firePopBurst() {} function saveBestPts() {}
 
-  // ground: fixed paper plane + static ink grid (camera and ground stay put; skater free-roams)
+  // ground: topographic surface with real elevation. One relief field drives three things so they always agree:
+  //   - the displaced ground mesh (vertex shader), - the contour lines (fragment shader), - the skater's height/slope (topoH below).
+  // The camera is untouched; its pose is still computed from the flat plane (see frameCamera).
+  var TOPO = {
+    amp: 2.2,          // hill height in metres per unit of relief (peaks ≈ 3.7 m)
+    scale: 7.5,        // landform size: bigger = broader, gentler hills
+    lines: 30,         // contour levels per unit of relief
+    width: 1.1,        // contour line width in CSS px
+    detail: 0.35,      // fine wobble on the contour lines
+    major: true,       // every 5th contour heavier
+    minorA: 0.30, majorA: 0.60,
+    ink: 0x141414, seed: [0, 0]
+  };
+  var TOPO_F = 0.45 / TOPO.scale;
+  // JS twin of the GLSL relief() — must stay identical to tpRelief() in the shader.
+  function tpL(x, y) {
+    var h = (Math.imul(x + 1073741824, 2654435761) + Math.imul(y + 1073741824, 2246822519)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 739982445) >>> 0; h = Math.imul(h ^ (h >>> 12), 695872825) >>> 0; return (h ^ (h >>> 15)) >>> 0;
+  }
+  function tpC(cx, cy, fx, fy) { var h = tpL(cx, cy); return ((h & 65535) / 32767.5 - 1) * fx + ((h >>> 16) / 32767.5 - 1) * fy; }
+  function tpN(x, y) {
+    var ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    var ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10), uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+    var a = tpC(ix, iy, fx, fy), b = tpC(ix + 1, iy, fx - 1, fy), d = tpC(ix, iy + 1, fx, fy - 1), e = tpC(ix + 1, iy + 1, fx - 1, fy - 1);
+    var top = a + (b - a) * ux; return top + (d + (e - d) * ux - top) * uy;
+  }
+  function tpRel(tx, tz) {
+    var mx = TOPO.seed[0], mz = TOPO.seed[1], px = tx * TOPO_F, pz = tz * TOPO_F;
+    var wx = tpN(px * 0.42 + mx, pz * 0.42 + mz), wz = tpN(px * 0.42 - mz + 5.2, pz * 0.42 - mx + 1.3);
+    px += wx * 0.8; pz += wz * 0.8;
+    var n = tpN(px, pz) * 0.55, qx = 1.6 * px - 1.2 * pz + 7.1, qz = 1.2 * px + 1.6 * pz + 3.7;
+    n += tpN(qx, qz) * 0.15; n += tpN(1.6 * qx - 1.2 * qz + 1.9, 1.2 * qx + 1.6 * qz + 8.3) * 0.04;
+    var s = Math.log(1 + Math.exp(7 * (3 * n + 0.05))) / 7; return s * s * 1.4 + 0.1 * n;
+  }
+  // Ground height (metres, along the plane normal) at plane coordinates (s, lat).
+  function topoH(s, lat) { return TOPO.amp * tpRel(s, lat); }
+
   var ground = new T.Group(); scene.add(ground);
   var gridG = new T.Group(); ground.add(gridG);
-  var gPlane = new T.Mesh(new T.PlaneGeometry(4000, 4000).rotateX(-PI / 2), new T.MeshBasicMaterial({ color: 0xf7f4ee }));
+  var gMat = new T.MeshBasicMaterial({ color: 0xf7f4ee });
+  // Camera-facing mesh: rows are spaced geometrically with distance and widen with it, so it is dense near the rider
+  // and still covers the whole fixed view out to the fog. Local x = s, local z = lat (the plane's own coordinates).
+  function buildGroundGeo() {
+    var R = 260, C = 240, s0 = 3.4, d0 = 1.6, d1 = 266, i, j, k = 0, q = 0, a, b, c2, d2, d, w;
+    var pos = new Float32Array((R + 1) * (C + 1) * 3), idx = new Uint32Array(R * C * 6);
+    for (i = 0; i <= R; i++) {
+      d = d0 * Math.pow(d1 / d0, i / R); w = 1.3 * d + 10;
+      for (j = 0; j <= C; j++) { pos[k++] = s0 + d; pos[k++] = 0; pos[k++] = (j / C * 2 - 1) * w; }
+    }
+    for (i = 0; i < R; i++) for (j = 0; j < C; j++) {
+      a = i * (C + 1) + j; b = a + 1; c2 = a + C + 1; d2 = c2 + 1;
+      idx[q++] = a; idx[q++] = b; idx[q++] = c2; idx[q++] = b; idx[q++] = d2; idx[q++] = c2;
+    }
+    var g = new T.BufferGeometry();
+    g.setAttribute("position", new T.BufferAttribute(pos, 3)); g.setIndex(new T.BufferAttribute(idx, 1));
+    return g;
+  }
+  var gPlane = new T.Mesh(buildGroundGeo(), gMat);
+  gPlane.frustumCulled = false;   // vertices are displaced on the GPU, so the static bounds are wrong
   gPlane.position.y = -0.03; ground.add(gPlane);
-  (function () {
-    var minor = [], major = [], E = 500 * 4, i, a;
-    for (i = -500; i <= 500; i++) { a = i * 4; (i % 5 === 0 ? major : minor).push(-E, 0, a, E, 0, a, a, 0, -E, a, 0, E); }
-    [[minor, 0.14], [major, 0.38]].forEach(function (g) {
-      var geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(g[0], 3));
-      gridG.add(new T.LineSegments(geo, new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: g[1] })));
-    });
-  })();
+
+  var TP_FUNCS = `
+uint tpLattice(ivec2 p){uvec2 q=uvec2(p+1073741824);uint h=q.x*2654435761u+q.y*2246822519u;
+h=(h^(h>>15u))*739982445u;h=(h^(h>>12u))*695872825u;return h^(h>>15u);}
+float tpCorner(ivec2 c,vec2 f){uint h=tpLattice(c);vec2 g=vec2(float(h&65535u),float(h>>16u))/32767.5-1.0;return dot(g,f);}
+float tpNoise(vec2 p){vec2 i=floor(p);vec2 f=p-i;ivec2 c=ivec2(i);vec2 u=f*f*f*(f*(f*6.0-15.0)+10.0);
+float a=tpCorner(c,f);float b=tpCorner(c+ivec2(1,0),f-vec2(1.0,0.0));float d=tpCorner(c+ivec2(0,1),f-vec2(0.0,1.0));float e=tpCorner(c+ivec2(1,1),f-vec2(1.0,1.0));
+return mix(mix(a,b,u.x),mix(d,e,u.x),u.y);}
+vec2 tpOct(vec2 p,vec2 s){return vec2(1.6*p.x-1.2*p.y,1.2*p.x+1.6*p.y)+s;}
+float tpRelief(vec2 t){vec2 p=t*uTFreq;
+vec2 w=vec2(tpNoise(p*0.42+uTSeed),tpNoise(p*0.42-uTSeed.yx+vec2(5.2,1.3)));p+=w*0.8;
+float n=tpNoise(p)*0.55;p=tpOct(p,vec2(7.1,3.7));n+=tpNoise(p)*0.15;p=tpOct(p,vec2(1.9,8.3));n+=tpNoise(p)*0.04;
+float s=log(1.0+exp(7.0*(3.0*n+0.05)))/7.0;return s*s*1.4+0.1*n;}
+`;
+  var TOPO_VDECL = "uniform float uTFreq, uTAmp;\nuniform vec2 uTSeed;\nvarying vec2 vTopo;\nvarying float vTopoDepth;\n" + TP_FUNCS;
+  var TOPO_FDECL = "uniform float uTLines, uTWidth, uTDetail, uTMajor, uTRef, uTPix, uTFreq, uTMinorA, uTMajorA, uTDetailFar;\nuniform vec2 uTSeed;\nuniform vec3 uTInk;\nvarying vec2 vTopo;\nvarying float vTopoDepth;\n" + TP_FUNCS;
+  var TOPO_FRAG = `
+{
+  vec2 tpSpot = vTopo;
+  float tpDepth = max(vTopoDepth, 0.01);
+  float tpH = tpRelief(tpSpot);
+  float tpDw = 1.0 - smoothstep(uTDetailFar * 0.5, uTDetailFar, tpDepth);
+  if (tpDw > 0.0) {
+    vec2 tpD = tpSpot * uTFreq * 5.0 + vec2(13.1, 4.7);
+    tpH += tpDw * uTDetail * 0.1 * (tpNoise(tpD) * 0.6 + tpNoise(tpOct(tpD, vec2(2.3, 6.1))) * 0.3);
+  }
+  float tpGx = dFdx(tpH) * uTLines, tpGy = dFdy(tpH) * uTLines;
+  float tpLc = tpH * uTLines + 0.5;
+  float tpDens = max(sqrt(tpGx * tpGx + tpGy * tpGy), 1e-5);
+  float tpDist = abs(fract(tpLc + 0.5) - 0.5) / tpDens;
+  float tpMaj = uTMajor * (1.0 - step(0.5, mod(floor(tpLc + 0.5), 5.0)));
+  float tpPersp = clamp(sqrt(uTRef / tpDepth), 0.6, 1.6);
+  float tpW = uTWidth * uTPix * tpPersp * (1.0 + 0.6 * tpMaj);
+  float tpSoft = 1.0;
+  float tpCrowd = smoothstep(0.3, 0.75, tpDens * max(tpW, tpSoft));
+  float tpCover = max(0.0, min(min(tpW, tpSoft), 0.5 * (tpW + tpSoft) - tpDist)) / tpSoft;
+  tpCover = mix(tpCover, min(tpW * tpDens, 1.0) * 0.6, tpCrowd);
+  float tpInk = tpCover * mix(uTMinorA, uTMajorA, tpMaj) * mix(0.75, 1.1, smoothstep(0.0, 1.0, tpH));
+  diffuseColor.rgb = mix(diffuseColor.rgb, uTInk, clamp(tpInk, 0.0, 1.0));
+}
+`;
+  if (renderer.capabilities.isWebGL2 !== false) {
+    var topoU = {
+      uTLines: { value: TOPO.lines }, uTWidth: { value: TOPO.width }, uTDetail: { value: TOPO.detail },
+      uTMajor: { value: TOPO.major ? 1 : 0 }, uTRef: { value: 8 }, uTPix: { value: renderer.getPixelRatio() },
+      uTFreq: { value: TOPO_F }, uTAmp: { value: TOPO.amp }, uTMinorA: { value: TOPO.minorA }, uTMajorA: { value: TOPO.majorA },
+      uTDetailFar: { value: 120 }, uTSeed: { value: new T.Vector2(TOPO.seed[0], TOPO.seed[1]) },
+      uTInk: { value: new T.Color(TOPO.ink) }
+    };
+    gMat.onBeforeCompile = function (sh) {
+      Object.assign(sh.uniforms, topoU);
+      sh.vertexShader = sh.vertexShader
+        .replace("#include <common>", "#include <common>\n" + TOPO_VDECL)
+        .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed.y += uTAmp * tpRelief(position.xz);")
+        .replace("#include <project_vertex>", "#include <project_vertex>\nvTopo = position.xz;\nvTopoDepth = -mvPosition.z;");
+      sh.fragmentShader = sh.fragmentShader
+        .replace("#include <common>", "#include <common>\n" + TOPO_FDECL)
+        .replace("#include <color_fragment>", "#include <color_fragment>\n" + TOPO_FRAG);
+    };
+  } else {
+    // No WebGL2: flat paper + the old ink grid, and no elevation (so the rider never floats over an invisible hill).
+    TOPO.amp = 0;
+    (function () {
+      var minor = [], major = [], E = 500 * 4, i, a;
+      for (i = -500; i <= 500; i++) { a = i * 4; (i % 5 === 0 ? major : minor).push(-E, 0, a, E, 0, a, a, 0, -E, a, 0, E); }
+      [[minor, 0.14], [major, 0.38]].forEach(function (g) {
+        var geo = new T.BufferGeometry(); geo.setAttribute("position", new T.Float32BufferAttribute(g[0], 3));
+        gridG.add(new T.LineSegments(geo, new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: g[1] })));
+      });
+    })();
+  }
   function syncGround() {
     // Ground is fixed in world space; only grade tilt updates
     ground.rotation.z = -GRADE;
@@ -1458,10 +1592,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     _mvec.set((mouseX / innerWidth) * 2 - 1, -(mouseY / innerHeight) * 2 + 1);
     _rayc.setFromCamera(_mvec, cam);
     var c = Math.cos(GRADE), n = Math.sin(GRADE);
-    _gplane.set(new V(n, c, 0), 0);
-    if (!_rayc.ray.intersectPlane(_gplane, _ghit)) return null;
-    // p = (s*c, -s*n, lat)  →  s = p·T, lat = p·B
-    return { s: _ghit.x * c - _ghit.y * n, lat: _ghit.z };
+    // intersect the ray with the plane lifted to the local ground height, a few times, so hills don't skew the aim
+    var hh = 0, out = null;
+    for (var it = 0; it < 4; it++) {
+      _gplane.set(new V(n, c, 0), -hh);
+      if (!_rayc.ray.intersectPlane(_gplane, _ghit)) return out;
+      // p = s*T0 + h*N0 + lat*B0  →  s = p·T0, lat = p·B0
+      out = { s: _ghit.x * c - _ghit.y * n, lat: _ghit.z };
+      hh = topoH(out.s, out.lat);
+    }
+    return out;
   }
   function goKey() {
     return down("KeyW") || down("ArrowUp") || down("KeyT") ||
@@ -1724,13 +1864,15 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
     if (S.fly) air = true;
     var f = curFrame();
-    var acc = 9.8 * Math.sin(f.slope) * 1.02;
+    // gravity along the direction the board faces: uphill (facing.y > 0) slows you, downhill speeds you up
+    var facingY = Math.cos(S.heading) * f.T.y - Math.sin(S.heading) * f.B.y;
+    var acc = -9.8 * facingY * 1.02;
     acc -= S.v * 0.15 * (1 - 0.3 * S.aero);
     acc -= S.v * S.v * 0.0052 * (1 - 0.5 * S.aero);   // tucked = much less drag
     if (!air && S.mode === "ride" && !S.crouch && fw && !bk && S.v < 9.6) acc += S.v < 3 ? 11 : 7.4;
     if (!air && hard) acc += 10.5 * Math.max(0.18, 1 - S.v / 45);
     if (!air && bk) acc -= 10 + S.v * 0.45;
-    if (air) acc = (S.fly ? 9.8 * Math.sin(f.slope) : 0) - S.v * S.v * 0.0016;
+    if (air) acc = (S.fly ? -9.8 * facingY : 0) - S.v * S.v * 0.0016;
     S.v = Math.max(0, S.v + acc * dt);
 
     var grip = air ? 0.4 : 1;
@@ -1776,8 +1918,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     // facing = cos(h)*T + (-sin(h))*B  →  ds = v*cos(h), dlat = v*(-sin(h))
     if (!S.fly) {
       var cosH = Math.cos(S.heading), sinH = Math.sin(S.heading);
-      S.s   += S.v * cosH * dt;
-      S.lat += S.v * (-sinH) * dt;
+      // world-space heading on the surface, converted back to (s, lat) so the speed is measured along the ground
+      var wx = f.T.x * cosH - f.B.x * sinH, wy = f.T.y * cosH - f.B.y * sinH, wz = f.T.z * cosH - f.B.z * sinH;
+      var qa = f.Ts.x * wx + f.Ts.y * wy + f.Ts.z * wz, qb = f.Bl.x * wx + f.Bl.y * wy + f.Bl.z * wz;
+      var gss = f.Ts.lengthSq(), gll = f.Bl.lengthSq(), gsl = f.Ts.dot(f.Bl), det = Math.max(1e-6, gss * gll - gsl * gsl);
+      S.s   += S.v * ((qa * gll - qb * gsl) / det) * dt;
+      S.lat += S.v * ((qb * gss - qa * gsl) / det) * dt;
     } else {
       if (stepFlight(dt, steer)) return;
     }
@@ -2240,8 +2386,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
       sun.target.position.copy(rider);
       return;
     }
-    var f = curFrame();
-    var ahead = curFrame(S.s + 8 + Math.min(S.v, 30) * 0.16);
+    var f = planeFrame(S.s, S.lat);   // camera pose is computed on the flat plane: elevation never moves the camera
+    var ahead = planeFrame(S.s + 8 + Math.min(S.v, 30) * 0.16, S.lat);
     var rider = f.p.clone().addScaledVector(f.N, 1.05 + Math.max(-2, S.drop));
     var lookAt = ahead.p.clone().addScaledVector(ahead.N, 0.7);
     var dist = 6.6 + Math.min(S.v, 30) * 0.08;
