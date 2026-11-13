@@ -318,7 +318,7 @@ button { cursor:pointer; }
   <p class="k">One-sided course · Möbius topology</p>
   <h1>skate.cx</h1>
   <p class="by">a craft.experience exploration by zack.cx</p>
-  <p class="deck">A pen-and-ink ride on a one-sided ribbon. One lap flips the course beneath you; ride the twist, hop the curbs, clear the block walls with a charged ollie, and ollie through the seam. Stay close to the red line for points.</p>
+  <p class="deck">A pen-and-ink ride on a one-sided ribbon. First obstacles are outlines — skate through free, or ollie them for points. Solid curbs come next (trip and you tumble). Later, charged ollies clear the block walls. Stay on the red line for points.</p>
   <div class="row">
     <button id="go" type="button">Start</button>
     <button type="button" id="coffeeBtn" title="Buy me a coffee"><span class="ico" aria-hidden="true">☕</span> Coffee</button>
@@ -548,8 +548,14 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   var roadMat = new T.MeshBasicMaterial({ color: 0xf7f4ee, side: T.DoubleSide });
   var inkMat = new T.MeshBasicMaterial({ color: 0x141414, side: T.DoubleSide });
   // Red game line: a solid centre line plus a faint proximity band showing the scoring zone.
-  var lineMat = new T.MeshBasicMaterial({ color: 0xc4302b, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  var bandMat = new T.MeshBasicMaterial({ color: 0xc4302b, side: T.DoubleSide, transparent: true, opacity: 0.12, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  var lineMat = new T.MeshBasicMaterial({
+    color: 0xc4302b, side: T.DoubleSide, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -12, polygonOffsetUnits: -12
+  });
+  var bandMat = new T.MeshBasicMaterial({
+    color: 0xc4302b, side: T.DoubleSide, transparent: true, opacity: 0.12, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8
+  });
 
   function grp(p, x, y, z) {
     var o = new T.Group(); o.position.set(x, y, z); p.add(o); return o;
@@ -1171,8 +1177,12 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   // Contact shadow: small oval under the board, always on the ribbon surface (never inherits body lean)
   var shadow = new T.Mesh(
     new T.CircleGeometry(1, 28),
-    new T.MeshBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.2, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
+    new T.MeshBasicMaterial({
+      color: 0x141414, transparent: true, opacity: 0.2, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10
+    })
   );
+  shadow.renderOrder = 2;
   shadow.userData.noInk = 1;
   scene.add(shadow);
   var _shX = new V(), _shY = new V(), _shZ = new V(), _shM = new T.Matrix4();
@@ -1489,7 +1499,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
     g.setAttribute("color", new T.Float32BufferAttribute(col, 3));
     g.setIndex(idx);
-    groundG.add(new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 })));
+    groundG.add(new T.Mesh(g, new T.MeshBasicMaterial({
+      vertexColors: true, side: T.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4
+    })));
 
     // Cross-section grid every GRID_S + longitudinal ribs + coping
     var lp = [], step = Math.max(1, Math.round(GRID_S / PIPE_DS));
@@ -1548,13 +1561,14 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
   }
 
-  // Race line, coins (rings), and occasional ollie obstacles
+  // Race line, coins (rings), and progressive obstacles
+  // Tier 0 = ghost outline (no collision, jump for bonus) → Tier 1 = solid curb (trip = tumble) → walls
   var frames = [], gaps = [], curbs = [], hoops = [], rings = [];
   var blocks = []; // stackable collision blocks (walls)
   var lineNodes = [{ s: 0, lat: 0, span: 0, got: true, start: true }];
   var LINE_PROX = 1.35;
-  var nextCurb = 80;
-  var nextBlock = 130;
+  var nextCurb = 36;   // first outline arrives early
+  var nextBlock = 340; // walls wait until curbs are understood
   var nextWallId = 1;
   // Block unit size — 2-high wall (~0.84 m) clears with a medium–full charge, not a tap
   var BLK_W = 0.50, BLK_D = 0.46, BLK_H = 0.42;
@@ -1563,6 +1577,9 @@ function olFeet(ol,bq,w0,c0L,c0R){
   var ridges = new T.Group(); scene.add(ridges);
   var blockMat = new T.MeshBasicMaterial({ color: 0x1a1a1a, side: T.DoubleSide });
   var blockEdgeMat = new T.MeshBasicMaterial({ color: 0xf0b429, side: T.DoubleSide }); // gold edge accent
+  // Ghost curb — pure outline (EdgesGeometry), no face fill
+  var ghostLineMat = new T.LineBasicMaterial({ color: 0x141414 });
+  var ghostAccentMat = new T.LineBasicMaterial({ color: 0x7a2c2c });
 
   function hash(n) {
     var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
@@ -1578,34 +1595,48 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     return lineNodes[n - 1].lat;
   }
-  // Short low curbs — hop-able without a full charge. Offset from the race line so
-  // the coin path isn't a constant minefield; walls are the committed jump challenge.
+  // Progressive curbs:
+  //   0–180 m  → ghost outlines on the line (pass through free; ollie for bonus)
+  //   180–340 m → mix of ghosts + first solid curbs (trip = soft tumble)
+  //   340 m+   → mostly solid curbs, spaced for a charged ollie between walls
   function ensureCurbs(upto) {
     while (nextCurb < upto) {
       var hsh = hash(Math.floor(nextCurb));
       var hsh2 = hash(Math.floor(nextCurb) * 3.17 + 9.1);
-      // Keep clear of upcoming block walls (need run-up to charge)
       var nearWall = false;
       for (var wi = 0; wi < blocks.length; wi++) {
-        if (Math.abs(blocks[wi].s - nextCurb) < 28) { nearWall = true; break; }
+        if (Math.abs(blocks[wi].s - nextCurb) < 36) { nearWall = true; break; }
       }
-      if (!nearWall && hsh > 0.42) {
-        // Prefer one side of the line so you can stay on coins and steer around
-        var side = hsh2 > 0.5 ? 1 : -1;
-        var lat = lineLat(nextCurb) + side * (0.9 + hsh * 1.1);
+      if (!nearWall) {
+        var tier;
+        if (nextCurb < 180) tier = 0;
+        else if (nextCurb < 340) tier = hsh > 0.58 ? 1 : 0;
+        else tier = hsh > 0.22 ? 1 : 0;
+        var lat;
+        if (tier === 0) {
+          lat = lineLat(nextCurb) + (hsh2 - 0.5) * 0.35;
+        } else {
+          var side = hsh2 > 0.5 ? 1 : -1;
+          lat = lineLat(nextCurb) + side * (0.55 + hsh * 0.85);
+        }
         var maxLat = PIPE.sA * 0.85;
         if (lat > maxLat) lat = maxLat;
         if (lat < -maxLat) lat = -maxLat;
-        var h = 0.14 + hsh * 0.10;          // ~0.14–0.24 m
-        var span = 0.95 + (hsh * 0.7) % 0.55;
-        var depth = 0.45 + (hsh2 * 0.15) % 0.12;
-        curbs.push({ s: nextCurb, lat: lat, span: span, h: h, depth: depth, tier: 0 });
-        lineNodes.push({ s: nextCurb, lat: lat, span: span, h: h, got: false });
+        var h = tier === 0 ? 0.16 + hsh * 0.08 : 0.18 + hsh * 0.12;
+        var span = tier === 0 ? 1.15 + (hsh * 0.5) % 0.45 : 0.95 + (hsh * 0.7) % 0.55;
+        var depth = 0.42 + (hsh2 * 0.12) % 0.10;
+        curbs.push({
+          s: nextCurb, lat: lat, span: span, h: h, depth: depth,
+          tier: tier, cleared: false, tripped: false
+        });
+        lineNodes.push({ s: nextCurb, lat: lat, span: span, h: h, tier: tier, got: false });
       }
-      nextCurb += 42 + Math.floor(hash(Math.floor(nextCurb) + 1.7) * 28);
+      if (nextCurb < 180) nextCurb += 32 + Math.floor(hsh2 * 18);
+      else if (nextCurb < 340) nextCurb += 44 + Math.floor(hsh2 * 26);
+      else nextCurb += 52 + Math.floor(hsh2 * 32);
     }
   }
-  // Coins follow the red line: chest-height strings + jump arcs that are actually reachable
+  // Coins follow the red line: strings + jump arcs that telegraph every obstacle
   function ensureHoops() {
     for (var i = 0; i < lineNodes.length; i++) {
       var n = lineNodes[i], nx = lineNodes[i + 1];
@@ -1614,32 +1645,33 @@ function olFeet(ol,bq,w0,c0L,c0R){
       if (!n.h && !n.start && !canString) continue;
       n.gen = true;
       var k, rs, hs = hash(n.s * 1.37 + 5.1), hs2 = hash(n.s * 2.11 + 8.3);
-      var isWall = n.h >= 0.7; // block walls are the tall nodes
-      // Jump arc — peak sits just above the obstacle so a real ollie can thread it
-      if (!n.start && n.h && (isWall || hs < 0.5)) {
-        // Reachable peaks: short curb ~0.7–0.9, wall ~1.15–1.3 (charged ollie)
-        var peak = isWall ? Math.min(1.25, n.h + 0.35) : Math.min(0.85, n.h + 0.55);
+      var isWall = n.h >= 0.7;
+      var isGhost = n.tier === 0;
+      // Jump arc over every obstacle
+      if (!n.start && n.h) {
+        var peak = isWall ? Math.min(1.28, n.h + 0.38) : Math.min(0.92, n.h + 0.58);
         var arcLat = n.lat;
-        var step = isWall ? 2.1 : 1.6;
-        for (k = -3; k <= 3; k++) {
+        var step = isWall ? 2.0 : 1.55;
+        var half = isWall ? 3 : 2;
+        for (k = -half; k <= half; k++) {
           rs = n.s + k * step;
-          var edge = Math.abs(k) / 3;
-          // Blend toward race line at the edges so approach/exit rings read on the path
-          var lat = lerp(arcLat, lineLat(rs), edge * edge * 0.75);
-          var hRing = 0.5 + peak * (1 - (k / 3.5) * (k / 3.5));
+          var edge = Math.abs(k) / half;
+          var lat = lerp(arcLat, lineLat(rs), edge * edge * 0.7);
+          var hRing = 0.48 + peak * (1 - (k / (half + 0.5)) * (k / (half + 0.5)));
           rings.push({ s: rs, lat: lat, h: hRing, got: false, ver: -1 });
         }
       }
-      // Floating string along the line — leave a gap before the next obstacle
       if (canString) {
-        var gapEnd = nx.s - (nx.h >= 0.7 ? 22 : 12); // longer run-up before walls
-        var from = n.start ? 35 : n.s + (n.h >= 0.7 ? 14 : 10);
-        var cnt = 4 + Math.floor(hs2 * 4);
-        var len = cnt * 1.7;
-        if ((n.start || hs2 > 0.45) && gapEnd - from > len + 4) {
+        var gapBefore = nx.h >= 0.7 ? 24 : (nx.tier === 1 ? 14 : 10);
+        var gapEnd = nx.s - gapBefore;
+        var from = n.start ? 28 : n.s + (n.h >= 0.7 ? 16 : (isGhost ? 8 : 11));
+        var cnt = n.start ? 6 + Math.floor(hs2 * 3) : 3 + Math.floor(hs2 * 4);
+        var spacing = 1.65;
+        var len = cnt * spacing;
+        if (gapEnd - from > len + 3) {
           var st = from + hs * Math.max(0, gapEnd - from - len);
           for (var q = 0; q < cnt; q++) {
-            rs = st + q * 1.7;
+            rs = st + q * spacing;
             rings.push({ s: rs, lat: lineLat(rs), h: 0.95, got: false, ver: -1 });
           }
         }
@@ -1677,12 +1709,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
     b.edge.material.transparent = true;
     blocksG.add(b.edge);
   }
-  function scatterWall(wallId) {
-    var f0 = sample(S.s, S.lat);
+  // Scatter a wall. Optional minRow: only knock blocks at/above that row (1 = top row only).
+  function scatterWall(wallId, minRow) {
     var hitSpeed = Math.max(S.v, 4);
     for (var i = 0; i < blocks.length; i++) {
       var b = blocks[i];
       if (b.id !== wallId || b.hit) continue;
+      if (minRow != null && b.row < minRow) continue;
       b.hit = true;
       b.life = 0;
       b.fade = 1;
@@ -1785,17 +1818,16 @@ function olFeet(ol,bq,w0,c0L,c0R){
     while (nextBlock < upto) {
       var hsh = hash(Math.floor(nextBlock) * 1.91 + 4.2);
       var hsh2 = hash(Math.floor(nextBlock) * 2.53 + 7.7);
-      // Spaced major jumps: room to charge, ring arc telegraphs the line
-      if (nextBlock > 150 && hsh > 0.48) {
-        // Slightly off the pure centerline so a miss is steerable, not a guaranteed hit
-        var lat = lineLat(nextBlock) + (hsh2 - 0.5) * 0.9;
+      // Walls arrive after the curb lesson (~340 m+)
+      if (nextBlock >= 340) {
+        var lat = lineLat(nextBlock) + (hsh2 - 0.5) * 0.85;
         var maxLat = PIPE.sA * 0.65;
         if (lat > maxLat) lat = maxLat;
         if (lat < -maxLat) lat = -maxLat;
         spawnBlockWall(nextBlock, lat);
       }
-      // 150–230 m between wall slots → time to recover speed and charge
-      nextBlock += 150 + Math.floor(hsh2 * 80);
+      // 160–230 m between walls
+      nextBlock += 160 + Math.floor(hsh2 * 70);
     }
   }
   function ensureCourse() {
@@ -1932,46 +1964,58 @@ function olFeet(ol,bq,w0,c0L,c0R){
     }
     var s0 = Math.max(0, S.s - 30), s1 = S.s + 140;
     var bandP = [], bandI = [], redP = [], redI = [];
-    var ds = 2.2;
+    var ds = 1.1; // finer step follows Möbius curvature
     for (var s = s0; s < s1; s += ds) {
       var fa = sample(s, lineLat(s)), fb = sample(s + ds, lineLat(s + ds));
       function ribbon(P, I, hw, lift) {
-        // fa/fb already sit on the race line (sampled at lineLat)
         var a1 = fa.p.clone().addScaledVector(fa.B, -hw).addScaledVector(fa.N, lift);
         var a2 = fa.p.clone().addScaledVector(fa.B, hw).addScaledVector(fa.N, lift);
         var b1 = fb.p.clone().addScaledVector(fb.B, -hw).addScaledVector(fb.N, lift);
         var b2 = fb.p.clone().addScaledVector(fb.B, hw).addScaledVector(fb.N, lift);
         addQuad(P, I, a1, a2, b2, b1);
       }
-      ribbon(bandP, bandI, LINE_PROX, 0.04);
-      ribbon(redP, redI, 0.025, 0.06);
+      ribbon(bandP, bandI, LINE_PROX, 0.08);
+      ribbon(redP, redI, 0.028, 0.12);
     }
-    function mesh(P, I, mat) {
+    function mesh(P, I, mat, order) {
       if (!I.length) return;
       var g = new T.BufferGeometry();
       g.setAttribute("position", new T.Float32BufferAttribute(P, 3));
       g.setIndex(I);
-      trackG.add(new T.Mesh(g, mat));
+      var m = new T.Mesh(g, mat);
+      m.renderOrder = order || 0;
+      trackG.add(m);
     }
-    mesh(bandP, bandI, bandMat);
-    mesh(redP, redI, lineMat);
+    mesh(bandP, bandI, bandMat, 1);
+    mesh(redP, redI, lineMat, 2);
     curbs.forEach(function (c) {
       if (c.s < s0 - 2 || c.s > s1 + 2) return;
       var f = sample(c.s, c.lat);
       var depth = c.depth || 0.7;
-      var box = new T.Mesh(new T.BoxGeometry(depth, c.h, c.span), inkMat);
-      var top = new T.Mesh(new T.BoxGeometry(depth + 0.06, 0.045, c.span + 0.08), roadMat);
-      box.position.copy(f.p).addScaledVector(f.N, c.h / 2);
-      top.position.copy(f.p).addScaledVector(f.N, c.h + 0.02);
       var basis = new T.Matrix4().makeBasis(f.T, f.N, f.B);
-      box.quaternion.setFromRotationMatrix(basis);
-      top.quaternion.copy(box.quaternion);
-      trackG.add(box); trackG.add(top);
-      if (c.h > 0.5) {
-        var lip = new T.Mesh(new T.BoxGeometry(depth + 0.1, 0.03, c.span + 0.12), inkMat);
-        lip.position.copy(f.p).addScaledVector(f.N, c.h + 0.05);
-        lip.quaternion.copy(box.quaternion);
-        trackG.add(lip);
+      var q = new T.Quaternion().setFromRotationMatrix(basis);
+      if (c.tier === 0) {
+        // Ghost: pure wire outline — no face fill
+        var boxGeo = new T.BoxGeometry(depth, c.h, c.span);
+        var edges = new T.EdgesGeometry(boxGeo);
+        var outline = new T.LineSegments(edges, ghostLineMat);
+        outline.position.copy(f.p).addScaledVector(f.N, c.h / 2 + 0.01);
+        outline.quaternion.copy(q);
+        trackG.add(outline);
+        var topEdges = new T.EdgesGeometry(new T.BoxGeometry(depth + 0.02, 0.001, c.span + 0.02));
+        var topLine = new T.LineSegments(topEdges, ghostAccentMat);
+        topLine.position.copy(f.p).addScaledVector(f.N, c.h + 0.02);
+        topLine.quaternion.copy(q);
+        trackG.add(topLine);
+      } else {
+        // Solid curb
+        var box = new T.Mesh(new T.BoxGeometry(depth, c.h, c.span), inkMat);
+        var top = new T.Mesh(new T.BoxGeometry(depth + 0.06, 0.045, c.span + 0.08), roadMat);
+        box.position.copy(f.p).addScaledVector(f.N, c.h / 2);
+        top.position.copy(f.p).addScaledVector(f.N, c.h + 0.02);
+        box.quaternion.copy(q);
+        top.quaternion.copy(q);
+        trackG.add(box); trackG.add(top);
       }
     });
   }
@@ -2021,7 +2065,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     for (var bi = 0; bi < blocks.length; bi++) releaseBlockMesh(blocks[bi]);
     blocks = [];
     lineNodes = [{ s: 0, lat: 0, span: 0, got: true, start: true }];
-    nextCurb = 80; nextBlock = 130; nextWallId = 1; extrasKey = -999;
+    nextCurb = 36; nextBlock = 340; nextWallId = 1; extrasKey = -999;
     S.pts = 0; S.combo = 1; S.lineRun = 0; S.lineGrace = 0; S.lineMax = 10; S.lineOn = false;
     S.rings = 0; S.ringChain = 0; S.ringLast = 0;
     ensureCourse();
@@ -2798,39 +2842,68 @@ function olFeet(ol,bq,w0,c0L,c0R){
     f = curFrame();
     var clr = clearance();
     if (inGap(S.s) && clr < 0.1) { bail(true); return; }
-    /* free-ride: no edge bail */
-    if (S.mode !== "ollie" || clr < 0.9) {
-      for (var i = curbs.length - 1; i >= 0; i--) {
-        var c = curbs[i];
-        if (c.s < S.s - 3) break;
-        var hitR = (c.depth || 0.7) * 0.55 + 0.2;
-        if (Math.abs(c.s - S.s) < hitR && Math.abs(S.lat - c.lat) < c.span * 0.5 + 0.22 && S.v > 2.2) {
-          // Taller obstacles: top surface is skateable if you land near the lip
-          var topMargin = c.h > 0.45 ? Math.min(0.2, c.h * 0.32) : 0.02;
-          if (clr < c.h - topMargin) {
-            bail(false); return; // short curb — caught, not a full wipeout
-          }
+    /* Progressive: ghost = pass-through, solid curb = soft tumble, wall bottom = wipeout / top = break */
+    for (var i = curbs.length - 1; i >= 0; i--) {
+      var c = curbs[i];
+      if (c.s < S.s - 3) break;
+      var hitR = (c.depth || 0.7) * 0.55 + 0.2;
+      if (Math.abs(c.s - S.s) < hitR && Math.abs(S.lat - c.lat) < c.span * 0.5 + 0.22 && S.v > 2.2) {
+        if (!c.cleared && clr >= c.h - 0.02) {
+          c.cleared = true;
+          var clearPts = c.tier === 0 ? 8 : 14;
+          S.pts += clearPts * S.combo;
+          S.shake = Math.max(S.shake, 0.03);
+          banner((c.tier === 0 ? "GHOST CLEAR +" : "CURB CLEAR +") + (clearPts * S.combo));
+          Audio.chime();
+        }
+        if (c.tier === 0) continue; // ghosts: no collision
+        if (S.mode === "ollie" && clr >= 0.9) continue;
+        var topMargin = c.h > 0.45 ? Math.min(0.2, c.h * 0.32) : 0.02;
+        if (clr < c.h - topMargin) {
+          c.tripped = true;
+          Audio.thud();
+          banner("TRIPPED");
+          bail(false);
+          return;
         }
       }
-      // Block walls: 2-high (~1.0 m) — clearable with a charged ollie
-      for (var bi = 0; bi < blocks.length; bi++) {
-        var b = blocks[bi];
-        if (b.hit) continue;
-        if (b.s < S.s - 4) continue;
-        if (b.s > S.s + 3) continue;
-        var hitDepth = b.d * 0.55 + 0.18;
-        if (Math.abs(b.s - S.s) < hitDepth && Math.abs(S.lat - b.lat) < b.w * 0.55 + 0.18 && S.v > 2.0) {
-          var blockTop = b.h0 + b.h;
-          // Must clear the top of the stack; topMargin lets a near-clear scrape over
-          if (clr < blockTop - 0.06) {
-            scatterWall(b.id);
-            Audio.thud();
-            banner("WIPEOUT");
-            bail(true);
-            return;
-          }
+    }
+    // Walls: bottom row = wipeout; top row only = scatter upper bricks, keep skating
+    var wallSeen = {};
+    for (var bi = 0; bi < blocks.length; bi++) {
+      var b = blocks[bi];
+      if (b.hit || wallSeen[b.id]) continue;
+      if (b.s < S.s - 4 || b.s > S.s + 3) continue;
+      var wallId = b.id, wallHit = false, wallTop = 0, bottomTop = 0;
+      for (var bj = 0; bj < blocks.length; bj++) {
+        var bb = blocks[bj];
+        if (bb.id !== wallId || bb.hit) continue;
+        var top = bb.h0 + bb.h;
+        if (top > wallTop) wallTop = top;
+        if (bb.row === 0 && top > bottomTop) bottomTop = top;
+        var hitDepth = bb.d * 0.55 + 0.18;
+        if (Math.abs(bb.s - S.s) < hitDepth && Math.abs(S.lat - bb.lat) < bb.w * 0.55 + 0.18) {
+          wallHit = true;
         }
       }
+      wallSeen[wallId] = true;
+      if (!wallHit || S.v <= 2.0) continue;
+      if (clr >= wallTop - 0.06) continue; // full clear
+      if (clr >= bottomTop - 0.04) {
+        // Top-row only — break upper bricks, keep going
+        scatterWall(wallId, 1);
+        Audio.thud();
+        banner("BREAK");
+        S.shake = Math.max(S.shake, 0.18);
+        S.pts += 6 * S.combo;
+        continue;
+      }
+      // Bottom-row foundation hit
+      scatterWall(wallId);
+      Audio.thud();
+      banner("WIPEOUT");
+      bail(true);
+      return;
     }
     lineScore(dt, sPrev);
     collectRings(sPrev);
@@ -3089,7 +3162,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
       }
       var clipAR = aR.clone();
       // During crouch/charge, advance olFeet so the rear foot slides onto the tail
-      // (same prep stance as the ollie pop, ~t=0.20–0.30). Front foot stays near bolts.
+      // (same prep stance as the ollie pop). Front foot stays near bolts.
       var footT = 0;
       if (S.cb > 0.02) {
         footT = sm(S.cb) * (0.20 + 0.10 * S.chargeV);
@@ -3112,18 +3185,20 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var pl, pw = (e[0] === 1 && !res && groundFeet) ? pushR : 0;
       if (footPose) {
         var yy = footPose[e[0]].yaw * 0.6; pl = new V(Math.cos(yy) + 0.3, 0, Math.sin(yy));
-        // Rear leg: mild northeast knee bias when the foot loads the tail
-        // (not pure forward, not full sideways sprawl)
+        // Rear leg in crouch: northeast / northwest diagonal — mostly forward,
+        // soft lateral lean (follows carve a little) instead of pure side sprawl.
         if (e[0] === 1) {
           var tailLoad = 0;
           if (!res && S.cb > 0.02) {
-            tailLoad = sm(S.cb) * (0.4 + 0.15 * S.chargeV);
+            tailLoad = sm(S.cb) * (0.55 + 0.2 * S.chargeV);
           } else if (res && ol) {
             var ot = ol.t || 0;
-            if (ot < 0.42) tailLoad = (1 - sm(ot / 0.42)) * 0.45;
+            if (ot < 0.42) tailLoad = (1 - sm(ot / 0.42)) * 0.55;
           }
           if (tailLoad > 0.01) {
-            pl.normalize().lerp(new V(1.0, 0.04, 0.45), tailLoad);
+            // +Z / −Z from roll → NE vs NW; keep a baseline outboard so it never locks pure forward
+            var lat = 0.32 + cl(S.roll, -0.5, 0.5) * 0.4;
+            pl.normalize().lerp(new V(1.15, 0.05, lat), tailLoad);
           }
         }
         if (pw > 0.001) {
@@ -3255,7 +3330,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     shadow.quaternion.setFromRotationMatrix(_shM);
     // Scale in local XY = board footprint (length x width)
     shadow.scale.set(0.52 * sc, 0.22 * sc, 1);
-    shadow.position.copy(sf.p).addScaledVector(sf.N, 0.012 + Math.min(0.06, rise * 0.12));
+    shadow.position.copy(sf.p).addScaledVector(sf.N, 0.03 + Math.min(0.08, rise * 0.15));
   }
 
   var look = new V(), camUpS = new V(0, 1, 0);
