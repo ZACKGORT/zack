@@ -3088,8 +3088,13 @@ function olFeet(ol,bq,w0,c0L,c0R){
         board.quaternion.multiply(bq);
       }
       var clipAR = aR.clone();
-      // Pass the live board quaternion so feet stay glued to the deck as it spins
-      groundFeet = olFeet({ t: 0 }, board.quaternion.clone(), 1, aL, aR);
+      // During crouch/charge, advance olFeet so the rear foot slides onto the tail
+      // (same prep stance as the ollie pop, ~t=0.20–0.30). Front foot stays near bolts.
+      var footT = 0;
+      if (S.cb > 0.02) {
+        footT = sm(S.cb) * (0.20 + 0.10 * S.chargeV);
+      }
+      groundFeet = olFeet({ t: footT }, board.quaternion.clone(), 1, aL, aR);
       aL = groundFeet[0].A;
       aR = groundFeet[1].A;
       // Push / brake: skip during switch so feet don't leave the spinning deck
@@ -3107,6 +3112,20 @@ function olFeet(ol,bq,w0,c0L,c0R){
       var pl, pw = (e[0] === 1 && !res && groundFeet) ? pushR : 0;
       if (footPose) {
         var yy = footPose[e[0]].yaw * 0.6; pl = new V(Math.cos(yy) + 0.3, 0, Math.sin(yy));
+        // Rear leg: mild northeast knee bias when the foot loads the tail
+        // (not pure forward, not full sideways sprawl)
+        if (e[0] === 1) {
+          var tailLoad = 0;
+          if (!res && S.cb > 0.02) {
+            tailLoad = sm(S.cb) * (0.4 + 0.15 * S.chargeV);
+          } else if (res && ol) {
+            var ot = ol.t || 0;
+            if (ot < 0.42) tailLoad = (1 - sm(ot / 0.42)) * 0.45;
+          }
+          if (tailLoad > 0.01) {
+            pl.normalize().lerp(new V(1.0, 0.04, 0.45), tailLoad);
+          }
+        }
         if (pw > 0.001) {
           var plc = e[3].clone().sub(H.clone().add(a).multiplyScalar(0.5));
           if (plc.lengthSq() < 1e-6) plc.set(1, 0, 0);
