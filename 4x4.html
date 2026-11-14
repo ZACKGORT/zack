@@ -507,7 +507,7 @@ if(isCoarse){
 
 /* Record — MediaRecorder composite, 60s max (skate-style) */
 const Rec=(function(){
-  const MAX=60;
+  const MAX=60, LINE_BOOST=2;
   let rec=null, chunks=[], startedAt=0, active=false, vStream=null;
   const out=document.createElement('canvas'), octx=out.getContext('2d');
   const btn=document.getElementById('recBtn'), timeEl=document.getElementById('recTime');
@@ -532,7 +532,20 @@ const Rec=(function(){
     if(active){const te=document.getElementById('recTime');if(te)te.textContent=fmt(left)}
     if(active&&startedAt&&left<=0)stop();
   };
-  const frame=()=>{if(!active)return;ensureSize();try{octx.drawImage(canvas,0,0,out.width,out.height);drawHud()}catch(e){}};
+  const composite=()=>{
+    /* GL canvas is transparent (clearColor alpha 0), so the page bg must be repainted every frame or frames smear together */
+    octx.globalCompositeOperation='source-over';octx.globalAlpha=1;
+    octx.fillStyle=getComputedStyle(document.body).backgroundColor||'#f5f5f3';
+    octx.fillRect(0,0,out.width,out.height);
+    octx.drawImage(canvas,0,0,out.width,out.height);
+    /* contrast boost: re-draw terrain with multiply so line pixels darken; transparent areas/bg are untouched. Raise LINE_BOOST for stronger lines */
+    octx.globalCompositeOperation='multiply';
+    for(let i=0;i<LINE_BOOST;i++)octx.drawImage(canvas,0,0,out.width,out.height);
+    octx.globalCompositeOperation='source-over';
+    if(fx&&fx.width&&fx.height)octx.drawImage(fx,0,0,out.width,out.height); /* flags, smoke, coffee overlay */
+    drawHud();
+  };
+  const frame=()=>{if(!active)return;ensureSize();try{composite()}catch(e){}};
   const download=blob=>{
     const a=document.createElement('a'),url=URL.createObjectURL(blob);
     a.href=url;a.download='softtop-'+new Date().toISOString().replace(/[:.]/g,'-').slice(0,19)+'.webm';
@@ -543,7 +556,7 @@ const Rec=(function(){
     try{if(rec&&rec.state!=='inactive')rec.stop();else if(chunks.length){download(new Blob(chunks,{type:(rec&&rec.mimeType)||'video/webm'}));chunks=[]}}catch(e){console.warn(e)}
     if(vStream){try{vStream.getTracks().forEach(t=>t.stop())}catch(_){}vStream=null}
   };
-  const paintNow=()=>{ensureSize();try{octx.fillStyle=getComputedStyle(document.body).backgroundColor||'#f5f5f3';octx.fillRect(0,0,out.width,out.height);octx.drawImage(canvas,0,0,out.width,out.height);drawHud()}catch(_){}
+  const paintNow=()=>{ensureSize();try{composite()}catch(_){}
     try{if(vStream){const vt=vStream.getVideoTracks()[0];if(vt&&typeof vt.requestFrame==='function')vt.requestFrame()}}catch(_){}};
   const start=()=>{
     if(active)return;if(!window.MediaRecorder){alert('Recording not supported');return}
