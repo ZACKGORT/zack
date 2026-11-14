@@ -32,6 +32,25 @@ canvas{display:block;width:100%;height:100%}
 #site .bar a{font-size:12px;font-weight:600;color:var(--bg);background:var(--fg);padding:5px 11px;border-radius:999px;text-decoration:none;flex:none}
 #site .bar button{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:inherit;padding:0 4px}
 #site iframe{flex:1;width:100%;border:0;background:#fff}
+#strip{position:fixed;left:0;right:0;bottom:calc(98px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;pointer-events:none;z-index:7}
+#strip[hidden]{display:none}
+#stripScroll{display:flex;gap:12px;align-items:flex-end;max-width:calc(100vw - 24px);overflow-x:auto;overflow-y:hidden;padding:6px 8px 10px;pointer-events:auto;scrollbar-width:thin}
+.snap{position:relative;flex:none;width:170px;border:1px solid var(--fg);border-radius:10px;background:var(--bg);box-shadow:4px 4px 0 var(--fg);overflow:hidden;animation:snapIn .4s cubic-bezier(.2,.9,.3,1.2)}
+.snap.out{animation:snapOut .22s ease-in forwards}
+.snap img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+.snap .cap,.snap .sv,.snap .dm{position:absolute;font:700 10px/1 system-ui,sans-serif;letter-spacing:.08em;color:#fff;background:rgba(0,0,0,.55);border-radius:999px;border:0}
+.snap .cap{left:6px;top:6px;padding:4px 8px;pointer-events:none}
+.snap .dm{right:6px;top:5px;width:22px;height:22px;font-size:15px;line-height:20px;cursor:pointer;padding:0}
+.snap .sv{left:6px;bottom:6px;padding:5px 10px;cursor:pointer}
+.snap .dm:hover,.snap .sv:hover{background:#000}
+.snap .rz{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 55%,rgba(255,255,255,.85) 55% 62%,transparent 62% 72%,rgba(255,255,255,.85) 72% 79%,transparent 79%)}
+@keyframes snapIn{from{opacity:0;transform:translateY(24px) scale(.85)}to{opacity:1;transform:none}}
+@keyframes snapOut{to{opacity:0;transform:translateY(16px) scale(.8)}}
+#shutter{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:9}
+#shutter.go{animation:shut .3s ease-out}
+@keyframes shut{0%{opacity:.7}100%{opacity:0}}
+#snapToast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:9;padding:8px 14px;border-radius:999px;background:var(--fg);color:var(--bg);font:600 12px system-ui,sans-serif;letter-spacing:.04em;opacity:0;pointer-events:none;transition:opacity .25s}
+#snapToast.on{opacity:1}
 #fx{position:absolute;inset:0;pointer-events:none}
 #gear{font-size:16px;font-weight:700;letter-spacing:.08em;margin-bottom:2px;opacity:.85}
 #hud{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));text-align:center;font-size:11px;letter-spacing:.04em;opacity:.5;pointer-events:none;user-select:none;z-index:5}
@@ -247,6 +266,7 @@ const st={intro:S.intro&&!reduce?0:1,rise:1,tx:0,tz:0,morph:0,yaw:0,pitch:0,yv:0
 tilt:S.tilt,elev:S.elevation,head:0,cy:0};
 st.rise=smoother(st.intro);
 let camMode=0, themeMode=0;
+let snapCam=null, snapping=false, pendingSnap=null;
 const THEMES=[
   {name:'mono', bg:'#f5f5f3', fg:'#1c1c1c', color:'#c6c6c6', lightMode:true, brightness:1, glow:0.6},
   {name:'sedona', bg:'#f0e6d8', fg:'#5c2e1f', color:'#c45c3a', lightMode:true, brightness:1.15, glow:0.45}
@@ -260,6 +280,7 @@ const applyTheme=()=>{
   const b=document.getElementById('themeBtn'); if(b) b.textContent=t.name;
 };
 const camera=()=>{
+if(snapCam)return snapCam;
 if(camMode===2){
   const dist=7.2, elev=2.7, ahead=2.0;
   const sp=Math.sin(car.psi), cs=Math.cos(car.psi);
@@ -279,8 +300,8 @@ return{...fr,distance,eye:[-fr.f[0]*distance,lift+st.cy-fr.f[1]*distance,-fr.f[2
 const rayDir=(cam,nx,ny)=>{const a=view.width/view.height,t=lens(a);
 const d=[0,1,2].map(i=>cam.f[i]+cam.r[i]*nx*t*a+cam.u[i]*ny*t);const l=Math.hypot(...d);return d.map(v=>v/l)};
 const along=(cam,d)=>d[0]*cam.f[0]+d[1]*cam.f[1]+d[2]*cam.f[2];
-const groundDepth=(cam,ny)=>{const d=rayDir(cam,0,ny);if(d[1]>-1e-3)return Infinity;return(cam.eye[1]/-d[1])*along(cam,d)};
-const nearRange=cam=>[groundDepth(cam,-1)*0.9,cam.distance,S.foreground];
+const groundDepth=(cam,ny)=>{const d=rayDir(cam,0,ny);if(d[1]>-1e-3)return snapCam?cam.distance*4:Infinity;return(cam.eye[1]/-d[1])*along(cam,d)};
+const nearRange=cam=>snapCam?[0,1e-3,1]:[groundDepth(cam,-1)*0.9,cam.distance,S.foreground]; /* snapshot: no near-camera flattening, so true slope heights */
 const settleAt=(cam,n,x,z)=>{const depth=(x-cam.eye[0])*cam.f[0]-cam.eye[1]*cam.f[1]+(z-cam.eye[2])*cam.f[2];
 return n[2]+(1-n[2])*smoother((depth-n[0])/Math.max(n[1]-n[0],1e-3))};
 const pick=(cam,nx,ny)=>{const d=rayDir(cam,nx,ny),height=st.elev*HEIGHT*st.rise,freq=FREQUENCY/S.scale,near=nearRange(cam);
@@ -353,7 +374,7 @@ fc.fillStyle=`rgba(${p.col||(p.smoke?'88,88,92':'168,150,122')},${a.toFixed(3)})
 
 // ---- mouse driving: hold left = gas + steer toward cursor, right = brake ----
 const mouse={l:false,r:false};
-const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
+const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
 ['pointerdown','pointerup','pointermove','pointercancel','mousedown','mouseup'].forEach(t=>window.addEventListener(t,syncMouse,{passive:true}));
 document.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',()=>{mouse.l=mouse.r=false});
@@ -373,7 +394,7 @@ const P=(x,y,z)=>{const m=matrix,cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<=0)return 
 return[((m[0]*x+m[4]*y+m[8]*z+m[12])/cw*0.5+0.5)*view.width,(1-((m[1]*x+m[5]*y+m[9]*z+m[13])/cw*0.5+0.5))*view.height,cw]};
 const drawFlags=()=>{if(!gctx||st.intro<0.6)return;const t=performance.now()/1000,w=view.width,hh=view.height;
 for(const f of flags){const done=f.cap>0,col=done?'96,170,92':'228,87,46',b=P(f.x-st.tx,f.y,f.z-st.tz);if(!b)continue;
-if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
+if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){if(snapping)continue;const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
 fc.save();fc.translate(w/2+dx*sc,hh/2+dy*sc);fc.rotate(Math.atan2(dy,dx));fc.fillStyle=`rgba(${col},0.85)`;fc.beginPath();fc.moveTo(11,0);fc.lineTo(-7,7);fc.lineTo(-7,-7);fc.fill();fc.restore();continue}
 for(let i=0;i<40;i++){const a=i/40*6.283,x=f.x+Math.sin(a)*FR,z=f.z+Math.cos(a)*FR,q=P(x-st.tx,ground(x,z,gctx.cam,gctx.near,gctx.H),z-st.tz);if(!q)continue;
 const lit=done||i/40<f.prog,s=lit?4:3;fc.fillStyle=`rgba(${col},${lit?0.95:0.35})`;fc.fillRect(Math.round(q[0]/3)*3-s/2,Math.round(q[1]/3)*3-s/2,s,s)}
@@ -395,7 +416,7 @@ const findFlat=()=>{for(let n=0;n<150;n++){const a=Math.random()*6.283,d=3+Math.
 if(h0>0.08)continue;let sl=0;for(const[ex,ez]of[[0.3,0],[-0.3,0],[0,0.3],[0,-0.3]])sl=Math.max(sl,Math.abs(rel(x+ex,z+ez)-h0)/0.3);
 if(sl>0.05||flags.some(f=>Math.hypot(f.x-x,f.z-z)<FR+0.8))continue;return{x,z}}return null};
 const SPR=['..s..s....','...s..s...','.kkkkkkk..','.kbbbbbkk.','.kbbbbbk.k','.kbbbbbk.k','.kbbbbbkk.','..kkkkk...','.kkkkkkk..'],SPC={s:'150,150,150',k:'59,42,32',b:'111,78,55'};
-const drawCoffee=()=>{if(!coffee||!gctx||st.intro<0.6)return;const c=coffee,b=P(c.x-st.tx,c.y,c.z-st.tz);if(!b)return;const w=view.width,hh=view.height;
+const drawCoffee=()=>{if(snapping||!coffee||!gctx||st.intro<0.6)return;const c=coffee,b=P(c.x-st.tx,c.y,c.z-st.tz);if(!b)return;const w=view.width,hh=view.height;
 if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
 fc.save();fc.translate(w/2+dx*sc,hh/2+dy*sc);fc.rotate(Math.atan2(dy,dx));fc.fillStyle='rgba(111,78,55,0.85)';fc.beginPath();fc.moveTo(11,0);fc.lineTo(-7,7);fc.lineTo(-7,-7);fc.fill();fc.restore();return}
 for(let i=0;i<36;i++){const a=i/36*6.283,x=c.x+Math.sin(a)*CR,z=c.z+Math.cos(a)*CR,q=P(x-st.tx,ground(x,z,gctx.cam,gctx.near,gctx.H),z-st.tz);if(!q)continue;
@@ -435,7 +456,7 @@ const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
   if(p.used){if(d>CR*2.5)p.used=false}
   else if(d<CR*0.9&&site.hidden){p.used=true;openSite(p)}
  }};
-const drawPois=()=>{if(!gctx||st.intro<0.6)return;const w=view.width,hh=view.height,t=performance.now()/300;
+const drawPois=()=>{if(snapping||!gctx||st.intro<0.6)return;const w=view.width,hh=view.height,t=performance.now()/300;
  for(const p of POIS){if(!p.on)continue;const b=P(p.x-st.tx,p.y,p.z-st.tz);if(!b)continue;
   if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
    fc.save();fc.translate(w/2+dx*sc,hh/2+dy*sc);fc.rotate(Math.atan2(dy,dx));fc.fillStyle=p.col;fc.globalAlpha=0.85;fc.beginPath();fc.moveTo(9,0);fc.lineTo(-6,6);fc.lineTo(-6,-6);fc.fill();fc.restore();continue}
@@ -450,6 +471,69 @@ const drawPois=()=>{if(!gctx||st.intro<0.6)return;const w=view.width,hh=view.hei
   fc.font=`700 ${Math.round(9*u+1)}px system-ui,sans-serif`;fc.textAlign='center';fc.fillStyle=p.col;fc.fillText(p.label,0,R+11*u);
   fc.restore()}
  fc.globalAlpha=1};
+
+// ---- flag-capture snapshots: ground-level hero shot of the jeep at the summit ----
+const isTouch=matchMedia('(pointer:coarse)').matches;
+const strip=document.createElement('div');strip.id='strip';strip.hidden=true;
+const stripScroll=document.createElement('div');stripScroll.id='stripScroll';strip.appendChild(stripScroll);document.body.appendChild(strip);
+stripScroll.addEventListener('wheel',e=>{if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){stripScroll.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
+const shutter=document.createElement('div');shutter.id='shutter';document.body.appendChild(shutter);
+const toast=document.createElement('div');toast.id='snapToast';document.body.appendChild(toast);
+let toastT=0;const say=m=>{toast.textContent=m;toast.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>toast.classList.remove('on'),2200)};
+const saveBlob=(url,name)=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()};
+const addSnapCard=(blob,n)=>{
+ const url=URL.createObjectURL(blob),name=`4x4-flag-${n}-${Date.now()}.jpg`;
+ const c=document.createElement('div');c.className='snap';
+ c.innerHTML='<img alt="Flag '+n+' snapshot"><div class="cap">FLAG '+n+'</div><button type="button" class="dm" aria-label="Dismiss">×</button><button type="button" class="sv">SAVE ↓</button><div class="rz" title="Drag to resize"></div>';
+ c.querySelector('img').src=url;
+ c.querySelector('.sv').addEventListener('click',()=>saveBlob(url,name));
+ c.querySelector('.dm').addEventListener('click',()=>{c.classList.add('out');setTimeout(()=>{c.remove();URL.revokeObjectURL(url);if(!stripScroll.children.length)strip.hidden=true},220)});
+ const rz=c.querySelector('.rz');
+ rz.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();rz.setPointerCapture(e.pointerId);const x0=e.clientX,w0=c.offsetWidth;
+  const mv=ev=>{c.style.width=clamp(w0+(ev.clientX-x0),120,Math.min(640,innerWidth-40))+'px'};
+  const up=()=>{rz.removeEventListener('pointermove',mv);rz.removeEventListener('pointerup',up);rz.removeEventListener('pointercancel',up)};
+  rz.addEventListener('pointermove',mv);rz.addEventListener('pointerup',up);rz.addEventListener('pointercancel',up)});
+ stripScroll.appendChild(c);strip.hidden=false;
+ while(stripScroll.children.length>40){const o=stripScroll.firstChild;const im=o.querySelector('img');if(im)URL.revokeObjectURL(im.src);o.remove()}
+ requestAnimationFrame(()=>stripScroll.scrollTo({left:stripScroll.scrollWidth,behavior:'smooth'}));
+};
+const takeSnap=ps=>{
+ if(snapping||!gctx)return;
+ const H_=st.elev*HEIGHT*st.rise,D=1.4;
+ const mk=(ex,ey,ez)=>{const look=[car.x,car.y+0.16,car.z];const f=nrm([look[0]-ex,look[1]-ey,look[2]-ez]);
+  let r=nrm(cross([0,1,0],f));if(Math.hypot(r[0],r[1],r[2])<0.15)r=nrm(cross([1,0,0],f));const u=nrm(cross(f,r));
+  return{f,r,u,distance:Math.hypot(look[0]-ex,look[1]-ey,look[2]-ez),eye:[ex-st.tx,ey,ez-st.tz]}}; /* eye y is absolute world height (orbit cam does the same); don't subtract st.cy */
+ /* pick the front-3/4 side with the lowest ground, then raise the lens just enough that the ridge doesn't hide the jeep */
+ const FLAT=[0,1e-3,1],gr=(x,z)=>ground(x,z,gctx.cam,FLAT,H_);
+ let best=null;
+ for(const off of[-0.7,0.7,-0.45,0.45]){const a=car.psi+off,ex=car.x+Math.sin(a)*D,ez=car.z+Math.cos(a)*D,g=gr(ex,ez);
+  if(!best||g<best.g)best={g,ex,ez}}
+ const ty=car.y+0.08;let ey=best.g+0.08;
+ for(let h=0;h<=0.9;h+=0.05){ey=best.g+0.08+h;let clear=true;
+  for(let k=1;k<=12;k++){const t=k/13,x=best.ex+(car.x-best.ex)*t,z=best.ez+(car.z-best.ez)*t;if(gr(x,z)>ey+(ty-ey)*t-0.02){clear=false;break}}
+  if(clear)break}
+ const cam1=mk(best.ex,ey,best.ez);
+ const saved={focus:st.focus,g:gctx};
+ snapCam=cam1;snapping=true;st.focus=cam1.distance;gctx={cam:cam1,near:nearRange(cam1),H:H_};
+ let snap=null;
+ try{
+  render();
+  const W=canvas.width,Hh=canvas.height,sc=Math.min(1,1600/W),ow=Math.round(W*sc),oh=Math.round(Hh*sc);
+  snap=document.createElement('canvas');snap.width=ow;snap.height=oh;const c2=snap.getContext('2d');
+  c2.fillStyle=getComputedStyle(document.body).backgroundColor||'#f5f5f3';c2.fillRect(0,0,ow,oh);
+  c2.drawImage(canvas,0,0,ow,oh);
+  c2.globalCompositeOperation='multiply';c2.drawImage(canvas,0,0,ow,oh);c2.globalCompositeOperation='source-over';
+  if(fx&&fx.width&&fx.height)c2.drawImage(fx,0,0,ow,oh);
+  const fg=getComputedStyle(document.body).color||'#111',fs=Math.max(11,Math.round(oh*0.022));
+  c2.fillStyle=fg;c2.globalAlpha=0.75;c2.font=`700 ${fs}px system-ui,sans-serif`;c2.textBaseline='bottom';
+  c2.fillText(`FLAG ${ps.n} · SUMMIT`,fs,oh-fs);c2.textAlign='right';c2.fillText('zack.cx/4x4',ow-fs,oh-fs);c2.globalAlpha=1;
+ }finally{snapCam=null;snapping=false;st.focus=saved.focus;gctx=saved.g}
+ if(!snap)return;
+ snap.toBlob(b=>{if(!b)return;
+  if(isTouch){saveBlob(URL.createObjectURL(b),`4x4-flag-${ps.n}-${Date.now()}.jpg`);say('Snapshot saved to device')}
+  else addSnapCard(b,ps.n)},'image/jpeg',0.92);
+ if(!isTouch){shutter.classList.remove('go');void shutter.offsetWidth;shutter.classList.add('go')}
+};
 
 const stepCar=dt=>{
 const cam=camera(),near=nearRange(cam),H=st.elev*HEIGHT*st.rise,K=n=>keys[n];gctx={cam,near,H};
@@ -494,7 +578,7 @@ q.vy-=(q.g||0)*dt;q.x+=q.vx*dt;q.z+=q.vz*dt;q.y+=q.vy*dt;const d=Math.exp(-1.5*d
 for(const f of flags){f.y=ground(f.x,f.z,cam,near,H);
 if(f.cap>0){f.cap-=dt;if(f.cap<=0){const p=findPeak();if(p){f.x=p.x;f.z=p.z;f.prog=0}else f.cap=1}continue}
 const inZ=Math.hypot(car.x-f.x,car.z-f.z)<FR&&car.y>f.y-0.3;f.prog=clamp(f.prog+(inZ?1:-0.6)*dt/CAPT,0,1);
-if(f.prog>=1){f.cap=1.6;score++;if(pulses.length>=MAX_PULSES)pulses.shift();pulses.push({x:f.x,z:f.z,age:0});updScore()}}
+if(f.prog>=1){f.cap=1.6;score++;pendingSnap={n:score,fx:f.x,fz:f.z};confetti(f.x,f.y+0.3,f.z);if(pulses.length>=MAX_PULSES)pulses.shift();pulses.push({x:f.x,z:f.z,age:0});updScore()}}
 if(!coffee&&score>=nextCoffee&&(cTry-=dt)<=0){cTry=0.5;const p=findFlat();if(p)coffee={x:p.x,z:p.z,y:0}}
 updPois(dt,cam,near,H);
 if(coffee){coffee.y=ground(coffee.x,coffee.z,cam,near,H);if(Math.hypot(car.x-coffee.x,car.z-coffee.z)<CR*0.9)grabCoffee()}
@@ -706,7 +790,7 @@ const frame=now=>{requestAnimationFrame(frame);if(!visible||document.hidden)retu
 const dt=last?clamp((now-last)/1000,0,1/20):1/60;last=now;
 if(!S.intro||reduce)st.intro=1;else if(st.intro<1)st.intro=Math.min(1,st.intro+dt/INTRO);
 st.rise=smoother(st.intro);
-if(!reduce)st.morph+=S.morph*0.12*dt;stepCar(dt);
+if(!reduce)st.morph+=S.morph*0.12*dt;stepCar(dt);if(pendingSnap){const ps=pendingSnap;pendingSnap=null;try{takeSnap(ps)}catch(e){console.warn('snapshot failed',e);snapCam=null;snapping=false}}
 const engaged=pointer.inside;
 st.presence+=((engaged?1:0)-st.presence)*(1-Math.exp(-dt/(engaged?0.18:0.45)));
 const nx=pointer.x/view.width*2-1,ny=1-pointer.y/view.height*2;
