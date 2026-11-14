@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>zack.cx/4x4</title>
+<title>Topography</title>
 <style>
 :root{--bg:#f5f5f3;--fg:#1c1c1c;color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#f5f5f3;--fg:#1c1c1c}}
@@ -24,6 +24,14 @@ canvas{display:block;width:100%;height:100%}
 #card p{margin:0 0 14px;font-size:14px;opacity:.75}
 #card .go{display:block;padding:10px 12px;border-radius:999px;background:var(--fg);color:var(--bg);text-decoration:none;font-weight:600;font-size:14px}
 #card .keep{margin-top:10px;border:0;background:none;color:inherit;opacity:.6;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}
+#site{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;width:min(980px,calc(100vw - 24px));height:min(680px,calc(100vh - 90px));box-sizing:border-box;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:14px;box-shadow:6px 6px 0 var(--fg);overflow:hidden}
+#site[hidden]{display:none}
+#site .bar{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--fg);flex:none}
+#site .bar svg{width:22px;height:22px;flex:none}
+#site .bar h2{margin:0;font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#site .bar a{font-size:12px;font-weight:600;color:var(--bg);background:var(--fg);padding:5px 11px;border-radius:999px;text-decoration:none;flex:none}
+#site .bar button{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:inherit;padding:0 4px}
+#site iframe{flex:1;width:100%;border:0;background:#fff}
 #fx{position:absolute;inset:0;pointer-events:none}
 #gear{font-size:16px;font-weight:700;letter-spacing:.08em;margin-bottom:2px;opacity:.85}
 #hud{position:fixed;left:0;right:0;bottom:calc(12px + env(safe-area-inset-bottom,0px));text-align:center;font-size:11px;letter-spacing:.04em;opacity:.5;pointer-events:none;user-select:none;z-index:5}
@@ -337,7 +345,7 @@ const spawn=(x,y,z,smoke)=>{if(parts.length>500)return;const a=Math.random()*6.2
 parts.push({x,y,z,vx:car.vx*0.25+Math.cos(a)*r,vz:car.vz*0.25+Math.sin(a)*r,vy:0.05+Math.random()*0.14,age:0,life:0.6+Math.random()*0.8,s:3+Math.random()*3,smoke})};
 const drawFx=()=>{const w=Math.round(view.width*view.ratio),hh=Math.round(view.height*view.ratio);
 if(fx.width!==w||fx.height!==hh){fx.width=w;fx.height=hh}
-fc.setTransform(view.ratio,0,0,view.ratio,0,0);fc.clearRect(0,0,view.width,view.height);drawFlags();drawCoffee();const m=matrix;
+fc.setTransform(view.ratio,0,0,view.ratio,0,0);fc.clearRect(0,0,view.width,view.height);drawFlags();drawCoffee();drawPois();const m=matrix;
 for(const p of parts){const x=p.x-st.tx,y=p.y,z=p.z-st.tz,cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<=0)continue;
 const px=((m[0]*x+m[4]*y+m[8]*z+m[12])/cw*0.5+0.5)*view.width,py=(1-((m[1]*x+m[5]*y+m[9]*z+m[13])/cw*0.5+0.5))*view.height;
 const t=p.age/p.life,sz=Math.max(3,Math.round((p.s+(p.col?0:t*9))*clamp(9/cw,0.5,2)/3)*3),a=p.col?Math.min(1,(1-t)*3):Math.pow(1-t,1.3)*(p.smoke?0.5:0.6);
@@ -345,7 +353,7 @@ fc.fillStyle=`rgba(${p.col||(p.smoke?'88,88,92':'168,150,122')},${a.toFixed(3)})
 
 // ---- mouse driving: hold left = gas + steer toward cursor, right = brake ----
 const mouse={l:false,r:false};
-const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
+const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
 ['pointerdown','pointerup','pointermove','pointercancel','mousedown','mouseup'].forEach(t=>window.addEventListener(t,syncMouse,{passive:true}));
 document.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',()=>{mouse.l=mouse.r=false});
@@ -396,6 +404,53 @@ const tp=P(c.x-st.tx,c.y+0.2+Math.sin(performance.now()/300)*0.03,c.z-st.tz);if(
 SPR.forEach((row,r)=>{for(let k=0;k<row.length;k++){const ch=row[k];if(ch==='.')continue;fc.fillStyle=`rgba(${SPC[ch]},${ch==='s'?0.55:1})`;fc.fillRect(x0+k*u,y0+r*u,u,u)}})};
 const grabCoffee=()=>{confetti(coffee.x,coffee.y+0.15,coffee.z);coffee=null;nextCoffee=score+3;mouse.l=mouse.r=false;card.hidden=false};
 
+// ---- site POIs: drive onto an icon to open its page in a card ----
+const ci=(x,y,r)=>`M${x-r} ${y}a${r} ${r} 0 1 0 ${2*r} 0a${r} ${r} 0 1 0 ${-2*r} 0`;
+const POIS=[
+ {id:'cv',label:'CV',title:'Resume / CV',url:'https://zack.cx/cv',col:'#2b6cb0',d:'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 15h6M9 18h4'},
+ {id:'skate',label:'SKATE',title:'Skateboard',url:'https://zack.cx/skate',col:'#c05621',d:'M2.5 9c0 1.3 1 2 2.2 2h14.6c1.2 0 2.2-.7 2.2-2M7 11v2.5M17 11v2.5'+ci(7,16,2)+ci(17,16,2)},
+ {id:'flower',label:'WOLFIE',title:'Wolfie',url:'https://wolfie.life',col:'#d53f8c',d:ci(12,9,2)+ci(12,4.5,2.5)+ci(7.5,9,2.5)+ci(16.5,9,2.5)+ci(12,13.5,2.5)+'M12 16v6M12 20c3 0 4.5-1 5.5-3'},
+ {id:'bank',label:'BANK',title:'Banking / Financial',url:'https://zack.cx/bny',col:'#2f855a',d:'M3 9l9-5.5L21 9zM6 11v7M10 11v7M14 11v7M18 11v7M4 21h16'},
+ {id:'shop',label:'SHOP',title:'E-commerce',url:'https://zack.cx/gnc',col:'#805ad5',d:'M2.5 4h2.5l2.5 11h10.5l2-8H6.3'+ci(9.5,19.2,1.5)+ci(17,19.2,1.5)},
+ {id:'social',label:'SOCIAL',title:'Social Media',url:'https://zack.cx/tiktok',col:'#e53e3e',d:'M14 3.5v10.8a3.6 3.6 0 1 1-3.6-3.6M14 3.5c.4 2.6 2.4 4.3 5 4.5'},
+ {id:'work',label:'PORTFOLIO',title:'Portfolio',url:'https://zack.cx',col:'#d69e2e',d:'M12 3a9 9 0 1 0 0 18c1.5 0 2.2-1 1.6-2.2-.5-1.3.3-2.3 1.7-2.3H17a4 4 0 0 0 4-4c0-5-4-9.5-9-9.5z'+ci(7.5,11.5,1)+ci(10,7.5,1)+ci(15,7.5,1)}
+];
+POIS.forEach(p=>{p.path=new Path2D(p.d);p.x=p.z=p.y=0;p.on=false;p.used=false;p.try=0});
+const site=document.createElement('div');site.id='site';site.hidden=true;site.setAttribute('role','dialog');
+site.innerHTML='<div class="bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path></path></svg><h2></h2><a target="_blank" rel="noopener">Open ↗</a><button type="button" aria-label="Close">×</button></div><iframe title="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen; autoplay; clipboard-write"></iframe>';
+document.body.appendChild(site);
+const sFrame=site.querySelector('iframe'),sPath=site.querySelector('svg path'),sTitle=site.querySelector('h2'),sLink=site.querySelector('.bar a');
+const closeSite=()=>{site.hidden=true;sFrame.src='about:blank'};
+site.querySelector('.bar button').addEventListener('click',closeSite);
+window.addEventListener('keydown',e=>{if(e.key==='Escape')closeSite()});
+const openSite=p=>{confetti(p.x,p.y+0.15,p.z);mouse.l=mouse.r=false;card.hidden=true;sPath.setAttribute('d',p.d);sTitle.textContent=p.title;sLink.href=p.url;sFrame.title=p.title;sFrame.src=p.url;site.hidden=false};
+const poiNear=(x,z,pp)=>POIS.some(q=>q!==pp&&q.on&&Math.hypot(q.x-x,q.z-z)<2.5)||(coffee&&Math.hypot(coffee.x-x,coffee.z-z)<2);
+let poiT=0;
+const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
+ for(const p of POIS){
+  if(p.on&&Math.hypot(car.x-p.x,car.z-p.z)>26)p.on=false;
+  if(!p.on){if(!spawn)continue;for(let n=0;n<4;n++){const f=findFlat();if(f&&!poiNear(f.x,f.z,p)){p.x=f.x;p.z=f.z;p.on=true;p.used=false;break}}if(!p.on)continue}
+  p.y=ground(p.x,p.z,cam,near,H);
+  const d=Math.hypot(car.x-p.x,car.z-p.z);
+  if(p.used){if(d>CR*2.5)p.used=false}
+  else if(d<CR*0.9&&site.hidden){p.used=true;openSite(p)}
+ }};
+const drawPois=()=>{if(!gctx||st.intro<0.6)return;const w=view.width,hh=view.height,t=performance.now()/300;
+ for(const p of POIS){if(!p.on)continue;const b=P(p.x-st.tx,p.y,p.z-st.tz);if(!b)continue;
+  if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
+   fc.save();fc.translate(w/2+dx*sc,hh/2+dy*sc);fc.rotate(Math.atan2(dy,dx));fc.fillStyle=p.col;fc.globalAlpha=0.85;fc.beginPath();fc.moveTo(9,0);fc.lineTo(-6,6);fc.lineTo(-6,-6);fc.fill();fc.restore();continue}
+  fc.fillStyle=p.col;fc.globalAlpha=0.5;
+  for(let i=0;i<30;i++){const a=i/30*6.283,x=p.x+Math.sin(a)*CR,z=p.z+Math.cos(a)*CR,q=P(x-st.tx,ground(x,z,gctx.cam,gctx.near,gctx.H),z-st.tz);if(!q)continue;fc.fillRect(Math.round(q[0]/3)*3-1.5,Math.round(q[1]/3)*3-1.5,3,3)}
+  fc.globalAlpha=1;
+  const tp=P(p.x-st.tx,p.y+0.35+Math.sin(t+p.x)*0.04,p.z-st.tz);if(!tp)continue;
+  const u=clamp(9/b[2],0.7,1.8),R=17*u;
+  fc.save();fc.translate(tp[0],tp[1]-R);
+  fc.fillStyle='#fff';fc.strokeStyle=p.col;fc.lineWidth=2;fc.beginPath();fc.arc(0,0,R,0,6.283);fc.fill();fc.stroke();
+  fc.save();fc.scale(R*1.15/12,R*1.15/12);fc.translate(-12,-12);fc.lineWidth=1.7/(R*1.15/12);fc.lineCap='round';fc.lineJoin='round';fc.stroke(p.path);fc.restore();
+  fc.font=`700 ${Math.round(9*u+1)}px system-ui,sans-serif`;fc.textAlign='center';fc.fillStyle=p.col;fc.fillText(p.label,0,R+11*u);
+  fc.restore()}
+ fc.globalAlpha=1};
+
 const stepCar=dt=>{
 const cam=camera(),near=nearRange(cam),H=st.elev*HEIGHT*st.rise,K=n=>keys[n];gctx={cam,near,H};
 const joyMag=joy.active?Math.hypot(joy.dx,joy.dy):0;
@@ -437,6 +492,7 @@ if(f.cap>0){f.cap-=dt;if(f.cap<=0){const p=findPeak();if(p){f.x=p.x;f.z=p.z;f.pr
 const inZ=Math.hypot(car.x-f.x,car.z-f.z)<FR&&car.y>f.y-0.3;f.prog=clamp(f.prog+(inZ?1:-0.6)*dt/CAPT,0,1);
 if(f.prog>=1){f.cap=1.6;score++;if(pulses.length>=MAX_PULSES)pulses.shift();pulses.push({x:f.x,z:f.z,age:0});updScore()}}
 if(!coffee&&score>=nextCoffee&&(cTry-=dt)<=0){cTry=0.5;const p=findFlat();if(p)coffee={x:p.x,z:p.z,y:0}}
+updPois(dt,cam,near,H);
 if(coffee){coffee.y=ground(coffee.x,coffee.z,cam,near,H);if(Math.hypot(car.x-coffee.x,car.z-coffee.z)<CR*0.9)grabCoffee()}
 st.tx+=(car.x-st.tx)*(1-Math.exp(-dt/0.14));st.tz+=(car.z-st.tz)*(1-Math.exp(-dt/0.14));
 st.cy+=(car.y-st.cy)*(1-Math.exp(-dt/0.3));
