@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>zack.cx/4x4</title>
+<title>Topography</title>
 <style>
 :root{--bg:#f5f5f3;--fg:#1c1c1c;color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#f5f5f3;--fg:#1c1c1c}}
@@ -455,9 +455,13 @@ const stepCar=dt=>{
 const cam=camera(),near=nearRange(cam),H=st.elev*HEIGHT*st.rise,K=n=>keys[n];gctx={cam,near,H};
 const joyMag=joy.active?Math.hypot(joy.dx,joy.dy):0;
 if(joy.active&&joyMag>0.08){
-  const ang=Math.atan2(joy.dx,-joy.dy);
+  /* screen-relative: stick up = away from camera, right = screen right (ground-projected camera axes) */
+  const fl=Math.hypot(cam.f[0],cam.f[2])||1, rl=Math.hypot(cam.r[0],cam.r[2])||1;
+  const fx_=cam.f[0]/fl, fz_=cam.f[2]/fl, rx_=cam.r[0]/rl, rz_=cam.r[2]/rl;
+  let wx=fx_*(-joy.dy)+rx_*joy.dx, wz=fz_*(-joy.dy)+rz_*joy.dx;
+  const wl=Math.hypot(wx,wz)||1; wx/=wl; wz/=wl;
   const dist=3.2+joyMag*5.5;
-  st.hit={x:car.x+Math.sin(car.psi+ang)*dist, y:car.y, z:car.z+Math.cos(car.psi+ang)*dist, depth:dist};
+  st.hit={x:car.x+wx*dist, y:car.y, z:car.z+wz*dist, depth:dist};
 }
 const joyDrive=joy.active&&joyMag>0.08;
 const thr=clamp((K('w')||K('arrowup')||K('gas')?1:0)-(K('s')||K('arrowdown')?1:0)+(mouse.l||joyDrive?1:0),-1,1),
