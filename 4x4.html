@@ -147,7 +147,7 @@ gl_Position=clip;vTerrain=terrain;vDepth=clip.w;vLift=h*uHeight;}`;
 const FRAG=`#version 300 es
 ${COMMON}
 uniform float uDetail,uLines,uLineWidth,uMajor,uBrightness,uRefDepth,uReveal,uLightMode,uOpacity;
-uniform vec3 uColor;uniform vec2 uFade;uniform vec3 uFocus;uniform vec4 uHeat;uniform vec4 uLamp;uniform vec3 uSun;
+uniform vec3 uColor,uFog;uniform float uScape;uniform vec2 uFade;uniform vec3 uFocus;uniform vec4 uHeat;uniform vec4 uLamp;uniform vec3 uSun;
 in vec2 vTerrain;in float vDepth;in float vLift;in vec3 vNormal;out vec4 outColor;
 float smoother(float x){x=clamp(x,0.0,1.0);return x*x*x*(x*(x*6.0-15.0)+10.0);}
 float stroke(float dist,float width,float soft,float density,float crowd){
@@ -180,6 +180,19 @@ float lamp=clamp(dot(normal,toLamp/max(ld,1e-3)),0.0,1.0)*uLamp.w/(1.0+ld*ld*0.9
 float level=mix(0.45,1.05,smoothstep(0.0,1.1,h))*mix(0.35,1.25,sun*sun)*(1.0+0.6*major);
 level+=heat*1.4+ring*3.0+lamp*1.2;
 float fade=1.0-smoother((depth-uFade.x)/max(uFade.y-uFade.x,1e-3));
+if(uScape>0.5){vec3 sn=normalize(vNormal);float sl=1.0-sn.y;
+vec3 sc=mix(vec3(.373,.427,.243),vec3(.306,.361,.212),clamp(noise(spot*0.9+vec2(3.0,8.0))*0.7+0.5,0.0,1.0));
+sc=mix(sc,vec3(.576,.545,.361),clamp(smoothstep(0.1,0.9,h)*0.6+max(0.0,noise(spot*2.4))*0.4,0.0,1.0));
+sc=mix(sc,vec3(.69,.643,.514),smoothstep(0.7,1.0,h)*0.5);
+vec3 sr=mix(vec3(.435,.416,.369),vec3(.271,.247,.22),sin(h*14.0)*0.5+0.5);
+sc=mix(sc,sr,smoothstep(0.1,0.38,sl)*0.86);
+sc*=0.94+0.12*noise(spot*9.0);
+float sd=clamp(dot(sn,uSun),0.0,1.0);
+vec3 lit=sc*(vec3(1.0,0.945,0.86)*sd*1.2+mix(vec3(.85,.8,.69),vec3(.99,.97,.93),sn.y*0.5+0.5)*0.5);
+lit*=1.0-0.2*cover*fade;
+lit=mix(lit,uFog,1.0-fade);
+float sa=smoothstep(0.0,0.22,fade)*uReveal*uOpacity;
+outColor=vec4(lit*sa,sa);return;}
 float light=cover*level*fade*uBrightness*uReveal;
 if(uLightMode>0.5){float ink=(1.0-exp(-light*1.8))*0.92*uOpacity;outColor=vec4(uColor*ink,ink);return;}
 vec3 color=1.0-exp(-uColor*light*1.8);
@@ -268,15 +281,15 @@ st.rise=smoother(st.intro);
 let camMode=0, themeMode=0;
 let snapCam=null, snapping=false, pendingSnap=null;
 const THEMES=[
+  {name:'land', bg:'#ecdcbc', fg:'#2e2515', color:'#c6c6c6', lightMode:true, brightness:1, glow:0, scape:true, sky:'linear-gradient(#7ba4d6 0%,#a9c3de 28%,#d8c9a8 46%,#f2d3a2 60%,#ffd79a 74%,#e0b27c 100%)'},
   {name:'mono', bg:'#f5f5f3', fg:'#1c1c1c', color:'#c6c6c6', lightMode:true, brightness:1, glow:0.6},
-  {name:'sedona', bg:'#f0e6d8', fg:'#5c2e1f', color:'#c45c3a', lightMode:true, brightness:1.15, glow:0.45}
 ];
 const applyTheme=()=>{
   const t=THEMES[themeMode];
-  S.color=t.color; S.lightMode=t.lightMode; S.brightness=t.brightness; S.glow=t.glow;
+  S.color=t.color; S.lightMode=t.lightMode; S.brightness=t.brightness; S.glow=t.glow; S.scape=!!t.scape;
   document.documentElement.style.setProperty('--bg', t.bg);
   document.documentElement.style.setProperty('--fg', t.fg);
-  document.body.style.background=t.bg; document.body.style.color=t.fg;
+  document.body.style.background=t.sky||t.bg; document.body.style.color=t.fg;
   const b=document.getElementById('themeBtn'); if(b) b.textContent=t.name;
 };
 const camera=()=>{
@@ -334,8 +347,8 @@ const car={x:0,z:0,psi:0,vx:0,vz:0,gear:0,acc:0,v:0,steer:0,y:0,sF:0,sR:0,m:new 
 const joy={active:false,dx:0,dy:0,id:null};
 const cp=prog(`#version 300 es
 layout(location=0)in vec3 aPos;layout(location=1)in vec3 aNrm;layout(location=2)in vec4 aCol;
-uniform mat4 uVP,uModel;out vec3 vN;out vec4 vC;
-void main(){vN=mat3(uModel)*aNrm;vC=aCol;gl_Position=uVP*(uModel*vec4(aPos,1.0));}`,
+uniform mat4 uVP,uModel;uniform float uPaint;out vec3 vN;out vec4 vC;
+void main(){vN=mat3(uModel)*aNrm;vC=aCol;if(uPaint>0.5&&abs(aCol.r-0.2431)<0.01&&abs(aCol.g-0.3216)<0.01)vC.rgb=aPos.y>=0.36?vec3(0.085,0.085,0.095):vec3(0.74,0.085,0.075);gl_Position=uVP*(uModel*vec4(aPos,1.0));}`,
 `#version 300 es
 precision highp float;uniform vec3 uSun;in vec3 vN;in vec4 vC;out vec4 o;
 void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,uSun),0.0);
@@ -588,7 +601,7 @@ st.cy+=(car.y-st.cy)*(1-Math.exp(-dt/0.3));
 const f3=nrm([sp,car.sF,cs]),up=nrm(cross(f3,[cs,car.sR,-sp])),xa=nrm(cross(up,f3)),za=cross(xa,up);
 car.m.set([...xa.map(q=>q*SC),0,...up.map(q=>q*SC),0,...za.map(q=>q*SC),0,car.x-st.tx,car.y+0.015*SC,car.z-st.tz,1])};
 const drawCar=()=>{drawFx();if(st.intro<0.3)return;gl.useProgram(cp.p);gl.bindVertexArray(carVao);
-gl.uniformMatrix4fv(cp.u('uVP'),false,matrix);gl.uniformMatrix4fv(cp.u('uModel'),false,car.m);gl.uniform3fv(cp.u('uSun'),SUN);
+gl.uniformMatrix4fv(cp.u('uVP'),false,matrix);gl.uniformMatrix4fv(cp.u('uModel'),false,car.m);gl.uniform3fv(cp.u('uSun'),SUN);gl.uniform1f(cp.u('uPaint'),S.scape?1:0);
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LESS);gl.disable(gl.BLEND);gl.drawElements(gl.TRIANGLES,carCount,gl.UNSIGNED_SHORT,0);
 gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vao)};
 window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k.startsWith('arrow')||k===' ')e.preventDefault();if(k===' '&&!e.repeat)shiftGear();if(k==='shift'&&!e.repeat){camMode=(camMode+1)%3;updateCamBtn()}if(k==='t'&&!e.repeat){themeMode=(themeMode+1)%THEMES.length;applyTheme()}if(k==='r'&&!e.repeat){if(Rec)Rec.toggle()}keys[k]=true});
@@ -753,7 +766,7 @@ gl.uniform1f(u('uMajor'),S.majorLines?1:0);gl.uniform3fv(u('uColor'),color);gl.u
 gl.uniform2f(u('uFade'),fadeStart,fadeEnd);gl.uniform3f(u('uFocus'),st.focus,focusScale*pixel,view.height*0.03*pixel);
 gl.uniform4f(u('uHeat'),hx,hz,0.9*S.mouseRadius,heatStrength);
 gl.uniform4f(u('uLamp'),hx,st.hit?st.hit.y+1.4:0,hz,heatStrength);
-gl.uniform3fv(u('uSun'),SUN);gl.uniform1f(u('uReveal'),reveal);gl.uniform1f(u('uLightMode'),S.lightMode?1:0);gl.uniform1f(u('uOpacity'),S.opacity);
+gl.uniform1f(u('uScape'),S.scape?1:0);gl.uniform3f(u('uFog'),0.94,0.839,0.659);gl.uniform3fv(u('uSun'),SUN);gl.uniform1f(u('uReveal'),reveal);gl.uniform1f(u('uLightMode'),S.lightMode?1:0);gl.uniform1f(u('uOpacity'),S.opacity);
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LESS);gl.disable(gl.BLEND);
 gl.clearColor(0,0,0,0);gl.clearDepth(1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
 gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,2*(layout.columns+1),layout.rows);gl.disable(gl.DEPTH_TEST)};
