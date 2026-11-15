@@ -404,9 +404,9 @@ coffee(){if(!ok())return;const t=ctx.currentTime;tone(880,t,0.25,'sine',0.25);to
 site(){if(!ok())return;const t=ctx.currentTime;tone(300,t,0.4,'sawtooth',0.1,1200);tone(1760,t+0.3,0.4,'sine',0.15)},
 shift(g){if(!ok())return;const t=ctx.currentTime;tone([110,70,130][g]||100,t,0.14,'square',0.22,45);burst(t,0.05,1500,0.2)}}})();
 // ---- gearing: space cycles 4H -> 4L -> 2H ----
-const GEARS=[{id:'4H',name:'4H · high range',t:5.2*SC,top:9*SC,drag:0.2,grip:12,yaw:1},
-{id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9},
-{id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35}];
+const GEARS=[{id:'4H',name:'4H · high range',t:5.2*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:2.4},
+{id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9,hill:1},
+{id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35,hill:2.6}];
 const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name};
 const shiftGear=()=>{car.gear=(car.gear+1)%GEARS.length;setGear();Snd.shift(car.gear)};
 // ---- dust / smoke: pixel particles on a 2D overlay ----
@@ -615,7 +615,7 @@ car.steer+=(str*0.55-car.steer)*(1-Math.exp(-dt/0.12));
 const G=GEARS[car.gear],hb=!!K('control')||!!K('meta'),sp0=Math.sin(car.psi),cs0=Math.cos(car.psi);
 let vf=car.vx*sp0+car.vz*cs0,vl=car.vx*cs0-car.vz*sp0;
 const eng=thr>0?G.t*(1-clamp(vf/G.top,0,1)):thr<0?(vf>0.2*SC?-9*SC:-G.t*0.6*clamp(1+vf/Math.min(G.top*0.45,2.2*SC),0,1)):0;
-const pull=Math.sin(Math.atan(car.sF))*10*SC;
+const pull=Math.sin(Math.atan(car.sF))*10*SC*G.hill; /* hill: how hard slopes fight the gear; 4L has the torque to crawl, 4H/2H stall on steep grades */
 vf+=(eng-pull-vf*G.drag)*dt;
 if(hb){const b=7*SC*dt;vf=Math.abs(vf)<b?0:vf-Math.sign(vf)*b}
 if(brk){const b=14*SC*dt;vf=Math.abs(vf)<b?0:vf-Math.sign(vf)*b}
