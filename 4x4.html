@@ -17,14 +17,14 @@ canvas{display:block;width:100%;height:100%}
 #nav a{width:34px;height:34px;border:1px solid var(--fg);border-radius:50%;display:grid;place-items:center;color:var(--fg);opacity:.65;transition:opacity .15s,transform .15s}
 #nav a:hover{opacity:1;transform:translateY(-1px)}
 #nav svg{width:17px;height:17px}
-#card{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;width:min(320px,calc(100vw - 32px));box-sizing:border-box;background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:14px;padding:22px 20px 16px;box-shadow:6px 6px 0 var(--fg);text-align:center}
-#card[hidden]{display:none}
-#card .x{position:absolute;right:10px;top:6px;border:0;background:none;font-size:24px;line-height:1;cursor:pointer;color:inherit}
-#card .ic svg{width:44px;height:44px}
-#card h2{margin:8px 0 4px;font-size:18px}
-#card p{margin:0 0 14px;font-size:14px;opacity:.75}
-#card .go{display:block;padding:10px 12px;border-radius:999px;background:var(--fg);color:var(--bg);text-decoration:none;font-weight:600;font-size:14px}
-#card .keep{margin-top:10px;border:0;background:none;color:inherit;opacity:.6;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}
+#card,#pcard{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;width:min(320px,calc(100vw - 32px));box-sizing:border-box;background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:14px;padding:22px 20px 16px;box-shadow:6px 6px 0 var(--fg);text-align:center}
+#card[hidden],#pcard[hidden]{display:none}
+#card .x,#pcard .x{position:absolute;right:10px;top:6px;border:0;background:none;font-size:24px;line-height:1;cursor:pointer;color:inherit}
+#card .ic svg,#pcard .ic svg{width:44px;height:44px}
+#card h2,#pcard h2{margin:8px 0 4px;font-size:18px}
+#card p,#pcard p{margin:0 0 14px;font-size:14px;opacity:.75}
+#card .go,#pcard .go{display:block;padding:10px 12px;border-radius:999px;background:var(--fg);color:var(--bg);text-decoration:none;font-weight:600;font-size:14px}
+#card .keep,#pcard .keep{margin-top:10px;border:0;background:none;color:inherit;opacity:.6;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline}
 #site{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:10;width:min(980px,calc(100vw - 24px));height:min(calc(100vh - 90px),calc(min(980px,100vw - 24px)*0.625 + 46px));box-sizing:border-box;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);border:1px solid var(--fg);border-radius:14px;box-shadow:6px 6px 0 var(--fg);overflow:hidden}
 #site[hidden]{display:none}
 #site .bar{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--fg);flex:none}
@@ -32,6 +32,14 @@ canvas{display:block;width:100%;height:100%}
 #site .bar h2{margin:0;font-size:15px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #site .bar a{font-size:12px;font-weight:600;color:var(--bg);background:var(--fg);padding:5px 11px;border-radius:999px;text-decoration:none;flex:none}
 #site .bar button{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:inherit;padding:0 4px}
+#pcard .go{width:100%;box-sizing:border-box;border:0;cursor:pointer;font-family:inherit}
+#pcard .chip{display:inline-block;font:700 10px/1 system-ui,sans-serif;letter-spacing:.1em;color:#fff;padding:4px 9px;border-radius:999px;margin:4px 0 0}
+#pcard .meta{margin:0 0 4px;font-size:13px;opacity:.85;word-break:break-all}
+#pcard .sub{margin:0 0 14px;font-size:11px;opacity:.55}
+#site .bar .vt{display:flex;flex:none;border:1px solid var(--fg);border-radius:999px;overflow:hidden}
+#site .bar .vt button{font:600 11px system-ui,sans-serif;letter-spacing:.04em;padding:4px 10px;line-height:1.2;opacity:.7}
+#site .bar .vt button.on{background:var(--fg);color:var(--bg);opacity:1}
+#site.m{width:min(392px,calc(100vw - 24px));height:min(calc(100vh - 90px),800px)}
 #site .vp{flex:1;position:relative;overflow:hidden;background:#fff}
 #site iframe{position:absolute;left:0;top:0;border:0;background:#fff;transform-origin:0 0}
 #strip{position:fixed;left:0;right:0;bottom:calc(98px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;pointer-events:none;z-index:7}
@@ -453,7 +461,7 @@ const mouse={l:false,r:false};
 // Hill Descent Control: on steep downgrades it brakes the jeep to a crawl (driver throttle in the travel direction allows a faster descent, brake a slower one)
 let autoHL=true,autoT=0,autoUp=0,autoDn=0,updAuto=()=>{};try{autoHL=localStorage.getItem('4x4auto')!=='0'}catch(_){}
 let hdcOn=true,hdcAct=false,hdcT=0,updHdc=()=>{};try{hdcOn=localStorage.getItem('4x4hdc')!=='0'}catch(_){}
-const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
+const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#pcard,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
 ['pointerdown','pointerup','pointermove','pointercancel','mousedown','mouseup'].forEach(t=>window.addEventListener(t,syncMouse,{passive:true}));
 document.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',()=>{mouse.l=mouse.r=false});
@@ -497,7 +505,7 @@ if(sl>0.05||flags.some(f=>Math.hypot(f.x-x,f.z-z)<FR+0.8))continue;return{x,z}}r
 const SPR=['..s..s....','...s..s...','.kkkkkkk..','.kbbbbbkk.','.kbbbbbk.k','.kbbbbbk.k','.kbbbbbkk.','..kkkkk...','.kkkkkkk..'],SPC={s:'150,150,150',k:'59,42,32',b:'111,78,55'};
 // ---- cursor: surface-hugging ellipses + a magnetic trajectory that bends toward the cursor ----
 const curSt={pull:0,t:0,type:'mouse',ui:false};
-window.addEventListener('pointermove',e=>{curSt.type=e.pointerType||'mouse';curSt.ui=!!(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#joyBase,#btnCluster,button,a,input'))},{passive:true});
+window.addEventListener('pointermove',e=>{curSt.type=e.pointerType||'mouse';curSt.ui=!!(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#pcard,#joyBase,#btnCluster,button,a,input'))},{passive:true});
 const drawCursor=()=>{
  if(snapping)return;
  const want=!!(gctx&&st.hit&&st.intro>=0.6&&pointer.inside&&st.presence>0.01&&curSt.type!=='touch'&&!curSt.ui);
@@ -548,15 +556,27 @@ const POIS=[
 ];
 POIS.forEach(p=>{p.path=new Path2D(p.d);p.x=p.z=p.y=0;p.on=false;p.used=false;p.try=0});
 const site=document.createElement('div');site.id='site';site.hidden=true;site.setAttribute('role','dialog');
-site.innerHTML='<div class="bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path></path></svg><h2></h2><a target="_blank" rel="noopener">Open ↗</a><button type="button" aria-label="Close">×</button></div><div class=\"vp\"><iframe title="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen; autoplay; clipboard-write"></iframe></div>';
+site.innerHTML='<div class="bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path></path></svg><h2></h2><span class="vt" role="group" aria-label="Viewport"><button type="button" data-v="d" class="on" aria-pressed="true">Desktop</button><button type="button" data-v="m" aria-pressed="false">Mobile</button></span><a target="_blank" rel="noopener">Open ↗</a><button type="button" class="x" aria-label="Close">×</button></div><div class="vp"><iframe title="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen; autoplay; clipboard-write"></iframe></div>';
 document.body.appendChild(site);
 const sFrame=site.querySelector('iframe'),sPath=site.querySelector('svg path'),sTitle=site.querySelector('h2'),sLink=site.querySelector('.bar a');
-const DW=1280,fitSite=()=>{const vp=site.querySelector('.vp');if(site.hidden||!vp.clientWidth)return;const k=vp.clientWidth/DW;sFrame.style.width=DW+'px';sFrame.style.height=Math.ceil(vp.clientHeight/k)+'px';sFrame.style.transform='scale('+k+')'};
+const DW=1280,MW=390,fitSite=()=>{const vp=site.querySelector('.vp');if(site.hidden||!vp.clientWidth)return;const w=site.classList.contains('m')?MW:DW,k=vp.clientWidth/w;sFrame.style.width=w+'px';sFrame.style.height=Math.ceil(vp.clientHeight/k)+'px';sFrame.style.transform='scale('+k+')'};
+const setView=v=>{site.classList.toggle('m',v==='m');site.querySelectorAll('.vt button').forEach(b=>{const on=b.dataset.v===v;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on?'true':'false')});fitSite()};
+site.querySelectorAll('.vt button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.v)));
 window.addEventListener('resize',fitSite);
-const closeSite=()=>{site.hidden=true;sFrame.src='about:blank'};
-site.querySelector('.bar button').addEventListener('click',closeSite);
+const closeSite=()=>{site.hidden=true;sFrame.src='about:blank';hidePcard()};
+site.querySelector('.bar .x').addEventListener('click',closeSite);
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeSite()});
-const openSite=p=>{Snd.site();confetti(p.x,p.y+0.15,p.z);mouse.l=mouse.r=false;card.hidden=true;sPath.setAttribute('d',p.d);sTitle.textContent=p.title;sLink.href=p.url;sFrame.title=p.title;sFrame.src=p.url;site.hidden=false;fitSite()};
+/* title card first: meta + an explicit "Open experience"; the iframe only loads when asked, and always starts in desktop proportions */
+const pcard=document.createElement('div');pcard.id='pcard';pcard.hidden=true;pcard.setAttribute('role','dialog');pcard.setAttribute('aria-label','Experience');
+pcard.innerHTML='<button type="button" class="x" aria-label="Close">×</button><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path></path></svg></div><div class="chip"></div><h2></h2><p class="meta"></p><p class="sub">Opens in an embedded viewer · desktop view by default</p><button type="button" class="go">Open experience</button><button type="button" class="keep">Not now</button>';
+document.body.appendChild(pcard);
+const pcPath=pcard.querySelector('svg path'),pcIc=pcard.querySelector('.ic'),pcChip=pcard.querySelector('.chip'),pcTitle=pcard.querySelector('h2'),pcMeta=pcard.querySelector('.meta');let pcPoi=null;
+function hidePcard(){pcard.hidden=true;pcPoi=null}
+pcard.querySelector('.x').addEventListener('click',hidePcard);pcard.querySelector('.keep').addEventListener('click',hidePcard);
+pcard.querySelector('.go').addEventListener('click',()=>{const q=pcPoi;hidePcard();if(q)openSite(q)});
+const offerSite=p=>{Snd.site();confetti(p.x,p.y+0.15,p.z);mouse.l=mouse.r=false;card.hidden=true;pcPoi=p;pcPath.setAttribute('d',p.d);pcIc.style.color=p.col;pcChip.textContent=p.label;pcChip.style.background=p.col;pcTitle.textContent=p.title;
+ try{const u=new URL(p.url);pcMeta.textContent=u.host+(u.pathname==='/'?'':u.pathname)}catch(_){pcMeta.textContent=p.url}pcard.hidden=false};
+const openSite=p=>{sPath.setAttribute('d',p.d);sTitle.textContent=p.title;sLink.href=p.url;sFrame.title=p.title;site.classList.remove('m');site.hidden=false;setView('d');sFrame.src=p.url;fitSite()};
 const poiNear=(x,z,pp)=>POIS.some(q=>q!==pp&&q.on&&Math.hypot(q.x-x,q.z-z)<2.5)||(coffee&&Math.hypot(coffee.x-x,coffee.z-z)<2);
 let poiT=0;
 const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
@@ -566,7 +586,7 @@ const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
   p.y=ground(p.x,p.z,cam,near,H);
   const d=Math.hypot(car.x-p.x,car.z-p.z);
   if(p.used){if(d>CR*2.5)p.used=false}
-  else if(d<CR*0.9&&site.hidden){p.used=true;openSite(p)}
+  else if(d<CR*0.9&&site.hidden&&pcard.hidden){p.used=true;offerSite(p)}
  }};
 const drawPois=()=>{if(snapping||!gctx||st.intro<0.6)return;const w=view.width,hh=view.height,t=performance.now()/300;
  for(const p of POIS){if(!p.on)continue;const b=P(p.x-st.tx,p.y,p.z-st.tz);if(!b)continue;
