@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
 <title>skate.cx · One-sided course · Möbius topology</title>
-<link rel="icon" type="image/svg+xml" href="/avif/skate_favicon.svg">
-<link rel="apple-touch-icon" href="/avif/skate_apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f3f0e8'/%3E%3Cpath d='M4 22c6-14 18-14 24 0' fill='none' stroke='%23141414' stroke-width='3'/%3E%3Cpath d='M4 22c6-8 12-10 24 0' fill='none' stroke='%23c0302a' stroke-width='2'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,640&family=Outfit:wght@460;560&display=swap" rel="stylesheet">
@@ -280,6 +279,35 @@ button { cursor:pointer; }
   font-size:11px; letter-spacing:0.06em; cursor:pointer; font-weight:560; }
 #hudCoffee:hover { color:var(--ink); }
 #hudCoffee .ico { font-size:13px; }
+
+/* ── fidelity pass ───────────────────────────────────────────────────── */
+:root { --ease-out: cubic-bezier(.16,1,.3,1); }
+#hud { z-index:2; }
+/* light pool + soft vignette over the 3D scene */
+body::after { content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:
+    radial-gradient(70% 45% at 50% 108%, rgba(255,252,244,.55) 0%, rgba(255,252,244,0) 70%),
+    radial-gradient(120% 95% at 50% 45%, rgba(0,0,0,0) 58%, rgba(70,58,38,.24) 100%);
+  mix-blend-mode:multiply; }
+/* paper grain */
+html::after { content:''; position:fixed; inset:0; z-index:1; pointer-events:none; opacity:.1; mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .2 0 0 0 0 .17 0 0 0 0 .12 0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
+/* title card entrance */
+#card { animation:cardIn .9s var(--ease-out) backwards; }
+@keyframes cardIn { from { opacity:0; transform:translate(-50%, 16px); } }
+#card h1, #spd, #dist { font-feature-settings:"lnum","tnum"; }
+#go { transition:background .2s ease, transform .2s var(--ease-out); }
+#go:hover { transform:translate(-1px,-1px); }
+#go:active { transform:translate(1px,1px); }
+/* sliders in the ink language */
+input[type=range] { -webkit-appearance:none; appearance:none; background:transparent; height:16px; cursor:pointer; }
+input[type=range]::-webkit-slider-runnable-track { height:2px; background:var(--ink); }
+input[type=range]::-moz-range-track { height:2px; background:var(--ink); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; margin-top:-5px;
+  background:var(--paper); border:2px solid var(--ink); border-radius:0; box-shadow:2px 2px 0 var(--ink); }
+input[type=range]::-moz-range-thumb { width:8px; height:8px; background:var(--paper); border:2px solid var(--ink); border-radius:0; box-shadow:2px 2px 0 var(--ink); }
+input[type=range]:focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
+@media (prefers-reduced-motion:reduce) { #card { animation:none; } }
 </style>
 </head>
 <body>
@@ -415,7 +443,7 @@ var D={"cruise":{"fps":30,"n":79,"dur":2.633,"board":true,"f":[0.927,0.0,0.032,0
   var isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(navigator.userAgent);
   var isWebKit = /AppleWebKit/i.test(navigator.userAgent) && !/Chrome|Chromium|Edg|OPR|Firefox/i.test(navigator.userAgent);
   var safariLike = isSafari || isWebKit;
-  var dprCap = safariLike ? 1.25 : 1.75;
+  var dprCap = safariLike ? 1.5 : 2;
   var renderer = new T.WebGLRenderer({
     canvas: canvas,
     antialias: !safariLike,
@@ -1442,8 +1470,8 @@ function olFeet(ol,bq,w0,c0L,c0R){
 
   // Visual ground: sliding window of the infinite descending Möbius half-pipe
   var groundG = new T.Group(); scene.add(groundG);
-  var gridMat = new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.14 });
-  var edgeMat = new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.35 });
+  var gridMat = new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.24 });
+  var edgeMat = new T.LineBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.6 });
   var GRID_S = 8;
   var PIPE_BEHIND = 40, PIPE_AHEAD = 120, PIPE_DS = 4;
   var NT = 20;
@@ -1466,6 +1494,26 @@ function olFeet(ol,bq,w0,c0L,c0R){
     return prof;
   }
 
+  function inkHatch(mat) {
+    mat.onBeforeCompile = function (sh) {
+      sh.uniforms.uPx = { value: renderer.getPixelRatio() };
+      sh.fragmentShader = "uniform float uPx;\n" + sh.fragmentShader.replace("#include <opaque_fragment>",
+        "float lum = dot(outgoingLight, vec3(0.3333));\n" +
+        "float dk = smoothstep(0.93, 0.56, lum);\n" +
+        "float sp = 4.5 * uPx;\n" +
+        "float t1 = fract((gl_FragCoord.x + gl_FragCoord.y) / sp);\n" +
+        "float t2 = fract((gl_FragCoord.x - gl_FragCoord.y) / sp);\n" +
+        "float h1 = smoothstep(0.0, 0.1, t1) * (1.0 - smoothstep(0.1, 0.26, t1));\n" +
+        "float h2 = smoothstep(0.0, 0.1, t2) * (1.0 - smoothstep(0.1, 0.26, t2));\n" +
+        "float ink = h1 * dk * 0.42 + h2 * smoothstep(0.45, 1.0, dk) * 0.34;\n" +
+        "#ifdef USE_FOG\n ink *= 1.0 - smoothstep(22.0, 70.0, vFogDepth);\n#endif\n" +
+        "outgoingLight = mix(outgoingLight, vec3(0.09, 0.08, 0.08), clamp(ink, 0.0, 0.7));\n" +
+        "#include <opaque_fragment>");
+    };
+    mat.customProgramCacheKey = function () { return "inkhatch1"; };
+    return mat;
+  }
+
   function makePipe(sCenter) {
     while (groundG.children.length) {
       var ch = groundG.children.pop();
@@ -1484,7 +1532,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
         var f = frameAt(s, pr.x, pr.h, pr.th);
         pos.push(f.p.x, f.p.y, f.p.z);
         var dot = (-Math.sin(pr.th) * Lx + Math.cos(pr.th) * Lh) / Ln;
-        var shade = 0.58 + 0.42 * Math.min(1.05, Math.max(0, dot / 0.894));
+        var shade = 0.44 + 0.56 * Math.min(1.05, Math.max(0, dot / 0.894));
         shade *= 0.94 + 0.06 * Math.cos(s / MOBIUS_R);
         col.push(base.r * shade, base.g * shade, base.b * shade);
       }
@@ -1499,10 +1547,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     g.setAttribute("position", new T.Float32BufferAttribute(pos, 3));
     g.setAttribute("color", new T.Float32BufferAttribute(col, 3));
     g.setIndex(idx);
-    groundG.add(new T.Mesh(g, new T.MeshBasicMaterial({
+    groundG.add(new T.Mesh(g, inkHatch(new T.MeshBasicMaterial({
       vertexColors: true, side: T.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: 4, polygonOffsetUnits: 4
-    })));
+    }))));
 
     // Cross-section grid every GRID_S + longitudinal ribs + coping
     var lp = [], step = Math.max(1, Math.round(GRID_S / PIPE_DS));
@@ -3348,6 +3396,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
     if (!cam.userData.ready) camUpS.copy(upT); else camUpS.lerp(upT, 1 - Math.exp(-9 * dt)).normalize();
     var camUp = camUpS.clone();
     if (Math.abs(camOff) > 0.001) behind.applyAxisAngle(camUp, camOff);
+    var idleK = cam.userData.idleK || 0;
+    idleK += ((running ? 0 : 1) - idleK) * Math.min(1, dt * 2.2);
+    cam.userData.idleK = idleK;
+    if (idleK > 0.001 && !reduce) behind.applyAxisAngle(camUp, (0.42 + Math.sin(performance.now() / 5200) * 0.22) * idleK);
     // Cursor parallax — soft lateral/vertical shift that follows the pointer
     var tgtPX = 0, tgtPY = 0;
     if (mouseX != null && !drag && running && !reduce) {
@@ -3361,6 +3413,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
     paraX += (tgtPX - paraX) * Math.min(1, dt * 4.5);
     paraY += (tgtPY - paraY) * Math.min(1, dt * 4.5);
     var side = new V().crossVectors(camUp, behind).normalize();
+    if (idleK > 0.001 && innerWidth > 900) lookAt.addScaledVector(side, 2.8 * idleK);
     var want = rider.clone().add(behind).addScaledVector(camUp, 2.25 + Math.sin(camPit) * 1.35);
     want.addScaledVector(side, paraX * 0.85);
     want.addScaledVector(camUp, paraY * 0.7);
