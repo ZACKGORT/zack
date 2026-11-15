@@ -551,7 +551,16 @@ const addSnapCard=(blob,n)=>{
 const takeSnap=ps=>{
  if(snapping||!gctx)return;
  const H_=st.elev*HEIGHT*st.rise,D=1.4;
- const mk=(ex,ey,ez)=>{const look=[car.x,car.y+0.16,car.z];const f=nrm([look[0]-ex,look[1]-ey,look[2]-ez]);
+ /* re-seat the jeep on the snapshot terrain (true heights, no near-camera flattening) - otherwise the hill buries it */
+ const gT=(x,z)=>ground(x,z,gctx.cam,[0,1e-3,1],H_);
+ const sp0=Math.sin(car.psi),cs0=Math.cos(car.psi),wp=(a,b)=>gT(car.x+sp0*a+cs0*b,car.z+cs0*a-sp0*b);
+ const wfl=wp(WB,-TR),wfr=wp(WB,TR),wrl=wp(-WB,-TR),wrr=wp(-WB,TR);
+ const carTrueY=Math.max((wfl+wfr+wrl+wrr)/4,gT(car.x,car.z))+0.012;
+ const sF0=(wfl+wfr-wrl-wrr)/2/(2*WB),sR0=(wfr+wrr-wfl-wrl)/2/(2*TR);
+ const mSaved=car.m.slice();
+ {const f3=nrm([sp0,sF0,cs0]),up=nrm(cross(f3,[cs0,sR0,-sp0])),xa=nrm(cross(up,f3)),za=cross(xa,up);
+  car.m.set([...xa.map(q=>q*SC),0,...up.map(q=>q*SC),0,...za.map(q=>q*SC),0,car.x-st.tx,carTrueY+0.015*SC,car.z-st.tz,1])}
+ const mk=(ex,ey,ez)=>{const look=[car.x,carTrueY+0.16,car.z];const f=nrm([look[0]-ex,look[1]-ey,look[2]-ez]);
   let r=nrm(cross([0,1,0],f));if(Math.hypot(r[0],r[1],r[2])<0.15)r=nrm(cross([1,0,0],f));const u=nrm(cross(f,r));
   return{f,r,u,distance:Math.hypot(look[0]-ex,look[1]-ey,look[2]-ez),eye:[ex-st.tx,ey,ez-st.tz]}}; /* eye y is absolute world height (orbit cam does the same); don't subtract st.cy */
  /* pick the front-3/4 side with the lowest ground, then raise the lens just enough that the ridge doesn't hide the jeep */
@@ -559,7 +568,7 @@ const takeSnap=ps=>{
  let best=null;
  for(const off of[-0.7,0.7,-0.45,0.45]){const a=car.psi+off,ex=car.x+Math.sin(a)*D,ez=car.z+Math.cos(a)*D,g=gr(ex,ez);
   if(!best||g<best.g)best={g,ex,ez}}
- const ty=car.y+0.08;let ey=best.g+0.08;
+ const ty=carTrueY+0.08;let ey=best.g+0.08;
  for(let h=0;h<=0.9;h+=0.05){ey=best.g+0.08+h;let clear=true;
   for(let k=1;k<=12;k++){const t=k/13,x=best.ex+(car.x-best.ex)*t,z=best.ez+(car.z-best.ez)*t;if(gr(x,z)>ey+(ty-ey)*t-0.02){clear=false;break}}
   if(clear)break}
@@ -578,7 +587,7 @@ const takeSnap=ps=>{
   const fg=getComputedStyle(document.body).color||'#111',fs=Math.max(11,Math.round(oh*0.022));
   c2.fillStyle=fg;c2.globalAlpha=0.75;c2.font=`700 ${fs}px system-ui,sans-serif`;c2.textBaseline='bottom';
   c2.fillText(`FLAG ${ps.n} · SUMMIT`,fs,oh-fs);c2.textAlign='right';c2.fillText('zack.cx/4x4',ow-fs,oh-fs);c2.globalAlpha=1;
- }finally{snapCam=null;snapping=false;st.focus=saved.focus;gctx=saved.g}
+ }finally{snapCam=null;snapping=false;st.focus=saved.focus;gctx=saved.g;car.m.set(mSaved)}
  if(!snap)return;
  snap.toBlob(b=>{if(!b)return;
   if(isTouch){saveBlob(URL.createObjectURL(b),`4x4-flag-${ps.n}-${Date.now()}.jpg`);say('Snapshot saved to device')}
