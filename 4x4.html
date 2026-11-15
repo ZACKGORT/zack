@@ -282,10 +282,9 @@ const view={width:1,height:1,ratio:1,cell:0.05,key:''};
 const st={intro:S.intro&&!reduce?0:1,rise:1,tx:0,tz:0,morph:0,yaw:0,pitch:0,yv:0,pv:0,presence:0,focus:ORBIT,hit:null,
 tilt:S.tilt,elev:S.elevation,head:0,cy:0};
 st.rise=smoother(st.intro);
-let camMode=0, themeMode=1;
+let camMode=0, themeMode=0;
 let snapCam=null, snapping=false, pendingSnap=null;
 const THEMES=[
-  {name:'land', bg:'#ecdcbc', fg:'#2e2515', color:'#c6c6c6', lightMode:true, brightness:1, glow:0, scape:true, skyStops:[[0,'#7ba4d6'],[.28,'#a9c3de'],[.46,'#d8c9a8'],[.6,'#f2d3a2'],[.74,'#ffd79a'],[1,'#e0b27c']], sky:'linear-gradient(#7ba4d6 0%,#a9c3de 28%,#d8c9a8 46%,#f2d3a2 60%,#ffd79a 74%,#e0b27c 100%)'},
   {name:'mono', bg:'#f5f5f3', fg:'#1c1c1c', color:'#c6c6c6', lightMode:true, brightness:1, glow:0.6},
 ];
 const paintBg=(g,w,h)=>{const t=THEMES[themeMode];if(t.skyStops){const gr=g.createLinearGradient(0,0,0,h);t.skyStops.forEach(([o,c])=>gr.addColorStop(o,c));g.fillStyle=gr}else g.fillStyle=t.bg;g.fillRect(0,0,w,h)};
@@ -365,7 +364,7 @@ uniform mat4 uVP,uModel;out vec3 vN;out vec3 vW;
 void main(){vN=mat3(uModel)*aNrm;vec4 w=uModel*vec4(aPos,1.0);vW=w.xyz;gl_Position=uVP*w;}`,
 `#version 300 es
 precision highp float;uniform vec3 uEye,uCol;in vec3 vN;in vec3 vW;out vec4 o;
-void main(){vec3 n=normalize(vN),v=normalize(uEye-vW);float rim=1.0-abs(dot(n,v));float a=0.07+0.38*smoothstep(0.4,0.85,rim);o=vec4(uCol*a,a);}`);
+void main(){vec3 n=normalize(vN),v=normalize(uEye-vW);float rim=1.0-abs(dot(n,v));float a=0.16+0.7*smoothstep(0.4,0.85,rim);o=vec4(uCol*a,a);}`);
 const carVao=gl.createVertexArray();gl.bindVertexArray(carVao);
 const bin=Uint8Array.from(atob(CAR.b64),c=>c.charCodeAt(0)),vb=gl.createBuffer(),ib=gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,bin.subarray(0,CAR.n*20),gl.STATIC_DRAW);
@@ -381,10 +380,13 @@ for(const p of pulses){const w=Math.exp(-p.age*1.1)*smoother(p.age/0.08),r=p.age
 const q=(Math.hypot(tx-p.x,tz-p.z)-r)/(0.28+r*0.05);g+=Math.exp(-q*q)*w*0.14}
 return g*settleAt(cam,near,tx-st.tx,tz-st.tz)*H};
 // ---- sound: all synthesized (WebAudio), wakes on first gesture, M toggles ----
-const Snd=(()=>{let ctx,mst,eng,e2,lp,eg,bp,dg,wg,rd,nb,on=true;
+const Snd=(()=>{const IDLE_MS=20000; /* auto-mute after this long with no input */
+let ctx,mst,eng,e2,lp,eg,bp,dg,wg,rd,nb,on=true,idle=false,away=document.hidden,lastIn=performance.now();
+const lvl=()=>on&&!idle&&!away?0.5:0,apply=()=>{if(ctx)mst.gain.setTargetAtTime(lvl(),ctx.currentTime,0.12)};
 try{on=localStorage.getItem('4x4snd')!=='0'}catch(_){}
 const init=()=>{if(ctx)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;ctx=new AC();
-mst=ctx.createGain();mst.gain.value=on?0.5:0;mst.connect(ctx.destination);rd=ctx.createMediaStreamDestination();mst.connect(rd);
+mst=ctx.createGain();mst.gain.value=lvl();mst.connect(ctx.destination);rd=ctx.createMediaStreamDestination();mst.connect(rd);
+{const ka=ctx.createOscillator(),kg=ctx.createGain();kg.gain.value=0.0001;ka.connect(kg);kg.connect(rd);ka.start()} /* inaudible keep-alive so the recording track always carries samples */
 nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
 lp=ctx.createBiquadFilter();lp.type='lowpass';eg=ctx.createGain();eg.gain.value=0;
 eng=ctx.createOscillator();eng.type='sawtooth';e2=ctx.createOscillator();e2.type='square';
@@ -399,10 +401,18 @@ const tone=(f,t0,d,type,vol,f2)=>{const o=ctx.createOscillator(),g=ctx.createGai
 g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);o.connect(g);g.connect(mst);o.start(t0);o.stop(t0+d+0.05)};
 const burst=(t0,d,f,vol)=>{const sr=ctx.createBufferSource();sr.buffer=nb;const fl=ctx.createBiquadFilter();fl.type='bandpass';fl.frequency.value=f;const g=ctx.createGain();
 g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);sr.connect(fl);fl.connect(g);g.connect(mst);sr.start(t0,Math.random());sr.stop(t0+d+0.05)};
-const ok=()=>ctx&&on&&ctx.state==='running';
+const ok=()=>ctx&&on&&!idle&&!away&&ctx.state==='running';
+/* auto-mute: fades out when the tab/window loses focus or nothing has been touched for IDLE_MS; fades back on any input */
+const poke=()=>{lastIn=performance.now();if(idle){idle=false;apply()}};
+['pointerdown','pointermove','keydown','touchstart','wheel'].forEach(e=>window.addEventListener(e,poke,{passive:true}));
+const setAway=v=>{if(away===v)return;away=v;if(!v)lastIn=performance.now();apply()};
+window.addEventListener('blur',()=>setAway(true));window.addEventListener('focus',()=>setAway(false));
+document.addEventListener('visibilitychange',()=>setAway(document.hidden||!document.hasFocus()));
+const busy=()=>{try{return mouse.l||mouse.r||joy.active||Rec.isActive()}catch(_){return false}}; /* holding a button, using the stick or recording counts as activity */
+setInterval(()=>{if(busy())lastIn=performance.now();if(!idle&&!away&&performance.now()-lastIn>IDLE_MS){idle=true;apply()}},1000);
 return{wake,
-on:()=>on,stream:()=>rd&&rd.stream,
-toggle(){on=!on;try{localStorage.setItem('4x4snd',on?'1':'0')}catch(_){}if(ctx)mst.gain.setTargetAtTime(on?0.5:0,ctx.currentTime,0.05);return on},
+on:()=>on,stream:()=>rd&&rd.stream,prep:()=>{wake();if(!ctx)return Promise.resolve(null);const done=()=>rd&&rd.stream;return ctx.state==='running'?Promise.resolve(done()):ctx.resume().then(done,done)},
+toggle(){on=!on;try{localStorage.setItem('4x4snd',on?'1':'0')}catch(_){}apply();return on},
 tick(v,thr,slip,gear){if(!ok())return;const t=ctx.currentTime,r=Math.min(1,v),rpm=0.1+0.62*r+0.2*Math.max(0,thr)*(1-0.5*r),f=(34+rpm*95)*([1,0.78,1.08][gear]||1);
 eng.frequency.setTargetAtTime(f,t,0.06);e2.frequency.setTargetAtTime(f*0.5,t,0.06);lp.frequency.setTargetAtTime(220+rpm*900,t,0.08);
 eg.gain.setTargetAtTime(0.1+0.16*rpm+(thr>0?0.08:0),t,0.08);dg.gain.setTargetAtTime(Math.min(0.3,r*0.2+slip*0.4),t,0.05);
@@ -412,7 +422,7 @@ coffee(){if(!ok())return;const t=ctx.currentTime;tone(880,t,0.25,'sine',0.25);to
 site(){if(!ok())return;const t=ctx.currentTime;tone(300,t,0.4,'sawtooth',0.1,1200);tone(1760,t+0.3,0.4,'sine',0.15)},
 shift(g){if(!ok())return;const t=ctx.currentTime;tone([110,70,130][g]||100,t,0.14,'square',0.22,45);burst(t,0.05,1500,0.2)}}})();
 // ---- gearing: space cycles 4H -> 4L -> 2H ----
-const GEARS=[{id:'4H',name:'4H · high range',t:7*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:1.6},
+const GEARS=[{id:'4H',name:'4H · high range',t:6.6*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:1.9},
 {id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9,hill:1},
 {id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35,hill:2.6}];
 const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name};
@@ -423,7 +433,7 @@ const spawn=(x,y,z,smoke)=>{if(parts.length>500)return;const a=Math.random()*6.2
 parts.push({x,y,z,vx:car.vx*0.25+Math.cos(a)*r,vz:car.vz*0.25+Math.sin(a)*r,vy:0.05+Math.random()*0.14,age:0,life:0.6+Math.random()*0.8,s:3+Math.random()*3,smoke})};
 const drawFx=()=>{const w=Math.round(view.width*view.ratio),hh=Math.round(view.height*view.ratio);
 if(fx.width!==w||fx.height!==hh){fx.width=w;fx.height=hh}
-fc.setTransform(view.ratio,0,0,view.ratio,0,0);fc.clearRect(0,0,view.width,view.height);drawFlags();drawCoffee();drawPois();const m=matrix;
+fc.setTransform(view.ratio,0,0,view.ratio,0,0);fc.clearRect(0,0,view.width,view.height);drawFlags();drawCoffee();drawPois();try{drawCursor()}catch(e){}const m=matrix;
 for(const p of parts){const x=p.x-st.tx,y=p.y,z=p.z-st.tz,cw=m[3]*x+m[7]*y+m[11]*z+m[15];if(cw<=0)continue;
 const px=((m[0]*x+m[4]*y+m[8]*z+m[12])/cw*0.5+0.5)*view.width,py=(1-((m[1]*x+m[5]*y+m[9]*z+m[13])/cw*0.5+0.5))*view.height;
 const t=p.age/p.life,sz=Math.max(3,Math.round((p.s+(p.col?0:t*9))*clamp(9/cw,0.5,2)/3)*3),a=p.col?Math.min(1,(1-t)*3):Math.pow(1-t,1.3)*(p.smoke?0.5:0.6);
@@ -431,6 +441,8 @@ fc.fillStyle=`rgba(${p.col||(p.smoke?'88,88,92':'168,150,122')},${a.toFixed(3)})
 
 // ---- mouse driving: hold left = gas + steer toward cursor, right = brake ----
 const mouse={l:false,r:false};
+// Hill Descent Control: on steep downgrades it brakes the jeep to a crawl (driver throttle in the travel direction allows a faster descent, brake a slower one)
+let hdcOn=true,hdcAct=false,hdcT=0,updHdc=()=>{};try{hdcOn=localStorage.getItem('4x4hdc')!=='0'}catch(_){}
 const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
 ['pointerdown','pointerup','pointermove','pointercancel','mousedown','mouseup'].forEach(t=>window.addEventListener(t,syncMouse,{passive:true}));
 document.addEventListener('contextmenu',e=>e.preventDefault());
@@ -473,6 +485,37 @@ const findFlat=()=>{for(let n=0;n<150;n++){const a=Math.random()*6.283,d=3+Math.
 if(h0>0.08)continue;let sl=0;for(const[ex,ez]of[[0.3,0],[-0.3,0],[0,0.3],[0,-0.3]])sl=Math.max(sl,Math.abs(rel(x+ex,z+ez)-h0)/0.3);
 if(sl>0.05||flags.some(f=>Math.hypot(f.x-x,f.z-z)<FR+0.8))continue;return{x,z}}return null};
 const SPR=['..s..s....','...s..s...','.kkkkkkk..','.kbbbbbkk.','.kbbbbbk.k','.kbbbbbk.k','.kbbbbbkk.','..kkkkk...','.kkkkkkk..'],SPC={s:'150,150,150',k:'59,42,32',b:'111,78,55'};
+// ---- cursor: surface-hugging ellipses + a magnetic trajectory that bends toward the cursor ----
+const curSt={pull:0,t:0,type:'mouse',ui:false};
+window.addEventListener('pointermove',e=>{curSt.type=e.pointerType||'mouse';curSt.ui=!!(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#joyBase,#btnCluster,button,a,input'))},{passive:true});
+const drawCursor=()=>{
+ if(snapping)return;
+ const want=!!(gctx&&st.hit&&st.intro>=0.6&&pointer.inside&&st.presence>0.01&&curSt.type!=='touch'&&!curSt.ui);
+ const cs=want?'none':'';if(container.style.cursor!==cs)container.style.cursor=cs; /* native arrow hides while ours is drawn */
+ if(!want)return;
+ const now=performance.now(),dt=Math.min(0.1,(now-(curSt.t||now))/1000),tm=now/1000;curSt.t=now;
+ /* pull = how much the cursor is steering the jeep right now (the same value the driving code uses) */
+ const sv=mouseSteer(),tgt=(mouse.l?1:0.18)*Math.abs(sv);curSt.pull+=(tgt-curSt.pull)*(1-Math.exp(-dt/0.14));
+ const pull=curSt.pull,A=st.presence,gy=(x,z)=>ground(x,z,gctx.cam,gctx.near,gctx.H)+0.004;
+ const fg=toRgb(THEMES[themeMode].fg).map(v=>Math.round(v*255)).join(','),ACC='228,87,46';
+ const hx=st.hit.x,hz=st.hit.z;
+ /* ellipse lying on the surface: centre, radii along u (stretch axis) and v, rotated by (ux,uz); follows terrain height so it tilts/bends with the slope */
+ const ell=(cx,cz,ru,rv,ux,uz,n)=>{const out=[];for(let i=0;i<n;i++){const a=i/n*6.2832,lx=Math.cos(a)*ru,lz=Math.sin(a)*rv,x=cx+ux*lx-uz*lz,z=cz+uz*lx+ux*lz,q=P(x-st.tx,gy(x,z),z-st.tz);if(!q)return null;out.push(q)}return out};
+ const trace=(pts,stroke,fill,lw)=>{fc.beginPath();pts.forEach((q,i)=>i?fc.lineTo(q[0],q[1]):fc.moveTo(q[0],q[1]));fc.closePath();if(fill){fc.fillStyle=fill;fc.fill()}fc.lineWidth=lw;fc.strokeStyle=stroke;fc.stroke()};
+ /* direction from cursor toward the jeep: the rings stretch and lean this way as the pull builds */
+ let ux=car.x-hx,uz=car.z-hz;const ul=Math.hypot(ux,uz)||1;ux/=ul;uz/=ul;
+ const hd=[Math.sin(car.psi),Math.cos(car.psi)],nose=[car.x+hd[0]*0.22,car.z+hd[1]*0.22],D=Math.hypot(hx-nose[0],hz-nose[1]);
+ /* magnetic trajectory: beads start strictly along the jeep's heading and are drawn toward a curve that leaves the nose along the heading and ends at the cursor, in proportion to the pull */
+ if(D>0.45){const n=Math.max(4,Math.min(14,Math.round(D/0.3))),p1=[nose[0]+hd[0]*D*0.55,nose[1]+hd[1]*D*0.55];
+  for(let i=1;i<=n;i++){const t=i/n*0.88,s=[nose[0]+hd[0]*D*t,nose[1]+hd[1]*D*t],b=[(1-t)*(1-t)*nose[0]+2*(1-t)*t*p1[0]+t*t*hx,(1-t)*(1-t)*nose[1]+2*(1-t)*t*p1[1]+t*t*hz];
+   const x=s[0]+(b[0]-s[0])*pull,z=s[1]+(b[1]-s[1])*pull,r=(0.018+0.03*t)*(0.7+0.8*pull),al=(0.12+0.6*pull)*(1-0.3*t)*A;
+   const dx=b[0]-s[0],dz=b[1]-s[1],dl=Math.hypot(dx,dz)||1,sx=pull>0.02?dx/dl:hd[0],sz=pull>0.02?dz/dl:hd[1]; /* bead elongates along the direction it is being pulled */
+   const e=ell(x,z,r*(1+1.2*pull),r,sx,sz,12);if(e)trace(e,`rgba(${pull>0.08?ACC:fg},${al.toFixed(3)})`,`rgba(${pull>0.08?ACC:fg},${(al*0.35).toFixed(3)})`,1)}}
+ /* cursor rings: three concentric surface ellipses; the pull stretches them toward the jeep and tightens them */
+ const R=[0.07,0.14,0.23],AL=[0.95,0.6,0.35];
+ for(let k=0;k<3;k++){const br=1+0.06*Math.sin(tm*3+k*1.3),r=R[k]*br*(1-0.18*pull),off=pull*R[k]*0.55,
+  e=ell(hx+ux*off,hz+uz*off,r*(1+0.7*pull),r*(1-0.1*pull),ux,uz,32);if(e)trace(e,`rgba(${pull>0.08&&k<2?ACC:fg},${(AL[k]*A).toFixed(3)})`,null,k?1:1.8)}
+ const dot=ell(hx,hz,0.016,0.016,1,0,10);if(dot)trace(dot,`rgba(${fg},${A.toFixed(3)})`,`rgba(${fg},${A.toFixed(3)})`,1)};
 const drawCoffee=()=>{if(snapping||!coffee||!gctx||st.intro<0.6)return;const c=coffee,b=P(c.x-st.tx,c.y,c.z-st.tz);if(!b)return;const w=view.width,hh=view.height;
 if(b[0]<24||b[0]>w-24||b[1]<24||b[1]>hh-70){const dx=b[0]-w/2,dy=b[1]-hh/2,sc=Math.min((w/2-24)/Math.abs(dx||1),(hh/2-70)/Math.abs(dy||1));
 fc.save();fc.translate(w/2+dx*sc,hh/2+dy*sc);fc.rotate(Math.atan2(dy,dx));fc.fillStyle='rgba(111,78,55,0.85)';fc.beginPath();fc.moveTo(11,0);fc.lineTo(-7,7);fc.lineTo(-7,-7);fc.fill();fc.restore();return}
@@ -556,18 +599,18 @@ const addSnapCard=(blob,n)=>{
  while(stripScroll.children.length>40){const o=stripScroll.firstChild;const im=o.querySelector('img');if(im)URL.revokeObjectURL(im.src);o.remove()}
  requestAnimationFrame(()=>stripScroll.scrollTo({left:stripScroll.scrollWidth,behavior:'smooth'}));
 };
-/* snapshot camera planner: for every candidate eye spot, solve the exact minimum eye height at which each sample point on the jeep clears the terrain along its sight line; prefer a near-level, slightly-upward "hero" angle that works */
-const planSnapCam=(gr,pts,lookY,cx,cz,psi)=>{
- const MARGIN=0.025;
+/* snapshot camera planner: for every candidate eye spot, solve the exact minimum eye height at which each sample point on the jeep clears the terrain along its sight line; prefer a near-level, slightly-upward "hero" angle that works. D0 = base distance (grown on narrow screens so the whole jeep fits in frame) */
+const planSnapCam=(gr,pts,lookY,cx,cz,psi,D0=1.4)=>{
+ const MARGIN=0.04;
  const evalSpot=(ex,ez)=>{let ey=gr(ex,ez)+0.08;
   for(const p of pts){const dx=p[0]-ex,dz=p[2]-ez,dist=Math.hypot(dx,dz),n=clamp(Math.ceil(dist/0.04),8,70),tMax=1-0.05/dist;
    for(let k=1;k<=n;k++){const t=k/n*tMax,need=(gr(ex+dx*t,ez+dz*t)-p[1]*t+MARGIN)/(1-t);if(need>ey)ey=need}}
   return ey};
  let best=null;
- const tryAll=(offs,Ds)=>{for(const D of Ds)for(const off of offs){const a=psi+off,ex=cx+Math.sin(a)*D,ez=cz+Math.cos(a)*D,ey=evalSpot(ex,ez),el=Math.atan2(ey-lookY,D),score=Math.abs(el+0.12)+0.12*Math.abs(off)+0.05*(D-1.4);
+ const tryAll=(offs,Ds)=>{for(const D of Ds)for(const off of offs){const a=psi+off,ex=cx+Math.sin(a)*D,ez=cz+Math.cos(a)*D,ey=evalSpot(ex,ez),el=Math.atan2(ey-lookY,D),score=Math.abs(el+0.12)+0.12*Math.abs(off)+0.05*(D-D0);
    if(!best||score<best.score)best={ex,ey,ez,score,el}}};
- tryAll([-0.7,0.7,-0.45,0.45],[1.4]);
- if(!best||Math.abs(best.el+0.12)>0.42)tryAll([-0.95,0.95,-1.25,1.25,-1.7,1.7,-2.2,2.2,3.14],[1.4,1.9,2.5]);
+ tryAll([-0.7,0.7,-0.45,0.45],[D0]);
+ if(!best||Math.abs(best.el+0.12)>0.42)tryAll([-0.95,0.95,-1.25,1.25,-1.7,1.7,-2.2,2.2,3.14],[D0,D0*1.35,D0*1.8]);
  return best};
 const takeSnap=ps=>{
  if(snapping||!gctx)return;
@@ -576,7 +619,8 @@ const takeSnap=ps=>{
  const gT=(x,z)=>ground(x,z,gctx.cam,[0,1e-3,1],H_);
  const sp0=Math.sin(car.psi),cs0=Math.cos(car.psi),wp=(a,b)=>gT(car.x+sp0*a+cs0*b,car.z+cs0*a-sp0*b);
  const wfl=wp(WB,-TR),wfr=wp(WB,TR),wrl=wp(-WB,-TR),wrr=wp(-WB,TR);
- const carTrueY=Math.max((wfl+wfr+wrl+wrr)/4,gT(car.x,car.z))+0.012;
+ let gF=-1e9;for(const a of[-WB,-WB/2,0,WB/2,WB])for(const b of[-TR,0,TR])gF=Math.max(gF,wp(a,b)); /* highest ground under the footprint, so a crest can't clip the belly */
+ const carTrueY=Math.max((wfl+wfr+wrl+wrr)/4,gT(car.x,car.z),gF-0.015)+0.012;
  const sF0=(wfl+wfr-wrl-wrr)/2/(2*WB),sR0=(wfr+wrr-wfl-wrl)/2/(2*TR);
  const mSaved=car.m.slice();
  {const f3=nrm([sp0,sF0,cs0]),up=nrm(cross(f3,[cs0,sR0,-sp0])),xa=nrm(cross(up,f3)),za=cross(xa,up);
@@ -586,9 +630,10 @@ const takeSnap=ps=>{
   return{f,r,u,distance:Math.hypot(look[0]-ex,look[1]-ey,look[2]-ez),eye:[ex-st.tx,ey,ez-st.tz]}}; /* eye y is absolute world height (orbit cam does the same); don't subtract st.cy */
  /* plan the lens: for each candidate spot solve the lowest eye height at which the whole jeep (10 sample points on its body) clears the terrain; wider/farther spots are tried only if the front-3/4 ones need a steep angle */
  const FLAT=[0,1e-3,1],gr=(x,z)=>ground(x,z,gctx.cam,FLAT,H_);
- const M=car.m,pts=[[-.3,.3,-.6],[.3,.3,-.6],[-.3,.3,.6],[.3,.3,.6],[0,.5,-.2],[0,.5,.2],[0,.12,.62],[0,.12,-.65],[-.31,.12,0],[.31,.12,0]]
+ const M=car.m,pts=[[-.3,.3,-.6],[.3,.3,-.6],[-.3,.3,.6],[.3,.3,.6],[0,.5,-.2],[0,.5,.2],[0,.12,.62],[0,.12,-.65],[-.31,.12,0],[.31,.12,0],[-.28,.1,-.386],[.28,.1,-.386],[-.28,.1,.386],[.28,.1,.386]]
   .map(([x,y,z])=>[M[0]*x+M[4]*y+M[8]*z+M[12]+st.tx,M[1]*x+M[5]*y+M[9]*z+M[13],M[2]*x+M[6]*y+M[10]*z+M[14]+st.tz]);
- const plan=planSnapCam(gr,pts,carTrueY+0.16,car.x,car.z,car.psi);
+ const asp=view.width/view.height,D0=Math.max(1.4,0.24/(0.8*lens(asp)*Math.min(1,asp))); /* jeep's bounding sphere must fit inside ~80% of the narrower screen axis */
+ const plan=planSnapCam(gr,pts,carTrueY+0.16,car.x,car.z,car.psi,D0);
  const cam1=mk(plan.ex,plan.ey,plan.ez);
  const saved={focus:st.focus,g:gctx};
  snapCam=cam1;snapping=true;st.focus=cam1.distance;gctx={cam:cam1,near:nearRange(cam1),H:H_};
@@ -634,6 +679,10 @@ let vf=car.vx*sp0+car.vz*cs0,vl=car.vx*cs0-car.vz*sp0;
 const eng=thr>0?G.t*(1-clamp(vf/G.top,0,1)):thr<0?(vf>0.2*SC?-9*SC:-G.t*0.6*clamp(1+vf/Math.min(G.top*0.45,2.2*SC),0,1)):0;
 const pull=Math.sin(Math.atan(car.sF))*10*SC*G.hill; /* hill: how hard slopes fight the gear; 4L has the torque to crawl, 4H/2H stall on steep grades */
 vf+=(eng-pull-vf*G.drag)*dt;
+{let act=false; /* HDC: only when gravity is speeding us along a real grade */
+ if(hdcOn&&Math.abs(car.sF)>0.2&&pull*vf<0&&Math.abs(vf)>0.05*SC){const tv=SC*(brk?0.9:thr*Math.sign(vf)>0?3.2:1.6);
+  if(Math.abs(vf)>tv){vf-=Math.sign(vf)*Math.min(Math.abs(vf)-tv,16*SC*dt);act=true}}
+ hdcT=act?0.25:Math.max(0,hdcT-dt);const shown=hdcT>0;if(shown!==hdcAct){hdcAct=shown;updHdc()}}
 if(hb){const b=7*SC*dt;vf=Math.abs(vf)<b?0:vf-Math.sign(vf)*b}
 if(brk){const b=14*SC*dt;vf=Math.abs(vf)<b?0:vf-Math.sign(vf)*b}
 vl*=Math.exp(-(hb?0.9:G.grip)*dt);
@@ -665,7 +714,7 @@ st.cy+=(car.y-st.cy)*(1-Math.exp(-dt/0.3));
 const f3=nrm([sp,car.sF,cs]),up=nrm(cross(f3,[cs,car.sR,-sp])),xa=nrm(cross(up,f3)),za=cross(xa,up);
 car.m.set([...xa.map(q=>q*SC),0,...up.map(q=>q*SC),0,...za.map(q=>q*SC),0,car.x-st.tx,car.y+0.015*SC,car.z-st.tz,1])};
 const drawCar=()=>{drawFx();if(st.intro<0.3)return;gl.bindVertexArray(carVao);
-{const e=camera().eye,col=toRgb(THEMES[themeMode].fg);gl.useProgram(xp.p);
+if(!snapping){const e=camera().eye,col=toRgb(THEMES[themeMode].fg);gl.useProgram(xp.p);
 gl.uniformMatrix4fv(xp.u('uVP'),false,matrix);gl.uniformMatrix4fv(xp.u('uModel'),false,car.m);gl.uniform3f(xp.u('uEye'),e[0],e[1],e[2]);gl.uniform3f(xp.u('uCol'),col[0],col[1],col[2]);
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.GREATER);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
 gl.drawElements(gl.TRIANGLES,carCount,gl.UNSIGNED_SHORT,0);gl.depthMask(true);gl.disable(gl.BLEND)}
@@ -673,29 +722,33 @@ gl.useProgram(cp.p);
 gl.uniformMatrix4fv(cp.u('uVP'),false,matrix);gl.uniformMatrix4fv(cp.u('uModel'),false,car.m);gl.uniform3fv(cp.u('uSun'),SUN);gl.uniform1f(cp.u('uPaint'),S.scape?1:0);
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LESS);gl.disable(gl.BLEND);gl.drawElements(gl.TRIANGLES,carCount,gl.UNSIGNED_SHORT,0);
 gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vao)};
-window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k.startsWith('arrow')||k===' ')e.preventDefault();if(k===' '&&!e.repeat)shiftGear();if(k==='shift'&&!e.repeat){camMode=(camMode+1)%3;updateCamBtn()}if(k==='t'&&!e.repeat){themeMode=(themeMode+1)%THEMES.length;applyTheme()}if(k==='r'&&!e.repeat){if(Rec)Rec.toggle()}keys[k]=true});
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k.startsWith('arrow')||k===' ')e.preventDefault();if(k===' '&&!e.repeat)shiftGear();if(k==='shift'&&!e.repeat){camMode=(camMode+1)%3;updateCamBtn()}if(k==='r'&&!e.repeat){if(Rec)Rec.toggle()}keys[k]=true});
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 
 /* top-center bar: camera | theme | record */
 const CAM_LABELS=['orbit','close','chase'];
 const topBar=document.createElement('div');topBar.id='topBar';
-topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="themeBtn" title="Theme (T)">mono</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
+topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="hdcBtn" title="Hill Descent Control (H)">HDC auto</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
 document.body.appendChild(topBar);
 const sndBtn=document.getElementById('sndBtn'),updSnd=()=>{sndBtn.textContent=Snd.on()?'sound on':'sound off'};
 sndBtn.addEventListener('click',()=>{Snd.wake();Snd.toggle();updSnd()});updSnd();
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&!e.repeat&&!e.metaKey&&!e.ctrlKey){Snd.wake();Snd.toggle();updSnd()}});
+const hdcBtn=document.getElementById('hdcBtn');
+updHdc=()=>{hdcBtn.textContent=hdcOn?'HDC auto':'HDC off';hdcBtn.classList.toggle('on',hdcOn&&hdcAct);hdcBtn.setAttribute('aria-pressed',hdcOn?'true':'false')};
+const toggleHdc=()=>{hdcOn=!hdcOn;hdcAct=false;hdcT=0;try{localStorage.setItem('4x4hdc',hdcOn?'1':'0')}catch(_){}updHdc()};
+hdcBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();hdcBtn.blur();toggleHdc()});
+window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='h'&&!e.repeat&&!e.metaKey&&!e.ctrlKey)toggleHdc()});updHdc();
 const camBtn=document.getElementById('camBtn');
 const updateCamBtn=()=>{camBtn.textContent=CAM_LABELS[camMode]||'cam'};
 camBtn.addEventListener('click',e=>{e.preventDefault();camMode=(camMode+1)%3;updateCamBtn()});
-document.getElementById('themeBtn').addEventListener('click',e=>{e.preventDefault();themeMode=(themeMode+1)%THEMES.length;applyTheme()});
 applyTheme();updateCamBtn();
 
 const isCoarse=matchMedia('(pointer:coarse)').matches;
 {const hud=document.createElement('div');hud.id='hud';
 hud.innerHTML=isCoarse
   ?'<div id="gear"></div>'
-  :'<div id="gear"></div><span class="desktop-hint">left click: drive · right click: brake · space: gear · shift: camera · t: theme · r: record · ctrl: handbrake</span>';
+  :'<div id="gear"></div><span class="desktop-hint">left click: drive · right click: brake · space: gear · shift: camera · r: record · ctrl: handbrake · h: hill descent</span>';
 container.appendChild(hud);
 const sc=document.createElement('div');sc.id='score';container.appendChild(sc);
 }
@@ -744,7 +797,7 @@ const Rec=(function(){
   const ui=()=>{btn.classList.toggle('on',active);btn.setAttribute('aria-pressed',active?'true':'false');
     if(!active){btn.innerHTML='Rec <span id="recTime">'+MAX+'s</span>';}
     else{const left=startedAt?Math.max(0,MAX-(performance.now()-startedAt)/1000):MAX;btn.innerHTML='Stop <span id="recTime">'+fmt(left)+'</span>'}};
-  const pickMime=()=>{for(const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']){if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))return m}return'video/webm'};
+  const pickMime=()=>{for(const m of ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm']){if(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))return m}return'video/webm'};
   const ensureSize=()=>{const w=canvas.width,h=canvas.height;if(out.width!==w||out.height!==h){out.width=w;out.height=h}};
   const drawHud=()=>{
     const w=out.width,h=out.height,pad=Math.max(16,Math.round(w*0.016)),sc=Math.max(0.85,Math.min(1.3,w/1280));
@@ -786,13 +839,22 @@ const Rec=(function(){
   };
   const paintNow=()=>{ensureSize();try{composite()}catch(_){}
     try{if(vStream){const vt=vStream.getVideoTracks()[0];if(vt&&typeof vt.requestFrame==='function')vt.requestFrame()}}catch(_){}};
+  let starting=false;
   const start=()=>{
-    if(active)return;if(!window.MediaRecorder){alert('Recording not supported');return}
+    if(active||starting)return;if(!window.MediaRecorder){alert('Recording not supported');return}
+    starting=true;
+    /* wake + resume the audio context first so the audio track is live (and exists) before the recorder is built */
+    Promise.resolve().then(()=>Snd.prep()).catch(()=>null).then(as=>{starting=false;begin(as)});
+  };
+  const begin=as=>{
+    if(active)return;
     vStream=null;paintNow();
     try{vStream=out.captureStream(60)}catch(e){alert('Recording failed');console.warn(e);return}
-    try{const as=Snd.stream();if(as)as.getAudioTracks().forEach(t=>vStream.addTrack(t.clone()))}catch(_){}
+    let hasAudio=false;
+    try{if(as)as.getAudioTracks().forEach(t=>{vStream.addTrack(t.clone());hasAudio=true})}catch(e){console.warn('no audio track',e)}
     paintNow();const mime=pickMime();chunks=[];
-    try{rec=new MediaRecorder(vStream,{mimeType:mime,videoBitsPerSecond:8e6})}
+    const opts={mimeType:mime,videoBitsPerSecond:8e6};if(hasAudio)opts.audioBitsPerSecond=128000;
+    try{rec=new MediaRecorder(vStream,opts)}
     catch(e1){try{rec=new MediaRecorder(vStream)}catch(e2){alert('Recording failed');return}}
     rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
     rec.onerror=e=>{console.warn(e);stop()};
