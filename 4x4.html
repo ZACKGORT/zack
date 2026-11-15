@@ -358,6 +358,14 @@ void main(){vN=mat3(uModel)*aNrm;vC=aCol;if(uPaint>0.5&&abs(aCol.r-0.2431)<0.01&
 precision highp float;uniform vec3 uSun;in vec3 vN;in vec4 vC;out vec4 o;
 void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,uSun),0.0);
 float l=0.38+0.4*(0.5+0.5*n.y)+0.8*d;o=vec4(mix(vC.rgb*l,vC.rgb,vC.a),1.0);}`);
+// x-ray: where terrain hides the jeep, draw a translucent rim-lit silhouette so it reads through the landmass
+const xp=prog(`#version 300 es
+layout(location=0)in vec3 aPos;layout(location=1)in vec3 aNrm;
+uniform mat4 uVP,uModel;out vec3 vN;out vec3 vW;
+void main(){vN=mat3(uModel)*aNrm;vec4 w=uModel*vec4(aPos,1.0);vW=w.xyz;gl_Position=uVP*w;}`,
+`#version 300 es
+precision highp float;uniform vec3 uEye,uCol;in vec3 vN;in vec3 vW;out vec4 o;
+void main(){vec3 n=normalize(vN),v=normalize(uEye-vW);float rim=1.0-abs(dot(n,v));float a=0.07+0.38*smoothstep(0.4,0.85,rim);o=vec4(uCol*a,a);}`);
 const carVao=gl.createVertexArray();gl.bindVertexArray(carVao);
 const bin=Uint8Array.from(atob(CAR.b64),c=>c.charCodeAt(0)),vb=gl.createBuffer(),ib=gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,bin.subarray(0,CAR.n*20),gl.STATIC_DRAW);
@@ -404,7 +412,7 @@ coffee(){if(!ok())return;const t=ctx.currentTime;tone(880,t,0.25,'sine',0.25);to
 site(){if(!ok())return;const t=ctx.currentTime;tone(300,t,0.4,'sawtooth',0.1,1200);tone(1760,t+0.3,0.4,'sine',0.15)},
 shift(g){if(!ok())return;const t=ctx.currentTime;tone([110,70,130][g]||100,t,0.14,'square',0.22,45);burst(t,0.05,1500,0.2)}}})();
 // ---- gearing: space cycles 4H -> 4L -> 2H ----
-const GEARS=[{id:'4H',name:'4H · high range',t:5.2*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:2.4},
+const GEARS=[{id:'4H',name:'4H · high range',t:7*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:1.6},
 {id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9,hill:1},
 {id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35,hill:2.6}];
 const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name};
@@ -548,9 +556,22 @@ const addSnapCard=(blob,n)=>{
  while(stripScroll.children.length>40){const o=stripScroll.firstChild;const im=o.querySelector('img');if(im)URL.revokeObjectURL(im.src);o.remove()}
  requestAnimationFrame(()=>stripScroll.scrollTo({left:stripScroll.scrollWidth,behavior:'smooth'}));
 };
+/* snapshot camera planner: for every candidate eye spot, solve the exact minimum eye height at which each sample point on the jeep clears the terrain along its sight line; prefer a near-level, slightly-upward "hero" angle that works */
+const planSnapCam=(gr,pts,lookY,cx,cz,psi)=>{
+ const MARGIN=0.025;
+ const evalSpot=(ex,ez)=>{let ey=gr(ex,ez)+0.08;
+  for(const p of pts){const dx=p[0]-ex,dz=p[2]-ez,dist=Math.hypot(dx,dz),n=clamp(Math.ceil(dist/0.04),8,70),tMax=1-0.05/dist;
+   for(let k=1;k<=n;k++){const t=k/n*tMax,need=(gr(ex+dx*t,ez+dz*t)-p[1]*t+MARGIN)/(1-t);if(need>ey)ey=need}}
+  return ey};
+ let best=null;
+ const tryAll=(offs,Ds)=>{for(const D of Ds)for(const off of offs){const a=psi+off,ex=cx+Math.sin(a)*D,ez=cz+Math.cos(a)*D,ey=evalSpot(ex,ez),el=Math.atan2(ey-lookY,D),score=Math.abs(el+0.12)+0.12*Math.abs(off)+0.05*(D-1.4);
+   if(!best||score<best.score)best={ex,ey,ez,score,el}}};
+ tryAll([-0.7,0.7,-0.45,0.45],[1.4]);
+ if(!best||Math.abs(best.el+0.12)>0.42)tryAll([-0.95,0.95,-1.25,1.25,-1.7,1.7,-2.2,2.2,3.14],[1.4,1.9,2.5]);
+ return best};
 const takeSnap=ps=>{
  if(snapping||!gctx)return;
- const H_=st.elev*HEIGHT*st.rise,D=1.4;
+ const H_=st.elev*HEIGHT*st.rise;
  /* re-seat the jeep on the snapshot terrain (true heights, no near-camera flattening) - otherwise the hill buries it */
  const gT=(x,z)=>ground(x,z,gctx.cam,[0,1e-3,1],H_);
  const sp0=Math.sin(car.psi),cs0=Math.cos(car.psi),wp=(a,b)=>gT(car.x+sp0*a+cs0*b,car.z+cs0*a-sp0*b);
@@ -563,16 +584,12 @@ const takeSnap=ps=>{
  const mk=(ex,ey,ez)=>{const look=[car.x,carTrueY+0.16,car.z];const f=nrm([look[0]-ex,look[1]-ey,look[2]-ez]);
   let r=nrm(cross([0,1,0],f));if(Math.hypot(r[0],r[1],r[2])<0.15)r=nrm(cross([1,0,0],f));const u=nrm(cross(f,r));
   return{f,r,u,distance:Math.hypot(look[0]-ex,look[1]-ey,look[2]-ez),eye:[ex-st.tx,ey,ez-st.tz]}}; /* eye y is absolute world height (orbit cam does the same); don't subtract st.cy */
- /* pick the front-3/4 side with the lowest ground, then raise the lens just enough that the ridge doesn't hide the jeep */
+ /* plan the lens: for each candidate spot solve the lowest eye height at which the whole jeep (10 sample points on its body) clears the terrain; wider/farther spots are tried only if the front-3/4 ones need a steep angle */
  const FLAT=[0,1e-3,1],gr=(x,z)=>ground(x,z,gctx.cam,FLAT,H_);
- let best=null;
- for(const off of[-0.7,0.7,-0.45,0.45]){const a=car.psi+off,ex=car.x+Math.sin(a)*D,ez=car.z+Math.cos(a)*D,g=gr(ex,ez);
-  if(!best||g<best.g)best={g,ex,ez}}
- const ty=carTrueY+0.08;let ey=best.g+0.08;
- for(let h=0;h<=0.9;h+=0.05){ey=best.g+0.08+h;let clear=true;
-  for(let k=1;k<=12;k++){const t=k/13,x=best.ex+(car.x-best.ex)*t,z=best.ez+(car.z-best.ez)*t;if(gr(x,z)>ey+(ty-ey)*t-0.02){clear=false;break}}
-  if(clear)break}
- const cam1=mk(best.ex,ey,best.ez);
+ const M=car.m,pts=[[-.3,.3,-.6],[.3,.3,-.6],[-.3,.3,.6],[.3,.3,.6],[0,.5,-.2],[0,.5,.2],[0,.12,.62],[0,.12,-.65],[-.31,.12,0],[.31,.12,0]]
+  .map(([x,y,z])=>[M[0]*x+M[4]*y+M[8]*z+M[12]+st.tx,M[1]*x+M[5]*y+M[9]*z+M[13],M[2]*x+M[6]*y+M[10]*z+M[14]+st.tz]);
+ const plan=planSnapCam(gr,pts,carTrueY+0.16,car.x,car.z,car.psi);
+ const cam1=mk(plan.ex,plan.ey,plan.ez);
  const saved={focus:st.focus,g:gctx};
  snapCam=cam1;snapping=true;st.focus=cam1.distance;gctx={cam:cam1,near:nearRange(cam1),H:H_};
  let snap=null;
@@ -647,7 +664,12 @@ st.cy+=(car.y-st.cy)*(1-Math.exp(-dt/0.3));
 
 const f3=nrm([sp,car.sF,cs]),up=nrm(cross(f3,[cs,car.sR,-sp])),xa=nrm(cross(up,f3)),za=cross(xa,up);
 car.m.set([...xa.map(q=>q*SC),0,...up.map(q=>q*SC),0,...za.map(q=>q*SC),0,car.x-st.tx,car.y+0.015*SC,car.z-st.tz,1])};
-const drawCar=()=>{drawFx();if(st.intro<0.3)return;gl.useProgram(cp.p);gl.bindVertexArray(carVao);
+const drawCar=()=>{drawFx();if(st.intro<0.3)return;gl.bindVertexArray(carVao);
+{const e=camera().eye,col=toRgb(THEMES[themeMode].fg);gl.useProgram(xp.p);
+gl.uniformMatrix4fv(xp.u('uVP'),false,matrix);gl.uniformMatrix4fv(xp.u('uModel'),false,car.m);gl.uniform3f(xp.u('uEye'),e[0],e[1],e[2]);gl.uniform3f(xp.u('uCol'),col[0],col[1],col[2]);
+gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.GREATER);gl.depthMask(false);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+gl.drawElements(gl.TRIANGLES,carCount,gl.UNSIGNED_SHORT,0);gl.depthMask(true);gl.disable(gl.BLEND)}
+gl.useProgram(cp.p);
 gl.uniformMatrix4fv(cp.u('uVP'),false,matrix);gl.uniformMatrix4fv(cp.u('uModel'),false,car.m);gl.uniform3fv(cp.u('uSun'),SUN);gl.uniform1f(cp.u('uPaint'),S.scape?1:0);
 gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LESS);gl.disable(gl.BLEND);gl.drawElements(gl.TRIANGLES,carCount,gl.UNSIGNED_SHORT,0);
 gl.disable(gl.DEPTH_TEST);gl.bindVertexArray(vao)};
