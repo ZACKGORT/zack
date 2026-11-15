@@ -371,12 +371,43 @@ const ground=(tx,tz,cam,near,H)=>{let g=relief(tx,tz,FREQUENCY/S.scale,st.morph*
 for(const p of pulses){const w=Math.exp(-p.age*1.1)*smoother(p.age/0.08),r=p.age*4.2;if(w<=0)continue;
 const q=(Math.hypot(tx-p.x,tz-p.z)-r)/(0.28+r*0.05);g+=Math.exp(-q*q)*w*0.14}
 return g*settleAt(cam,near,tx-st.tx,tz-st.tz)*H};
+// ---- sound: all synthesized (WebAudio), wakes on first gesture, M toggles ----
+const Snd=(()=>{let ctx,mst,eng,e2,lp,eg,bp,dg,wg,rd,nb,on=true;
+try{on=localStorage.getItem('4x4snd')!=='0'}catch(_){}
+const init=()=>{if(ctx)return;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;ctx=new AC();
+mst=ctx.createGain();mst.gain.value=on?0.5:0;mst.connect(ctx.destination);rd=ctx.createMediaStreamDestination();mst.connect(rd);
+nb=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+lp=ctx.createBiquadFilter();lp.type='lowpass';eg=ctx.createGain();eg.gain.value=0;
+eng=ctx.createOscillator();eng.type='sawtooth';e2=ctx.createOscillator();e2.type='square';
+eng.connect(lp);e2.connect(lp);lp.connect(eg);eg.connect(mst);eng.start();e2.start();
+const lfo=ctx.createOscillator(),lg=ctx.createGain();lfo.frequency.value=13;lg.gain.value=0.03;lfo.connect(lg);lg.connect(eg.gain);lfo.start();
+const mk=(type,f)=>{const sr=ctx.createBufferSource();sr.buffer=nb;sr.loop=true;const fl=ctx.createBiquadFilter();fl.type=type;fl.frequency.value=f;const g=ctx.createGain();g.gain.value=0;sr.connect(fl);fl.connect(g);g.connect(mst);sr.start();return{fl,g}};
+const a=mk('bandpass',600);bp=a.fl;dg=a.g;wg=mk('lowpass',500).g;
+document.addEventListener('visibilitychange',()=>{ctx[document.hidden?'suspend':'resume']()})};
+const wake=()=>{init();if(ctx&&ctx.state==='suspended'&&!document.hidden)ctx.resume()};
+['pointerdown','keydown','touchstart'].forEach(t=>window.addEventListener(t,wake,{passive:true}));
+const tone=(f,t0,d,type,vol,f2)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);
+g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol,t0+0.01);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);o.connect(g);g.connect(mst);o.start(t0);o.stop(t0+d+0.05)};
+const burst=(t0,d,f,vol)=>{const sr=ctx.createBufferSource();sr.buffer=nb;const fl=ctx.createBiquadFilter();fl.type='bandpass';fl.frequency.value=f;const g=ctx.createGain();
+g.gain.setValueAtTime(vol,t0);g.gain.exponentialRampToValueAtTime(0.0001,t0+d);sr.connect(fl);fl.connect(g);g.connect(mst);sr.start(t0,Math.random());sr.stop(t0+d+0.05)};
+const ok=()=>ctx&&on&&ctx.state==='running';
+return{wake,
+on:()=>on,stream:()=>rd&&rd.stream,
+toggle(){on=!on;try{localStorage.setItem('4x4snd',on?'1':'0')}catch(_){}if(ctx)mst.gain.setTargetAtTime(on?0.5:0,ctx.currentTime,0.05);return on},
+tick(v,thr,slip,gear){if(!ok())return;const t=ctx.currentTime,r=Math.min(1,v),rpm=0.1+0.62*r+0.2*Math.max(0,thr)*(1-0.5*r),f=(34+rpm*95)*([1,0.78,1.08][gear]||1);
+eng.frequency.setTargetAtTime(f,t,0.06);e2.frequency.setTargetAtTime(f*0.5,t,0.06);lp.frequency.setTargetAtTime(220+rpm*900,t,0.08);
+eg.gain.setTargetAtTime(0.1+0.16*rpm+(thr>0?0.08:0),t,0.08);dg.gain.setTargetAtTime(Math.min(0.3,r*0.2+slip*0.4),t,0.05);
+bp.frequency.setTargetAtTime(500+r*900+slip*1500,t,0.08);wg.gain.setTargetAtTime(0.02+r*0.12,t,0.2)},
+flag(){if(!ok())return;const t=ctx.currentTime;burst(t,0.04,3000,0.3);burst(t+0.06,0.05,2000,0.25);[523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,t+0.12+i*0.09,0.5,'triangle',0.25));tone(1568,t+0.5,0.8,'sine',0.15)},
+coffee(){if(!ok())return;const t=ctx.currentTime;tone(880,t,0.25,'sine',0.25);tone(1318,t+0.12,0.5,'sine',0.25)},
+site(){if(!ok())return;const t=ctx.currentTime;tone(300,t,0.4,'sawtooth',0.1,1200);tone(1760,t+0.3,0.4,'sine',0.15)},
+shift(g){if(!ok())return;const t=ctx.currentTime;tone([110,70,130][g]||100,t,0.14,'square',0.22,45);burst(t,0.05,1500,0.2)}}})();
 // ---- gearing: space cycles 4H -> 4L -> 2H ----
 const GEARS=[{id:'4H',name:'4H · high range',t:5.2*SC,top:9*SC,drag:0.2,grip:12,yaw:1},
 {id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9},
 {id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35}];
 const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name};
-const shiftGear=()=>{car.gear=(car.gear+1)%GEARS.length;setGear()};
+const shiftGear=()=>{car.gear=(car.gear+1)%GEARS.length;setGear();Snd.shift(car.gear)};
 // ---- dust / smoke: pixel particles on a 2D overlay ----
 const parts=[],fx=document.createElement('canvas'),fc=fx.getContext('2d');fx.id='fx';fx.setAttribute('aria-hidden','true');container.appendChild(fx);
 const spawn=(x,y,z,smoke)=>{if(parts.length>500)return;const a=Math.random()*6.283,r=Math.random()*0.12;
@@ -440,7 +471,7 @@ for(let i=0;i<36;i++){const a=i/36*6.283,x=c.x+Math.sin(a)*CR,z=c.z+Math.cos(a)*
 fc.fillStyle='rgba(111,78,55,0.45)';fc.fillRect(Math.round(q[0]/3)*3-1.5,Math.round(q[1]/3)*3-1.5,3,3)}
 const tp=P(c.x-st.tx,c.y+0.2+Math.sin(performance.now()/300)*0.03,c.z-st.tz);if(!tp)return;const u=Math.max(2,Math.round(3*clamp(9/b[2],0.7,2))),x0=Math.round(tp[0]-5*u),y0=Math.round(tp[1]-9*u);
 SPR.forEach((row,r)=>{for(let k=0;k<row.length;k++){const ch=row[k];if(ch==='.')continue;fc.fillStyle=`rgba(${SPC[ch]},${ch==='s'?0.55:1})`;fc.fillRect(x0+k*u,y0+r*u,u,u)}})};
-const grabCoffee=()=>{confetti(coffee.x,coffee.y+0.15,coffee.z);coffee=null;nextCoffee=score+3;mouse.l=mouse.r=false;card.hidden=false};
+const grabCoffee=()=>{Snd.coffee();confetti(coffee.x,coffee.y+0.15,coffee.z);coffee=null;nextCoffee=score+3;mouse.l=mouse.r=false;card.hidden=false};
 
 // ---- site POIs: drive onto an icon to open its page in a card ----
 const ci=(x,y,r)=>`M${x-r} ${y}a${r} ${r} 0 1 0 ${2*r} 0a${r} ${r} 0 1 0 ${-2*r} 0`;
@@ -463,7 +494,7 @@ window.addEventListener('resize',fitSite);
 const closeSite=()=>{site.hidden=true;sFrame.src='about:blank'};
 site.querySelector('.bar button').addEventListener('click',closeSite);
 window.addEventListener('keydown',e=>{if(e.key==='Escape')closeSite()});
-const openSite=p=>{confetti(p.x,p.y+0.15,p.z);mouse.l=mouse.r=false;card.hidden=true;sPath.setAttribute('d',p.d);sTitle.textContent=p.title;sLink.href=p.url;sFrame.title=p.title;sFrame.src=p.url;site.hidden=false;fitSite()};
+const openSite=p=>{Snd.site();confetti(p.x,p.y+0.15,p.z);mouse.l=mouse.r=false;card.hidden=true;sPath.setAttribute('d',p.d);sTitle.textContent=p.title;sLink.href=p.url;sFrame.title=p.title;sFrame.src=p.url;site.hidden=false;fitSite()};
 const poiNear=(x,z,pp)=>POIS.some(q=>q!==pp&&q.on&&Math.hypot(q.x-x,q.z-z)<2.5)||(coffee&&Math.hypot(coffee.x-x,coffee.z-z)<2);
 let poiT=0;
 const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
@@ -582,7 +613,7 @@ vl*=Math.exp(-(hb?0.9:G.grip)*dt);
 if(!thr&&!hb&&Math.abs(vf)<0.05*SC&&Math.abs(vl)<0.05*SC&&Math.abs(car.sF)<0.12){vf=0;vl=0}
 vf=clamp(vf,-Math.min(G.top*0.45,2.2*SC),G.top*1.15);
 const slip=Math.abs(vl),spin=thr>0&&eng-pull<0.3*SC&&vf<0.3*SC;
-car.v=vf;car.vx=vf*sp0+vl*cs0;car.vz=vf*cs0-vl*sp0;
+Snd.tick(Math.abs(vf)/G.top,thr,Math.min(1,slip/(3*SC)+(spin?0.5:0)),car.gear);car.v=vf;car.vx=vf*sp0+vl*cs0;car.vz=vf*cs0-vl*sp0;
 car.psi+=vf/(2*WB)*Math.tan(car.steer/(1+0.35*Math.abs(vf)))*G.yaw*(hb&&Math.abs(vf)>0.4*SC?1.3:1)*dt;
 car.x+=car.vx*dt;car.z+=car.vz*dt;
 const sp=Math.sin(car.psi),cs=Math.cos(car.psi),at=(a,b)=>ground(car.x+sp*a+cs*b,car.z+cs*a-sp*b,cam,near,H);
@@ -597,7 +628,7 @@ q.vy-=(q.g||0)*dt;q.x+=q.vx*dt;q.z+=q.vz*dt;q.y+=q.vy*dt;const d=Math.exp(-1.5*d
 for(const f of flags){f.y=ground(f.x,f.z,cam,near,H);
 if(f.cap>0){f.cap-=dt;if(f.cap<=0){const p=findPeak();if(p){f.x=p.x;f.z=p.z;f.prog=0}else f.cap=1}continue}
 const inZ=Math.hypot(car.x-f.x,car.z-f.z)<FR&&car.y>f.y-0.3;f.prog=clamp(f.prog+(inZ?1:-0.6)*dt/CAPT,0,1);
-if(f.prog>=1){f.cap=1.6;score++;pendingSnap={n:score,fx:f.x,fz:f.z};confetti(f.x,f.y+0.3,f.z);if(pulses.length>=MAX_PULSES)pulses.shift();pulses.push({x:f.x,z:f.z,age:0});updScore()}}
+if(f.prog>=1){f.cap=1.6;score++;Snd.flag();pendingSnap={n:score,fx:f.x,fz:f.z};confetti(f.x,f.y+0.3,f.z);if(pulses.length>=MAX_PULSES)pulses.shift();pulses.push({x:f.x,z:f.z,age:0});updScore()}}
 if(!coffee&&score>=nextCoffee&&(cTry-=dt)<=0){cTry=0.5;const p=findFlat();if(p)coffee={x:p.x,z:p.z,y:0}}
 updPois(dt,cam,near,H);
 if(coffee){coffee.y=ground(coffee.x,coffee.z,cam,near,H);if(Math.hypot(car.x-coffee.x,car.z-coffee.z)<CR*0.9)grabCoffee()}
@@ -617,8 +648,11 @@ window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 /* top-center bar: camera | theme | record */
 const CAM_LABELS=['orbit','close','chase'];
 const topBar=document.createElement('div');topBar.id='topBar';
-topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="themeBtn" title="Theme (T)">mono</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
+topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="themeBtn" title="Theme (T)">mono</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
 document.body.appendChild(topBar);
+const sndBtn=document.getElementById('sndBtn'),updSnd=()=>{sndBtn.textContent=Snd.on()?'sound on':'sound off'};
+sndBtn.addEventListener('click',()=>{Snd.wake();Snd.toggle();updSnd()});updSnd();
+window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&!e.repeat&&!e.metaKey&&!e.ctrlKey){Snd.wake();Snd.toggle();updSnd()}});
 const camBtn=document.getElementById('camBtn');
 const updateCamBtn=()=>{camBtn.textContent=CAM_LABELS[camMode]||'cam'};
 camBtn.addEventListener('click',e=>{e.preventDefault();camMode=(camMode+1)%3;updateCamBtn()});
@@ -724,6 +758,7 @@ const Rec=(function(){
     if(active)return;if(!window.MediaRecorder){alert('Recording not supported');return}
     vStream=null;paintNow();
     try{vStream=out.captureStream(60)}catch(e){alert('Recording failed');console.warn(e);return}
+    try{const as=Snd.stream();if(as)as.getAudioTracks().forEach(t=>vStream.addTrack(t.clone()))}catch(_){}
     paintNow();const mime=pickMime();chunks=[];
     try{rec=new MediaRecorder(vStream,{mimeType:mime,videoBitsPerSecond:8e6})}
     catch(e1){try{rec=new MediaRecorder(vStream)}catch(e2){alert('Recording failed');return}}
