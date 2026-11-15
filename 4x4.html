@@ -103,7 +103,7 @@ const S = { color:'#c6c6c6', lineCount:22, lineWidth:1.2, majorLines:true, eleva
   detail:0.35, tilt:32, speed:0, direction:[0,1], morph:0, glow:0.6, depthOfField:0.4, fog:0.35, brightness:1,
   opacity:1, mouseRadius:1, mouseStrength:0.6, parallax:0.5, intro:true, lightMode:true };
 
-const PLATEAU=1.0,SHOULDER=5,FOV=0.32,ORBIT=9,NEAR=0.05,FAR=160,HEIGHT=1.7,FREQUENCY=0.45,INTRO=2.8,MAX_PULSES=4,LEVELS=4,MAX_CELLS=200000;
+const PLATEAU=1.0,SHOULDER=9,GAIN=2.6,FOV=0.32,ORBIT=9,NEAR=0.05,FAR=160,HEIGHT=1.7,FREQUENCY=0.45,INTRO=2.8,MAX_PULSES=4,LEVELS=4,MAX_CELLS=200000;
 const SUN=[-0.81,0.58,-0.02];
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const smoother=x=>{const t=clamp(x,0,1);return t*t*t*(t*(t*6-15)+10)};
@@ -122,7 +122,7 @@ vec2 octave(vec2 p,vec2 s){return vec2(1.6*p.x-1.2*p.y,1.2*p.x+1.6*p.y)+s;}
 float relief(vec2 t){vec2 p=t*uFrequency;
 vec2 w=vec2(noise(p*0.42+uMorph),noise(p*0.42-uMorph.yx+vec2(5.2,1.3)));p+=w*0.8;
 float n=noise(p)*0.55;p=octave(p,vec2(7.1,3.7));n+=noise(p)*0.15;p=octave(p,vec2(1.9,8.3));n+=noise(p)*0.04;
-float s=log(1.0+exp(7.0*(3.0*n+0.05)))/7.0;float r=s*s*1.4+0.1*n;return -log(exp(-r*${SHOULDER.toFixed(1)})+exp(-${PLATEAU.toFixed(2)}*${SHOULDER.toFixed(1)}))/${SHOULDER.toFixed(1)};}
+float s=log(1.0+exp(7.0*(3.0*n+0.05)))/7.0;float r=s*s*${GAIN.toFixed(2)}+0.1*n;return -log(exp(-r*${SHOULDER.toFixed(1)})+exp(-${PLATEAU.toFixed(2)}*${SHOULDER.toFixed(1)}))/${SHOULDER.toFixed(1)};}
 float swell(vec2 t){float lift=0.0;for(int i=0;i<${MAX_PULSES};i++){vec4 p=uPulses[i];if(p.w<=0.0)continue;
 float x=(length(t-p.xy)-p.z)/(0.28+p.z*0.05);lift+=exp(-x*x)*p.w;}return lift;}
 float settle(vec2 world){float depth=dot(vec3(world.x,0.0,world.y)-uEye,uForward);
@@ -235,7 +235,7 @@ const relief=(tx,tz,f,mx,mz)=>{let px=tx*f,pz=tz*f;
 const wx=noise(px*0.42+mx,pz*0.42+mz),wz=noise(px*0.42-mz+5.2,pz*0.42-mx+1.3);px+=wx*0.8;pz+=wz*0.8;
 let n=noise(px,pz)*0.55;const qx=1.6*px-1.2*pz+7.1,qz=1.2*px+1.6*pz+3.7;n+=noise(qx,qz)*0.15;
 n+=noise(1.6*qx-1.2*qz+1.9,1.2*qx+1.6*qz+8.3)*0.04;
-const s=Math.log(1+Math.exp(7*(3*n+0.05)))/7,r=s*s*1.4+0.1*n;return -Math.log(Math.exp(-r*SHOULDER)+Math.exp(-PLATEAU*SHOULDER))/SHOULDER};
+const s=Math.log(1+Math.exp(7*(3*n+0.05)))/7,r=s*s*GAIN+0.1*n;return -Math.log(Math.exp(-r*SHOULDER)+Math.exp(-PLATEAU*SHOULDER))/SHOULDER};
 
 const toRgb=hex=>{const n=parseInt(hex.replace('#','').slice(0,6),16);return[((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255]};
 const orient=(yaw,pitch)=>{const cp=Math.cos(pitch);const f=[Math.sin(yaw)*cp,-Math.sin(pitch),Math.cos(yaw)*cp];
@@ -784,6 +784,12 @@ const Rec=(function(){
   return{toggle,stop,isActive:()=>active,frame};
 })();
 
+/* start on top of the nearest big high landform: highest point whose surroundings (mean height over a ~1.6 radius) are also high, mildly favouring closer ones */
+{let best=null,bs=-1e9;
+ for(let gx=-14;gx<=14;gx+=0.25)for(let gz=-14;gz<=14;gz+=0.25){const c=rel(gx,gz);if(c<0.85)continue;let sum=c,n=1;
+  for(const d of[0.4,0.8,1.2,1.6])for(let k=0;k<12;k++){const t=k*0.5236;sum+=rel(gx+Math.cos(t)*d,gz+Math.sin(t)*d);n++}
+  const sc=sum/n-0.04*Math.hypot(gx,gz);if(sc>bs){bs=sc;best={x:gx,z:gz}}}
+ if(best){car.x=best.x;car.z=best.z;car.psi=0}}
 setGear();updScore();stepCar(1/60);st.tx=car.x;st.tz=car.z;st.cy=car.y;
 for(let i=0;i<3;i++){const p=findPeak();if(p)flags.push({x:p.x,z:p.z,y:0,prog:0,cap:0})}
 
