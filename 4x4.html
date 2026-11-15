@@ -66,6 +66,15 @@ canvas{display:block;width:100%;height:100%}
 #topBar button.on{opacity:1;background:var(--fg);color:var(--bg)}
 #topBar #recBtn.on{background:#7a2c2c;color:#f5f5f3;opacity:1}
 #recTime{font-variant-numeric:tabular-nums;min-width:2.6em;display:inline-block;text-align:center}
+/* car controls: separate pill, bottom centre above the gear readout */
+#carBar{position:fixed;left:50%;bottom:calc(64px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:0;pointer-events:auto;
+  border:1px solid var(--fg);border-radius:999px;background:var(--bg);overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+#carBar button{height:32px;padding:0 14px;border:0;border-right:1px solid var(--fg);background:transparent;color:var(--fg);
+  font:12px system-ui,sans-serif;letter-spacing:.04em;cursor:pointer;opacity:.75;touch-action:none;white-space:nowrap}
+#carBar button:last-child{border-right:0}
+#carBar button:hover,#carBar button:active,#carBar button.on{opacity:1;background:var(--fg);color:var(--bg)}
+#carBar #gearBtn{font-weight:700;min-width:3.2em}
+@media (pointer:coarse){#carBar{bottom:calc(128px + env(safe-area-inset-bottom,0px))}}
 /* mobile */
 #mobileControls{display:none;position:fixed;inset:0;pointer-events:none;z-index:4}
 #joyBase{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:96px;height:96px;border:1.5px solid var(--fg);border-radius:50%;opacity:.4;pointer-events:auto;touch-action:none}
@@ -425,7 +434,7 @@ shift(g){if(!ok())return;const t=ctx.currentTime;tone([110,70,130][g]||100,t,0.1
 const GEARS=[{id:'4H',name:'4H · high range',t:6.6*SC,top:9*SC,drag:0.2,grip:12,yaw:1,hill:1.9},
 {id:'4L',name:'4L · low range · crawl',t:16*SC,top:1.6*SC,drag:1.3,grip:12,yaw:0.9,hill:1},
 {id:'2H',name:'2H · rear drive · drift',t:4.8*SC,top:8*SC,drag:0.2,grip:1.25,yaw:1.35,hill:2.6}];
-const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name};
+const setGear=()=>{const g=document.getElementById('gear');if(g)g.textContent=GEARS[car.gear].name+(autoHL&&car.gear<2?' · auto':'');const gb=document.getElementById('gearBtn');if(gb)gb.textContent=GEARS[car.gear].id};
 const shiftGear=()=>{car.gear=(car.gear+1)%GEARS.length;setGear();Snd.shift(car.gear)};
 // ---- dust / smoke: pixel particles on a 2D overlay ----
 const parts=[],fx=document.createElement('canvas'),fc=fx.getContext('2d');fx.id='fx';fx.setAttribute('aria-hidden','true');container.appendChild(fx);
@@ -442,8 +451,9 @@ fc.fillStyle=`rgba(${p.col||(p.smoke?'88,88,92':'168,150,122')},${a.toFixed(3)})
 // ---- mouse driving: hold left = gas + steer toward cursor, right = brake ----
 const mouse={l:false,r:false};
 // Hill Descent Control: on steep downgrades it brakes the jeep to a crawl (driver throttle in the travel direction allows a faster descent, brake a slower one)
+let autoHL=true,autoT=0,autoUp=0,autoDn=0,updAuto=()=>{};try{autoHL=localStorage.getItem('4x4auto')!=='0'}catch(_){}
 let hdcOn=true,hdcAct=false,hdcT=0,updHdc=()=>{};try{hdcOn=localStorage.getItem('4x4hdc')!=='0'}catch(_){}
-const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
+const syncMouse=e=>{if(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#joyBase,#btnCluster'))return;mouse.l=!!(e.buttons&1);mouse.r=!!(e.buttons&2)};
 ['pointerdown','pointerup','pointermove','pointercancel','mousedown','mouseup'].forEach(t=>window.addEventListener(t,syncMouse,{passive:true}));
 document.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('blur',()=>{mouse.l=mouse.r=false});
@@ -487,7 +497,7 @@ if(sl>0.05||flags.some(f=>Math.hypot(f.x-x,f.z-z)<FR+0.8))continue;return{x,z}}r
 const SPR=['..s..s....','...s..s...','.kkkkkkk..','.kbbbbbkk.','.kbbbbbk.k','.kbbbbbk.k','.kbbbbbkk.','..kkkkk...','.kkkkkkk..'],SPC={s:'150,150,150',k:'59,42,32',b:'111,78,55'};
 // ---- cursor: surface-hugging ellipses + a magnetic trajectory that bends toward the cursor ----
 const curSt={pull:0,t:0,type:'mouse',ui:false};
-window.addEventListener('pointermove',e=>{curSt.type=e.pointerType||'mouse';curSt.ui=!!(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#joyBase,#btnCluster,button,a,input'))},{passive:true});
+window.addEventListener('pointermove',e=>{curSt.type=e.pointerType||'mouse';curSt.ui=!!(e.target&&e.target.closest&&e.target.closest('#hud b,#nav a,#logo,#card,#site,#strip,#topBar,#carBar,#joyBase,#btnCluster,button,a,input'))},{passive:true});
 const drawCursor=()=>{
  if(snapping)return;
  const want=!!(gctx&&st.hit&&st.intro>=0.6&&pointer.inside&&st.presence>0.01&&curSt.type!=='touch'&&!curSt.ui);
@@ -674,6 +684,11 @@ const thr=clamp((K('w')||K('arrowup')||K('gas')?1:0)-(K('s')||K('arrowdown')?1:0
 brk=mouse.r||!!K('brake'),
 str=(mouse.l||joyDrive)?mouseSteer():(K('d')||K('arrowright')?1:0)-(K('a')||K('arrowleft')?1:0);
 car.steer+=(str*0.55-car.steer)*(1-Math.exp(-dt/0.12));
+/* auto hi/lo: with gas held, drop to 4L when the jeep is climbing hard or crawling over an obstacle, and return to 4H once it is moving freely on easier ground (hysteresis + cooldown so it doesn't hunt) */
+if(autoHL&&car.gear<2){autoT=Math.max(0,autoT-dt);const va=car.vx*Math.sin(car.psi)+car.vz*Math.cos(car.psi),gas=thr>0;
+ const needLow=gas&&((car.sF>0.28&&va<3*SC)||(car.sF>0.15&&va<1*SC)||(va<0.3*SC&&car.sF>0.08)),canHigh=va>1.3*SC&&car.sF<0.15;
+ autoDn=car.gear===0&&needLow?autoDn+dt:0;autoUp=car.gear===1&&canHigh?autoUp+dt:0;
+ if(autoT<=0&&((car.gear===0&&autoDn>0.25)||(car.gear===1&&autoUp>0.4))){car.gear=car.gear===0?1:0;autoT=0.9;autoDn=autoUp=0;setGear();Snd.shift(car.gear)}}
 const G=GEARS[car.gear],hb=!!K('control')||!!K('meta'),sp0=Math.sin(car.psi),cs0=Math.cos(car.psi);
 let vf=car.vx*sp0+car.vz*cs0,vl=car.vx*cs0-car.vz*sp0;
 const eng=thr>0?G.t*(1-clamp(vf/G.top,0,1)):thr<0?(vf>0.2*SC?-9*SC:-G.t*0.6*clamp(1+vf/Math.min(G.top*0.45,2.2*SC),0,1)):0;
@@ -726,11 +741,15 @@ window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(k.startsWit
 window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
 window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 
-/* top-center bar: camera | theme | record */
+/* top bar: view | sound | record. Car controls live in their own bar (#carBar, bottom centre) */
 const CAM_LABELS=['orbit','close','chase'];
 const topBar=document.createElement('div');topBar.id='topBar';
-topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="hdcBtn" title="Hill Descent Control (H)">HDC auto</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
+topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
 document.body.appendChild(topBar);
+const carBar=document.createElement('div');carBar.id='carBar';
+carBar.innerHTML='<button type="button" id="gearBtn" title="Gear (Space)">4H</button><button type="button" id="autoBtn" title="Auto hi-lo range (G)">auto hi-lo</button><button type="button" id="hdcBtn" title="Hill Descent Control (H)">HDC auto</button>';
+document.body.appendChild(carBar);
+{const gb=document.getElementById('gearBtn');gb.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();gb.blur();shiftGear()})}
 const sndBtn=document.getElementById('sndBtn'),updSnd=()=>{sndBtn.textContent=Snd.on()?'sound on':'sound off'};
 sndBtn.addEventListener('click',()=>{Snd.wake();Snd.toggle();updSnd()});updSnd();
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='m'&&!e.repeat&&!e.metaKey&&!e.ctrlKey){Snd.wake();Snd.toggle();updSnd()}});
@@ -739,6 +758,11 @@ updHdc=()=>{hdcBtn.textContent=hdcOn?'HDC auto':'HDC off';hdcBtn.classList.toggl
 const toggleHdc=()=>{hdcOn=!hdcOn;hdcAct=false;hdcT=0;try{localStorage.setItem('4x4hdc',hdcOn?'1':'0')}catch(_){}updHdc()};
 hdcBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();hdcBtn.blur();toggleHdc()});
 window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='h'&&!e.repeat&&!e.metaKey&&!e.ctrlKey)toggleHdc()});updHdc();
+const autoBtn=document.getElementById('autoBtn');
+updAuto=()=>{autoBtn.textContent=autoHL?'auto hi-lo':'hi-lo off';autoBtn.setAttribute('aria-pressed',autoHL?'true':'false');setGear()};
+const toggleAuto=()=>{autoHL=!autoHL;autoT=0;autoUp=autoDn=0;try{localStorage.setItem('4x4auto',autoHL?'1':'0')}catch(_){}updAuto()};
+autoBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();autoBtn.blur();toggleAuto()});
+window.addEventListener('keydown',e=>{if(e.key.toLowerCase()==='g'&&!e.repeat&&!e.metaKey&&!e.ctrlKey)toggleAuto()});updAuto();
 const camBtn=document.getElementById('camBtn');
 const updateCamBtn=()=>{camBtn.textContent=CAM_LABELS[camMode]||'cam'};
 camBtn.addEventListener('click',e=>{e.preventDefault();camMode=(camMode+1)%3;updateCamBtn()});
@@ -748,7 +772,7 @@ const isCoarse=matchMedia('(pointer:coarse)').matches;
 {const hud=document.createElement('div');hud.id='hud';
 hud.innerHTML=isCoarse
   ?'<div id="gear"></div>'
-  :'<div id="gear"></div><span class="desktop-hint">left click: drive · right click: brake · space: gear · shift: camera · r: record · ctrl: handbrake · h: hill descent</span>';
+  :'<div id="gear"></div><span class="desktop-hint">left click: drive · right click: brake · space: gear · shift: camera · r: record · ctrl: handbrake · h: hill descent · g: auto hi-lo</span>';
 container.appendChild(hud);
 const sc=document.createElement('div');sc.id='score';container.appendChild(sc);
 }
