@@ -613,7 +613,7 @@ const POIS=[
  {id:'skate',label:'SKATE',title:'design for "intuitive experiences"',url:'https://zack.cx/skate',col:'#c05621',d:'M2.5 9c0 1.3 1 2 2.2 2h14.6c1.2 0 2.2-.7 2.2-2M7 11v2.5M17 11v2.5'+ci(7,16,2)+ci(17,16,2)},
  {id:'flower',label:'WOLFIE',title:'design for "delight"',url:'https://wolfie.life',col:'#d53f8c',d:ci(12,9,2)+ci(12,4.5,2.5)+ci(7.5,9,2.5)+ci(16.5,9,2.5)+ci(12,13.5,2.5)+'M12 16v6M12 20c3 0 4.5-1 5.5-3'}
 ];
-POIS.forEach(p=>{p.path=new Path2D(p.d);p.x=p.z=p.y=0;p.on=false;p.used=false;p.try=0});
+POIS.forEach(p=>{p.path=new Path2D(p.d);p.x=p.z=p.y=0;p.on=false;p.used=false;p.try=0;p.seen=Math.random()});
 const site=document.createElement('div');site.id='site';site.hidden=true;site.setAttribute('role','dialog');
 site.innerHTML='<div class="bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path></path></svg><h2></h2><span class="vt" role="group" aria-label="Viewport"><button type="button" data-v="d" class="on" aria-pressed="true">Desktop</button><button type="button" data-v="m" aria-pressed="false">Mobile</button></span><a target="_blank" rel="noopener">Open ↗</a><button type="button" class="x" aria-label="Close">×</button></div><div class="vp"><iframe title="" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allow="fullscreen; autoplay; clipboard-write"></iframe></div>';
 document.body.appendChild(site);
@@ -645,9 +645,11 @@ const openSite=p=>{sPath.setAttribute('d',p.d);try{const u=new URL(p.url);sTitle
 const poiNear=(x,z,pp)=>POIS.some(q=>q!==pp&&q.on&&Math.hypot(q.x-x,q.z-z)<2.5)||(coffee&&Math.hypot(coffee.x-x,coffee.z-z)<2);
 let poiT=0;
 const updPois=(dt,cam,near,H)=>{poiT-=dt;const spawn=poiT<=0;if(spawn)poiT=0.3;
- for(const p of POIS){
-  if(p.on&&Math.hypot(car.x-p.x,car.z-p.z)>26)p.on=false;
-  if(!p.on){if(!spawn||POIS.filter(q=>q.on).length>=7)continue;for(let n=0;n<4;n++){const f=findFlat();if(f&&!poiNear(f.x,f.z,p)){p.x=f.x;p.z=f.z;p.on=true;p.used=false;break}}if(!p.on)continue}
+ /* fair rotation: when slots are scarce, the POI that has been off-map longest spawns first (so the last entries, skate & wolfie, aren't starved) */
+ const order=spawn?POIS.slice().sort((a,b)=>a.seen-b.seen):POIS;
+ for(const p of order){
+  if(p.on&&Math.hypot(car.x-p.x,car.z-p.z)>26){p.on=false;p.seen=performance.now()}
+  if(!p.on){if(!spawn||POIS.filter(q=>q.on).length>=7)continue;for(let n=0;n<4;n++){const f=findFlat();if(f&&!poiNear(f.x,f.z,p)){p.x=f.x;p.z=f.z;p.on=true;p.used=false;p.seen=performance.now();break}}if(!p.on)continue}
   p.y=ground(p.x,p.z,cam,near,H);
   const d=Math.hypot(car.x-p.x,car.z-p.z);
   if(p.used){if(d>CR*2.5)p.used=false}
