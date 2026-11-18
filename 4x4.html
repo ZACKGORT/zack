@@ -441,7 +441,7 @@ const grid=(box,cell)=>{const camX=Math.floor(st.tx/cell),camZ=Math.floor(st.tz/
 const fracX=st.tx-camX*cell,fracZ=st.tz-camZ*cell;
 const k0=Math.floor((box.minX+fracX)/cell)-2,m0=Math.floor((box.minZ+fracZ)/cell)-2;
 const columns=clamp(Math.ceil((box.maxX+fracX)/cell)+2-k0,1,4000);
-const rows=clamp(Math.ceil((box.maxZ+fracZ)/cell)+2-m0,1,Math.floor(MAX_CELLS*1.5/columns));
+const rows=clamp(Math.ceil((box.maxZ+fracZ)/cell)+2-m0,1,Math.floor((snapping?1e6:MAX_CELLS)*1.5/columns));
 return{cell,camX,camZ,fracX,fracZ,k0,m0,columns,rows}};
 
 
@@ -805,7 +805,7 @@ const addSnapCard=(blob,n)=>{
 };
 /* snapshot camera planner: for every candidate eye spot, solve the exact minimum eye height at which each sample point on the jeep clears the terrain along its sight line; prefer a near-level, slightly-upward "hero" angle that works. D0 = base distance (grown on narrow screens so the whole jeep fits in frame) */
 const planSnapCam=(gr,pts,lookY,cx,cz,psi,D0=1.4)=>{
- const MARGIN=0.04;
+ const MARGIN=0.07;
  const evalSpot=(ex,ez)=>{let ey=gr(ex,ez)+0.08;
   for(const p of pts){const dx=p[0]-ex,dz=p[2]-ez,dist=Math.hypot(dx,dz),n=clamp(Math.ceil(dist/0.04),8,70),tMax=1-0.05/dist;
    for(let k=1;k<=n;k++){const t=k/n*tMax,need=(gr(ex+dx*t,ez+dz*t)-p[1]*t+MARGIN)/(1-t);if(need>ey)ey=need}}
@@ -824,8 +824,9 @@ const takeSnap=ps=>{
  const sp0=Math.sin(car.psi),cs0=Math.cos(car.psi),wp=(a,b)=>gT(car.x+sp0*a+cs0*b,car.z+cs0*a-sp0*b);
  const wfl=wp(WB,-TR),wfr=wp(WB,TR),wrl=wp(-WB,-TR),wrr=wp(-WB,TR);
  let gF=-1e9;for(const a of[-WB,-WB/2,0,WB/2,WB])for(const b of[-TR,0,TR])gF=Math.max(gF,wp(a,b)); /* highest ground under the footprint, so a crest can't clip the belly */
- const carTrueY=Math.max((wfl+wfr+wrl+wrr)/4,gT(car.x,car.z),gF-0.015)+0.012;
- const sF0=(wfl+wfr-wrl-wrr)/2/(2*WB),sR0=(wfr+wrr-wfl-wrl)/2/(2*TR);
+ const avgY=(wfl+wfr+wrl+wrr)/4,sF0=(wfl+wfr-wrl-wrr)/2/(2*WB),sR0=(wfr+wrr-wfl-wrl)/2/(2*TR);
+let lift=0;for(const a of[-WB,-WB/2,0,WB/2,WB])for(const b of[-TR,0,TR]){if(Math.abs(a)>WB*.99&&b!==0)continue;lift=Math.max(lift,wp(a,b)-(avgY+sF0*a+sR0*b))}
+const carTrueY=avgY+Math.max(0,lift-0.02)+0.012;
  const mSaved=car.m.slice();
  {const f3=nrm([sp0,sF0,cs0]),up=nrm(cross(f3,[cs0,sR0,-sp0])),xa=nrm(cross(up,f3)),za=cross(xa,up);
   car.m.set([...xa.map(q=>q*SC),0,...up.map(q=>q*SC),0,...za.map(q=>q*SC),0,car.x-st.tx,carTrueY+0.015*SC,car.z-st.tz,1])}
@@ -1375,13 +1376,14 @@ const cam=camera();viewProj(cam,view.width/view.height,matrix);
 if(S.night){fillLights();if(!snapping)liveSky()}
 const bottom=groundDepth(cam,-1),top=Math.min(groundDepth(cam,1),cam.distance*3.2);
 const horizon=Math.max(top,bottom*1.6,cam.distance*1.4);
-const fadeEnd=horizon+(bottom*1.8-horizon)*S.fog;
-const fadeStart=fadeEnd*0.7+(bottom*0.7-fadeEnd*0.7)*S.fog;
+let fadeEnd=horizon+(bottom*1.8-horizon)*S.fog;
+let fadeStart=fadeEnd*0.7+(bottom*0.7-fadeEnd*0.7)*S.fog;
+if(snapping){fadeEnd=Math.max(fadeEnd,10+cam.distance*3);fadeStart=Math.max(fadeStart,fadeEnd*0.55)}
 const box=footprint(cam,fadeEnd);
 const key=`${view.width}x${view.height}@${view.ratio}|${Math.round(st.tilt/4)}|${Math.round(st.elev*5)}`;
 if(true){view.key=key;const focal=view.height*view.ratio*0.5/lens(view.width/view.height);
 let cell=clamp(14*Math.max(box.near,0.5)/focal,0.02,0.4);
-const cells=(box.maxX-box.minX)*(box.maxZ-box.minZ)/(cell*cell);if(cells>MAX_CELLS)cell*=Math.sqrt(cells/MAX_CELLS);view.cell=Math.exp(Math.round(Math.log(cell)/0.06)*0.06)}
+const cells=(box.maxX-box.minX)*(box.maxZ-box.minZ)/(cell*cell);const mc=snapping?1e6:MAX_CELLS;if(cells>mc)cell*=Math.sqrt(cells/mc);view.cell=Math.exp(Math.round(Math.log(cell)/0.06)*0.06)}
 const color=toRgb(S.color),height=st.elev*HEIGHT*st.rise,layout=grid(box,view.cell),near=nearRange(cam);
 const touch=st.hit?st.presence:0,heatStrength=touch*(0.35+0.5*S.mouseStrength);
 const focusScale=S.depthOfField*view.height*0.016,reveal=smoother(st.intro/0.35);
