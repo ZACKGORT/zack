@@ -2997,9 +2997,10 @@ function olFeet(ol,bq,w0,c0L,c0R){
       // Bottom-row foundation hit
       scatterWall(wallId);
       Audio.thud();
-      banner("WIPEOUT");
-      bail(true);
-      return;
+      banner("SMASH");
+      S.shake = Math.max(S.shake, 0.18);
+      S.pts += 10 * S.combo;
+      continue; // walls no longer tumble the rider — only solid low curbs do
     }
     lineScore(dt, sPrev);
     collectRings(sPrev);
@@ -3418,7 +3419,7 @@ function olFeet(ol,bq,w0,c0L,c0R){
   deckGlow.rotation.x = -PI / 2; deckGlow.position.y = -0.012; deckGlow.visible = false; deckGlow.userData.noInk = 1; board.add(deckGlow);
   var ringGlowMat = new T.SpriteMaterial({ map: glowT, color: 0xffffff, blending: T.AdditiveBlending, depthWrite: false, transparent: true, fog: false, opacity: 0 });
   var CY = new T.Color(0x5ad1ff), RD = new T.Color(0xff2418), _gc = new T.Color();
-  var nBrake = 0, nPrevV = 0, nInit = false;
+  var nFlip = 0, WH = new T.Color(0xffffff), nBrake = 0, nPrevV = 0, nInit = false;
   var _a = new V(), _b = new V(), _c = new V(), _d = new V();
 
   function setNight(on) {
@@ -3435,12 +3436,12 @@ function olFeet(ol,bq,w0,c0L,c0R){
     sun.color.setHex(nightOn ? 0x8fa4ff : 0xffffff); sun.intensity = nightOn ? 0.55 : 1.35;
     stars.visible = moon.visible = nightOn; faceHalo.visible = boardHalo.visible = deckGlow.visible = nightOn;
     INK.color.setHex(nightOn ? 0x2a78b8 : 0x000000);
-    inkMat.color.setHex(nightOn ? 0x0d1248 : 0x000000);
-    roadMat.color.setHex(nightOn ? 0x2a3a8f : 0xffffff);
-    blockMat.color.setHex(nightOn ? 0x0a0d30 : 0x010101);
-    blockEdgeMat.color.setHex(nightOn ? 0x5ad1ff : 0xd9d9d9);
-    ghostLineMat.color.setHex(nightOn ? 0x5ad1ff : 0x000000);
-    ghostAccentMat.color.setHex(nightOn ? 0x2b7fc0 : 0x1f1f1f);
+    inkMat.color.setHex(nightOn ? 0x2147b8 : 0x000000);
+    roadMat.color.setHex(nightOn ? 0xd8f2ff : 0xffffff);
+    blockMat.color.setHex(nightOn ? 0x1a3a9e : 0x010101);
+    blockEdgeMat.color.setHex(nightOn ? 0xffffff : 0xd9d9d9);
+    ghostLineMat.color.setHex(nightOn ? 0xffffff : 0x000000);
+    ghostAccentMat.color.setHex(nightOn ? 0x8fe3ff : 0x1f1f1f);
     gridMat.color.setHex(nightOn ? 0x5ad1ff : 0x000000); gridMat.opacity = nightOn ? 0.14 : 0.24;
     edgeMat.color.setHex(nightOn ? 0x5ad1ff : 0x000000); edgeMat.opacity = nightOn ? 0.55 : 0.6;
     lineMat.color.setHex(nightOn ? 0xdfe6ff : 0x424242);
@@ -3463,17 +3464,18 @@ function olFeet(ol,bq,w0,c0L,c0R){
     var want = 0;
     if (nInit && S.mode !== "bail" && dv < 40) want = Math.max(want, cl((dv - 1.2) / 2.5, 0, 1));
     if (stopKey() && S.v > 0.8 && !S.fly) want = 1;
-    if (S.kickflip && S.kfStart > 0) want = 1; /* kickflips glow red too */
     nInit = true;
     nBrake += (want - nBrake) * Math.min(1, dt * (want > nBrake ? 14 : 5));
-    _gc.copy(CY).lerp(RD, nBrake);
+    var wf = (S.kickflip && S.kfStart > 0) ? 1 : 0;
+    nFlip += (wf - nFlip) * Math.min(1, dt * (wf > nFlip ? 30 : 6));
+    _gc.copy(CY).lerp(RD, nBrake).lerp(WH, nFlip);
     // underglow: board centre + ground pool beneath it
     board.getWorldPosition(_a);
     var gp = shadow.position, h = Math.max(0, _a.distanceTo(gp) - 0.05), air = 1 / (1 + h * 0.9);
-    NU.uBP.value.copy(gp); NU.uBC.value.copy(_gc); NU.uBI.value = 0.95 * air; NU.uBR.value = 2.2 + h * 0.6;
-    under.color.copy(_gc); under.position.copy(_a); under.position.y -= 0.12; under.intensity = 7 * air + 1.5;
+    NU.uBP.value.copy(gp); NU.uBC.value.copy(_gc); NU.uBI.value = (0.95 + 1.6 * nFlip) * air; NU.uBR.value = 2.2 + h * 0.6;
+    under.color.copy(_gc); under.position.copy(_a); under.position.y -= 0.12; under.intensity = (7 + 30 * nFlip) * air + 1.5;
     boardHalo.material.color.copy(_gc); deckGlow.material.color.copy(_gc);
-    boardHalo.material.opacity = 0.55; deckGlow.material.opacity = 1;
+    boardHalo.material.opacity = 0.55 + 0.45 * nFlip; boardHalo.scale.set(1.5 + 1.2 * nFlip, 0.9 + 0.7 * nFlip, 1); deckGlow.material.opacity = 1;
     // face headbeam: face direction steadied by the rider's heading, aimed slightly down the slope
     head.updateWorldMatrix(true, false); rig.updateWorldMatrix(true, false);
     _a.copy(FACEC).applyMatrix4(head.matrixWorld);                       // lamp position
