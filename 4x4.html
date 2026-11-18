@@ -104,7 +104,7 @@ canvas{display:block;width:100%;height:100%}
   #nav svg{width:15px;height:15px}
 }
 @media (max-width:420px){
-  #nav{display:none} /* free right edge for action buttons on narrow phones */
+  #nav a:not(#themeBtn){display:none} /* free right edge for action buttons on narrow phones */
   #logo{opacity:.5}
 }
 /* mini map widget */
@@ -160,6 +160,8 @@ canvas{display:block;width:100%;height:100%}
 @media (max-height:520px){#mini{--mh:112px}}
 @media (prefers-reduced-motion:reduce){#mini.run .dot{animation:none}#mini .br,#mini .cmp svg{transition:none}}
 #c{position:relative}
+#themeBtn .sun,body.night #themeBtn .moon{display:none}
+body.night #themeBtn .sun{display:block}
 #sky,#lamps{position:absolute;inset:0;pointer-events:none;display:none}
 #lamps{mix-blend-mode:screen}
 body.night #sky,body.night #lamps{display:block}
@@ -173,8 +175,7 @@ body.night #score{text-shadow:0 0 10px rgba(120,160,255,.7)}
 <a id="logo" href="https://zack.cx/4x4" aria-label="zack.cx/4x4">zack.cx/4x4</a>
 <nav id="nav" aria-label="Links">
 <a href="https://account.venmo.com/u/whereiswolfgang" target="_blank" rel="noopener" title="Buy a coffee" aria-label="Buy a coffee on Venmo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h11v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V9z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 3.5v2.5M11 3.5v2.5M14 3.5v2.5"/></svg></a>
-<a href="https://zack.cx/skate" target="_blank" rel="noopener" title="zack.cx/skate" aria-label="Skate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8c.8 2.2 2 3.2 4 3.2h10c2 0 3.2-1 4-3.2"/><circle cx="7.5" cy="15.5" r="1.8"/><circle cx="16.5" cy="15.5" r="1.8"/><path d="M7.5 11.2v2.5M16.5 11.2v2.5"/></svg></a>
-<a href="https://wolfie.life" target="_blank" rel="noopener" title="wolfie.life" aria-label="wolfie.life"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="1.8"/><circle cx="12" cy="5.5" r="2.4"/><circle cx="16.3" cy="8.6" r="2.4"/><circle cx="14.7" cy="13.6" r="2.4"/><circle cx="9.3" cy="13.6" r="2.4"/><circle cx="7.7" cy="8.6" r="2.4"/><path d="M12 16v5.5"/><path d="M12 19c-3 0-4.2-1.4-4.4-3.2 2.4-.1 4.2.8 4.4 3.2z"/></svg></a>
+<a id="themeBtn" href="#" role="button" title="Day / night (T)" aria-label="Toggle day / night theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg></a>
 </nav>
 <script>
 (() => {
@@ -381,7 +382,7 @@ const view={width:1,height:1,ratio:1,cell:0.05,key:''};
 const st={intro:S.intro&&!reduce?0:1,rise:1,tx:0,tz:0,morph:0,yaw:0,pitch:0,yv:0,pv:0,presence:0,focus:ORBIT,hit:null,
 tilt:S.tilt,elev:S.elevation,head:0,cy:0};
 st.rise=smoother(st.intro);
-let camMode=0, themeMode=(()=>{try{return localStorage.getItem('4x4theme')==='day'?0:1}catch(_){return 1}})();
+let camMode=0, themeMode=(()=>{try{return localStorage.getItem('4x4theme')==='night'?1:0}catch(_){return 0}})();
 let snapCam=null, snapping=false, pendingSnap=null;
 const THEMES=[
   {name:'day', bg:'#f5f5f3', fg:'#1c1c1c', color:'#c6c6c6', lightMode:true, brightness:1, glow:0.6},
@@ -394,7 +395,7 @@ const applyTheme=()=>{
   document.documentElement.style.setProperty('--bg', t.bg);
   document.documentElement.style.setProperty('--fg', t.fg);
   document.body.style.background=t.sky||t.bg; document.body.style.color=t.fg;
-  const b=document.getElementById('themeBtn'); if(b) b.textContent=t.name;
+  const b=document.getElementById('themeBtn'); if(b){b.title=t.night?'Switch to day (T)':'Switch to night (T)';b.setAttribute('aria-pressed',t.night?'true':'false')}
 };
 const camera=()=>{
 if(snapCam)return snapCam;
@@ -938,7 +939,7 @@ window.addEventListener('blur',()=>{for(const k in keys)keys[k]=false});
 /* top bar: view | sound | record. Car controls live in their own bar (#carBar, bottom centre) */
 const CAM_LABELS=['orbit','close','chase'];
 const topBar=document.createElement('div');topBar.id='topBar';
-topBar.innerHTML='<button type="button" id="themeBtn" title="Day / night (T)">night</button><button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
+topBar.innerHTML='<button type="button" id="camBtn" title="Camera (Shift)">orbit</button><button type="button" id="sndBtn" title="Sound (M)">sound</button><button type="button" id="recBtn" title="Record (R)">Rec <span id="recTime">60s</span></button>';
 document.body.appendChild(topBar);
 const carBar=document.createElement('div');carBar.id='carBar';
 carBar.innerHTML='<button type="button" id="gearBtn" title="Gear (Space)">4H</button><button type="button" id="autoBtn" title="Auto hi-lo range (G)">auto hi-lo</button><button type="button" id="hdcBtn" title="Hill Descent Control (H)">HDC auto</button>';
