@@ -513,15 +513,36 @@
 @media(max-width:768px){.tc{transform:translateY(16px)}.tc.on{transform:none}}
 /* solid-fill card: case-study preview + CTA bar */
 .tilted-card__front{--card-fill:#ececef;--card-ink:#0a0a0b;background:var(--card-fill);color:var(--card-ink)}
-.tc-body{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;padding:12px 12px 60px}
-.tc-frame{flex:none;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#0a0a0b;box-shadow:inset 0 0 0 1px rgba(10,10,11,.14)}
-.tc-frame iframe{position:absolute;left:0;top:0;width:800px;height:450px;border:0;transform-origin:0 0;pointer-events:none;background:#0a0a0b}
-.tc-text{padding:0 6px;display:flex;flex-direction:column}
+.tc-body{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;padding:12px 12px 58px}
+.tc-frame{flex:none;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#0a0a0b;box-shadow:inset 0 0 0 1px rgba(10,10,11,.14);isolation:isolate}
+.tc-frame iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;pointer-events:auto;background:#0a0a0b}
+.tc-text{padding:0 4px;display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
 .tc-body.nc{padding-bottom:12px}
 .tc-body.nf .tc-text{margin-top:auto;padding-bottom:8px}
-.tc-text .kicker{font:500 11px/1.2 Inter,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin-bottom:6px}
-.tc-text h3{font:700 1.35rem/1.15 Satoshi,Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 6px}
+.tc-text .kicker{font:500 11px/1.2 Inter,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin-bottom:5px}
+.tc-text h3{font:700 1.28rem/1.15 Satoshi,Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 5px}
 .tc-text p{font:400 13px/1.4 Inter,system-ui,sans-serif;margin:0;opacity:.78}
+
+/* secret recorder indicator — DOM only, never in canvas capture */
+#rec-indicator{
+  position:fixed;top:calc(18px + env(safe-area-inset-top,0px));right:calc(18px + env(safe-area-inset-right,0px));
+  z-index:9999;display:none;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:999px;
+  background:rgba(10,10,11,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  color:#ff3b30;font:500 10px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;
+  pointer-events:none;user-select:none;opacity:0;transform:translateY(-4px);
+  transition:opacity .25s ease,transform .3s cubic-bezier(.2,.9,.3,1)
+}
+#rec-indicator.on{display:flex;opacity:1;transform:none}
+#rec-indicator .rec-dot{
+  width:7px;height:7px;border-radius:50%;background:#ff3b30;
+  box-shadow:0 0 0 0 rgba(255,59,48,.45);animation:recPulse 1.35s ease-in-out infinite
+}
+#rec-indicator .rec-label{opacity:.9}
+@keyframes recPulse{
+  0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(255,59,48,.4)}
+  50%{opacity:.55;transform:scale(.88);box-shadow:0 0 0 6px rgba(255,59,48,0)}
+}
+@media(prefers-reduced-motion:reduce){#rec-indicator .rec-dot{animation:none}}
 .tc-badge{top:20px;left:20px;background:#0a0a0b;color:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}
 .tilted-card__handle,.tilted-card:hover .tilted-card__handle,.tilted-card[data-active] .tilted-card__handle,.tilted-card[data-dragging] .tilted-card__handle{background:rgba(10,10,11,.62)}
 .tilted-card__back p{margin:auto 0}
@@ -1955,13 +1976,26 @@ function createTiltedCard(opts) {
     </div>`;
   if (frameDoc || frameSrc) {
     const fr = document.createElement('iframe');
-    const live = !frameDoc, W = live ? 1280 : 800, H = live ? 720 : 450;   // live sites render as a desktop thumbnail
-    fr.tabIndex = -1; fr.setAttribute('aria-hidden', 'true');
-    if (live) { fr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); fr.src = frameSrc; }
-    else { fr.setAttribute('sandbox', ''); fr.srcdoc = frameDoc; }
-    fr.style.width = W + 'px'; fr.style.height = H + 'px';
-    fr.style.transform = `scale(${((containerWidth - 24) / W).toFixed(4)})`;
-    layer.querySelector('.tc-frame').appendChild(fr);
+    const live = !frameDoc;
+    const W = live ? 1280 : 800;
+    const H = live ? 720 : 450;
+    fr.setAttribute('title', (title || altText || 'Preview') + ' — interactive');
+    if (live) {
+      fr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+      fr.src = frameSrc;
+    } else {
+      fr.setAttribute('sandbox', '');
+      fr.srcdoc = frameDoc;
+      fr.tabIndex = -1;
+      fr.setAttribute('aria-hidden', 'true');
+    }
+    fr.style.width = W + 'px';
+    fr.style.height = H + 'px';
+    const scale = (containerWidth - 24) / W;
+    fr.style.transform = `scale(${scale.toFixed(4)})`;
+    const frameEl = layer.querySelector('.tc-frame');
+    frameEl.style.aspectRatio = W + ' / ' + H;
+    frameEl.appendChild(fr);
   }
   front.appendChild(layer);
 
@@ -2156,7 +2190,10 @@ function createTiltedCard(opts) {
     press.onHandle = false;
     figure.removeAttribute('data-dragging');
     if (e?.pointerType !== 'mouse' && e?.pointerType !== 'pen') pointer.inside = false;
-    if (!wasHandle && !moved && backContent && !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link')) toggleFlip();
+    if (!wasHandle && !moved && backContent &&
+        !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link, .tc-frame, iframe')) {
+      toggleFlip();
+    }
     wake();
   };
   window.addEventListener('pointerup', endPress, { passive: true });
@@ -2233,11 +2270,19 @@ const carousel = {
   cardH: 360,
   center() {
     const w = innerWidth, h = innerHeight;
-    this.cardW = Math.min(360, Math.max(260, w * 0.46));
-    this.cardH = Math.min(470, Math.max(430, h * 0.6));
+    const narrow = w < 720;
+    // Wider: fill most of the viewport on phone, stronger presence on desktop
+    this.cardW = narrow
+      ? Math.min(w - 28, Math.max(300, Math.round(w * 0.92)))
+      : Math.min(440, Math.max(340, Math.round(w * 0.38)));
+    // Tighter height so frame + copy + CTA pack without large empty regions
+    const fromWidth = Math.round(this.cardW * (narrow ? 1.38 : 1.28));
+    this.cardH = narrow
+      ? Math.min(Math.round(h * 0.74), Math.max(460, fromWidth))
+      : Math.min(540, Math.max(470, fromWidth));
     return {
       x: Math.round((w - this.cardW) / 2),
-      y: Math.round(h * 0.22)
+      y: Math.round(narrow ? h * 0.11 : h * 0.16)
     };
   },
   mount(i, dir = 0) {
@@ -2250,6 +2295,17 @@ const carousel = {
     }
     widgetsEl.innerHTML = '';
     const pos = this.center();
+    // Always offer a CTA: case-study drawer, or open the live site
+    let cta = null;
+    if (c.cs) {
+      cta = { label: 'See the case study', onClick: (btn) => cs.open(c.cs, btn) };
+    } else if (c.href) {
+      const host = c.href.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      cta = {
+        label: host.includes('zack.cx') ? 'Open site' : 'Visit site',
+        onClick: () => window.open(c.href, '_blank', 'noopener,noreferrer')
+      };
+    }
     this.card = createTiltedCard({
       frameDoc: c.cs ? cs.preview(c.cs) : '',
       frameSrc: c.frameSrc || '',
@@ -2260,7 +2316,7 @@ const carousel = {
       title: c.head,
       body: c.body,
       backContent: c.back,
-      cta: c.cs ? { label: 'See the case study', onClick: b => cs.open(c.cs, b) } : null,
+      cta,
       containerWidth: this.cardW,
       containerHeight: this.cardH,
       rotateAmplitude: 12,
@@ -2297,11 +2353,17 @@ addEventListener('keydown', e => {
 });
 addEventListener('resize', () => {
   if (!carousel.card) return;
+  const prevW = carousel.cardW, prevH = carousel.cardH;
   const pos = carousel.center();
+  // Remount when target size changes (orientation / large window change) so iframe scale stays correct
+  if (Math.abs(prevW - carousel.cardW) > 24 || Math.abs(prevH - carousel.cardH) > 24) {
+    carousel.mount(carousel.idx, 0);
+    return;
+  }
   // only snap back to center if still roughly centered (user hasn't dragged far)
   const r = carousel.card.el.getBoundingClientRect();
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (innerHeight * 0.22 + carousel.cardH / 2)) < 100) {
+  if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (innerHeight * 0.16 + carousel.cardH / 2)) < 120) {
     carousel.card.setPosition(pos.x, pos.y);
   }
 });
@@ -2652,6 +2714,101 @@ const portal = (() => {
     }
   };
 })();
+
+/* ------------------------------------------------------------------ *
+ *  Secret scene recorder — Shift + R
+ *  Captures only the WebGL canvas (portal + fracture scene).
+ *  The REC indicator is pure DOM, so it never appears in the file.
+ * ------------------------------------------------------------------ */
+const recIndicator = document.createElement('div');
+recIndicator.id = 'rec-indicator';
+recIndicator.setAttribute('aria-hidden', 'true');
+recIndicator.innerHTML = '<span class="rec-dot"></span><span class="rec-label">REC</span>';
+document.body.appendChild(recIndicator);
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+
+function pickRecorderMime() {
+  const candidates = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4'
+  ];
+  for (const t of candidates) {
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return '';
+}
+
+function startSceneRecord() {
+  if (isRecording || typeof MediaRecorder === 'undefined') return;
+  const mime = pickRecorderMime();
+  if (!mime) {
+    console.warn('[recorder] no supported MediaRecorder mime type');
+    return;
+  }
+  try {
+    const stream = renderer.domElement.captureStream(60);
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
+    mediaRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+    mediaRecorder.onstop = () => {
+      isRecording = false;
+      recIndicator.classList.remove('on');
+      if (!recordedChunks.length) return;
+      const blob = new Blob(recordedChunks, { type: mime.split(';')[0] || 'video/webm' });
+      recordedChunks = [];
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'zack-cx-scene-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.webm';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2500);
+      mediaRecorder = null;
+    };
+    mediaRecorder.onerror = () => {
+      isRecording = false;
+      recIndicator.classList.remove('on');
+      mediaRecorder = null;
+    };
+    mediaRecorder.start(250);
+    isRecording = true;
+    recIndicator.classList.add('on');
+  } catch (err) {
+    console.warn('[recorder]', err);
+    isRecording = false;
+    recIndicator.classList.remove('on');
+  }
+}
+
+function stopSceneRecord() {
+  if (!isRecording || !mediaRecorder) return;
+  try {
+    if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+  } catch (_) {}
+}
+
+function toggleSceneRecord() {
+  if (isRecording) stopSceneRecord();
+  else startSceneRecord();
+}
+
+addEventListener('keydown', e => {
+  if (e.shiftKey && (e.key === 'R' || e.key === 'r') && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    toggleSceneRecord();
+  }
+});
 
 /* Animation loop — polished timing & lens */
 const clock = new THREE.Clock();
