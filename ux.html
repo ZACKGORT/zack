@@ -2,26 +2,541 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>zack.cx</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>zack.cx — Frosted Glass + Case Studies</title>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
 <noscript><link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet" /></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;800&family=Major+Mono+Display&display=swap">
 <style>
-  :root { --ink: #121316; --paper: #f0f0f0; }
+  :root {
+    --ink: #121316;
+    --paper: #ececef;
+    --bg: #e4e4e7;
+    --fg: #0a0a0b;
+    --pill-bg: #0a0a0b;
+    --pill-fg: #f5f5f5;
+    --muted: rgba(10,10,11,.55);
+  }
   * { box-sizing: border-box; }
-  html, body { width: 100vw; height: 100%; margin: 0; padding: 0; overflow: hidden; }
-  body { background: var(--paper); color: var(--ink); user-select: none; -webkit-user-select: none;
-    font: 400 15px/1.4 "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
-  #err { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 30px; }
+  html, body {
+    width: 100vw; height: 100%; margin: 0; padding: 0; overflow: hidden;
+    background: var(--bg); color: var(--fg);
+    font: 400 15px/1.45 "Satoshi", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  canvas {
+    display: block; width: 100%; height: 100%; touch-action: none;
+    position: absolute; inset: 0;
+    opacity: 0; animation: canvasIn 1.4s cubic-bezier(.16,1,.3,1) .15s forwards;
+  }
+  @keyframes canvasIn { to { opacity: 1; } }
+  #err {
+    position: fixed; inset: 0; display: none; place-items: center;
+    text-align: center; padding: 30px; z-index: 100;
+    background: var(--bg); font-weight: 500;
+  }
 
-  /* swarm cursors: a crowd of multiplayer cursors that rebuilds the broken text */
+  /* swarm cursors */
   #swarm { position: fixed; inset: 0; z-index: 10; pointer-events: none; overflow: hidden; }
   #swarm .agent { position: absolute; left: 0; top: 0; opacity: 0; will-change: transform; }
-  #swarm .agent svg { position: absolute; left: 0; top: 0; overflow: visible;
-    filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.28)); }
+  #swarm .agent svg {
+    position: absolute; left: 0; top: 0; overflow: visible;
+    filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.22));
+  }
+
+  /* chrome */
+  a { color: var(--fg); text-decoration: none; pointer-events: all; }
+  .corner {
+    position: absolute; font-size: 12px; letter-spacing: .02em;
+    user-select: none; font-family: Inter, system-ui, sans-serif;
+    z-index: 20; color: var(--muted); line-height: 1.35;
+  }
+  .bl { bottom: calc(36px + env(safe-area-inset-bottom, 0px)); left: 36px; }
+  .br { bottom: calc(36px + env(safe-area-inset-bottom, 0px)); right: 36px; }
+  .mark {
+    position: absolute;
+    top: calc(36px + env(safe-area-inset-top, 0px)); left: 36px;
+    width: 26px; height: 26px;
+    border: 1.5px solid var(--fg); border-radius: 50%;
+    user-select: none; z-index: 20; opacity: .9;
+  }
+  .mark::after {
+    content: ""; position: absolute; inset: 6px;
+    background: var(--fg); border-radius: 50%;
+  }
+
+  /* info panel — refined motion */
+  .info {
+    position: absolute; top: 50%; left: 50%;
+    width: min(380px, 84vw);
+    transform: translate(-50%, -50%);
+    border-left: 1px solid rgba(10,10,11,.35);
+    padding-left: 36px;
+    user-select: none; pointer-events: none; z-index: 20;
+    font-family: Inter, system-ui, sans-serif;
+    opacity: 0;
+    transition: opacity .55s cubic-bezier(.16,1,.3,1);
+  }
+  .info.visible { opacity: 1; }
+  .info h1 {
+    font-family: "Major Mono Display", monospace;
+    font-size: 1.65em; margin: 0 0 .4em;
+    letter-spacing: .04em; color: var(--muted);
+  }
+  .info ul {
+    list-style: none; margin: 0; padding: 0;
+    overflow: hidden; display: flex; flex-direction: column;
+    opacity: 0; max-height: 0;
+    transition: opacity .5s cubic-bezier(.16,1,.3,1), max-height .7s cubic-bezier(.16,1,.3,1);
+  }
+  .info.open ul { opacity: 1; max-height: 720px; }
+  .info li { overflow: hidden; display: block; }
+  .info li > div {
+    opacity: 0; transform: translateY(110%);
+    transition: opacity .55s cubic-bezier(.16,1,.3,1), transform .55s cubic-bezier(.16,1,.3,1);
+    transition-delay: calc(var(--i) * .055s + .08s);
+  }
+  .info.open li > div { opacity: 1; transform: none; }
+  .info h3 {
+    font-weight: 800; font-size: 4.6em; letter-spacing: -3.5px;
+    line-height: .95em; margin: 0;
+  }
+  .info h4 {
+    font-weight: 300; font-size: 1.1em; letter-spacing: -.5px;
+    margin: 12px 0 8px; color: var(--muted);
+  }
+  .info p { font-size: 15px; line-height: 1.4em; margin: 0 0 .25em; color: var(--ink); }
+  .accent { -webkit-text-stroke: 1px var(--fg); color: transparent; }
+  .price {
+    display: inline-block;
+    font-family: "Major Mono Display", monospace;
+    background: var(--pill-bg); color: var(--pill-fg);
+    padding: 5px 11px; border-radius: 4px;
+    font-size: 13px; letter-spacing: .03em;
+  }
+  @media (max-width: 600px) {
+    .info h3 { font-size: 2.9em; letter-spacing: -1.5px; }
+    .info { padding-left: 22px; }
+    .bl, .br { font-size: 11px; }
+  }
+  /* overlay chrome inverts over the dark world */
+  .info { display: none; }
+  .corner, .mark { mix-blend-mode: difference; }
+  .info, .info h1, .info h3, .info h4, .info p, .corner { color: #fff; }
+  .info h1, .info h4, .corner { color: rgba(255,255,255,.62); }
+  .info { border-left-color: rgba(255,255,255,.5); }
+  .accent { -webkit-text-stroke-color: #fff; }
+  .mark { border-color: #fff; } .mark::after { background: #fff; }
+  /* movable tilted widget cards — live in the dark reality, clipped by the portal mask */
+  #ui {
+    position: fixed; inset: 0; z-index: 25; pointer-events: none; visibility: hidden;
+    color: #fff; font-family: Inter, system-ui, sans-serif;
+  }
+  #widgets {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  #x {
+    position: absolute;
+    top: calc(clamp(96px, 15vh, 150px) + env(safe-area-inset-top, 0px));
+    left: 50%; margin-left: -36px; width: 72px; height: 64px;
+    will-change: transform; pointer-events: auto;
+    background: none; border: 0; padding: 0; color: inherit; cursor: pointer;
+    opacity: .7; transition: opacity .2s;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #x:hover { opacity: 1; }
+  #x svg { stroke: currentColor; stroke-width: 1.25; fill: none; stroke-linecap: square; display: block; width: 22px; height: 22px; }
+  #x span { font-size: 11px; font-weight: 500; letter-spacing: .2em; margin-top: 8px; opacity: .85; }
+
+  /* carousel chrome — one card per frame */
+  #carousel-chrome {
+    position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    pointer-events: none; z-index: 26;
+  }
+  #carousel-chrome button {
+    pointer-events: auto; background: none; border: 0; padding: 10px 14px;
+    color: #fff; cursor: pointer; opacity: .7; transition: opacity .2s;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #carousel-chrome button:hover { opacity: 1; }
+  #carousel-chrome button:disabled { opacity: .25; cursor: default; }
+  #carousel-chrome svg { stroke: currentColor; stroke-width: 1.25; fill: none; stroke-linecap: square; width: 18px; height: 32px; display: block; }
+  #carousel-count {
+    font: 400 13px/1 "Major Mono Display", monospace;
+    letter-spacing: .08em; color: rgba(255,255,255,.7); min-width: 4.5em; text-align: center;
+    pointer-events: none;
+  }
+  #carousel-label {
+    position: absolute; top: calc(clamp(96px, 15vh, 150px) + env(safe-area-inset-top, 0px) + 72px);
+    left: 50%; transform: translateX(-50%);
+    font: 500 11px/1 Inter, system-ui, sans-serif;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: rgba(255,255,255,.55); pointer-events: none; white-space: nowrap;
+  }
+
+  /* —— TiltedCard (vanilla port of react-bits) —— */
+  .tilted-card {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    outline: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    pointer-events: auto;
+    cursor: grab;
+    z-index: 1;
+  }
+  .tilted-card[data-dragging] { cursor: grabbing; z-index: 30; }
+  .tilted-card[data-active] { z-index: 20; }
+  .tilted-card__shadow {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    max-width: 100%;
+    max-height: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    filter: blur(20px);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .tilted-card__body {
+    position: relative;
+    max-width: 100%;
+    max-height: 100%;
+    transform-style: preserve-3d;
+  }
+  .tilted-card__face {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: var(--tc-radius, 16px);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    isolation: isolate;
+    background: #121316;
+  }
+  .tilted-card__back {
+    transform: rotateY(180deg);
+    background: #0a0a0b;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 24px;
+    color: #ececef;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .tilted-card__img {
+    position: absolute;
+    display: block;
+    max-width: none;
+    object-fit: cover;
+    pointer-events: none;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .tilted-card__layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .tilted-card__img,
+  .tilted-card__layer {
+    transform: translate3d(
+      calc(var(--tc-px, 0) * var(--tc-depth, 0) * 1px),
+      calc(var(--tc-py, 0) * var(--tc-depth, 0) * 1px),
+      0
+    );
+  }
+  .tilted-card__glare {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: radial-gradient(
+      farthest-corner circle at var(--tc-gx, 50%) var(--tc-gy, 50%),
+      rgba(255, 255, 255, calc(var(--tc-glare, 0) * 0.34)) 0%,
+      rgba(255, 255, 255, calc(var(--tc-glare, 0) * 0.22)) 18%,
+      rgba(255, 255, 255, calc(var(--tc-glare, 0) * 0.08)) 36%,
+      rgba(255, 255, 255, 0) 60%
+    );
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+  .tilted-card__rim {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    pointer-events: none;
+  }
+  .tilted-card__edge {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    box-sizing: border-box;
+    padding: 1px;
+    border-radius: inherit;
+    background: radial-gradient(
+      farthest-side circle at var(--tc-gx, 50%) var(--tc-gy, 50%),
+      rgba(255, 255, 255, calc(var(--tc-glare, 0) * 0.7)) 0%,
+      rgba(255, 255, 255, calc(var(--tc-glare, 0) * 0.25)) 40%,
+      rgba(255, 255, 255, 0) 75%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    pointer-events: none;
+  }
+  .tilted-card:focus-visible .tilted-card__rim {
+    box-shadow:
+      inset 0 0 0 2px rgba(255, 255, 255, 0.7),
+      inset 0 0 0 3px rgba(0, 0, 0, 0.35);
+  }
+
+  /* drag handle */
+  .tilted-card__handle {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    width: 36px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.12);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    cursor: grab;
+    pointer-events: auto;
+    transition: background .2s, opacity .2s;
+    opacity: .55;
+  }
+  .tilted-card:hover .tilted-card__handle,
+  .tilted-card[data-active] .tilted-card__handle,
+  .tilted-card[data-dragging] .tilted-card__handle {
+    opacity: 1;
+    background: rgba(255,255,255,.22);
+  }
+  .tilted-card[data-dragging] .tilted-card__handle { cursor: grabbing; }
+  .tilted-card__handle span {
+    display: block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.85);
+  }
+
+  /* card content chrome */
+  .tc-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 22px 22px 20px;
+    background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.2) 45%, transparent 70%);
+    color: #fff;
+    pointer-events: none;
+  }
+  .tc-content .kicker {
+    font-size: 11px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    opacity: .7;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .tc-content h3 {
+    font: 700 1.35rem/1.15 Satoshi, Inter, system-ui, sans-serif;
+    letter-spacing: -.02em;
+    margin: 0 0 6px;
+  }
+  .tc-content p {
+    font-size: 13px;
+    line-height: 1.4;
+    margin: 0;
+    opacity: .85;
+    max-width: 28ch;
+  }
+  .tc-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    font: 500 11px/1 Inter, system-ui, sans-serif;
+    letter-spacing: .06em;
+    padding: 5px 9px;
+    border-radius: 6px;
+    background: rgba(255,255,255,.14);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    pointer-events: none;
+  }
+/* ---------- title card (case study widget) ---------- */
+.tc{
+  position:fixed;z-index:52;
+  top:calc(env(safe-area-inset-top,0px) + var(--cs-pad) + 0px);
+  left:calc(env(safe-area-inset-left,0px) + var(--cs-pad));
+  width:min(440px,calc(100vw - 2*var(--cs-pad)));
+  padding:22px 24px 20px;
+  background:color-mix(in srgb,var(--cs-bg) 92%,transparent);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  border:1px solid color-mix(in srgb,var(--cs-ink) 18%,transparent);
+  box-shadow:0 20px 50px rgba(0,0,0,.35);color:var(--cs-ink);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(-8px) scale(.98);transform-origin:top left;
+  transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1),visibility 0s .38s
+}
+.tc.on{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .26s ease,transform .38s cubic-bezier(.2,.9,.3,1),visibility 0s}
+.tc p,.tc h2{margin:0}
+.tc .tc-line{font:700 26px/1.05 var(--cs-sans);letter-spacing:-.03em;text-wrap:balance;margin-bottom:12px}
+.tc .tc-note{font:300 14px/1.6 var(--cs-sans);color:var(--cs-alt);text-wrap:pretty}
+.tc .tc-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--cs-ink) 18%,transparent);font-size:12px;letter-spacing:.06em;text-transform:uppercase;line-height:1;margin-bottom:14px}
+.tc .tc-links a{color:var(--cs-ink)}.tc .tc-links a:hover,.tc .tc-links a:focus-visible{color:var(--cs-pink)}
+.tc-bar{position:absolute;top:0;left:0;right:0;height:24px;cursor:grab;touch-action:none}
+.tc-grip{position:absolute;left:50%;top:9px;width:28px;height:3px;margin-left:-14px;background:var(--cs-ink);opacity:.22;transition:opacity .2s}
+.tc:hover .tc-grip,.tc.drag .tc-grip{opacity:.5}
+.tc-x{all:unset;position:absolute;top:5px;right:8px;width:20px;height:20px;cursor:pointer;color:var(--cs-alt);display:grid;place-items:center;z-index:2;transition:color .18s}
+.tc-x::before,.tc-x::after{content:"";position:absolute;width:9px;height:1px;background:currentColor;transform:rotate(45deg)}.tc-x::after{transform:rotate(-45deg)}
+.tc-x:hover,.tc-x:focus-visible{color:var(--cs-pink)}
+.tc-rs{position:absolute;right:3px;bottom:3px;width:16px;height:16px;color:var(--cs-ink);opacity:.3;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 52%,currentColor 52% 58%,transparent 58% 72%,currentColor 72% 78%,transparent 78%);transition:opacity .2s}
+.tc:hover .tc-rs{opacity:.55}.tc-rs:hover{opacity:.9}
+.tc.drag{box-shadow:0 28px 70px rgba(0,0,0,.45)}.tc.drag,.tc.drag *{cursor:grabbing!important}
+.tc .tc-line,.tc .tc-note,.tc .cs-k{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+
+/* case-study card specifics */
+.tc.cs{width:min(440px,calc(100vw - 2*var(--cs-pad)))}
+.cs .cs-k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;line-height:1.3;color:var(--cs-alt);margin:0 0 10px}
+.cs .cs-s{max-height:calc(100svh - 230px);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;margin:0 -10px 14px;padding:0 10px}
+.cs .cs-role{margin-bottom:12px}
+.cs .cs-role .tc-note{margin-bottom:6px;cursor:auto;touch-action:auto;-webkit-user-select:text;user-select:text}
+.cs .ac-d,.cs .ac-d2{margin:0;font:300 14px/1.6 var(--cs-sans);color:var(--cs-alt);text-wrap:pretty;padding:0 0 14px 34px;-webkit-user-select:text;user-select:text}
+.cs .cs-big{font:500 16px/1.4 var(--cs-sans);color:var(--cs-ink);text-wrap:balance;padding:0 0 10px 34px}
+.cs .cs-big+.ac-d2{padding-top:0}
+.cs .cs-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0 0 14px 34px}
+.cs .cs-g img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid color-mix(in srgb,var(--cs-ink) 18%,transparent);background:color-mix(in srgb,var(--cs-ink) 5%,var(--cs-bg));cursor:pointer;transition:outline-color .2s,opacity .2s}
+.cs .cs-g img:hover{opacity:.85}
+.cs .cs-g img.bgon{outline:2px solid var(--cs-pink);outline-offset:-2px}
+.cs .cs-g img:focus-visible{outline:2px solid var(--cs-pink);outline-offset:2px}
+
+/* accordion */
+.cs .ac-i{border-bottom:1px solid color-mix(in srgb,var(--cs-ink) 18%,transparent)}
+.cs .ac-h{margin:0;font:inherit}
+.cs .ac-h button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:34px 1fr auto;align-items:center;width:100%;padding:10px 0;font:500 14px/1.45 var(--cs-sans);color:var(--cs-ink);cursor:pointer;overflow-wrap:anywhere;transition:color .18s}
+.cs .ac-n{font-size:11px;font-weight:300;letter-spacing:.06em;color:var(--cs-alt);opacity:.7}
+.cs .ac-c{width:7px;height:7px;margin:0 4px 3px 0;border:solid currentColor;border-width:0 1.4px 1.4px 0;color:var(--cs-alt);transform:rotate(45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1),margin .22s}
+.cs .ac-h button[aria-expanded=true] .ac-c{transform:rotate(-135deg);margin:3px 4px 0 0}
+.cs .ac-h button:hover,.cs .ac-h button:focus-visible,.cs .ac-h button[aria-expanded=true]{color:var(--cs-pink)}
+.cs .ac-h button:hover .ac-c,.cs .ac-h button:focus-visible .ac-c,.cs .ac-h button[aria-expanded=true] .ac-c{color:inherit}
+.cs .ac-p{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s cubic-bezier(.2,.9,.3,1)}
+.cs .ac-p.on{grid-template-rows:1fr}
+.cs .ac-in{min-height:0;overflow:hidden}
+.cs .ac-bd{padding:2px 0 14px}
+
+/* jump button */
+.tc-jump{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:#FFD60A;color:#0e0d0e;font:500 12px/1 var(--cs-sans);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
+.tc-jump::after{content:"";flex:none;width:7px;height:7px;margin-right:3px;border:solid currentColor;border-width:0 1.4px 1.4px 0;transform:translateY(-2px) rotate(45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.tc-jump:hover,.tc-jump:focus-visible{background:transparent;color:#FFD60A;box-shadow:inset 0 0 0 1px #FFD60A}
+.tc-jump:hover::after,.tc-jump:focus-visible::after{transform:translateY(1px) rotate(45deg)}
+.tc-jump:focus-visible{outline:2px solid #FFD60A;outline-offset:2px}
+
+/* ---------- case-study background overlay ---------- */
+.csbg{position:fixed;inset:0;z-index:37;overflow:hidden;background:#0e0d0e;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .55s ease,visibility 0s .55s}
+.csbg.on{opacity:1;visibility:visible;transition:opacity .55s ease,visibility 0s}
+.csbg-i{position:absolute;left:-6%;top:-8%;width:112%;height:116%;background-position:center;background-size:cover;background-repeat:no-repeat;will-change:transform;transform:translate3d(0,0,0)}
+.csbg-l{position:absolute;inset:0;background-position:center;background-size:cover;background-repeat:no-repeat;opacity:0;transition:opacity .6s ease}
+.csbg-l.on{opacity:1}
+.csbg::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(14,13,14,.5),rgba(14,13,14,0) 24%,rgba(14,13,14,0) 68%,rgba(14,13,14,.45))}
+
+
+@media(prefers-reduced-motion:reduce){
+  .tc,.cs .ac-p,.cs .ac-c,.csbg,.csbg-l{transition:none}
+}
+@media(max-width:768px){
+  .tc{left:var(--cs-pad)!important;right:var(--cs-pad);top:auto!important;bottom:calc(env(safe-area-inset-bottom,0px) + var(--cs-pad));width:auto!important;max-height:min(78svh,calc(100svh - 2*var(--cs-pad) - 48px));overflow:auto;overscroll-behavior:contain;padding:18px 18px 16px;transform:translateY(16px);transform-origin:bottom center}
+  .tc.on{transform:none}
+  .tc .tc-rs,.tc .tc-bar{display:none}
+  .tc .tc-x{width:44px;height:44px;top:0;right:0}
+  .tc .tc-line{font-size:24px}
+  .cs .cs-s{max-height:none;overflow:visible;margin:0 0 14px;padding:0}
+}
+
+/* ---- headline navigation panel ---- */
+#navpanel{position:fixed;top:calc(36px + env(safe-area-inset-top,0px));right:36px;z-index:27;width:min(220px,44vw);mix-blend-mode:difference;color:#fff;font-family:Inter,system-ui,sans-serif}
+#navpanel ul{list-style:none;margin:0;padding:0;border-left:1px solid rgba(255,255,255,.28);transition:opacity .3s ease}
+#navpanel.busy ul{opacity:.4;pointer-events:none}
+#navpanel button{all:unset;box-sizing:border-box;display:grid;grid-template-columns:2.4em 1fr;align-items:baseline;width:100%;margin-left:-1px;padding:5px 0 5px 12px;border-left:1px solid transparent;color:rgba(255,255,255,.5);font:400 13px/1.3 Inter,system-ui,sans-serif;cursor:pointer;transition:color .2s,border-color .2s}
+#navpanel .n{font-size:10px;opacity:.7;letter-spacing:.04em}
+#navpanel .s{grid-column:2;font-size:11px;opacity:.7}
+#navpanel button:hover,#navpanel button[aria-current]{color:#fff}
+#navpanel button[aria-current]{border-left-color:#fff}
+#navpanel button:focus-visible{outline:1px solid #fff;outline-offset:2px}
+@media(max-width:600px){#navpanel{top:calc(20px + env(safe-area-inset-top,0px));right:18px}#navpanel button{font-size:12px;padding:4px 0 4px 10px}}
+/* ---- portal integration ---- */
+#carousel-edges{position:fixed;inset:0;z-index:26;pointer-events:none;visibility:hidden;opacity:0;mix-blend-mode:difference;color:#fff;transition:opacity .3s ease,visibility 0s .3s}
+#carousel-edges.on{visibility:visible;opacity:1;transition:opacity .3s ease,visibility 0s}
+#carousel-edges button{position:absolute;top:50%;transform:translateY(-50%);pointer-events:none;background:none;border:0;padding:20px 14px;color:inherit;cursor:pointer;opacity:.7;transition:opacity .2s;-webkit-tap-highlight-color:transparent}
+#carousel-edges.on button{pointer-events:auto}
+#carousel-edges button:hover,#carousel-edges button:focus-visible{opacity:1}
+#carousel-edges .prev{left:calc(10px + env(safe-area-inset-left,0px))}
+#carousel-edges .next{right:calc(10px + env(safe-area-inset-right,0px))}
+#carousel-edges svg{stroke:currentColor;stroke-width:1.25;fill:none;stroke-linecap:square;width:18px;height:32px;display:block}
+#ui{--cs-bg:#0e0d0e;--cs-ink:#f5f3ee;--cs-alt:#d7d4cd;--cs-pink:#FF8DA1;--cs-sans:'Satoshi',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;--cs-pad:12px}
+#widgets{z-index:1;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1)}
+#x,#carousel-chrome,#carousel-label{transition:opacity .3s ease}
+#ui.cs-open #widgets{opacity:0;transform:scale(.94);visibility:hidden;transition:opacity .3s ease,transform .4s cubic-bezier(.2,.9,.3,1),visibility 0s .4s}
+#ui.cs-open #x,#ui.cs-open #carousel-chrome,#ui.cs-open #carousel-label{opacity:0;visibility:hidden;transition:opacity .3s ease,visibility 0s .3s}
+.tc,.tc.on,.csbg,.csbg.on{visibility:inherit}
+.tc{position:absolute;z-index:30;top:12px;left:12px;font:300 16px/1.5 var(--cs-sans);transform-origin:center;transform:translateY(10px) scale(.98)}
+.tc.on{transform:none}
+.csbg{position:absolute;z-index:0}
+.tc a:focus-visible,.tc button:focus-visible,.tc [tabindex]:focus-visible{outline:2px solid var(--cs-pink);outline-offset:2px}
+@media(max-width:768px){.tc{transform:translateY(16px)}.tc.on{transform:none}}
+/* solid-fill card: case-study preview + CTA bar */
+.tilted-card__front{--card-fill:#ececef;--card-ink:#0a0a0b;background:var(--card-fill);color:var(--card-ink)}
+.tc-body{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;padding:12px 12px 60px}
+.tc-frame{flex:none;position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#0a0a0b;box-shadow:inset 0 0 0 1px rgba(10,10,11,.14)}
+.tc-frame iframe{position:absolute;left:0;top:0;width:800px;height:450px;border:0;transform-origin:0 0;pointer-events:none;background:#0a0a0b}
+.tc-text{padding:0 6px;display:flex;flex-direction:column}
+.tc-body.nc{padding-bottom:12px}
+.tc-body.nf .tc-text{margin-top:auto;padding-bottom:8px}
+.tc-text .kicker{font:500 11px/1.2 Inter,system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;opacity:.6;margin-bottom:6px}
+.tc-text h3{font:700 1.35rem/1.15 Satoshi,Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 6px}
+.tc-text p{font:400 13px/1.4 Inter,system-ui,sans-serif;margin:0;opacity:.78}
+.tc-badge{top:20px;left:20px;background:#0a0a0b;color:#fff;backdrop-filter:none;-webkit-backdrop-filter:none}
+.tilted-card__handle,.tilted-card:hover .tilted-card__handle,.tilted-card[data-active] .tilted-card__handle,.tilted-card[data-dragging] .tilted-card__handle{background:rgba(10,10,11,.62)}
+.tilted-card__back p{margin:auto 0}
+.tilted-card__link{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 -24px -24px;padding:15px 24px;background:#ececef;color:#0a0a0b;transition:background .2s}
+.tilted-card__link b{display:block;font:500 13px/1 Satoshi,Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.tilted-card__link small{display:block;margin-top:6px;font:400 11px/1 Inter,system-ui,sans-serif;opacity:.6}
+.tilted-card__link::after{content:"";flex:none;width:8px;height:8px;border:solid currentColor;border-width:1.5px 1.5px 0 0;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.tilted-card__link:hover,.tilted-card__link:focus-visible{background:#fff}
+.tilted-card__link:hover::after{transform:translate(2px,-2px)}
+.tilted-card__link:focus-visible{outline:2px solid #0a0a0b;outline-offset:-4px}
+.tilted-card__cta{all:unset;box-sizing:border-box;position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:space-between;padding:17px 20px;background:#0a0a0b;color:#fff;font:500 13px/1 Satoshi,Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s}
+.tilted-card__cta::after{content:"";flex:none;width:8px;height:8px;margin-right:3px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.tilted-card__cta:hover,.tilted-card__cta:focus-visible{background:#26272c}
+.tilted-card__cta:hover::after,.tilted-card__cta:focus-visible::after{transform:translateX(3px) rotate(-45deg)}
+.tilted-card__cta:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 </style>
 <script type="importmap">
 { "imports": {
@@ -31,6 +546,29 @@
 </script>
 </head>
 <body>
+<a class="corner bl" href="https://zack.cx/" target="_blank" rel="noopener">zack.cx<br>craft.experience</a>
+<div class="corner br">a.p.o.v.</div>
+<div class="info" id="info">
+  <h1>CX</h1>
+  <ul>
+    <li><div style="--i:0"><h3>UX IS</h3></div></li>
+    <li><div style="--i:1"><h3>“DEAD”</h3></div></li>
+    <li><div style="--i:2"><h4>Customer Experience</h4></div></li>
+    <li><div style="--i:3"><p>Year after year the interface has proven itself. Now our most trusted interaction returns with new fractures that make it more itself than ever. Meet the reliable, comfortable, always ready-to-rebuild zack.cx.</p></div></li>
+  </ul>
+</div>
+<div id="ui">
+  <div id="widgets"></div>
+  <div id="carousel-label"></div>
+  <div id="carousel-chrome">
+    <span id="carousel-count">01 / 06</span>
+  </div>
+  <button id="x" aria-label="Close"><svg viewBox="0 0 20 20"><path d="M2 2L18 18M18 2L2 18"/></svg><span>ESC</span></button>
+</div>
+<div id="carousel-edges" aria-label="Carousel">
+  <button type="button" class="chev prev" aria-label="Previous frame"><svg viewBox="0 0 18 32"><path d="M15 2L3 16l12 14"/></svg></button>
+  <button type="button" class="chev next" aria-label="Next frame"><svg viewBox="0 0 18 32"><path d="M3 2l12 14L3 30"/></svg></button>
+</div>
 <div id="swarm"></div>
 <div id="err"></div>
 
@@ -38,6 +576,18 @@
 import * as THREE from 'three';
 
 const errEl = document.getElementById('err');
+const info = document.getElementById('info');
+let navBusy = false;             // a headline selection is mid-flight
+let open = false;
+let openTarget = false;          // desired state (driven by fracture)
+let openDelay = 0;               // seconds remaining before we actually open
+const setOpen = v => {
+  open = v;
+  if (!v) cs.close(false);
+  info.classList.toggle('open', v);
+  info.classList.toggle('visible', v);
+};
+
 let RAPIER;
 try {
   RAPIER = (await import('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.12.0/rapier.es.js')).default;
@@ -48,22 +598,75 @@ try {
   throw e;
 }
 
-const HERO_PHRASES = ['ux is dead.', '¡viva la cx!'];
+/* Image helper — same CDN mapping as zack.cx */
+const AVIF = 'https://raw.githubusercontent.com/ZACKGORT/zack/main/avif/';
+const KEEP_GIF = new Set(['Z69xjMQY/tiktok-cat.gif', 'hsNwyLC/nav-1sec.gif', 'kDXnBz5/1-p-XU6-Sp-Y7-Mx-MKiyf-VI-976g.gif', '9qFzTQH/tiktok-proto-gif.gif']);
+const imgSrc = p => {
+  if (/^https?:/.test(p)) return p;
+  if (KEEP_GIF.has(p)) return 'https://i.ibb.co/' + p;
+  const m = p.match(/^([^/]+)\/(.+)\.[^.]+$/);
+  return m ? AVIF + m[1] + '_' + m[2] + '.avif' : AVIF + p;
+};
+
+/* One content card per carousel frame */
+const CARDS = [
+  {
+    frame: 'Hypothesis', letters: 'ux is dead.', frameSrc: 'https://zack.cx/', href: 'https://zack.cx/',
+    head: 'ux is dead.',
+    deke: 'Customer Experience',
+    body: 'Year after year the interface has proven itself. Now our most trusted interaction returns with new fractures that make it more itself than ever.',
+    back: 'The surface was never the point. Fracture is how the system proves it can be rebuilt — cleaner, sharper, more itself. Hypothesis: UX, as a siloed craft, is over. What remains is the whole experience.'
+  },
+  {
+    frame: 'Thesis', letters: '¡viva la cx!', frameSrc: 'https://zack.cx/4x4', href: 'https://zack.cx/4x4',
+    head: '¡viva la cx!',
+    deke: 'Long live the whole experience',
+    body: 'The interface was only ever the surface. What people remember is everything underneath: pacing, care, the way a thing breaks and gets put back together.',
+    back: 'Customer experience is the full arc — anticipation, friction, recovery, memory. Thesis: craft the whole thing, not just the screens.'
+  },
+  {
+    frame: 'Exhibit A', cs: 'fin', href: 'https://zack.cx/bny', letters: 'Financial Product',
+    head: 'BNY Mellon',
+    deke: 'Pershing X · Wove',
+    body: 'Senior UX / Product Design Lead. Unified disconnected legacy tools into one advisor dashboard. IA, flows, cross-module navigation — no AI, pure hand-mapping.',
+    back: 'Publicis Sapient · 2023–24. Wove launched with BNY scale and security so advisors work faster across modules without re-entry.'
+  },
+  {
+    frame: 'Exhibit B', cs: 'tt', href: 'https://zack.cx/tiktok', letters: 'B2B Enterprise',
+    head: 'TikTok For Business',
+    deke: 'Code & Theory · B2B/B2C',
+    body: 'Headless content architecture and intent-led journeys that merged a fragmented B2B network into one site — SMB click-through up 80%.',
+    back: 'One platform for every kind of advertiser. Editorial, intent-driven model for SMBs, enterprise, agencies and creators.'
+  },
+  {
+    frame: 'Exhibit C', cs: 'eco', href: 'https://zack.cx/gnc', letters: 'Ecommerce',
+    head: 'GNC',
+    deke: 'Elva Design Group · Ecommerce',
+    body: '12-week ground-up Shopify rebuild after bankruptcy: mobile-first nav, retail taxonomy, modular design system. Helped reclaim ~$500M annual revenue.',
+    back: 'Lead UX — IA, UI prototypes, design systems. Tight cadence with PM, dev, design and client stakeholders.'
+  },
+  {
+    frame: 'About / Contact', letters: 'zack gort',
+    head: 'zack gort',
+    deke: 'Product / UX designer',
+    body: 'I think about design and data as systems. I make websites for people to find, spend, and invest money. Then I design those experiences.',
+    back: 'If a creative team is hiring, LinkedIn is the quickest path: linkedin.com/in/zackgort — a short note and a real role is plenty. Résumé at zack.cx/cv'
+  }
+];
+const HERO_PHRASES = CARDS.map(c => c.letters);
 const LOGO_PHRASES = ['zack.cx'];
 const VERBS = ['rebuild', 'reshape', 'reframe', 'reapproach', 'refactor', 'recognize'];
-const HERO_WIDTH = 8.4;     // world units
+const HERO_WIDTH = 8.4;
 const LOGO_WIDTH = 2.4;
-const BASE_DEPTH = 0.36;    // extrusion at hero scale
-const EXPLODE_FORCE = 1.1;  // gentle nudge, gravity does the work
+const BASE_DEPTH = 0.36;
+const EXPLODE_FORCE = 1.1;
 const nowSec = () => performance.now() / 1000;
 const IDENT = new THREE.Quaternion();
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const easeOut = t => 1 - Math.pow(1 - t, 3);
 
-/* Swarm cursors. The cursor shapes and the idea of a crowd of multiplayer
- * cursors building a page are adapted from Joel Califa's Swarm
- * (https://califa.github.io/swarm-site/). */
+/* Swarm cursors adapted from Joel Califa's Swarm */
 const swarmEl = document.getElementById('swarm');
 const AGENT_COLORS = ['#F24E1E', '#A259FF', '#1ABCFE', '#0ACF83', '#FF7262', '#FFC700',
                       '#E8467C', '#0D99FF', '#FF8A00', '#14AE5C', '#9747FF', '#00B5CE'];
@@ -76,10 +679,8 @@ const AGENT_SHAPES = {
 };
 
 /* ------------------------------------------------------------------ *
- *  Convex solids. A solid is a list of convex "parts"; a part is a
- *  list of polygon faces.
+ *  Convex solids geometry helpers
  * ------------------------------------------------------------------ */
-//@@GEOM_START
 const EPS = 1e-6;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 
@@ -98,7 +699,6 @@ function orient(pts, normal) {
   return pts;
 }
 
-// Keep the half-space n·x <= d. New cut faces are tagged `inner`.
 function clip(faces, n, d, inner) {
   const out = [];
   for (const f of faces) {
@@ -186,9 +786,6 @@ function maxDist(faces, c) {
   return Math.sqrt(m);
 }
 
-// Voronoi cells of `seeds`, each cell = every convex part clipped by bisector
-// planes. Neighbours are visited nearest-first and we stop as soon as the next
-// bisector lies outside the cell, so the result is exact but cheap.
 function voronoiCells(parts, seeds, minVol) {
   const cells = [];
   for (let i = 0; i < seeds.length; i++) {
@@ -217,7 +814,6 @@ function voronoiCells(parts, seeds, minVol) {
   return cells;
 }
 
-// well-spread random points inside a solid (best-candidate sampling)
 function spreadSeeds(parts, n, margin = 0.003) {
   const infos = parts.map(p => {
     const box = new THREE.Box3();
@@ -259,7 +855,6 @@ function hullPoints(faces) {
   }
   return new Float32Array(arr);
 }
-//@@GEOM_END
 
 function boxFaces(h) {
   const axes = [V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)];
@@ -283,10 +878,7 @@ function boxFaces(h) {
 
 /* ------------------------------------------------------------------ *
  *  Text -> convex prisms
- *  The phrase is drawn in Satoshi on a canvas, traced into outlines
- *  (marching squares), triangulated, and merged into convex pieces.
  * ------------------------------------------------------------------ */
-//@@TRACE_START
 function marchingSquares(a, W, H) {
   const at = (x, y) => a[y * W + x];
   const segs = new Map(), pos = new Map();
@@ -367,7 +959,6 @@ function simplifyClosed(pts, eps) {
   const b = dpOpen(pts.slice(f).concat([pts[0]]), eps);
   return a.slice(0, -1).concat(b.slice(0, -1));
 }
-//@@TRACE_END
 
 function traceWord(word, size = 3.3) {
   const F = 400, pad = 40;
@@ -410,7 +1001,6 @@ function pointInPoly(pt, poly) {
   return inside;
 }
 
-// glue triangles back together into larger convex polygons (fewer parts)
 function mergeConvex(verts, tris) {
   const P = i => verts[i];
   const polys = [];
@@ -459,7 +1049,6 @@ function mergeConvex(verts, tris) {
   }).filter(pts => pts.length >= 3);
 }
 
-// extrude a convex CCW polygon into a convex prism
 function prismPart(pts, depth) {
   const h = depth / 2, faces = [];
   faces.push({ pts: pts.map(p => V(p.x, p.y, h)), inner: false });
@@ -476,7 +1065,6 @@ function prismPart(pts, depth) {
 
 function contoursToParts(contours, depth) {
   if (!contours.length) return null;
-  // outer shapes share one winding direction, counters (holes) the other
   const biggest = contours.reduce((m, c) => Math.abs(area2(c)) > Math.abs(area2(m)) ? c : m);
   const outerSign = Math.sign(area2(biggest));
   const outers = contours.filter(c => Math.sign(area2(c)) === outerSign).map(c => ({ c, holes: [] }));
@@ -493,23 +1081,64 @@ function contoursToParts(contours, depth) {
   return parts.length ? parts : null;
 }
 
-// a phrase as centred convex prisms, scaled to `width`
-function phraseParts(phrase, width, depth) {
+const _sc = new Map(), _pp = new Map();
+function scaledContours(phrase, width) {
+  const k = phrase + '|' + width;
+  if (!_sc.has(k)) _sc.set(k, scaledContoursRaw(phrase, width));
+  return _sc.get(k);
+}
+function scaledContoursRaw(phrase, width) {
   const contours = traceWord(phrase);
   if (!contours.length) return null;
   const box = new THREE.Box2();
   contours.forEach(c => c.forEach(p => box.expandByPoint(p)));
   const s = width / (box.max.x - box.min.x);
   const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
-  const scaled = contours.map(c => c.map(p => new THREE.Vector2((p.x - cx) * s, (p.y - cy) * s)));
-  return contoursToParts(scaled, depth);
+  return contours.map(c => c.map(p => new THREE.Vector2((p.x - cx) * s, (p.y - cy) * s)));
 }
 
+function phraseParts(phrase, width, depth) {
+  const k = phrase + '|' + width + '|' + depth;
+  if (!_pp.has(k)) { const sc = scaledContours(phrase, width); _pp.set(k, sc ? contoursToParts(sc, depth) : null); }
+  return _pp.get(k);
+}
+
+/* Unfractured "ghost" of a phrase: the extruded word as 3D edges + a faint cap fill.
+   Same contours, width and depth as phraseParts, so it sits exactly where the swarm rebuilds the word. */
+function phraseGhost(phrase, width, depth) {
+  const contours = scaledContours(phrase, width);
+  if (!contours) return null;
+  const h = depth / 2, unit = width / HERO_WIDTH, pos = [];
+  for (const c of contours) {
+    const n = c.length;
+    let run = 0;
+    for (let i = 0; i < n; i++) {
+      const a = c[i], b = c[(i + 1) % n], p = c[(i + n - 1) % n];
+      pos.push(a.x, a.y, h, b.x, b.y, h, a.x, a.y, -h, b.x, b.y, -h);
+      run += a.distanceTo(p);
+      const ux = a.x - p.x, uy = a.y - p.y, vx = b.x - a.x, vy = b.y - a.y;
+      const cos = (ux * vx + uy * vy) / ((Math.hypot(ux, uy) * Math.hypot(vx, vy)) || 1);
+      if (cos < 0.8 || run > 0.3 * unit) { pos.push(a.x, a.y, h, a.x, a.y, -h); run = 0; }   // corners + sparse ribs on curves
+    }
+  }
+  const lineGeo = new THREE.BufferGeometry();
+  lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+
+  const fill = [];
+  const parts = phraseParts(phrase, width, depth) || [];
+  for (const part of parts) for (const f of part.slice(0, 2)) {       // front + back caps (non-overlapping convex polys)
+    const q = f.pts;
+    for (let i = 1; i < q.length - 1; i++) for (const v of [q[0], q[i], q[i + 1]]) fill.push(v.x, v.y, v.z);
+  }
+  const fillGeo = new THREE.BufferGeometry();
+  fillGeo.setAttribute('position', new THREE.Float32BufferAttribute(fill, 3));
+  return { lineGeo, fillGeo };
+}
 
 /* ------------------------------------------------------------------ *
- *  Shared look: black coating outside, colour-by-normal inside
+ *  Shared look + frosted glass lens
  * ------------------------------------------------------------------ */
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio, 1), 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.setClearColor(0x000000, 0);
@@ -517,9 +1146,15 @@ renderer.autoClear = false;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.prepend(renderer.domElement);
 
-const outerMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.5, metalness: 0 });
+// Shared materials — slight polish on the outer shell
+const outerMat = new THREE.MeshStandardMaterial({
+  color: 0x0a0a0b, roughness: 0.42, metalness: 0.08,
+  envMapIntensity: 0.6
+});
 const innerMat = new THREE.MeshNormalMaterial();
 
 function buildGeometry(faces) {
@@ -557,21 +1192,41 @@ const ease = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 const ray = new THREE.Raycaster();
 
+/* Soft white mask disc — occludes fragments under the cursor so overlay text stays clean. */
+const lensMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  transmission: 0.04,
+  thickness: 0.5,
+  roughness: 0.62,
+  ior: 1.4,
+  metalness: 0,
+  transparent: true,
+  opacity: 0,
+  side: THREE.DoubleSide,
+  depthWrite: true,
+  attenuationColor: new THREE.Color(0xffffff),
+  attenuationDistance: 0.25,
+  clearcoat: 0.08,
+  clearcoatRoughness: 0.7
+});
+const lens = new THREE.Mesh(new THREE.CircleGeometry(1, 96), lensMat);
+lens.position.z = 9;
+lens.scale.setScalar(0.01);
+lens.renderOrder = 10;
+lens.frustumCulled = false;
+
 /* ------------------------------------------------------------------ *
- *  A block of text that can fracture. Each block owns its own scene,
- *  camera and physics world, so the logo stays pinned to the corner
- *  while the hero camera drifts.
- *  States: intact -> fractured -> reassembling -> intact (next phrase)
+ *  TextBlock class (hero + logo)
  * ------------------------------------------------------------------ */
 class TextBlock {
   constructor({ kind, phrases, width, cells, swarmSize }) {
-    this.kind = kind;                       // 'hero' | 'logo'
+    this.kind = kind;
     this.phrases = phrases;
     this.width = width;
-    this.unit = width / HERO_WIDTH;         // size relative to the hero
+    this.unit = width / HERO_WIDTH;
     this.depth = BASE_DEPTH * this.unit * (kind === 'logo' ? 1.4 : 1);
     this.cells = cells;
-    this.swarmSize = swarmSize;             // how many cursors rebuild this block
+    this.swarmSize = swarmSize;
     this.hitPad = kind === 'hero' ? 26 : 16;
 
     this.scene = new THREE.Scene();
@@ -580,17 +1235,24 @@ class TextBlock {
     this.camTarget = V(0, 0, 20);
     this.lookAt = V(0, 0, 0);
 
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xc9ccd3, 1.0));
-    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-    sun.position.set(4, 10, 9);
+    // Soft studio lighting
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0xb8bcc6, 0.95));
+    const sun = new THREE.DirectionalLight(0xfff8f0, 2.0);
+    sun.position.set(5, 11, 8);
     this.scene.add(sun);
+    // Fill from the opposite side so fracture faces read clearly
+    const fill = new THREE.DirectionalLight(0xe8ecf8, 0.55);
+    fill.position.set(-6, 4, -3);
+    this.scene.add(fill);
+
     this.shadows = kind === 'hero';
     if (this.shadows) {
       sun.castShadow = true;
       sun.shadow.mapSize.set(2048, 2048);
       Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 40 });
-      sun.shadow.bias = -0.0004;
-      sun.shadow.normalBias = 0.02;
+      sun.shadow.bias = -0.00035;
+      sun.shadow.normalBias = 0.018;
+      sun.shadow.radius = 2.5;
     }
 
     this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
@@ -599,18 +1261,23 @@ class TextBlock {
     if (this.shadows) {
       this.catcher = new THREE.Mesh(
         new THREE.PlaneGeometry(90, 90).rotateX(-Math.PI / 2),
-        new THREE.ShadowMaterial({ opacity: 0.14 })
+        new THREE.ShadowMaterial({ opacity: 0.16 })
       );
       this.catcher.receiveShadow = true;
       this.scene.add(this.catcher);
     }
 
+    // Frosted lens lives only in the hero scene
+    if (kind === 'hero') {
+      this.scene.add(lens);
+    }
+
     this.pieces = [];
-    this.pending = [];     // fragments held in place until the crumble reaches them
-    this.agents = [];      // the swarm: cursors carrying fragments back into place
-    this.queue = [];       // rebuild tasks nobody has picked up yet
-    this.built = [];       // meshes the swarm has put in place so far
-    this.remaining = 0;    // tasks not yet finished
+    this.pending = [];
+    this.agents = [];
+    this.queue = [];
+    this.built = [];
+    this.remaining = 0;
     this.state = 'intact';
     this.phraseIdx = 0;
     this.angled = false;
@@ -618,7 +1285,8 @@ class TextBlock {
     this.rootVol = 1;
     this.nextParts = null;
     this.intactBox = null;
-    this.maxPieces = Math.round(cells * 5);
+    // Tighter cap keeps frame rate stable after heavy fractures
+    this.maxPieces = Math.round(cells * 3.8);
   }
 
   setGroundY(y) {
@@ -628,7 +1296,6 @@ class TextBlock {
     if (this.catcher) this.catcher.position.y = y;
   }
 
-  /* ---- layout ---- */
   layout(heroZoom) {
     const w = innerWidth, h = innerHeight, c = this.camera;
     c.left = -w / 2; c.right = w / 2; c.top = h / 2; c.bottom = -h / 2;
@@ -637,14 +1304,13 @@ class TextBlock {
       this.setGroundY(-1.75);
       this.baseView = V(0, 0, 20);
     } else {
-      const px = Math.max(92, Math.min(140, w * 0.1));       // logo width on screen
+      const px = Math.max(92, Math.min(140, w * 0.1));
       const margin = w < 560 ? 18 : 28;
       c.zoom = px / this.width;
       const size = this.intactBox ? this.intactBox.getSize(V()) : V(this.width, this.width * 0.25, 0);
       const cx = -w / 2 + margin + px / 2;
       const cy = h / 2 - margin - (size.y * c.zoom) / 2;
-      this.baseView = V(-cx / c.zoom, -cy / c.zoom, 20);       // logo sits at world origin
-      // same on-screen fall speed as the hero, and the floor is the bottom of the window
+      this.baseView = V(-cx / c.zoom, -cy / c.zoom, 20);
       this.world.gravity = { x: 0, y: -9.81 * heroZoom / c.zoom, z: 0 };
       this.setGroundY(this.baseView.y - h / 2 / c.zoom + 0.02);
       this.camTarget.copy(this.baseView);
@@ -652,7 +1318,6 @@ class TextBlock {
     c.updateProjectionMatrix();
   }
 
-  /* ---- pieces ---- */
   makeMesh(geometry) {
     const mesh = new THREE.Mesh(geometry, [outerMat, innerMat]);
     mesh.castShadow = this.shadows;
@@ -712,7 +1377,6 @@ class TextBlock {
     this.addPiece(parts, m.vol, V(), IDENT, true);
   }
 
-  /* ---- interaction helpers ---- */
   hits(x, y) {
     if (!this.intactBox) return false;
     const c = this.camera;
@@ -733,7 +1397,6 @@ class TextBlock {
     return ray.ray.intersectPlane(plane, out) ? out : V();
   }
 
-  /* ---- intact -> crumble ---- */
   breakAll(hit) {
     if (this.state !== 'intact') return;
     const piece = this.pieces[0];
@@ -754,7 +1417,6 @@ class TextBlock {
       const k = EXPLODE_FORCE * u * m.vol / (1 + dn * 0.5);
       const imp = { x: dir.x * k, y: dir.y * k + k * 0.05, z: dir.z * k + k * 0.35 };
       const tq = { x: (Math.random() - 0.5) * k * 0.2, y: (Math.random() - 0.5) * k * 0.2, z: (Math.random() - 0.5) * k * 0.2 };
-      // hold the piece, then let go as the crack front passes
       this.pending.push({ body: np.body, at: now + dn * 0.085 + Math.random() * 0.18, imp, tq });
     }
     this.trimPieces();
@@ -762,17 +1424,16 @@ class TextBlock {
     this.setState('fractured');
   }
 
-  /* ---- fractured -> swarm rebuilds the next phrase ---- */
   startReassembly() {
     if (this.state !== 'fractured') return;
     this.pending.length = 0;
     this.setState('reassembling');
     const myEpoch = this.epoch;
-    // let the browser repaint before the (short) heavy part
     setTimeout(() => {
       if (myEpoch !== this.epoch) return;
       const u = this.unit;
-      const nextPhrase = this.phrases[(this.phraseIdx + 1) % this.phrases.length];
+      this.nextIdx = this.pickIdx ? this.pickIdx() : (this.phraseIdx + 1) % this.phrases.length;
+      const nextPhrase = this.phrases[this.nextIdx];
       this.nextParts = phraseParts(nextPhrase, this.width, this.depth);
       if (!this.nextParts) { this.setState('fractured'); return; }
       const m = metricsParts(this.nextParts);
@@ -780,7 +1441,6 @@ class TextBlock {
       const targets = voronoiCells(this.nextParts, spreadSeeds(this.nextParts, N, 0.003 * u), m.vol * 0.0002)
         .map(c => ({ geo: buildGeometry(recentreParts(c.parts, c.m.centroid).flat()), p1: c.m.centroid.clone() }));
 
-      // pair loose fragments with the cells of the new phrase, left to right
       const cur = [...this.pieces].sort((a, b) => a.mesh.position.x - b.mesh.position.x);
       targets.sort((a, b) => a.p1.x - b.p1.x);
       const bulge = () => V((Math.random() - 0.5) * 1.2 * u, (Math.random() - 0.5) * 1.2 * u, (1 + Math.random() * 1.6) * u);
@@ -789,15 +1449,13 @@ class TextBlock {
       for (let i = 0; i < paired; i++) {
         tasks.push({ mode: 'move', piece: cur[i], p1: targets[i].p1, geo: targets[i].geo, bulge: bulge() });
       }
-      // more fragments than cells: the extras get carried over and dissolve into the build
       for (let i = paired; i < cur.length; i++) {
         tasks.push({ mode: 'vanish', piece: cur[i], p1: targets[Math.floor(Math.random() * targets.length)].p1.clone(), geo: null, bulge: bulge() });
       }
-      // more cells than fragments: a cursor draws the missing ones in place
       for (let i = paired; i < targets.length; i++) {
         tasks.push({ mode: 'spawn', piece: null, p1: targets[i].p1, geo: targets[i].geo, bulge: null });
       }
-      tasks.sort((a, b) => a.p1.x - b.p1.x);     // the phrase builds left to right
+      tasks.sort((a, b) => a.p1.x - b.p1.x);
       this.queue = tasks;
       this.built = [];
       this.remaining = tasks.length;
@@ -806,7 +1464,6 @@ class TextBlock {
     }, 30);
   }
 
-  /* ---- the swarm ---- */
   toScreen(v) {
     const p = v.clone().project(this.camera);
     return { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight };
@@ -817,7 +1474,6 @@ class TextBlock {
     const w = innerWidth, h = innerHeight, now = nowSec();
     const palette = Math.floor(Math.random() * AGENT_COLORS.length);
     for (let i = 0; i < count; i++) {
-      // each cursor flies in from a random point just outside the window
       const side = Math.floor(Math.random() * 4), r = Math.random();
       const x = side === 0 ? -40 : side === 1 ? w + 40 : r * w;
       const y = side === 2 ? -40 : side === 3 ? h + 40 : r * h;
@@ -838,20 +1494,18 @@ class TextBlock {
     }
   }
 
-  // where a cursor has to be to start on a task (screen px); null = nothing left to do
   pickup(t) {
     if (t.mode !== 'spawn' && !this.pieces.includes(t.piece)) {
       if (t.mode === 'vanish') return null;
-      t.mode = 'spawn';                        // the fragment is gone, so draw the cell in place
+      t.mode = 'spawn';
     }
     if (t.mode === 'spawn') {
       const s = this.toScreen(t.p1);
-      return { x: s.x - 16, y: s.y - 16 };     // drag out the box from its top-left corner
+      return { x: s.x - 16, y: s.y - 16 };
     }
     return this.toScreen(t.piece.mesh.position);
   }
 
-  // the nearest of the next few tasks in the left-to-right queue
   claim(a) {
     while (this.queue.length) {
       const head = Math.min(6, this.queue.length);
@@ -868,7 +1522,6 @@ class TextBlock {
     return null;
   }
 
-  // steer toward a point: curved, eased approach, with a bit of personal space
   steer(a, tx, ty, dt, boost = 1) {
     const dx = tx - a.x, dy = ty - a.y, dist = Math.hypot(dx, dy) || 1e-6;
     const nx = dx / dist, ny = dy / dist;
@@ -889,7 +1542,6 @@ class TextBlock {
     a.x += a.vx * dt; a.y += a.vy * dt;
   }
 
-  // glue the cursor to a point (it is holding something)
   hold(a, x, y, dt) {
     const d = Math.max(dt, 1e-3);
     a.vx += ((x - a.x) / d - a.vx) * 0.3;
@@ -924,7 +1576,6 @@ class TextBlock {
       a.state = 'draw';
       return;
     }
-    // pick the fragment up: it leaves the physics world and follows the cursor
     const piece = t.piece, tr = piece.body.translation(), r = piece.body.rotation();
     t.p0 = V(tr.x, tr.y, tr.z);
     t.q0 = new THREE.Quaternion(r.x, r.y, r.z, r.w);
@@ -982,7 +1633,7 @@ class TextBlock {
         const t = a.task, k = clamp((now - t.t0) / t.dur, 0, 1), e = easeOut(k);
         t.mesh.scale.setScalar(Math.max(0.001, e));
         const c = this.toScreen(t.p1);
-        this.hold(a, c.x - 16 + 32 * e, c.y - 16 + 32 * e, dt);   // the crosshair drags the box out
+        this.hold(a, c.x - 16 + 32 * e, c.y - 16 + 32 * e, dt);
         a.press = Math.min(1, a.press + dt * 10);
         if (k >= 1) { a.state = 'settle'; a.stateT = now; }
         break;
@@ -1034,16 +1685,17 @@ class TextBlock {
     for (const m of this.built) { this.scene.remove(m); m.geometry.dispose(); }
     this.built = [];
     this.queue = [];
-    this.phraseIdx = (this.phraseIdx + 1) % this.phrases.length;
+    this.phraseIdx = this.nextIdx;
     this.spawnIntact(this.nextParts);
     this.nextParts = null;
     this.angled = false;
     const now = nowSec();
     for (const a of this.agents) if (a.state !== 'exit') this.leave(a, now);
     this.setState('intact');
+    if (this.kind === 'hero' && typeof rebuildGhost === 'function') rebuildGhost();
+    if (this.kind === 'hero') navBusy = false;
   }
 
-  /* ---- per frame ---- */
   step() {
     this.world.step();
     for (const p of [...this.pieces]) {
@@ -1067,26 +1719,36 @@ class TextBlock {
     }
   }
 
-  render(dt) {
+  update(dt) {
     if (this.kind === 'hero') {
-      this.camTarget.set(this.angled ? -8 : 0, this.angled ? 5 : 0, 20);
-      this.camera.position.lerp(this.camTarget, 0.07);
+      // Gentle cinematic drift when fractured; settled when intact/rebuilding
+      const ax = this.angled ? -6.5 : 0;
+      const ay = this.angled ? 3.8 : 0;
+      this.camTarget.set(ax, ay, 20);
+      // Slightly slower, more deliberate camera
+      this.camera.position.x = damp(this.camera.position.x, this.camTarget.x, 0.55, dt);
+      this.camera.position.y = damp(this.camera.position.y, this.camTarget.y, 0.55, dt);
+      this.camera.position.z = 20;
       this.camera.lookAt(0, 0, 0);
     } else {
       this.camera.position.copy(this.baseView);
       this.camera.lookAt(this.baseView.x, this.baseView.y, 0);
     }
     this.updateSwarm(dt);
+  }
+
+  draw() {
     renderer.clearDepth();
     renderer.render(this.scene, this.camera);
   }
 }
 
 /* ------------------------------------------------------------------ *
- *  The page: a hero block and a logo block
+ *  Page setup
  * ------------------------------------------------------------------ */
 const hero = new TextBlock({ kind: 'hero', phrases: HERO_PHRASES, width: HERO_WIDTH, cells: 72, swarmSize: 20 });
 const logo = new TextBlock({ kind: 'logo', phrases: LOGO_PHRASES, width: LOGO_WIDTH, cells: 30, swarmSize: 7 });
+hero.pickIdx = () => carousel.idx;
 const blocks = [hero, logo];
 
 function layoutAll() {
@@ -1095,30 +1757,35 @@ function layoutAll() {
   logo.layout(hero.camera.zoom);
 }
 
-/* ------------------------------------------------------------------ *
- *  Interaction: click the text to break it, click again to send the swarm in
- * ------------------------------------------------------------------ */
+/* Interaction */
 function hoveredBlock(x, y) {
   for (const b of [logo, hero]) if (b.state === 'intact' && b.hits(x, y)) return b;
   return null;
 }
 
 let downAt = null;
-renderer.domElement.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerdown', e => {
+  downAt = { x: e.clientX, y: e.clientY };
+});
 renderer.domElement.addEventListener('pointerup', e => {
   const moved = downAt ? Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) : 99;
   downAt = null;
   if (moved > 10) return;
+  if (open && portal.hit(e.clientX, e.clientY)) return;
   const hb = hoveredBlock(e.clientX, e.clientY);
   if (hb) hb.breakAll(hb.pointerToWorld(e.clientX, e.clientY));
-  else for (const b of blocks) if (b.state === 'fractured') b.startReassembly();
+  else collapse();
+});
+
+/* Pointer for lens */
+const ptr = new THREE.Vector2();
+addEventListener('pointermove', e => {
+  ptr.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 });
 
 addEventListener('resize', layoutAll);
 
-/* ------------------------------------------------------------------ *
- *  Start (wait for Satoshi so the traced outlines match it)
- * ------------------------------------------------------------------ */
+/* Font prep */
 async function prepFont() {
   try {
     const link = document.querySelector('link[href*="fontshare"][rel="stylesheet"]');
@@ -1147,19 +1814,915 @@ for (const b of blocks) {
 layoutAll();
 
 /* ------------------------------------------------------------------ *
- *  Loop
+ *  Ghost outline of the current hero phrase (inside portal only)
  * ------------------------------------------------------------------ */
+const ghostRoot = new THREE.Group();
+ghostRoot.visible = false;
+hero.scene.add(ghostRoot);
+const SLIDE = HERO_WIDTH * 0.95;          // world units: starts outside the portal disc
+let ghosts = [], ghostIdx = -1;
+function makeGhost(idx, x) {
+  const g = phraseGhost(hero.phrases[idx], hero.width, hero.depth);
+  if (!g) return null;
+  const common = {
+    transparent: true, opacity: 0, depthTest: false, depthWrite: false,
+    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc
+  };
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, ...common });
+  const fillMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, ...common });
+  const group = new THREE.Group();
+  const fill = new THREE.Mesh(g.fillGeo, fillMat);
+  const lines = new THREE.LineSegments(g.lineGeo, lineMat);
+  fill.renderOrder = 20; lines.renderOrder = 21;
+  fill.frustumCulled = lines.frustumCulled = false;
+  group.add(fill, lines);
+  group.position.x = x;
+  ghostRoot.add(group);
+  return { group, lineMat, fillMat, a: 0, x, tx: 0, leaving: false };
+}
+function dropGhost(o) {
+  ghostRoot.remove(o.group);
+  o.group.traverse(n => { n.geometry?.dispose(); n.material?.dispose(); });
+  ghosts = ghosts.filter(q => q !== o);
+}
+/* dir: +1 = next (new word enters from the right), -1 = prev (from the left), 0 = swap in place */
+function setGhost(idx, dir = 0) {
+  if (idx === ghostIdx && ghosts.some(o => !o.leaving)) return;
+  for (const o of [...ghosts]) {
+    if (o.leaving) continue;
+    if (dir) { o.leaving = true; o.tx = -dir * SLIDE; } else dropGhost(o);
+  }
+  const n = makeGhost(idx, dir * SLIDE);
+  if (n) ghosts.push(n);
+  ghostIdx = idx;
+}
+function rebuildGhost() { setGhost(hero.phraseIdx, 0); }
+rebuildGhost();
+function updateGhosts(dt) {
+  const show = open && hero.state === 'fractured';
+  for (const o of [...ghosts]) {
+    o.a = damp(o.a, show && !o.leaving ? 1 : 0, show ? 0.2 : 0.14, dt);
+    o.x = damp(o.x, o.tx, 0.16, dt);
+    o.group.position.x = o.x;
+    o.lineMat.opacity = o.a * 0.9;
+    o.fillMat.opacity = o.a * 0.07;
+    o.group.visible = o.a > 0.01;
+    if (o.leaving && (o.a < 0.02 || !show)) dropGhost(o);
+  }
+}
+/* warm the trace cache so stepping the carousel never hitches */
+HERO_PHRASES.forEach((ph, i) => setTimeout(() => phraseParts(ph, hero.width, hero.depth), 1500 + i * 900));
+
+/* ------------------------------------------------------------------ *
+ *  Movable TiltedCard widgets (vanilla port of react-bits TiltedCard)
+ * ------------------------------------------------------------------ */
+const isMobile = () => matchMedia('(pointer: coarse)').matches || innerWidth < 700;
+const ui = document.getElementById('ui');
+const widgetsEl = document.getElementById('widgets');
+const xEl = document.getElementById('x');
+const DRIFT = 0.42;
+const collapse = () => {
+  for (const b of blocks) if (b.state === 'fractured') b.startReassembly();
+};
+xEl.addEventListener('click', stepBack);
+addEventListener('keydown', e => {
+  if (!open) return;
+  if (e.key === 'Escape') stepBack();
+});
+
+const clamp01 = (v, a, b) => Math.max(a, Math.min(b, v));
+const FLIP_THRESHOLD = 8;
+
+function createTiltedCard(opts) {
+  const {
+    imageSrc, altText = '', captionText = '',
+    containerWidth = 280, containerHeight = 320,
+    rotateAmplitude = 12, scaleOnHover = 1.05,
+    glare = 0.5, shadow = 0.5, radius = 16,
+    backContent = '', cta = null, frameDoc = '', frameSrc = '', link = null, kicker = '', title = '', body = '',
+    startX = 0, startY = 0
+  } = opts;
+
+  const figure = document.createElement('figure');
+  figure.className = 'tilted-card';
+  figure.style.width = containerWidth + 'px';
+  figure.style.height = containerHeight + 'px';
+  figure.style.perspective = '800px';
+  figure.style.left = startX + 'px';
+  figure.style.top = startY + 'px';
+  figure.tabIndex = 0;
+  figure.setAttribute('role', 'button');
+  figure.setAttribute('aria-label', captionText || title || altText);
+
+  const shadowEl = document.createElement('div');
+  shadowEl.className = 'tilted-card__shadow';
+  shadowEl.style.width = containerWidth + 'px';
+  shadowEl.style.height = containerHeight + 'px';
+  shadowEl.style.borderRadius = radius + 'px';
+  shadowEl.setAttribute('aria-hidden', 'true');
+
+  const bodyEl = document.createElement('div');
+  bodyEl.className = 'tilted-card__body';
+  bodyEl.style.width = containerWidth + 'px';
+  bodyEl.style.height = containerHeight + 'px';
+  bodyEl.style.setProperty('--tc-radius', radius + 'px');
+
+  const front = document.createElement('div');
+  front.className = 'tilted-card__face tilted-card__front';
+
+  if (imageSrc) {
+    const img = document.createElement('img');
+    img.className = 'tilted-card__img';
+    img.src = imageSrc;
+    img.alt = altText;
+    img.draggable = false;
+    img.style.setProperty('--tc-depth', '-18');
+    front.appendChild(img);
+  }
+
+  const layer = document.createElement('div');
+  layer.className = 'tilted-card__layer';
+  layer.style.setProperty('--tc-depth', '28');
+  layer.innerHTML = `
+    <span class="tc-badge">${captionText || ''}</span>
+    <div class="tc-body${frameDoc || frameSrc ? '' : ' nf'}${cta ? '' : ' nc'}">
+      ${frameDoc || frameSrc ? '<div class="tc-frame"></div>' : ''}
+      <div class="tc-text">
+        <div class="kicker">${kicker}</div>
+        <h3>${title}</h3>
+        <p>${body}</p>
+      </div>
+    </div>`;
+  if (frameDoc || frameSrc) {
+    const fr = document.createElement('iframe');
+    const live = !frameDoc, W = live ? 1280 : 800, H = live ? 720 : 450;   // live sites render as a desktop thumbnail
+    fr.tabIndex = -1; fr.setAttribute('aria-hidden', 'true');
+    if (live) { fr.setAttribute('sandbox', 'allow-scripts allow-same-origin'); fr.src = frameSrc; }
+    else { fr.setAttribute('sandbox', ''); fr.srcdoc = frameDoc; }
+    fr.style.width = W + 'px'; fr.style.height = H + 'px';
+    fr.style.transform = `scale(${((containerWidth - 24) / W).toFixed(4)})`;
+    layer.querySelector('.tc-frame').appendChild(fr);
+  }
+  front.appendChild(layer);
+
+  const glareEl = document.createElement('span');
+  glareEl.className = 'tilted-card__glare';
+  glareEl.setAttribute('aria-hidden', 'true');
+  front.appendChild(glareEl);
+  const rim = document.createElement('span');
+  rim.className = 'tilted-card__rim';
+  rim.setAttribute('aria-hidden', 'true');
+  front.appendChild(rim);
+  const edge = document.createElement('span');
+  edge.className = 'tilted-card__edge';
+  edge.setAttribute('aria-hidden', 'true');
+  front.appendChild(edge);
+
+  const back = document.createElement('div');
+  back.className = 'tilted-card__face tilted-card__back';
+  back.setAttribute('aria-hidden', 'true');
+  back.innerHTML = `<p>${backContent}</p>`;
+  back.inert = true;
+  if (link) {
+    const a = document.createElement('a');
+    a.className = 'tilted-card__link'; a.href = link.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.innerHTML = `<span><b>Full case study</b><small>${link.href.replace(/^https?:\/\//, '').replace(/\/$/, '')}</small></span>`;
+    back.appendChild(a);
+  }
+  let ctaEl = null;
+  if (cta) {
+    ctaEl = document.createElement('button');
+    ctaEl.type = 'button'; ctaEl.className = 'tilted-card__cta'; ctaEl.textContent = cta.label;
+    ctaEl.addEventListener('click', e => { e.stopPropagation(); cta.onClick(ctaEl); });
+    front.appendChild(ctaEl);
+  }
+
+  const handle = document.createElement('div');
+  handle.className = 'tilted-card__handle';
+  handle.title = 'Drag to move';
+  handle.innerHTML = '<span></span><span></span><span></span>';
+  handle.setAttribute('aria-hidden', 'true');
+
+  bodyEl.appendChild(front);
+  bodyEl.appendChild(back);
+  figure.appendChild(shadowEl);
+  figure.appendChild(bodyEl);
+  figure.appendChild(handle);
+  widgetsEl.appendChild(figure);
+
+  // physics state
+  const state = {
+    rx: 0, vrx: 0, ry: 0, vry: 0,
+    lift: 0, vlift: 0, flip: 0, vflip: 0,
+    press: 0, vpress: 0
+  };
+  const pointer = { nx: 0, ny: 0, inside: false, mouse: false };
+  const press = { active: false, x: 0, y: 0, moved: false, onHandle: false };
+  let flipped = false;
+  const toggleFlip = () => {
+    flipped = !flipped;
+    figure.toggleAttribute('data-flipped', flipped);
+    back.setAttribute('aria-hidden', flipped ? 'false' : 'true');
+    back.inert = !flipped;
+    front.inert = flipped;
+  };
+  let posX = startX, posY = startY;
+  let dragOffX = 0, dragOffY = 0;
+  let raf = 0, last = 0, visible = true;
+
+  const stepSpring = (key, target, omega, zeta, dt) => {
+    const vk = 'v' + key;
+    const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+    const h = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      state[vk] += (omega * omega * (target - state[key]) - 2 * zeta * omega * state[vk]) * h;
+      state[key] += state[vk] * h;
+    }
+    if (Math.abs(target - state[key]) < 0.001 && Math.abs(state[vk]) < 0.01) {
+      state[key] = target; state[vk] = 0; return false;
+    }
+    return true;
+  };
+
+  const frame = (now) => {
+    raf = 0;
+    const dt = clamp01((now - last) / 1000 || 0, 0, 0.05);
+    last = Math.max(last, now);
+    let busy = false;
+    const amplitude = rotateAmplitude;
+    const following = pointer.inside && pointer.mouse && !press.onHandle;
+    const inputX = following ? pointer.nx : 0;
+    const inputY = following ? pointer.ny : 0;
+    const omega = 20 * Math.pow(0.2, 0.6);
+    const zeta = 1 - 0.3 * 0.6;
+    const lifted = (pointer.inside && pointer.mouse) || press.active ? 1 : 0;
+
+    busy = stepSpring('rx', -inputY * amplitude, omega, zeta, dt) || busy;
+    busy = stepSpring('ry', inputX * amplitude, omega, zeta, dt) || busy;
+    busy = stepSpring('lift', lifted, omega, Math.max(zeta, 0.85), dt) || busy;
+    busy = stepSpring('flip', flipped ? 180 : 0, 9.5, 0.72, dt) || busy;
+    busy = stepSpring('press', press.active && !press.moved ? 1 : 0, 26, 0.8, dt) || busy;
+
+    const active = state.lift > 0.01;
+    figure.toggleAttribute('data-active', active);
+    const scale = 1 + (scaleOnHover - 1) * state.lift - 0.02 * state.press;
+    const rx = state.rx, ry = state.ry;
+    bodyEl.style.transform =
+      `translate3d(0,0,0) rotateX(${rx.toFixed(3)}deg) rotateY(${(ry + state.flip).toFixed(3)}deg) scale(${scale.toFixed(4)})`;
+    const radX = (rx * Math.PI) / 180, radY = (ry * Math.PI) / 180;
+    bodyEl.style.setProperty('--tc-px', (Math.sin(radY) * 1).toFixed(4));
+    bodyEl.style.setProperty('--tc-py', (-Math.sin(radX) * 1).toFixed(4));
+    const reach = Math.max(amplitude, 1);
+    bodyEl.style.setProperty('--tc-gx', (50 + (ry / reach) * 46).toFixed(2) + '%');
+    bodyEl.style.setProperty('--tc-gy', (50 - (rx / reach) * 46).toFixed(2) + '%');
+    const energy = Math.min(1, Math.hypot(rx, ry) / reach);
+    bodyEl.style.setProperty('--tc-glare', (glare * Math.max(state.lift, energy)).toFixed(3));
+
+    const strength = shadow;
+    const offsetX = -Math.sin(radY) * 22;
+    const offsetY = 12 + 16 * state.lift + Math.sin(radX) * 18;
+    const turn = Math.abs(Math.cos((state.flip * Math.PI) / 180));
+    const spread = scale * (0.86 + 0.04 * state.lift);
+    shadowEl.style.transform =
+      `translate3d(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px, 0) scale(${(spread * (0.2 + 0.8 * turn)).toFixed(4)}, ${spread.toFixed(4)})`;
+    shadowEl.style.opacity = (strength * (0.55 + 0.45 * state.lift)).toFixed(3);
+
+    if ((busy || active || press.active) && visible) raf = requestAnimationFrame(frame);
+  };
+
+  const wake = () => {
+    if (raf || !visible) return;
+    last = performance.now();
+    raf = requestAnimationFrame(frame);
+  };
+
+  const track = (e) => {
+    const rect = figure.getBoundingClientRect();
+    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    pointer.nx = clamp01((x - rect.width / 2) / (rect.width / 2), -1, 1);
+    pointer.ny = clamp01((y - rect.height / 2) / (rect.height / 2), -1, 1);
+  };
+
+  figure.addEventListener('pointerenter', e => {
+    pointer.inside = true;
+    pointer.mouse = e.pointerType === 'mouse' || e.pointerType === 'pen';
+    track(e); wake();
+  });
+  figure.addEventListener('pointermove', e => {
+    pointer.mouse = e.pointerType === 'mouse' || e.pointerType === 'pen';
+    if (!pointer.inside && pointer.mouse) pointer.inside = true;
+    track(e);
+    if (press.active && Math.hypot(e.clientX - press.x, e.clientY - press.y) > FLIP_THRESHOLD)
+      press.moved = true;
+    if (press.active && press.onHandle) {
+      posX = e.clientX - dragOffX;
+      posY = e.clientY - dragOffY;
+      // keep roughly on screen
+      posX = clamp01(posX, -containerWidth * 0.4, innerWidth - containerWidth * 0.6);
+      posY = clamp01(posY, -containerHeight * 0.2, innerHeight - containerHeight * 0.6);
+      figure.style.left = posX + 'px';
+      figure.style.top = posY + 'px';
+    }
+    wake();
+  });
+  figure.addEventListener('pointerleave', () => {
+    if (!press.active) pointer.inside = false;
+    wake();
+  });
+  figure.addEventListener('pointerdown', e => {
+    press.active = true;
+    press.moved = false;
+    press.x = e.clientX;
+    press.y = e.clientY;
+    press.onHandle = handle.contains(e.target) || e.target === handle;
+    pointer.mouse = e.pointerType === 'mouse' || e.pointerType === 'pen';
+    if (press.onHandle) {
+      figure.setAttribute('data-dragging', '');
+      figure.setPointerCapture?.(e.pointerId);
+      const rect = figure.getBoundingClientRect();
+      dragOffX = e.clientX - rect.left;
+      dragOffY = e.clientY - rect.top;
+      // bring to front
+      widgetsEl.appendChild(figure);
+    }
+    if (!pointer.mouse) { pointer.inside = true; track(e); }
+    wake();
+  });
+  const endPress = (e) => {
+    if (!press.active) return;
+    const wasHandle = press.onHandle;
+    const moved = press.moved;
+    press.active = false;
+    press.onHandle = false;
+    figure.removeAttribute('data-dragging');
+    if (e?.pointerType !== 'mouse' && e?.pointerType !== 'pen') pointer.inside = false;
+    if (!wasHandle && !moved && backContent && !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link')) toggleFlip();
+    wake();
+  };
+  window.addEventListener('pointerup', endPress, { passive: true });
+  window.addEventListener('pointercancel', endPress, { passive: true });
+
+  figure.addEventListener('keydown', e => {
+    if (e.target !== figure) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (backContent) { toggleFlip(); wake(); }
+    }
+  });
+
+  const io = new IntersectionObserver(entries => {
+    visible = entries.some(en => en.isIntersecting);
+    wake();
+  });
+  io.observe(figure);
+  wake();
+
+  return {
+    el: figure, cta: ctaEl,
+    setPosition(x, y) {
+      posX = x; posY = y;
+      figure.style.left = x + 'px';
+      figure.style.top = y + 'px';
+    },
+    containsPoint(x, y) {
+      const r = figure.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Headline navigation: crumble the current word, swarm builds the next
+ * ------------------------------------------------------------------ */
+const navEl = document.createElement('nav');
+navEl.id = 'navpanel';
+navEl.setAttribute('aria-label', 'Headlines');
+navEl.innerHTML = '<ul>' + CARDS.map((c, i) =>
+  `<li><button type="button" data-i="${i}"><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="t">${c.head}</span>${c.letters !== c.head ? `<span class="s">${c.letters}</span>` : ''}</button></li>`).join('') + '</ul>';
+document.body.appendChild(navEl);
+const navBtns = [...navEl.querySelectorAll('button')];
+navBtns.forEach(b => b.addEventListener('click', () => navTo(+b.dataset.i)));
+function updateNav(i) {
+  navBtns.forEach((b, j) => j === i ? b.setAttribute('aria-current', 'true') : b.removeAttribute('aria-current'));
+}
+function navTo(i) {
+  if (navBusy || hero.state === 'reassembling' || hero.agents.length || logo.agents.length) return;
+  if (hero.state === 'intact' && i === hero.phraseIdx && i === carousel.idx) return;
+  carousel.mount(i, 0);                        // hero.pickIdx now points at the chosen headline
+  if (logo.state === 'fractured') logo.startReassembly();
+  navBusy = true;                              // keep the portal shut while this plays
+  const rebuild = () => { if (hero.state === 'fractured') hero.startReassembly(); else navBusy = false; };
+  if (hero.state === 'intact') {
+    hero.breakAll(V(0, 0, 0));
+    if (hero.state !== 'fractured') { navBusy = false; return; }
+    setTimeout(rebuild, 1300);                 // let the pieces crumble first
+  } else rebuild();
+}
+
+/* Single-card carousel: one TiltedCard per frame */
+const edgesEl = document.getElementById('carousel-edges');
+const countEl = document.getElementById('carousel-count');
+const labelEl = document.getElementById('carousel-label');
+const prevBtn = document.querySelector('#carousel-edges .prev');
+const nextBtn = document.querySelector('#carousel-edges .next');
+
+const carousel = {
+  idx: 0,
+  card: null,
+  cardW: 300,
+  cardH: 360,
+  center() {
+    const w = innerWidth, h = innerHeight;
+    this.cardW = Math.min(360, Math.max(260, w * 0.46));
+    this.cardH = Math.min(470, Math.max(430, h * 0.6));
+    return {
+      x: Math.round((w - this.cardW) / 2),
+      y: Math.round(h * 0.22)
+    };
+  },
+  mount(i, dir = 0) {
+    const c = CARDS[i];
+    if (!c) return;
+    // tear down previous
+    if (this.card) {
+      this.card.el.remove();
+      this.card = null;
+    }
+    widgetsEl.innerHTML = '';
+    const pos = this.center();
+    this.card = createTiltedCard({
+      frameDoc: c.cs ? cs.preview(c.cs) : '',
+      frameSrc: c.frameSrc || '',
+      link: c.href ? { href: c.href } : null,
+      altText: c.head,
+      captionText: c.frame,
+      kicker: c.deke,
+      title: c.head,
+      body: c.body,
+      backContent: c.back,
+      cta: c.cs ? { label: 'See the case study', onClick: b => cs.open(c.cs, b) } : null,
+      containerWidth: this.cardW,
+      containerHeight: this.cardH,
+      rotateAmplitude: 12,
+      scaleOnHover: 1.05,
+      glare: 0.55,
+      shadow: 0.55,
+      startX: pos.x,
+      startY: pos.y
+    });
+    this.idx = i;
+    setGhost(i, dir);
+    updateNav(i);
+    const n = CARDS.length;
+    countEl.textContent = `${String(i + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`;
+    labelEl.textContent = c.frame;
+    prevBtn.disabled = false;
+    nextBtn.disabled = false;
+  },
+  step(d) {
+    const n = CARDS.length;
+    const next = (this.idx + d + n) % n;
+    if (next === this.idx) return;
+    this.mount(next, d > 0 ? 1 : -1);
+  }
+};
+
+carousel.mount(0);
+prevBtn.addEventListener('click', () => carousel.step(-1));
+nextBtn.addEventListener('click', () => carousel.step(1));
+addEventListener('keydown', e => {
+  if (!open || cs.isOpen) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); carousel.step(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); carousel.step(1); }
+});
+addEventListener('resize', () => {
+  if (!carousel.card) return;
+  const pos = carousel.center();
+  // only snap back to center if still roughly centered (user hasn't dragged far)
+  const r = carousel.card.el.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (innerHeight * 0.22 + carousel.cardH / 2)) < 100) {
+    carousel.card.setPosition(pos.x, pos.y);
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ *  Case-study widgets
+ * ------------------------------------------------------------------ */
+const CS_DATA = {
+  tt: {
+    id: 'tt',
+    bg: 'kzpT2Qr/tiktok3.webp',
+    title: 'One platform. Every kind of advertiser.',
+    client: 'TikTok For Business',
+    agency: 'Code & Theory',
+    role: [
+      'Senior User Experience Designer on the TikTok for Business web ecosystem.',
+      'Partnered with strategy, content, engineering and TikTok stakeholders to unify the experience globally.'
+    ],
+    details: [
+      ['Problem', 'TikTok for Business had grown into a fragmented network of individual B2B sites. Content was hard to manage, harder to find, and every audience was left to piece together its own path.'],
+      ['Headless Architecture', '{We} designed a robust headless content architecture to streamline how information is managed and served globally, so one source of truth could feed every surface.'],
+      ['Ecosystem Consolidation', 'The objective: take the scattered B2B sites and merge them into one unified web experience.'],
+      ['Intent-Led Journeys', '{We} moved the platform to an editorial, intent-driven content model, mapping and reorganizing navigation for SMBs, enterprise brands, agencies and independent creators.']
+    ],
+    ins: ['Business Impact', 'An 80% lift in click-through for SMBs looking to start advertising.'],
+    aside: 'The restructuring paid off across the whole portal: a 33% rise in views for inspiration and creative case-study sections, and an 18.5% increase in overall blog views. Better paths, better engagement.',
+    embed: 'https://zack.cx/tiktok',
+    stack: [
+      ['9qFzTQH/tiktok-proto-gif.gif', 'prototype'],
+      ['kzpT2Qr/tiktok3.webp', 'TikTok for Business'],
+      ['Z69xjMQY/tiktok-cat.gif', 'category navigation'],
+      ['yPyHvw2/Screenshot-20230217-101719.png', 'wireframes'],
+      ['cX4QjFf/Screenshot-20230217-102232.png', 'journeys'],
+      ['https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png', 'navigation']
+    ],
+    bgs: ['kzpT2Qr/tiktok3.webp', 'yPyHvw2/Screenshot-20230217-101719.png', 'cX4QjFf/Screenshot-20230217-102232.png', 'Z69xjMQY/tiktok-cat.gif', '9qFzTQH/tiktok-proto-gif.gif', 'https://miro.medium.com/v2/resize:fit:2000/format:webp/1*gC_cmPMoCAMgckq051lwZg.png']
+  },
+  fin: {
+    id: 'fin',
+    title: 'Design systems, dashboards, data, & due diligence.',
+    client: 'BNY Mellon — Pershing X',
+    agency: 'Publicis Sapient',
+    role: [
+      'Senior User Experience Designer, Product Design Lead (IA/flows) for Wove\'s advisor experience.',
+      'Partnered with product, engineering and compliance stakeholders across a multi-year modernization of legacy tools into one connected platform.'
+    ],
+    details: [
+      ['Problem', 'Advisors were forced to hop across a constellation of disconnected legacy applications to open accounts, view holdings, and serve clients. Context was lost at every hand-off.'],
+      ['Information Architecture', '{We} mapped every legacy surface, then rebuilt the IA so the primary jobs of an advisor lived in one coherent dashboard experience.'],
+      ['Flows & Due Diligence', 'Account opening, KYC, and reporting flows were redesigned end-to-end — with compliance and risk partners in the room, not after the fact.'],
+      ['Human work', 'This was only 2023 into 2024. AI had zero part in any of this project. It was human blood, sweat, and caffeine that mapped every legacy application and shipped a modernized financial product ecosystem.']
+    ],
+    ins: ['Deep dive', 'No artificial intelligence here — just rigorous mapping and design systems work.'],
+    aside: 'While the world gets distracted by the wow-factor of AI developments, this was human due diligence analyzing every individual legacy application, socializing it with the team, and shipping a viable modernized financial product ecosystem to one of the largest banking entities in the world.',
+    embed: 'https://zack.cx/bny',
+    stack: [
+      ['XkM2hn8n/bny1.png', 'BNY 1'],
+      ['vvMZmq94/bny2.png', 'BNY 2'],
+      ['xS49C07B/bny3.png', 'BNY 3'],
+      ['wZY2bhKF/bny4.png', 'BNY 4'],
+      ['HGv7ymj/4.jpg', 'Account Opening']
+    ],
+    bgs: ['XkM2hn8n/bny1.png', 'vvMZmq94/bny2.png', 'xS49C07B/bny3.png', 'wZY2bhKF/bny4.png', 'Z1tjz0t9/14.webp', 'HGv7ymj/4.jpg']
+  },
+  eco: {
+    id: 'eco',
+    title: 'This is the Whey',
+    client: 'General Nutrition Centers (GNC)',
+    agency: 'Elva Design Group',
+    role: ['Senior User Experience Designer'],
+    details: [
+      ['Problem', 'As part of a total overhaul and overcoming a recent bankruptcy, GNC asked us to shake things up; providing them with a modern and modular e-commerce solution through a ground-up build on the Shopify platform.'],
+      ['Scope', '{We} dove deep into GNC\'s e-commerce ecosystem. From market research, to [client-supplied] user data, to wireframe feature prototyping; we built a modular component-based design system optimized for continued optimization.'],
+      ['Heavy lift. Huge Gains.', 'Lead UX {IA/UI Prototypes/Design Systems}. Paired with PM, Dev Lead, Design Team and Client-Side Stakeholders. 12-week engagement meant tight cadence, fast-on-our-feet design + strategy, and weekly exec reviews.'],
+      ['What We Shipped', '{We} introduced a modern mobile-first navigation schema and retail taxonomy strategy that separated GNC not just from its competition, but all in the e-retail space.']
+    ],
+    ins: ['Outcome', 'The result helped GNC reclaim ~$500M in annual revenue.'],
+    aside: 'if the bar ain\'t bending, you\'re just pretending.',
+    embed: 'https://zack.cx/gnc',
+    stack: [
+      ['ynjWYqv8/2.webp', 'notes'],
+      ['spHgPH6N/1.webp', 'research'],
+      ['cXg5Phdc/3.webp', 'mobile commerce'],
+      ['99h2bQMh/6.webp', 'product detail page'],
+      ['gZ58PKyk/4.webp', 'mobile product detail'],
+      ['Y7pGqJ69/5.webp', 'consumer engagement'],
+      ['yB4RwkTf/7.webp', 'rewards program'],
+      ['cSQCgNQY/work1.webp', 'handheld'],
+      ['pBMMxY1Z/11.webp', 'mobile overview'],
+      ['7N2rDqrN/8.webp', 'mobile closeup'],
+      ['vx76zjgf/10.webp', 'desktop navigation'],
+      ['rft2bf0T/9.webp', 'desktop homepage']
+    ],
+    bgs: ['cSQCgNQY/work1.webp', 'spHgPH6N/1.webp', 'ynjWYqv8/2.webp', 'vx76zjgf/10.webp', 'pBMMxY1Z/11.webp', 'rft2bf0T/9.webp']
+  }
+};
+const plain = t => t.replace(/\{([^}]+)\}/g, '$1');
+const csSrc = p => {
+  if (/^https?:/.test(p)) return p.includes('miro.medium.com') ? AVIF + 'miro_medium_nav.avif' : p;
+  if (p === 'Z69xjMQY/tiktok-cat.gif') return 'https://i.ibb.co/' + p;
+  const m = p.match(/^([^/]+)\/(.+)\.[^.]+$/);
+  return m ? AVIF + m[1] + '_' + m[2] + '.avif' : AVIF + p;
+};
+
+const cs = (() => {
+  const MQ = matchMedia('(max-width:768px)');
+  const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const made = {};
+  let current = null, from = null;
+
+  const body = P => {
+    const id = P.id;
+    const items = [
+      ...P.details.map(([l, t]) => [l, `<p class="ac-d">${plain(t)}</p>`]),
+      [P.ins[0], `<p class="cs-big">${P.ins[1]}</p><p class="ac-d2">${P.aside}</p>`],
+      ['Gallery', `<div class="cs-g">${P.stack.map(([p, t]) => `<img src="${csSrc(p)}" alt="${t}" loading="lazy" decoding="async">`).join('')}</div>`]
+    ];
+    return `<span class="tc-bar" aria-hidden="true"><i class="tc-grip"></i></span><button type="button" class="tc-x" aria-label="Close case study"></button>` +
+      `<p class="cs-k">${P.client} · ${P.agency}</p><h2 class="tc-line">${P.title}</h2>` +
+      `<div class="cs-s"><div class="cs-role">${P.role.map(r => `<p class="tc-note">${r}</p>`).join('')}</div><div class="ac">` +
+      items.map(([l, h], i) => `<div class="ac-i"><h3 class="ac-h"><button type="button" id="cs-${id}-b${i}" aria-expanded="${!i}" aria-controls="cs-${id}-p${i}"><span class="ac-n">0${i + 1}</span><span>${l}</span><i class="ac-c" aria-hidden="true"></i></button></h3><div class="ac-p${i ? '' : ' on'}" id="cs-${id}-p${i}" role="region" aria-labelledby="cs-${id}-b${i}"${i ? ' inert' : ''}><div class="ac-in">${h}</div></div></div>`).join('') +
+      `</div></div><p class="tc-links"><a href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.embed.replace(/^https?:\/\//, '')} ↗</a></p>` +
+      `<a class="tc-jump" href="${P.embed}" target="_blank" rel="noopener noreferrer">Read the full case study</a><span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
+  };
+
+  /* drag + resize, session-only */
+  const dock = card => {
+    const MINW = 300, MAXW = 760, M = 8;
+    let dragged = false;
+    const put = (x, y, w) => {
+      w = clamp(w, MINW, Math.max(MINW, Math.min(MAXW, innerWidth - 2 * M)));
+      card.style.width = w + 'px';
+      const h = card.offsetHeight;
+      card.style.left = Math.round(clamp(x, M, Math.max(M, innerWidth - w - M))) + 'px';
+      card.style.top = Math.round(clamp(y, M, Math.max(M, innerHeight - h - M))) + 'px';
+      card.classList.add('tc-moved');
+    };
+    card._center = () => { if (MQ.matches || dragged) return; const w = card.offsetWidth; put((innerWidth - w) / 2, (innerHeight - card.offsetHeight) / 2, w); };
+    card._fit = () => { if (MQ.matches || !card.classList.contains('tc-moved')) return; const r = card.getBoundingClientRect(); put(r.left, r.top, r.width); };
+    addEventListener('resize', card._fit);
+    const grab = (el, resize) => el && el.addEventListener('pointerdown', e => {
+      if (e.button || MQ.matches) return;
+      e.preventDefault(); if (resize) e.stopPropagation();
+      const r = card.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+      card.classList.add('drag'); card.setPointerCapture(e.pointerId);
+      const move = ev => { dragged = true; resize ? put(r.left, r.top, r.width + ev.clientX - e.clientX) : put(ev.clientX - ox, ev.clientY - oy, r.width); };
+      const up = () => { card.classList.remove('drag'); card.releasePointerCapture(e.pointerId); removeEventListener('pointermove', move); removeEventListener('pointerup', up); };
+      addEventListener('pointermove', move); addEventListener('pointerup', up);
+    });
+    [card.querySelector('.tc-bar'), ...card.querySelectorAll('.cs-k,.tc-line')].forEach(el => grab(el, false));
+    grab(card.querySelector('.tc-rs'), true);
+    card.addEventListener('keydown', e => {
+      if (e.key !== 'Tab') return;
+      const f = [...card.querySelectorAll('a[href],button:not([disabled]),[tabindex]:not([tabindex="-1"])')].filter(x => !x.closest('[inert]') && x.getClientRects().length);
+      const a = document.activeElement;
+      if (!f.length) return;
+      if (!e.shiftKey && a === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+      else if (e.shiftKey && (a === f[0] || a === card)) { e.preventDefault(); f[f.length - 1].focus(); }
+    });
+  };
+
+  /* accordion */
+  const accordion = (card, onSection) => {
+    const bs = [...card.querySelectorAll('.ac-h button')], ps = [...card.querySelectorAll('.ac-p')];
+    let t;
+    bs.forEach((b, i) => b.addEventListener('click', () => {
+      const was = b.getAttribute('aria-expanded') === 'true';
+      bs.forEach((x, j) => { const on = j === i && !was; x.setAttribute('aria-expanded', on); ps[j].classList.toggle('on', on); ps[j].inert = !on; });
+      onSection(was ? -1 : i);
+      clearTimeout(t); t = setTimeout(card._fit, 300);
+    }));
+    card.querySelector('.ac').addEventListener('keydown', e => {
+      const i = bs.indexOf(document.activeElement);
+      const n = e.key === 'ArrowDown' ? i + 1 : e.key === 'ArrowUp' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? bs.length - 1 : -1;
+      if (i < 0 || n < 0) return;
+      e.preventDefault(); bs[(n + bs.length) % bs.length].focus();
+    });
+  };
+
+  /* full-bleed backdrop inside the portal, with pointer + wheel parallax */
+  const backdrop = (card, P) => {
+    const bg = document.createElement('div'); bg.className = 'csbg'; bg.setAttribute('aria-hidden', 'true');
+    const im = document.createElement('div'); im.className = 'csbg-i'; bg.append(im); ui.prepend(bg);
+    const urls = P.bgs.map(csSrc), lay = {}, gi = [...card.querySelectorAll('.cs-g img')];
+    let cur = '', raf = 0, px = 0, py = 0, wy = 0, cx = 0, cy = 0, cw = 0;
+    const lit = el => im.querySelectorAll('.csbg-l').forEach(l => l.classList.toggle('on', l === el));
+    const setUrl = url => {
+      if (url === cur) return; cur = url;
+      if (lay[url]) { if (lay[url].style.backgroundImage) lit(lay[url]); return; }
+      const el = lay[url] = document.createElement('div'); el.className = 'csbg-l'; im.append(el);
+      const t = new Image();
+      t.onload = () => { el.style.backgroundImage = `url("${url}")`; if (cur === url) lit(el); };
+      t.onerror = () => { el.remove(); delete lay[url]; if (cur === url) cur = ''; };
+      t.src = url;
+    };
+    const section = i => { if (i < 0) return; gi.forEach(x => x.classList.remove('bgon')); setUrl(urls[i] || urls[0]); };
+    gi.forEach(x => {
+      x.tabIndex = 0; x.setAttribute('role', 'button'); x.setAttribute('aria-label', x.alt + ': set as background');
+      const pick = () => { setUrl(x.currentSrc || x.src); gi.forEach(y => y.classList.toggle('bgon', y === x)); };
+      x.addEventListener('click', pick);
+      x.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); pick(); } });
+    });
+    const loop = () => {
+      raf = 0; const W = innerWidth, H = innerHeight;
+      cx += (px - cx) * .06; cy += (py - cy) * .06; cw += (wy - cw) * .08;
+      im.style.transform = `translate3d(${(-cx * W * .025).toFixed(2)}px,${(-cy * H * .02 - cw).toFixed(2)}px,0)`;
+      if (Math.abs(px - cx) + Math.abs(py - cy) + Math.abs(wy - cw) > .001 * H) raf = requestAnimationFrame(loop);
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
+    const mv = e => { px = e.clientX / innerWidth * 2 - 1; py = e.clientY / innerHeight * 2 - 1; kick(); };
+    const wh = e => { if (e.target.closest && e.target.closest('.cs-s')) return; const lim = innerHeight * .055; wy = clamp(wy + e.deltaY * .12, -lim, lim); kick(); };
+    return {
+      section,
+      show(on, i) {
+        if (on) {
+          section(i < 0 ? 0 : i); px = py = wy = cx = cy = cw = 0; im.style.transform = '';
+          if (!RM && !MQ.matches) { addEventListener('pointermove', mv, { passive: true }); addEventListener('wheel', wh, { passive: true }); }
+        } else { removeEventListener('pointermove', mv); removeEventListener('wheel', wh); cancelAnimationFrame(raf); raf = 0; }
+        bg.classList.toggle('on', on);
+      }
+    };
+  };
+
+  const ensure = key => {
+    if (made[key]) return made[key];
+    const P = CS_DATA[key];
+    const card = document.createElement('aside');
+    card.className = 'tc cs'; card.id = 'cs-card-' + key; card.inert = true;
+    card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', P.client + ' case study');
+    card.innerHTML = body(P); ui.append(card);
+    dock(card);
+    const bg = backdrop(card, P);
+    accordion(card, i => bg.section(i));
+    card.querySelector('.tc-x').addEventListener('click', () => close());
+    return made[key] = { card, bg };
+  };
+
+  const open = (key, trigger) => {
+    const m = ensure(key);
+    if (current === m) return;
+    if (current) close(false);
+    from = trigger || document.activeElement; current = m;
+    m.card._center();
+    m.card.classList.add('on'); m.card.inert = false;
+    ui.classList.add('cs-open'); widgetsEl.inert = true;
+    m.bg.show(true, [...m.card.querySelectorAll('.ac-p')].findIndex(p => p.classList.contains('on')));
+    setTimeout(() => { if (current === m) { m.card.tabIndex = -1; m.card.focus({ preventScroll: true }); } }, 70);
+  };
+
+  const close = (restore = true) => {
+    const m = current; if (!m) return;
+    current = null;
+    m.card.classList.remove('on'); m.card.inert = true;
+    ui.classList.remove('cs-open'); widgetsEl.inert = false;
+    m.bg.show(false);
+    if (restore && from && document.contains(from)) requestAnimationFrame(() => from.focus({ preventScroll: true }));
+  };
+
+  /* a still of the widget over its backdrop, for the card's preview frame */
+  const preview = key => {
+    const P = CS_DATA[key];
+    const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
+    return `<!doctype html><html><head><meta charset="utf-8"><link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet"><style>${css}</style>` +
+      `<style>html,body{background:#0e0d0e}body{margin:0;color:#f5f3ee;--cs-bg:#0e0d0e;--cs-ink:#f5f3ee;--cs-alt:#d7d4cd;--cs-pink:#FF8DA1;--cs-sans:'Satoshi',ui-sans-serif,system-ui,sans-serif;--cs-pad:12px}.tc{left:210px!important;top:28px!important;width:380px!important}</style></head>` +
+      `<body><div class="csbg on" aria-hidden="true"><div class="csbg-i"><div class="csbg-l on" style="background-image:url('${csSrc(P.bgs[0])}')"></div></div></div><aside class="tc cs on">${body(P)}</aside></body></html>`;
+  };
+
+  return { get isOpen() { return !!current; }, open, close, preview };
+})();
+function stepBack() { return cs.isOpen ? cs.close() : collapse(); }
+
+/* ------------------------------------------------------------------ *
+ *  Portal — the same world, drawn twice through a stencil mask.
+ *  Outside the disc: light theme. Inside: the identical scene, dark.
+ * ------------------------------------------------------------------ */
+const portal = (() => {
+  const maskScene = new THREE.Scene();
+  const maskCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+  const mask = new THREE.Mesh(new THREE.CircleGeometry(1, 128), new THREE.MeshBasicMaterial({
+    colorWrite: false, depthWrite: false, depthTest: false,
+    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp
+  }));
+  mask.frustumCulled = false;
+  maskScene.add(mask);
+
+  // black ground for the dark reality (paper is CSS, so only the dark side needs painting)
+  const bgScene = new THREE.Scene();
+  const bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
+  const bgMat = new THREE.MeshBasicMaterial({ color: 0x000000, depthTest: false, depthWrite: false });
+  bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
+
+  const gated = [outerMat, innerMat, bgMat];
+  const catchers = blocks.map(b => b.catcher).filter(Boolean);
+  for (const m of [...gated, ...catchers.map(c => c.material)]) { m.stencilWrite = true; m.stencilRef = 1; }
+
+  const p = { x: innerWidth / 2, y: innerHeight / 2, r: 0 };
+  const want = { x: p.x, y: p.y };
+  addEventListener('pointermove', e => { want.x = e.clientX; want.y = e.clientY; });
+
+  function theme(dark) {
+    ghostRoot.visible = dark;
+    outerMat.color.set(dark ? 0xf4f4f6 : 0x0a0a0b);
+    for (const m of gated) m.stencilFunc = dark ? THREE.EqualStencilFunc : THREE.NotEqualStencilFunc;
+    for (const c of catchers) { c.visible = !dark; c.material.stencilFunc = THREE.NotEqualStencilFunc; }
+  }
+
+  return {
+    get live() { return p.r >= 1; },
+    hit(x, y) { return p.r > 2 && (isMobile() || Math.hypot(x - p.x, y - p.y) < p.r); },
+    update(dt) {
+      const w = innerWidth, h = innerHeight, mob = isMobile();
+      // sized so edge/corner controls sit just outside the mask until it drifts over them
+      const R = Math.max(120, Math.min(4.6 * hero.camera.zoom, w * 0.5 - 80));
+      const reading = cs.isOpen;                 // case study open: iris out to the full viewport
+      const full = Math.hypot(w, h) / 2 + 80;
+      const tr = !open ? 0 : (mob || reading) ? full : R;
+      const dr = reading ? 0 : DRIFT;
+      const tx = mob ? w / 2 : w / 2 + dr * (want.x - w / 2);
+      const ty = mob ? h / 2 : h / 2 + dr * (want.y - h / 2);
+      p.x = damp(p.x, tx, 0.3, dt);
+      p.y = damp(p.y, ty, 0.3, dt);
+      p.r = damp(p.r, tr, open ? (reading ? 0.26 : 0.4) : 0.2, dt);
+      const on = open && p.r > 1;
+      ui.style.visibility = on ? 'visible' : 'hidden';
+      edgesEl.classList.toggle('on', on && !cs.isOpen);
+      // ESC follows half of the mask's drift; widgets are free-floating inside the clip
+      if (on) xEl.style.transform = `translate(${((p.x - w / 2) * 0.5).toFixed(1)}px,${((p.y - h / 2) * 0.5).toFixed(1)}px)`;
+      if (on) ui.style.clipPath = `circle(${p.r.toFixed(1)}px at ${p.x.toFixed(1)}px ${p.y.toFixed(1)}px)`;
+      else ui.style.clipPath = '';
+    },
+    draw() {
+      const w = innerWidth, h = innerHeight;
+      if (this.live) {
+        maskCam.left = -w / 2; maskCam.right = w / 2; maskCam.top = h / 2; maskCam.bottom = -h / 2;
+        maskCam.updateProjectionMatrix();
+        mask.position.set(p.x - w / 2, h / 2 - p.y, 0);
+        mask.scale.setScalar(p.r);
+        renderer.render(maskScene, maskCam);
+      }
+      theme(false);
+      hero.draw(); logo.draw();
+      if (this.live) {
+        theme(true);
+        renderer.clearDepth();
+        renderer.render(bgScene, bgCam);
+        hero.draw(); logo.draw();
+      }
+    }
+  };
+})();
+
+/* Animation loop — polished timing & lens */
 const clock = new THREE.Clock();
 let acc = 0;
 const STEP = 1 / 60;
+const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-dt / Math.max(l, 1e-4)));
+const tgtColor = new THREE.Color();
+const OPEN_DELAY = 0.55;   // let pieces fall before glass appears
+
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(clock.getDelta(), 0.05);
   acc += dt;
-  while (acc >= STEP) { for (const b of blocks) b.step(); acc -= STEP; }
+  while (acc >= STEP) {
+    for (const b of blocks) b.step();
+    acc -= STEP;
+  }
+
+  // Desired state: only while fractured (not intact, not reassembling)
+  const swarmActive = blocks.some(b => b.agents.length > 0);
+  const wantOpen = !swarmActive && !navBusy && blocks.some(b => b.state === 'fractured');
+  navEl.classList.toggle('busy', navBusy || hero.state === 'reassembling');
+
+  if (wantOpen && !openTarget) {
+    // just entered fractured → start delay timer
+    openTarget = true;
+    openDelay = OPEN_DELAY;
+  } else if (!wantOpen) {
+    openTarget = false;
+    openDelay = 0;
+    if (open) setOpen(false);
+  }
+
+  if (openTarget && openDelay > 0) {
+    openDelay -= dt;
+    if (openDelay <= 0 && !open) setOpen(true);
+  }
+
+  // Place lens exactly under the cursor (unproject through hero camera)
+  {
+    const cam = hero.camera;
+    cam.updateMatrixWorld();
+    const ndc = new THREE.Vector3(ptr.x, ptr.y, 0.5).unproject(cam);
+    const dir = ndc.sub(cam.position).normalize();
+    const tHit = (0 - cam.position.z) / (dir.z || 1e-6);
+    const hitX = cam.position.x + dir.x * tHit;
+    const hitY = cam.position.y + dir.y * tHit;
+    const track = open ? 0.06 : 0.14;
+    lens.position.x = damp(lens.position.x, hitX, track, dt);
+    lens.position.y = damp(lens.position.y, hitY, track, dt);
+    lens.position.z = 4;
+  }
+
+  const targetScale = open ? 4.6 : 0.008;
+  const scaleTau = open ? 0.48 : 0.2;
+  const s = damp(lens.scale.x, targetScale, scaleTau, dt);
+  lens.scale.set(s, s, s);
+
+  // Pure white mask
+  tgtColor.set(0xffffff);
+  lensMat.color.lerp(tgtColor, 1 - Math.exp(-dt / 0.1));
+  const targetOpacity = open ? 0.98 : 0;
+  lensMat.opacity = damp(lensMat.opacity, targetOpacity, open ? 0.36 : 0.15, dt);
+  lens.visible = lensMat.opacity > 0.02 || s > 0.05;
+
+  lens.visible = false;   // the portal replaces the white disc
+  portal.update(dt);
+  updateGhosts(dt);
   renderer.clear();
-  hero.render(dt);
-  logo.render(dt);   // drawn last so it stays on top
+  hero.update(dt); logo.update(dt);
+  portal.draw();
 }
 frame();
 </script>
