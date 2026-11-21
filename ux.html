@@ -597,6 +597,9 @@ body.breakable canvas{cursor:crosshair}
 .tc-badge{top:18px;left:18px;background:#0a0a0b;color:#fff;backdrop-filter:none;-webkit-backdrop-filter:none;font-size:10px;letter-spacing:.08em;padding:5px 9px;border-radius:6px}
 .tilted-card__handle,.tilted-card:hover .tilted-card__handle,.tilted-card[data-active] .tilted-card__handle,.tilted-card[data-dragging] .tilted-card__handle{background:rgba(10,10,11,.62)}
 .tilted-card__back p{margin:auto 0}
+.tilted-card__video{display:block;flex:none;width:100%;aspect-ratio:16/9;margin:0 0 14px;border-radius:8px;background:#000;object-fit:cover}
+.tilted-card__back:has(.tilted-card__video) p{margin:0 0 auto;font-size:13px;line-height:1.4}
+.tilted-card__back:has(.tilted-card__video){justify-content:flex-start;padding-top:20px}
 .tilted-card__link{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 -24px -24px;padding:15px 24px;background:#ececef;color:#0a0a0b;transition:background .2s}
 .tilted-card__link b{display:block;font:500 13px/1 Satoshi,Inter,system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase}
 .tilted-card__link small{display:block;margin-top:6px;font:400 11px/1 Inter,system-ui,sans-serif;opacity:.6}
@@ -694,7 +697,8 @@ const CARDS = [
     head: '¡Viva la CX!', nav: '¡Viva la CX!',
     deke: 'Long live craft experience',
     body: 'From process theater, to performance theater, to production theater. Process first existed to mitigate risk to profits. Process became performance, billed hourly. Process became production, tokenized.',
-    back: 'No argument here. I loathe theatrics, preferring instead '
+    video: 'https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4',
+    back: 'No argument here. I loathe theatrics, preferring instead to \'show you\', not merely tell you. — point in case, ask me for my rendition of a well-known solo, and see what I come up with.'
   },
   {
     frame: 'Exhibit A', cs: 'fin', href: 'https://zack.cx/bny', letters: 'Financial Product',
@@ -2004,7 +2008,7 @@ function createTiltedCard(opts) {
     containerWidth = 280, containerHeight = 320,
     rotateAmplitude = 12, scaleOnHover = 1.05,
     glare = 0.5, shadow = 0.5, radius = 16,
-    backContent = '', cta = null, frameDoc = '', frameSrc = '', link = null, kicker = '', title = '', body = '',
+    backContent = '', backVideo = '', cta = null, frameDoc = '', frameSrc = '', link = null, kicker = '', title = '', body = '',
     startX = 0, startY = 0
   } = opts;
 
@@ -2100,6 +2104,19 @@ function createTiltedCard(opts) {
   back.className = 'tilted-card__face tilted-card__back';
   back.setAttribute('aria-hidden', 'true');
   back.innerHTML = `<p>${backContent}</p>`;
+  let videoEl = null;
+  if (backVideo) {
+    videoEl = document.createElement('video');
+    videoEl.className = 'tilted-card__video';
+    videoEl.src = backVideo + '#t=0.1';
+    videoEl.controls = true;
+    videoEl.loop = true;
+    videoEl.playsInline = true;
+    videoEl.preload = 'metadata';
+    videoEl.setAttribute('playsinline', '');
+    videoEl.setAttribute('controlslist', 'nodownload');
+    back.insertBefore(videoEl, back.firstChild);
+  }
   back.inert = true;
   if (link) {
     const a = document.createElement('a');
@@ -2143,6 +2160,7 @@ function createTiltedCard(opts) {
     back.setAttribute('aria-hidden', flipped ? 'false' : 'true');
     back.inert = !flipped;
     front.inert = flipped;
+    if (!flipped && videoEl) videoEl.pause();
   };
   let posX = startX, posY = startY;
   let dragOffX = 0, dragOffY = 0;
@@ -2275,7 +2293,7 @@ function createTiltedCard(opts) {
     figure.removeAttribute('data-dragging');
     if (e?.pointerType !== 'mouse' && e?.pointerType !== 'pen') pointer.inside = false;
     if (!wasHandle && !moved && backContent &&
-        !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link, .tc-frame, iframe')) {
+        !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link, .tc-frame, iframe, video')) {
       toggleFlip();
     }
     wake();
@@ -2413,6 +2431,7 @@ const carousel = {
       title: c.head,
       body: c.body,
       backContent: c.back,
+      backVideo: c.video || '',
       cta,
       containerWidth: this.cardW,
       containerHeight: this.cardH,
