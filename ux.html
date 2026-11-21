@@ -723,7 +723,7 @@ const CARDS = [
     head: 'UX is dead.', nav: 'UX is dead.',
     deke: '¡Viva la CX!',
     body: 'Seems anyone can do the job of a designer these days. Simply no sense in paying for creativity when creativity has been commoditized.',
-    back: 'I would like to see any other non-designer whip something like this up.  Go ahead and one-shot prompt an idiosyncratic and subversive interaction model with the fit and polish baked in from the get go.  <br><br>Nay, this is far from a.i. slop — this is the result of pre-existing savvy with 3D environments and spatial thinking, combined with working knowledge of the tech stack, plus crafting a cohesive and coherent concept for conveyance. <br><br>*all built with nothing more than a standard free-tier account.'
+    back: 'I would like to see any other non-designer whip something like this up.  Go ahead and one-shot prompt an idiosyncratic and subversive interaction model with the fit and polish baked in from the get go.  Nay, this is far from a.i. slop — this is the result of pre-existing savvy with 3D environments and spatial thinking, combined with working knowledge of the tech stack, plus crafting a cohesive and coherent concept for conveyance.'
   },
   {
     frame: 'Thesis', letters: '¡Viva la cx!', frameSrc: 'https://zack.cx/4x4', href: 'https://zack.cx/4x4',
@@ -2432,7 +2432,7 @@ const carousel = {
       const chromeTop = chrome ? chrome.getBoundingClientRect().top : 0;
       const bottomEdge = (chromeTop > h * 0.5 ? chromeTop : h - 64) - 14;
       const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
-      const topLimit = Math.max(navBottom, 0) + 14;
+      const topLimit = Math.max(navBottom, 0) + 14 + 26; // 26px reserved for the frame label above the card
       const maxH = Math.max(300, bottomEdge - topLimit);
       this.cardH = Math.min(this.cardH, Math.round(maxH));
       return {
@@ -2444,6 +2444,18 @@ const carousel = {
       x: Math.round((w - this.cardW) / 2),
       y: Math.round(h * 0.16)
     };
+  },
+  // Frame label (Hypothesis / Thesis / Exhibit A…) rides just above the card, never under it.
+  placeLabel(pos) {
+    const narrow = innerWidth < 720;
+    labelEl.style.top = Math.max(8, pos.y - 26) + 'px';
+    if (narrow) {
+      labelEl.style.left = (pos.x + 4) + 'px';
+      labelEl.style.transform = 'none';
+    } else {
+      labelEl.style.left = Math.round(pos.x + this.cardW / 2) + 'px';
+      labelEl.style.transform = 'translateX(-50%)';
+    }
   },
   mount(i, dir = 0) {
     const c = CARDS[i];
@@ -2491,6 +2503,7 @@ const carousel = {
     const n = CARDS.length;
     countEl.textContent = `${String(i + 1).padStart(2, '0')} / ${String(n).padStart(2, '0')}`;
     labelEl.textContent = c.frame;
+    this.placeLabel(pos);
     prevBtn.disabled = false;
     nextBtn.disabled = false;
   },
@@ -2522,6 +2535,7 @@ addEventListener('resize', () => {
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (pos.y + carousel.cardH / 2)) < 120) {
     carousel.card.setPosition(pos.x, pos.y);
+    carousel.placeLabel(pos);
   }
 });
 
