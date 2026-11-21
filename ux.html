@@ -152,6 +152,10 @@
   #x svg { stroke: currentColor; stroke-width: 1.25; fill: none; stroke-linecap: square; display: block; width: 22px; height: 22px; }
   #x span { font-size: 11px; font-weight: 500; letter-spacing: .2em; margin-top: 8px; opacity: .85; }
 
+  @media (max-width: 720px) {
+    #x { left: 8px; margin-left: 0; top: calc(64px + env(safe-area-inset-top, 0px)); }
+  }
+
   /* carousel chrome — one card per frame */
   #carousel-chrome {
     position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom, 0px));
@@ -2359,9 +2363,25 @@ const carousel = {
     this.cardH = narrow
       ? Math.min(Math.round(h * 0.68), Math.max(420, fromWidth))
       : Math.min(500, Math.max(440, fromWidth));
+    if (narrow) {
+      // Mobile: dock the card to the bottom, just above the counter/chrome,
+      // so the top band (esc-x + link menu) stays clear.
+      const chrome = document.getElementById('carousel-chrome');
+      const nav = document.getElementById('navpanel');
+      const chromeTop = chrome ? chrome.getBoundingClientRect().top : 0;
+      const bottomEdge = (chromeTop > h * 0.5 ? chromeTop : h - 64) - 14;
+      const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
+      const topLimit = Math.max(navBottom, 0) + 14;
+      const maxH = Math.max(300, bottomEdge - topLimit);
+      this.cardH = Math.min(this.cardH, Math.round(maxH));
+      return {
+        x: Math.round((w - this.cardW) / 2),
+        y: Math.round(bottomEdge - this.cardH)
+      };
+    }
     return {
       x: Math.round((w - this.cardW) / 2),
-      y: Math.round(narrow ? h * 0.11 : h * 0.16)
+      y: Math.round(h * 0.16)
     };
   },
   mount(i, dir = 0) {
@@ -2438,7 +2458,7 @@ addEventListener('resize', () => {
   }
   const r = carousel.card.el.getBoundingClientRect();
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (innerHeight * 0.16 + carousel.cardH / 2)) < 120) {
+  if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (pos.y + carousel.cardH / 2)) < 120) {
     carousel.card.setPosition(pos.x, pos.y);
   }
 });
@@ -2931,6 +2951,8 @@ const STEP = 1 / 60;
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-dt / Math.max(l, 1e-4)));
 const tgtColor = new THREE.Color();
 const OPEN_DELAY = 0.55;   // let pieces fall before glass appears
+const OPEN_DELAY_MOBILE = 0.96;   // mobile: let fragments fall and settle so the shatter reads before the portal opens
+const mobileMQ = matchMedia('(max-width: 720px), (pointer: coarse)');
 
 function frame() {
   requestAnimationFrame(frame);
@@ -2949,7 +2971,7 @@ function frame() {
   if (wantOpen && !openTarget) {
     // just entered fractured → start delay timer
     openTarget = true;
-    openDelay = OPEN_DELAY;
+    openDelay = mobileMQ.matches ? OPEN_DELAY_MOBILE : OPEN_DELAY;
   } else if (!wantOpen) {
     openTarget = false;
     openDelay = 0;
