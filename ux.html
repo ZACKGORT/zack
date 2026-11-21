@@ -523,7 +523,7 @@
 .tc-text h3{font:700 1.28rem/1.15 Satoshi,Inter,system-ui,sans-serif;letter-spacing:-.02em;margin:0 0 5px}
 .tc-text p{font:400 13px/1.4 Inter,system-ui,sans-serif;margin:0;opacity:.78}
 
-/* secret recorder indicator — DOM only, never in canvas capture */
+/* secret recorder indicator — DOM only */
 #rec-indicator{
   position:fixed;top:calc(18px + env(safe-area-inset-top,0px));right:calc(18px + env(safe-area-inset-right,0px));
   z-index:9999;display:none;align-items:center;gap:7px;padding:6px 10px 6px 8px;border-radius:999px;
@@ -2271,11 +2271,9 @@ const carousel = {
   center() {
     const w = innerWidth, h = innerHeight;
     const narrow = w < 720;
-    // Wider: fill most of the viewport on phone, stronger presence on desktop
     this.cardW = narrow
       ? Math.min(w - 28, Math.max(300, Math.round(w * 0.92)))
       : Math.min(440, Math.max(340, Math.round(w * 0.38)));
-    // Tighter height so frame + copy + CTA pack without large empty regions
     const fromWidth = Math.round(this.cardW * (narrow ? 1.38 : 1.28));
     this.cardH = narrow
       ? Math.min(Math.round(h * 0.74), Math.max(460, fromWidth))
@@ -2288,14 +2286,12 @@ const carousel = {
   mount(i, dir = 0) {
     const c = CARDS[i];
     if (!c) return;
-    // tear down previous
     if (this.card) {
       this.card.el.remove();
       this.card = null;
     }
     widgetsEl.innerHTML = '';
     const pos = this.center();
-    // Always offer a CTA: case-study drawer, or open the live site
     let cta = null;
     if (c.cs) {
       cta = { label: 'See the case study', onClick: (btn) => cs.open(c.cs, btn) };
@@ -2355,12 +2351,10 @@ addEventListener('resize', () => {
   if (!carousel.card) return;
   const prevW = carousel.cardW, prevH = carousel.cardH;
   const pos = carousel.center();
-  // Remount when target size changes (orientation / large window change) so iframe scale stays correct
   if (Math.abs(prevW - carousel.cardW) > 24 || Math.abs(prevH - carousel.cardH) > 24) {
     carousel.mount(carousel.idx, 0);
     return;
   }
-  // only snap back to center if still roughly centered (user hasn't dragged far)
   const r = carousel.card.el.getBoundingClientRect();
   const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   if (Math.abs(cx - innerWidth / 2) < 80 && Math.abs(cy - (innerHeight * 0.16 + carousel.cardH / 2)) < 120) {
@@ -2717,8 +2711,9 @@ const portal = (() => {
 
 /* ------------------------------------------------------------------ *
  *  Secret scene recorder — Shift + R
- *  Captures only the WebGL canvas (portal + fracture scene).
- *  The REC indicator is pure DOM, so it never appears in the file.
+ *  Records the full tab as you see it (3D + cards + chrome) via
+ *  getDisplayMedia(preferCurrentTab). Falls back to canvas-only if
+ *  the picker is cancelled or unsupported.
  * ------------------------------------------------------------------ */
 const recIndicator = document.createElement('div');
 recIndicator.id = 'rec-indicator';
@@ -2729,6 +2724,7 @@ document.body.appendChild(recIndicator);
 let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
+let recordStream = null;
 
 function pickRecorderMime() {
   const candidates = [
@@ -2744,56 +2740,93 @@ function pickRecorderMime() {
   return '';
 }
 
-function startSceneRecord() {
-  if (isRecording || typeof MediaRecorder === 'undefined') return;
-  const mime = pickRecorderMime();
-  if (!mime) {
-    console.warn('[recorder] no supported MediaRecorder mime type');
-    return;
+function finishRecordBlob(mime) {
+  isRecording = false;
+  recIndicator.classList.remove('on');
+  if (recordStream) {
+    try { recordStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    recordStream = null;
   }
+  if (!recordedChunks.length) { mediaRecorder = null; return; }
+  const blob = new Blob(recordedChunks, { type: (mime || 'video/webm').split(';')[0] });
+  recordedChunks = [];
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'zack-cx-scene-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.webm';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2500);
+  mediaRecorder = null;
+}
+
+function startCanvasRecord(mime) {
   try {
     const stream = renderer.domElement.captureStream(60);
+    recordStream = stream;
     recordedChunks = [];
     mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 });
-    mediaRecorder.ondataavailable = e => {
-      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-    };
-    mediaRecorder.onstop = () => {
-      isRecording = false;
-      recIndicator.classList.remove('on');
-      if (!recordedChunks.length) return;
-      const blob = new Blob(recordedChunks, { type: mime.split(';')[0] || 'video/webm' });
-      recordedChunks = [];
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'zack-cx-scene-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.webm';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2500);
-      mediaRecorder = null;
-    };
-    mediaRecorder.onerror = () => {
-      isRecording = false;
-      recIndicator.classList.remove('on');
-      mediaRecorder = null;
-    };
+    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => finishRecordBlob(mime);
+    mediaRecorder.onerror = () => finishRecordBlob(mime);
     mediaRecorder.start(250);
     isRecording = true;
     recIndicator.classList.add('on');
   } catch (err) {
-    console.warn('[recorder]', err);
+    console.warn('[recorder] canvas fallback failed', err);
     isRecording = false;
     recIndicator.classList.remove('on');
   }
 }
 
+async function startSceneRecord() {
+  if (isRecording || typeof MediaRecorder === 'undefined') return;
+  const mime = pickRecorderMime();
+  if (!mime) { console.warn('[recorder] no supported mime'); return; }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    startCanvasRecord(mime);
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { displaySurface: 'browser', frameRate: 60 },
+      audio: false,
+      preferCurrentTab: true,
+      selfBrowserSurface: 'include',
+      surfaceSwitching: 'exclude',
+      monitorTypeSurfaces: 'exclude'
+    });
+    recordStream = stream;
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+    mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => finishRecordBlob(mime);
+    mediaRecorder.onerror = () => finishRecordBlob(mime);
+    stream.getVideoTracks().forEach(track => {
+      track.addEventListener('ended', () => {
+        if (isRecording && mediaRecorder && mediaRecorder.state === 'recording') {
+          try { mediaRecorder.stop(); } catch (_) {}
+        }
+      });
+    });
+    mediaRecorder.start(250);
+    isRecording = true;
+    recIndicator.classList.add('on');
+  } catch (err) {
+    if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
+      console.info('[recorder] display capture cancelled');
+      return;
+    }
+    console.warn('[recorder] display capture failed, canvas fallback', err);
+    startCanvasRecord(mime);
+  }
+}
+
 function stopSceneRecord() {
   if (!isRecording || !mediaRecorder) return;
-  try {
-    if (mediaRecorder.state === 'recording') mediaRecorder.stop();
-  } catch (_) {}
+  try { if (mediaRecorder.state === 'recording') mediaRecorder.stop(); } catch (_) {}
 }
 
 function toggleSceneRecord() {
