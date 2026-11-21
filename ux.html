@@ -674,8 +674,23 @@ let navBusy = false;             // a headline selection is mid-flight
 let open = false;
 let openTarget = false;          // desired state (driven by fracture)
 let openDelay = 0;               // seconds remaining before we actually open
+/* Silence the card video whenever the tab is hidden or the portal is closed;
+   restore sound only if we were the ones who muted it. */
+const syncVideoAudio = () => {
+  const silent = document.hidden || !open;
+  for (const v of document.querySelectorAll('.tilted-card__video')) {
+    if (silent) {
+      if (!v.muted) { v.muted = true; v.dataset.autoMuted = '1'; }
+    } else if (v.dataset.autoMuted) {
+      v.muted = false; delete v.dataset.autoMuted;
+    }
+  }
+};
+document.addEventListener('visibilitychange', syncVideoAudio);
+window.addEventListener('pagehide', syncVideoAudio);
 const setOpen = v => {
   open = v;
+  syncVideoAudio();
   if (!v) cs.close(false);
   info.classList.toggle('open', v);
   info.classList.toggle('visible', v);
