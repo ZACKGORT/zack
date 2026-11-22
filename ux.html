@@ -667,6 +667,11 @@ body.breakable canvas{cursor:crosshair}
 .tilted-card__link small{display:block;margin-top:6px;font:400 11px/1 Inter,system-ui,sans-serif;opacity:.6}
 .tilted-card__link::after{content:"";flex:none;width:8px;height:8px;border:solid currentColor;border-width:1.5px 1.5px 0 0;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
 .tilted-card__link:hover,.tilted-card__link:focus-visible{background:#fff}
+.tilted-card__back--mirror{justify-content:flex-start;padding:14px 14px 0}
+.tilted-card__back--mirror .tc-frame{background:#000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+.tilted-card__back--mirror .tc-text{padding:16px 6px 14px}
+.tilted-card__back--mirror .tc-text p{margin:0;max-width:none}
+.tilted-card__back--mirror .tilted-card__link{margin:auto -14px 0}
 .tilted-card__link:hover::after{transform:translate(2px,-2px)}
 .tilted-card__link:focus-visible{outline:2px solid #0a0a0b;outline-offset:-4px}
 .tilted-card__cta{all:unset;box-sizing:border-box;position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;align-items:center;justify-content:space-between;padding:18px 22px;background:#0a0a0b;color:#fff;font:500 12px/1 Satoshi,Inter,system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:background .2s}
@@ -779,8 +784,8 @@ const CARDS = [
     head: '¡Viva la CX!', nav: '¡Viva la CX!',
     deke: 'Long live craft experience',
     body: 'From process theater, to performance theater, to production theater. Process first existed to mitigate risk to profits. Process became performance, billed hourly. Process became production, tokenized.',
-    video: 'https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4',
-    back: 'No argument here. I loathe theatrics, preferring instead to \'show you\', not merely tell you. — point in case, ask me for my rendition of a well-known solo, and see what I come up with.'
+    backFrameSrc: 'https://zack.cx/haiku', backKicker: 'Show, don\'t tell', backTitle: 'Haiku',
+    back: 'Let this be my way to convey how I craft a concept with creative constraint and restraint.'
   },
   {
     frame: 'Exhibit A', cs: 'fin', href: 'https://zack.cx/bny', letters: 'Financial Product',
@@ -807,6 +812,7 @@ const CARDS = [
     frame: 'About / Contact', letters: 'craft.experience',
     head: 'zack gort', nav: 'CX', image: 'gLY9FQsD/ramen.avif',
     deke: 'Product / UX designer',
+    video: 'https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4',
     body: 'I think about design and data as systems. I make websites for people to find, spend, and invest money. Then I design those experiences.',
     back: 'If any creative teams are hiring, LinkedIn is the quickest path: linkedin.com/in/zackgort — Happy to be helpful! Résumé at zack.cx/cv'
   }
@@ -2400,7 +2406,7 @@ function createTiltedCard(opts) {
     containerWidth = 280, containerHeight = 320,
     rotateAmplitude = 12, scaleOnHover = 1.05,
     glare = 0.5, shadow = 0.5, radius = 16,
-    backContent = '', backVideo = '', backImg = '', cta = null, frameDoc = '', frameSrc = '', frameImg = '', link = null, kicker = '', title = '', body = '',
+    backContent = '', backVideo = '', backImg = '', backFrameSrc = '', backKicker = '', backTitle = '', cta = null, frameDoc = '', frameSrc = '', frameImg = '', link = null, kicker = '', title = '', body = '',
     startX = 0, startY = 0
   } = opts;
 
@@ -2505,6 +2511,21 @@ function createTiltedCard(opts) {
   back.className = 'tilted-card__face tilted-card__back';
   back.setAttribute('aria-hidden', 'true');
   back.innerHTML = `<p>${backContent}</p>`;
+  let backFr = null;
+  if (backFrameSrc) {
+    back.classList.add('tilted-card__back--mirror');
+    back.innerHTML = `<div class="tc-frame"></div><div class="tc-text"><div class="kicker">${backKicker}</div><h3>${backTitle}</h3><p>${backContent}</p></div>`;
+    const W = 1280, H = 720;
+    backFr = document.createElement('iframe');
+    backFr.setAttribute('title', (backTitle || title || 'Preview') + ' \u2014 interactive');
+    backFr.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    backFr.style.width = W + 'px';
+    backFr.style.height = H + 'px';
+    backFr.style.transform = `scale(${((containerWidth - 28) / W).toFixed(4)})`;
+    const bf = back.querySelector('.tc-frame');
+    bf.style.aspectRatio = W + ' / ' + H;
+    bf.appendChild(backFr);          // src is set on first flip so the page doesn't load until needed
+  }
   let videoEl = null;
   if (backVideo) {
     videoEl = document.createElement('video');
@@ -2570,6 +2591,7 @@ function createTiltedCard(opts) {
     figure.toggleAttribute('data-flipped', flipped);
     back.setAttribute('aria-hidden', flipped ? 'false' : 'true');
     back.inert = !flipped;
+    if (flipped && backFr && !backFr.src) backFr.src = backFrameSrc;
     front.inert = flipped;
     if (!flipped && videoEl) videoEl.pause();
   };
@@ -2861,6 +2883,9 @@ const carousel = {
       backContent: c.back,
       backVideo: c.video || '',
       backImg: c.backImg || '',
+      backFrameSrc: c.backFrameSrc || '',
+      backKicker: c.backKicker || '',
+      backTitle: c.backTitle || '',
       cta,
       containerWidth: this.cardW,
       containerHeight: this.cardH,
