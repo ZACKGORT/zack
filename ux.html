@@ -544,6 +544,7 @@
   box-shadow:inset 0 0 0 1px rgba(10,10,11,.12);
   isolation:isolate;
 }
+.tc-frame-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
 .tc-frame iframe{position:absolute;left:0;top:0;border:0;transform-origin:0 0;pointer-events:auto;background:#0a0a0b}
 /* Copy sits tight under the frame; leftover height is quiet air above the CTA */
 .tc-text{
@@ -756,7 +757,7 @@ const CARDS = [
   },
   {
     frame: 'About / Contact', letters: 'craft.experience',
-    head: 'zack gort', nav: 'CX',
+    head: 'zack gort', nav: 'CX', image: 'gLY9FQsD/ramen.avif',
     deke: 'Product / UX designer',
     body: 'I think about design and data as systems. I make websites for people to find, spend, and invest money. Then I design those experiences.',
     back: 'If any creative teams are hiring, LinkedIn is the quickest path: linkedin.com/in/zackgort — Happy to be helpful! Résumé at zack.cx/cv'
@@ -2051,7 +2052,7 @@ function createTiltedCard(opts) {
     containerWidth = 280, containerHeight = 320,
     rotateAmplitude = 12, scaleOnHover = 1.05,
     glare = 0.5, shadow = 0.5, radius = 16,
-    backContent = '', backVideo = '', cta = null, frameDoc = '', frameSrc = '', link = null, kicker = '', title = '', body = '',
+    backContent = '', backVideo = '', cta = null, frameDoc = '', frameSrc = '', frameImg = '', link = null, kicker = '', title = '', body = '',
     startX = 0, startY = 0
   } = opts;
 
@@ -2097,8 +2098,8 @@ function createTiltedCard(opts) {
   layer.style.setProperty('--tc-depth', '28');
   layer.innerHTML = `
     <span class="tc-badge">${captionText || ''}</span>
-    <div class="tc-body${frameDoc || frameSrc ? '' : ' nf'}${cta ? '' : ' nc'}">
-      ${frameDoc || frameSrc ? '<div class="tc-frame"></div>' : ''}
+    <div class="tc-body${frameDoc || frameSrc || frameImg ? '' : ' nf'}${cta ? '' : ' nc'}">
+      ${frameDoc || frameSrc || frameImg ? '<div class="tc-frame"></div>' : ''}
       <div class="tc-text">
         <div class="kicker">${kicker}</div>
         <h3>${title}</h3>
@@ -2127,6 +2128,15 @@ function createTiltedCard(opts) {
     const frameEl = layer.querySelector('.tc-frame');
     frameEl.style.aspectRatio = W + ' / ' + H;
     frameEl.appendChild(fr);
+  }
+  if (frameImg) {
+    const pic = document.createElement('img');
+    pic.className = 'tc-frame-img';
+    pic.src = frameImg;
+    pic.alt = altText || title || '';
+    pic.draggable = false;
+    pic.decoding = 'async';
+    layer.querySelector('.tc-frame').appendChild(pic);
   }
   front.appendChild(layer);
 
@@ -2479,6 +2489,7 @@ const carousel = {
     this.card = createTiltedCard({
       frameDoc: c.cs ? cs.preview(c.cs) : '',
       frameSrc: c.frameSrc || '',
+      frameImg: c.image ? imgSrc(c.image) : '',
       link: c.href ? { href: c.href } : null,
       altText: c.head,
       captionText: c.frame,
