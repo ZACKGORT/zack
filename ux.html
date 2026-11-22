@@ -553,14 +553,16 @@
 #navpanel button:focus-visible{outline:1px solid #fff;outline-offset:2px}
 @media(max-width:600px){#navpanel{top:calc(20px + env(safe-area-inset-top,0px));right:18px}#navpanel button{font-size:12px;padding:4px 0 4px 10px}}
 /* ---- portal integration ---- */
-#carousel-edges{position:fixed;inset:0;z-index:26;pointer-events:none;visibility:hidden;opacity:0;mix-blend-mode:difference;color:#fff;transition:opacity .3s ease,visibility 0s .3s}
+#carousel-edges{position:fixed;inset:0;z-index:26;pointer-events:none;visibility:hidden;opacity:0;color:#0a0a0b;transition:opacity .3s ease,visibility 0s .3s}
 #carousel-edges.on{visibility:visible;opacity:1;transition:opacity .3s ease,visibility 0s}
-#carousel-edges button{position:absolute;top:50%;transform:translateY(-50%);pointer-events:none;background:none;border:0;padding:20px 14px;color:inherit;cursor:pointer;opacity:.7;transition:opacity .2s;-webkit-tap-highlight-color:transparent}
+#carousel-edges button{--p:0;--mx:0px;--my:0px;--s:1;--bx:0px;position:absolute;top:50%;transform:translate3d(var(--mx),calc(-50% + var(--my)),0) scale(calc(var(--s) * var(--press,1)));will-change:transform;pointer-events:none;background:none;border:0;padding:20px 14px;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#carousel-edges button::before{content:"";position:absolute;z-index:-1;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;background:#fff;border-radius:50%;pointer-events:none;opacity:calc(.82 + .18 * var(--p));box-shadow:0 2px 10px rgba(0,0,0,.28),0 0 0 calc(var(--p) * 7px) rgba(255,255,255,.3)}
+#carousel-edges button:active{--press:.88}
 #carousel-edges.on button{pointer-events:auto}
 #carousel-edges button:hover,#carousel-edges button:focus-visible{opacity:1}
 #carousel-edges .prev{left:calc(10px + env(safe-area-inset-left,0px))}
 #carousel-edges .next{right:calc(10px + env(safe-area-inset-right,0px))}
-#carousel-edges svg{stroke:currentColor;stroke-width:1.25;fill:none;stroke-linecap:square;width:18px;height:32px;display:block}
+#carousel-edges svg{stroke:currentColor;stroke-width:calc(1.25 + .9 * var(--p));fill:none;stroke-linecap:square;width:18px;height:32px;display:block;position:relative;transform:translate3d(var(--bx),0,0)}
 #ui{--cs-bg:#0e0d0e;--cs-ink:#f5f3ee;--cs-alt:#d7d4cd;--cs-pink:#FF8DA1;--cs-sans:'Satoshi',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;--cs-pad:12px}
 #widgets{z-index:1;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1)}
 #x,#carousel-chrome,#carousel-label{transition:opacity .3s ease}
@@ -579,7 +581,7 @@
   gap:0;padding:14px 14px 62px;
 }
 .tc-frame{
-  flex:none;position:relative;aspect-ratio:16/9;overflow:hidden;
+  flex:0 1 auto;min-height:96px;position:relative;aspect-ratio:16/9;overflow:hidden;
   border-radius:10px;background:#0a0a0b;
   box-shadow:inset 0 0 0 1px rgba(10,10,11,.12);
   isolation:isolate;
@@ -607,9 +609,10 @@
 }
 .tc-text p{
   font:400 13.5px/1.5 Inter,system-ui,sans-serif;
-  margin:0;opacity:.78;max-width:36ch;
-  text-wrap:pretty;
+  margin:0;opacity:.78;max-width:none;
+  text-wrap:pretty;hyphens:manual;
 }
+.tc-text p .nb{white-space:nowrap}
 
 /* secret recorder indicator — DOM only */
 #rec-indicator{
@@ -768,8 +771,8 @@ const CARDS = [
     head: 'UX is dead.', nav: 'UX is dead.',
     backImg: 'https://raw.githubusercontent.com/ZACKGORT/zack/main/media/domath.gif',
     deke: '¡Viva la CX!',
-    body: 'Seems anyone can do the job of a designer these days. Simply no sense in paying for creativity when creativity has been commoditized.',
-    back: 'I would like to see any other non-designer whip something like this up.  Go ahead and one-shot prompt an idiosyncratic and subversive interaction model with the fit and polish baked in from the get go.  Nay, this is far from a.i. slop — this is the result of pre-existing savvy with 3D environments and spatial thinking, combined with working knowledge of the tech stack, plus crafting a cohesive and coherent concept for conveyance.'
+    body: 'Does anyone remember wireframes? <span class="nb">Post-it\'s?</span> Whiteboards without someone else\'s ****ing cursor on your screen[?] — Pepperidge Farms remembers.<br><br>Just wait till LLMs figure out <span class="nb">multi-player</span> prompting.',
+    back: 'Seems anyone can do the job of a designer these days. Simply no sense in paying for creativity when creativity has been commoditized.'
   },
   {
     frame: 'Thesis', letters: '¡Viva la cx!', frameSrc: 'https://zack.cx/4x4', href: 'https://zack.cx/4x4',
@@ -1670,6 +1673,7 @@ class TextBlock {
     this.world.removeRigidBody(piece.body);
     this.scene.remove(piece.mesh);
     piece.mesh.geometry.dispose();
+    if (piece.mesh.userData.edgeLine) { piece.mesh.userData.edgeLine.geometry.dispose(); piece.mesh.userData.edgeLine = null; }
     const i = this.pieces.indexOf(piece);
     if (i >= 0) this.pieces.splice(i, 1);
   }
@@ -1938,7 +1942,7 @@ class TextBlock {
         this.hold(a, p.x, p.y, dt);
         a.press = Math.min(1, a.press + dt * 10);
         if (k >= 1) {
-          if (t.mode === 'vanish') { this.scene.remove(mesh); mesh.geometry.dispose(); }
+          if (t.mode === 'vanish') { this.scene.remove(mesh); mesh.geometry.dispose(); if (mesh.userData.edgeLine) { mesh.userData.edgeLine.geometry.dispose(); mesh.userData.edgeLine = null; } }
           else mesh.scale.setScalar(1);
           a.state = 'settle'; a.stateT = now;
         }
@@ -2888,6 +2892,70 @@ const carousel = {
 carousel.mount(0);
 prevBtn.addEventListener('click', () => carousel.step(-1));
 nextBtn.addEventListener('click', () => carousel.step(1));
+
+/* Magnetic beckon — chevrons wake as the cursor nears: they swell, thicken, draw toward
+   the pointer, ring up a halo, and nudge in their direction of travel like a "come on". */
+(() => {
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  const mk = (el, dir) => ({ el, dir, p: 0, mx: 0, my: 0, bx: 0, tp: 0, tx: 0, ty: 0 });
+  const chevs = [mk(prevBtn, -1), mk(nextBtn, 1)];
+  let raf = 0, last = null;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  const aim = (px, py) => {
+    const R = clamp(innerWidth * 0.22, 140, 260);
+    for (const c of chevs) {
+      if (px == null) { c.tp = c.tx = c.ty = 0; continue; }
+      const r = c.el.getBoundingClientRect();
+      const cx = r.left + r.width / 2 - c.mx, cy = r.top + r.height / 2 - c.my;
+      const dx = px - cx, dy = py - cy, d = Math.hypot(dx, dy);
+      const t = clamp(1 - d / R, 0, 1);
+      c.tp = t * t * (3 - 2 * t);
+      const pull = Math.min(d * 0.5, 16) * c.tp;
+      c.tx = d ? (dx / d) * pull : 0;
+      c.ty = d ? (dy / d) * pull : 0;
+    }
+    kick();
+  };
+
+  const frame = now => {
+    raf = 0;
+    let busy = false;
+    for (const c of chevs) {
+      const k = still.matches ? 0 : 1;
+      c.p += (c.tp - c.p) * 0.16;
+      c.mx += (c.tx * k - c.mx) * 0.2;
+      c.my += (c.ty * k - c.my) * 0.2;
+      // beckon pulse only once the pointer is genuinely close
+      const beck = c.tp > 0.3 && !still.matches ? (Math.sin(now / 170) * 0.5 + 0.5) * 5 * c.tp : 0;
+      c.bx += (c.dir * beck - c.bx) * 0.25;
+      const st = c.el.style;
+      st.setProperty('--p', c.p.toFixed(3));
+      st.setProperty('--mx', c.mx.toFixed(2) + 'px');
+      st.setProperty('--my', c.my.toFixed(2) + 'px');
+      st.setProperty('--bx', c.bx.toFixed(2) + 'px');
+      st.setProperty('--s', (1 + 0.32 * c.p).toFixed(3));
+      if (c.tp > 0.3 || Math.abs(c.tp - c.p) > 0.002 || Math.abs(c.tx - c.mx) > 0.05 ||
+          Math.abs(c.ty - c.my) > 0.05 || Math.abs(c.bx) > 0.05) busy = true;
+    }
+    if (busy) raf = requestAnimationFrame(frame);
+  };
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+
+  addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' && e.pointerType !== 'pen') return;
+    if (!edgesEl.classList.contains('on')) { if (last) { last = null; aim(null); } return; }
+    last = [e.clientX, e.clientY];
+    aim(e.clientX, e.clientY);
+  }, { passive: true });
+  document.documentElement.addEventListener('mouseleave', () => { last = null; aim(null); });
+  addEventListener('blur', () => { last = null; aim(null); });
+  // keyboard focus gets the same wake-up, minus the magnet
+  for (const c of chevs) {
+    c.el.addEventListener('focus', () => { if (c.el.matches(':focus-visible')) { c.tp = 0.8; kick(); } });
+    c.el.addEventListener('blur', () => { c.tp = 0; c.tx = c.ty = 0; kick(); });
+  }
+})();
 addEventListener('keydown', e => {
   if (!open || cs.isOpen) return;
   if (e.key === 'ArrowLeft') { e.preventDefault(); carousel.step(-1); }
@@ -3204,6 +3272,31 @@ const portal = (() => {
   const catchers = blocks.map(b => b.catcher).filter(Boolean);
   for (const m of [...gated, ...catchers.map(c => c.material)]) { m.stencilWrite = true; m.stencilRef = 1; }
 
+  /* Inside the portal every fragment is transparent: no fill, no colour — just white edge lines,
+     the same language as the ghost letters. Edge lines ride as children of each piece mesh and are
+     only visible during the dark pass. */
+  const EDGE_ANGLE = 25;
+  const edgeMat = new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false,
+    stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc
+  });
+  function setEdges(dark) {
+    for (const m of hero.scene.children) {
+      if (!m.isMesh || !Array.isArray(m.material)) continue;
+      let line = m.userData.edgeLine;
+      if (dark) {
+        if (!line || m.userData.edgeFor !== m.geometry.uuid) {
+          if (line) { m.remove(line); line.geometry.dispose(); }
+          line = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, EDGE_ANGLE), edgeMat);
+          line.renderOrder = 21; line.frustumCulled = false;
+          m.add(line);
+          m.userData.edgeLine = line; m.userData.edgeFor = m.geometry.uuid;
+        }
+        line.visible = true;
+      } else if (line) line.visible = false;
+    }
+  }
+
   const p = { x: innerWidth / 2, y: innerHeight / 2, r: 0 };
   const want = { x: p.x, y: p.y };
   addEventListener('pointermove', e => { want.x = e.clientX; want.y = e.clientY; });
@@ -3211,6 +3304,8 @@ const portal = (() => {
   function theme(dark) {
     ghostRoot.visible = dark;
     outerMat.color.set(dark ? 0xf4f4f6 : 0x0a0a0b);
+    outerMat.visible = innerMat.visible = !dark;   // dark side: edges only, no solid fill or normal-colours
+    setEdges(dark);
     for (const m of gated) m.stencilFunc = dark ? THREE.EqualStencilFunc : THREE.NotEqualStencilFunc;
     for (const c of catchers) { c.visible = !dark; c.material.stencilFunc = THREE.NotEqualStencilFunc; }
   }
