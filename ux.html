@@ -3516,14 +3516,13 @@ addEventListener('keydown', e => {
 
 /* ------------------------------------------------------------------ *
  *  Attract loop — after a long idle, the page performs itself:
- *  word holds -> fractures (portal opens on its card) -> crumbles into the
- *  next card's word -> repeat through the whole carousel, forever.
+ *  word holds -> crumbles and rebuilds into the next card's word (portal stays
+ *  shut) -> repeat through the whole carousel, forever.
  *  Any real input (pointer, key, wheel, touch, tab switch) stops it at once.
  * ------------------------------------------------------------------ */
 (() => {
-  const IDLE_MS = 45000;    // quiet time before the loop starts
+  const IDLE_MS = 10000;    // quiet time before the loop starts
   const WORD_HOLD = 2800;   // ms the rebuilt word sits intact before it shatters again
-  const CARD_HOLD = 7500;   // ms each card stays on screen inside the portal
   let lastInput = performance.now(), running = false, key = '', since = 0;
 
   const stop = () => { running = false; key = ''; };
@@ -3545,11 +3544,8 @@ addEventListener('keydown', e => {
       if (busy()) { key = ''; return; }
       const k = hero.state + (open ? ':open' : '');
       if (k !== key) { key = k; since = now; return; }     // state just changed: start its hold timer
-      if (hero.state === 'intact' && now - since >= WORD_HOLD) {
-        hero.breakAll(V(0, 0, 0));                         // shatter -> portal opens on the current card
-        key = ''; since = now;
-      } else if (hero.state === 'fractured' && open && now - since >= CARD_HOLD) {
-        navTo((carousel.idx + 1) % CARDS.length);          // crumble + rebuild into the next card's word
+      if ((hero.state === 'intact' || hero.state === 'fractured') && now - since >= WORD_HOLD) {
+        navTo((carousel.idx + 1) % CARDS.length);          // crumble + rebuild into the next word; navBusy keeps the portal shut
         key = ''; since = now;
       }
     } catch (err) { running = false; }
