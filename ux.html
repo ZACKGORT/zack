@@ -785,7 +785,7 @@ const CARDS = [
     deke: 'Long live craft experience',
     body: 'From process theater, to performance theater, to production theater. Process first existed to mitigate risk to profits. Process became performance, billed hourly. Process became production, tokenized.',
     backFrameSrc: 'https://zack.cx/haiku', backKicker: 'Show, don\'t tell', backTitle: 'Haiku',
-    back: 'Let this be my way to convey how I craft a concept with creative constraint and restraint.'
+    back: 'No argument here. I loathe theatrics, preferring instead to \'show you\', not merely tell you. — point in case, ask me for my rendition of a well-known solo, and see what I come up with.'
   },
   {
     frame: 'Exhibit A', cs: 'fin', href: 'https://zack.cx/bny', letters: 'Financial Product',
@@ -3513,6 +3513,48 @@ addEventListener('keydown', e => {
     toggleSceneRecord();
   }
 });
+
+/* ------------------------------------------------------------------ *
+ *  Attract loop — after a long idle, the page performs itself:
+ *  word holds -> fractures (portal opens on its card) -> crumbles into the
+ *  next card's word -> repeat through the whole carousel, forever.
+ *  Any real input (pointer, key, wheel, touch, tab switch) stops it at once.
+ * ------------------------------------------------------------------ */
+(() => {
+  const IDLE_MS = 45000;    // quiet time before the loop starts
+  const WORD_HOLD = 2800;   // ms the rebuilt word sits intact before it shatters again
+  const CARD_HOLD = 7500;   // ms each card stays on screen inside the portal
+  let lastInput = performance.now(), running = false, key = '', since = 0;
+
+  const stop = () => { running = false; key = ''; };
+  const bump = () => { lastInput = performance.now(); if (running) stop(); };
+  ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(ev =>
+    addEventListener(ev, bump, { passive: true, capture: true }));
+  document.addEventListener('visibilitychange', bump);
+
+  const busy = () => navBusy || hero.state === 'reassembling' || blocks.some(b => b.agents.length > 0);
+
+  setInterval(() => {
+    try {
+      if (document.hidden || intro.active || cs.isOpen) { if (running) stop(); return; }
+      const now = performance.now();
+      if (!running) {
+        if (now - lastInput < IDLE_MS || busy()) return;
+        running = true; key = ''; since = now;
+      }
+      if (busy()) { key = ''; return; }
+      const k = hero.state + (open ? ':open' : '');
+      if (k !== key) { key = k; since = now; return; }     // state just changed: start its hold timer
+      if (hero.state === 'intact' && now - since >= WORD_HOLD) {
+        hero.breakAll(V(0, 0, 0));                         // shatter -> portal opens on the current card
+        key = ''; since = now;
+      } else if (hero.state === 'fractured' && open && now - since >= CARD_HOLD) {
+        navTo((carousel.idx + 1) % CARDS.length);          // crumble + rebuild into the next card's word
+        key = ''; since = now;
+      }
+    } catch (err) { running = false; }
+  }, 250);
+})();
 
 /* Animation loop — polished timing & lens */
 const clock = new THREE.Clock();
