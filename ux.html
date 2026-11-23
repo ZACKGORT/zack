@@ -3519,6 +3519,7 @@ addEventListener('keydown', e => {
  *  word holds -> crumbles and rebuilds into the next card's word (portal stays
  *  shut) -> repeat through the whole carousel, forever.
  *  Any real input (pointer, key, wheel, touch, tab switch) stops it at once.
+ *  Never runs while the portal is open — the idle clock restarts once it closes.
  * ------------------------------------------------------------------ */
 (() => {
   const IDLE_MS = 10000;    // quiet time before the loop starts
@@ -3536,6 +3537,8 @@ addEventListener('keydown', e => {
   setInterval(() => {
     try {
       if (document.hidden || intro.active || cs.isOpen) { if (running) stop(); return; }
+      // inside the carousel portal (open or opening): no autoplay, and restart the idle clock
+      if (open || openTarget) { lastInput = performance.now(); if (running) stop(); return; }
       const now = performance.now();
       if (!running) {
         if (now - lastInput < IDLE_MS || busy()) return;
