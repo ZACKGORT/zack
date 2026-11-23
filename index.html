@@ -136,6 +136,9 @@ section[tabindex="-1"]:focus,div[tabindex="-1"]:focus,footer[tabindex="-1"]:focu
 .ttl a{color:inherit}.hero a:focus-visible{outline-color:#fff}
 /* title canvas (techText): bleeds 14px past the hero padding so selection frames never clip at the left edge; vertical pan still scrolls the page on touch */
 .tt{display:block;position:relative;width:calc(100% + 28px);margin-inline:-14px;aspect-ratio:5/1;touch-action:pan-y;-webkit-user-select:none;user-select:none;color:inherit}
+/* a letter is adrift: the system cursor hides and a sling button (same look as the scroll button) takes its place; touch can't scroll the hero while aiming */
+.hero.aim,.hero.aim .tt{cursor:none;touch-action:none}
+.hero.aim,.hero.grab{-webkit-user-select:none;user-select:none}
 .tt-cv{position:absolute;left:0;top:0;display:block;width:100%;height:100%;pointer-events:none}
 .tt .fb{position:absolute;left:14px;bottom:0;white-space:nowrap;font-size:clamp(2.25rem,16vw,7rem);letter-spacing:-.05em;line-height:.8;text-transform:uppercase}.tt.on .fb{display:none}
 /* the period is a circle with a down arrow: sits on the baseline like the glyph it replaces (overflow:hidden makes its baseline its bottom edge) */
@@ -1635,6 +1638,7 @@ const ctx=canvas.getContext('2d'),scratch=document.createElement('canvas'),sctx=
 if(!ctx||!sctx){canvas.remove();return null}
 const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
 let width=1,height=1,dpr=1,raf=0,last=performance.now(),visible=false,layoutKey='',requestedFont='',word=null,glyphs=[],clock=0,pulse=0,placed=false,dragging=-1,cursor='',ext=0,inkC='',famC='',prev=null,idleTick=false,lastDraw=0,t1=0,t2=0;
+const TAU=Math.PI*2,FLY_MAX=18,LAUNCH_MIN=420,LAUNCH_MAX=2600,SL_R=140,parts=[],projs=[],trail=[];let sling=null,aimOn=false,fxWas=false;
 const kicks=[],press={x:0,y:0,time:0,index:-1},pointer={x:0,y:0,inside:false},grab={x:0,y:0},lens={x:0,y:0},frame={x1:0,y1:0,x2:0,y2:0,alpha:0,index:-1};
 const wake=()=>{idleTick=false;if(raf||!visible)return;last=performance.now();raf=requestAnimationFrame(tick)};
 const family=()=>famC;
@@ -1673,7 +1677,7 @@ dragging=-1;frame.index=-1;
 if(S.onLayout)S.onLayout(next);
 return next};
 const glyphAt=(x,y)=>{if(!word||y<word.top-24||y>word.bottom+24)return-1;let best=-1,bd=Infinity;
-glyphs.forEach((g,i)=>{const x1=g.box.x1+g.offset.x,x2=g.box.x2+g.offset.x,d=x<x1?x1-x:x>x2?x-x2:0;if(d<bd){bd=d;best=i}});return bd<28?best:-1};
+glyphs.forEach((g,i)=>{if(g.fl||g.dead)return;const x1=g.box.x1+g.offset.x,x2=g.box.x2+g.offset.x,d=x<x1?x1-x:x>x2?x-x2:0;if(d<bd){bd=d;best=i}});return bd<28?best:-1};
 const blit=(t,art,dx,dy)=>t.drawImage(art.image,Math.round((art.left+dx)*dpr),Math.round((art.top+dy)*dpr));
 const crisp=v=>(Math.round(v*dpr)+.5)/dpr;
 const perimeterPoint=(d,w,h)=>{const P=2*(w+h);d=((d%P)+P)%P;if(d<w)return[frame.x1+d,frame.y1,0,-1];d-=w;if(d<h)return[frame.x2,frame.y1+d,1,0];d-=h;if(d<w)return[frame.x2-d,frame.y2,0,1];d-=w;return[frame.x1,frame.y2-d,-1,0]};
@@ -1693,6 +1697,73 @@ const kick=index=>{const strength=(word?word.size:120)*11;kicks.push({index,at:p
 for(let d=1;d<glyphs.length;d++){const v=strength*Math.pow(KICK_DECAY,d);if(v<30)break;for(const j of[index-d,index+d])if(j>=0&&j<glyphs.length)kicks.push({index:j,at:pulse+d*.055,velocity:v})}wake()};
 /* a hop that runs through every letter, right to left (from the arrow circle outward) */
 const ripple=()=>{if(reduced||!glyphs.length)return;const v=(word?word.size:120)*8;glyphs.forEach((g,j)=>kicks.push({index:j,at:pulse+(glyphs.length-1-j)*.05,velocity:v}));wake()};
+/* ---- zero-g flight, sling shots, confetti ---- */
+const trailPush=t=>{trail.push({x:pointer.x,y:pointer.y,t});while(trail.length>1&&t-trail[0].t>110)trail.shift()};
+const balloon=i=>{const g=glyphs[i];if(!g||g.fl||g.dead)return;g.fl={vx:(Math.random()-.5)*80,vy:-90,om:(Math.random()-.5)*1.6,age:0,b:1,ph:Math.random()*TAU};g.velocity.x=g.velocity.y=0};
+const launch=e=>{const g=glyphs[dragging];if(!g||e.type!=='pointerup'||reduced)return;locate(e);trailPush(performance.now());const a=trail[0],b=trail[trail.length-1];if(!a||b.t-a.t<16)return;
+ const dt=(b.t-a.t)/1000,vx=(b.x-a.x)/dt,vy=(b.y-a.y)/dt,sp=Math.hypot(vx,vy);if(sp<LAUNCH_MIN)return;const k=Math.min(1,LAUNCH_MAX/sp)*1.1;
+ g.fl={vx:vx*k,vy:vy*k,om:(vx>0?1:-1)*(2+Math.random()*3),age:0};g.velocity.x=g.velocity.y=0;trail.length=0};
+const burst=g=>{const cx=(g.box.x1+g.box.x2)/2+g.offset.x,cy=(g.box.y1+g.box.y2)/2+g.offset.y,cols=[inkC,'#fff','#111','#ffd23f','#3ddc97','#4ea8ff','#ff4d6d'],f=g.fl||{vx:0,vy:0};
+ for(let k=0;k<80;k++){const a=Math.random()*TAU,v=150+Math.random()*750;parts.push({x:cx,y:cy,vx:Math.cos(a)*v+f.vx*.25,vy:Math.sin(a)*v+f.vy*.25,r:Math.random()*TAU,om:(Math.random()-.5)*20,w:4+Math.random()*6,h:3+Math.random()*4,c:cols[k%cols.length],t:0,life:1.4+Math.random()*1.1})}
+ g.dead=pulse+1.8;g.fl=null;g.rot=0};
+const wall=(p,nx,ny,sp,e)=>{if(nx)p.vx=Math.abs(p.vx)*nx*.9;else p.vy=Math.abs(p.vy)*ny*.9;p.b++;if(sp<60)return;p.sq=Math.min(1,.35+sp/1500);p.nx=nx;p.ny=ny;p.ex=e;
+ const cx=p.x-nx*e,cy=p.y-ny*e,k=Math.min(sp/1600,1);
+ for(let n=3+Math.round(sp/200);n>0;n--){const v=60+Math.random()*280*(.4+k),t=(Math.random()-.5)*v*1.2,u=v*(.3+Math.random()*.7);
+  parts.push({px:1,x:cx,y:cy,vx:nx*u-ny*t,vy:ny*u+nx*t,r:0,om:0,s:2+((Math.random()*2)|0),c:inkC,t:0,life:.3+Math.random()*.35})}};
+const fxStep=dt=>{const aim=glyphs.some(g=>g.fl);if(aim!==aimOn){aimOn=aim;if(hero)hero.classList.toggle('aim',aim);if(!aim)sling=null}
+ for(let i=projs.length-1;i>=0;i--){const p=projs[i];let hit=null;p.t+=dt;
+  for(let s=0,n=Math.ceil(dt/.008);s<n&&!hit;s++){const h=dt/n;p.x+=p.vx*h;p.y+=p.vy*h;
+   const sp=Math.hypot(p.vx,p.vy)||1,ux=p.vx/sp,uy=p.vy/sp,k=Math.min(sp/1600,1),a=10*(1+1.2*k),bb=10/(1+.7*k),ex=Math.hypot(a*ux,bb*uy),ey=Math.hypot(a*uy,bb*ux);
+   if(p.x<ex){p.x=ex;wall(p,1,0,sp,ex)}else if(p.x>width-ex){p.x=width-ex;wall(p,-1,0,sp,ex)}
+   if(p.y<ey){p.y=ey;wall(p,0,1,sp,ey)}else if(p.y>height-ey){p.y=height-ey;wall(p,0,-1,sp,ey)}
+   for(const g of glyphs){if(!g.fl)continue;const cx=Math.max(g.box.x1+g.offset.x,Math.min(p.x,g.box.x2+g.offset.x)),cy=Math.max(g.box.y1+g.offset.y,Math.min(p.y,g.box.y2+g.offset.y));if(Math.hypot(p.x-cx,p.y-cy)<p.r+2){hit=g;break}}}
+  p.sq=(p.sq||0)*Math.exp(-dt*9);if(p.sq<.01)p.sq=0;
+  if(hit)burst(hit);if(hit||p.b>3||p.t>3||!glyphs.some(g=>g.fl))projs.splice(i,1)}
+ for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.t+=dt;if(q.t>q.life){parts.splice(i,1);continue}const d=Math.exp(-(q.px?4:1.6)*dt);q.vx*=d;q.vy=q.vy*d+(q.px?0:380*dt);q.x+=q.vx*dt;q.y+=q.vy*dt;q.r+=q.om*dt}
+ return projs.length>0||parts.length>0||!!sling};
+const fxDraw=ink=>{ctx.setTransform(dpr,0,0,dpr,0,0);ctx.lineCap='round';ctx.strokeStyle=ctx.fillStyle=ink;
+ for(const p of projs){const sp=Math.hypot(p.vx,p.vy)||1,k=Math.min(sp/1600,1),a=10*(1+1.2*k),bb=10/(1+.7*k),va=Math.atan2(p.vy,p.vx),sq=p.sq||0,wa=Math.atan2(p.ny||0,p.nx||0),wn=1-.62*sq,wt=1+.7*sq,cd=Math.cos(va-wa),sd=Math.sin(va-wa),cw=Math.cos(wa),sw=Math.sin(wa),ox=sq?-(p.nx||0)*p.ex*(1-wn):0,oy=sq?-(p.ny||0)*p.ex*(1-wn):0;
+  ctx.globalAlpha=.9;ctx.lineWidth=1.25;ctx.beginPath();
+  for(let i=0;i<=40;i++){const th=i/40*TAU,X=Math.cos(th)*a,Y=Math.sin(th)*bb,x1=(X*cd-Y*sd)*wn,y1=(X*sd+Y*cd)*wt,x=p.x+ox+x1*cw-y1*sw,y=p.y+oy+x1*sw+y1*cw;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}
+  ctx.stroke();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(p.x+ox,p.y+oy,4.5,0,TAU);ctx.fill()}
+ for(const q of parts){const u=q.t/q.life;if(q.px){ctx.globalAlpha=Math.ceil((1-u)*4)/4;ctx.fillStyle=q.c;ctx.fillRect(Math.round(q.x),Math.round(q.y),q.s,q.s);continue}ctx.save();ctx.globalAlpha=1-Math.max(0,(u-.7)/.3);ctx.translate(q.x,q.y);ctx.rotate(q.r);ctx.scale(1,Math.cos(q.r*2));ctx.fillStyle=q.c;ctx.fillRect(-q.w/2,-q.h/2,q.w,q.h);ctx.restore()}
+ ctx.globalAlpha=1};
+/* ---- sling-button cursor: same DOM + classes as the scroll button, follows the pointer while a letter is loose; its arrow tracks the nearest loose letter, and a pull fires a shot ---- */
+const NS='http://www.w3.org/2000/svg',cp={x:0,y:0,show:false};let cb=null,sx=0,sy=0,sraf=0;
+const mk=(t,c,ns)=>{const e=ns?document.createElementNS(NS,t):document.createElement(t);if(c)e.setAttribute('class',c);return e};
+const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+const ensureCb=()=>{if(cb)return cb;const size=innerWidth<600?46:52,SW=3,wellR=size/2+4+SW,padR=size/2-SW/2,H=wellR+SW+2,root=mk('span','sling-button'),st=root.style;
+ root.setAttribute('data-off','');st.pointerEvents='none';st.setProperty('--sl-size',size+'px');st.setProperty('--sl-svg',2*H+'px');st.setProperty('--sl-stroke',SW+'px');
+ const svg=mk('svg','sling-button__fx',1);svg.setAttribute('viewBox',-H+' '+-H+' '+2*H+' '+2*H);svg.setAttribute('aria-hidden','true');
+ const fx=mk('g','',1);fx.style.opacity=0;const band=mk('path','sling-button__band',1),hot=mk('path','sling-button__band sling-button__band--hot',1);fx.append(band,hot);
+ const well=mk('circle','sling-button__well',1);well.setAttribute('r',wellR);const arc=mk('circle','sling-button__arc',1);arc.setAttribute('r',wellR);arc.setAttribute('pathLength','1');arc.setAttribute('stroke-dasharray','0 1');arc.style.opacity=0;
+ svg.append(fx,well,arc);root.append(svg);
+ const move=mk('span','sling-button__move'),pad=mk('button','sling-button__pad'),face=mk('span','sling-button__face'),icon=mk('span','sling-button__icon'),isz=Math.round(size*.4);
+ pad.type='button';pad.tabIndex=-1;pad.setAttribute('aria-hidden','true');
+ icon.innerHTML='<svg width="'+isz+'" height="'+isz+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>';
+ face.append(icon);pad.append(face);move.append(pad);root.append(move);document.body.append(root);
+ return cb={root,move,pad,icon,band,hot,fx,arc,size,wellR,padR,ang:0,held:false,ink:''}};
+const slPaint=(x,y)=>{const{band,hot,fx,arc,wellR,padR}=cb,dist=Math.hypot(x,y),ux=dist?x/dist:0,uy=dist?y/dist:-1,pw=cl(dist/48,0,1);let d='';
+ if(dist>.5){const a=Math.atan2(y,x),b=Math.acos(cl((wellR-padR)/dist,-1,1));d=[a+b,a-b].map(t=>{const c=Math.cos(t),n=Math.sin(t);return'M'+(wellR*c).toFixed(2)+','+(wellR*n).toFixed(2)+'L'+(x+padR*c).toFixed(2)+','+(y+padR*n).toFixed(2)}).join('')}
+ band.setAttribute('d',d);hot.setAttribute('d',d);hot.style.opacity=pw;fx.style.opacity=cl(dist/6,0,1);
+ arc.setAttribute('stroke-dasharray',pw+' '+(1-pw));arc.setAttribute('stroke-dashoffset',pw/2);arc.style.opacity=pw>.01?'1':'0';arc.setAttribute('transform','rotate('+Math.atan2(-uy,-ux)*180/Math.PI+')')};
+const cbSet=(x,y)=>{sx=x;sy=y;cb.move.style.transform='translate('+x+'px,'+y+'px)';slPaint(x,y);const a=Math.hypot(x,y)>=48,f=a?'setAttribute':'removeAttribute';cb.root[f]('data-armed','');cb.pad[f]('data-armed','')};
+const cbRelease=()=>{cancelAnimationFrame(sraf);const k=Math.pow(2*Math.PI/.4,2),c=1.6*Math.sqrt(k);let vx=0,vy=0,last=performance.now();
+ (function st(now){const dt=Math.min((now-last)/1000,.032);last=now;const n=Math.max(1,Math.ceil(dt/.004)),h=dt/n;for(let i=0;i<n;i++){vx+=(-k*sx-c*vx)*h;vy+=(-k*sy-c*vy)*h;sx+=vx*h;sy+=vy*h}
+  if(Math.hypot(sx,sy)<.05&&Math.hypot(vx,vy)<5){cbSet(0,0);return}cbSet(sx,sy);sraf=requestAnimationFrame(st)})(last)};
+const cursorSync=dt=>{if(!aimOn&&!sling){if(cb){cb.root.setAttribute('data-off','');if(cb.held){cb.held=false;cb.pad.removeAttribute('data-held');cb.root.removeAttribute('data-held')}}return}
+ const b=ensureCb(),cr=canvas.getBoundingClientRect(),touch=sling&&!cp.show;
+ if(b.ink!==inkC){b.ink=inkC;const st=b.root.style,bg=getComputedStyle(hero||box).backgroundColor;st.setProperty('--sl-pad',inkC);st.setProperty('--sl-icon',bg&&bg!=='rgba(0, 0, 0, 0)'?bg:'#fff');st.setProperty('--sl-accent',inkC);st.setProperty('--sl-well','color-mix(in srgb,'+inkC+' 16%,transparent)');st.setProperty('--sl-band','color-mix(in srgb,'+inkC+' 45%,transparent)')}
+ if(!sling&&b.held){b.held=false;b.pad.removeAttribute('data-held');b.root.removeAttribute('data-held');cbRelease()}
+ const ox=sling?sling.cx:cp.x,oy=sling?sling.cy:cp.y;
+ b.root.style.transform='translate('+(ox-b.size/2)+'px,'+(oy-b.size/2)+'px)';
+ if(sling||cp.show)b.root.removeAttribute('data-off');else b.root.setAttribute('data-off','');
+ let vx=0,vy=-1;
+ if(sling&&Math.hypot(sling.ax-sling.px,sling.ay-sling.py)>3){vx=sling.ax-sling.px;vy=sling.ay-sling.py}
+ else{let bd=1e9;for(const g of glyphs){if(!g.fl)continue;const tx=cr.left+(g.box.x1+g.box.x2)/2+g.offset.x-ox,ty=cr.top+(g.box.y1+g.box.y2)/2+g.offset.y-oy,d=Math.hypot(tx,ty);if(d<bd){bd=d;vx=tx;vy=ty}}}
+ const want=Math.atan2(vy,vx)*180/Math.PI+90,diff=((want-b.ang+540)%360)-180;b.ang+=diff*Math.min(1,dt*16);
+ b.icon.style.transition='none';b.icon.style.transform='rotate('+b.ang+'deg)'};
+const blitRot=g=>{const ox=(g.box.x1+g.box.x2)/2,oy=(g.box.y1+g.box.y2)/2,a=g.fill;ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.translate(ox+g.offset.x,oy+g.offset.y);ctx.rotate(g.rot);ctx.drawImage(a.image,a.left-ox,a.top-oy,a.image.width/dpr,a.image.height/dpr);ctx.restore()};
 function tick(now){raf=0;if(!visible)return;if(idleTick&&now-lastDraw<30){raf=requestAnimationFrame(tick);return}if(mv.has){mv.has=false;locate(mv)}const dt=Math.min(.05,Math.max(.001,(now-last)/1000));last=now;
 const ink=palette(),view=ensureLayout(ink),damping=2*Math.sqrt(SPRING)*(1-c01(S.bounce)*.96);
 const sweeping=S.sweep&&!reduced&&!pointer.inside&&dragging<0;if(sweeping)clock+=dt*S.speed;pulse+=dt;
@@ -1704,9 +1775,20 @@ if(active){const lag=pointer.inside?.05:.22;lens.x=approach(lens.x,tx,dt,lag);le
 placed=active;
 for(let k=kicks.length-1;k>=0;k--){if(kicks[k].at>pulse)continue;const g=glyphs[kicks[k].index];if(g)g.velocity.y-=kicks[k].velocity;kicks.splice(k,1)}
 let moving=false;
-glyphs.forEach((g,i)=>{if(i===dragging){g.offset.x=approach(g.offset.x,pointer.x-grab.x,dt,.03);g.offset.y=approach(g.offset.y,pointer.y-grab.y,dt,.03);g.velocity.x=0;g.velocity.y=0;moving=true;return}
+glyphs.forEach((g,i)=>{if(g.dead){if(pulse>=g.dead){g.dead=0;g.offset.x=g.offset.y=g.velocity.x=g.velocity.y=0;g.rot=0}else{moving=true;return}}
+if(g.fl){const f=g.fl,E=.97;f.age+=dt;if(f.b&&!f.hit){f.vy=Math.max(f.vy-150*dt,-300);f.vx+=Math.sin(f.age*2.4+f.ph)*110*dt}g.offset.x+=f.vx*dt;g.offset.y+=f.vy*dt;g.rot=(g.rot||0)+f.om*dt;
+ const x1=g.box.x1+g.offset.x,x2=g.box.x2+g.offset.x,y1=g.box.y1+g.offset.y,y2=g.box.y2+g.offset.y;
+ if(x1<0){g.offset.x-=x1;f.vx=Math.abs(f.vx)*E;f.om*=-1}else if(x2>width){g.offset.x-=x2-width;f.vx=-Math.abs(f.vx)*E;f.om*=-1}
+ if(y1<0){g.offset.y-=y1;f.vy=Math.abs(f.vy)*E;f.om*=-1}else if(y2>height){g.offset.y-=y2-height;f.vy=-Math.abs(f.vy)*E;f.om*=-1}
+ if(x1<0||x2>width||y1<0||y2>height)f.hit=1;
+ const sp=Math.hypot(f.vx,f.vy);if(sp<180&&(!f.b||f.hit)){const k=180/Math.max(sp,1);f.vx*=k;f.vy*=k}
+ if(f.age>FLY_MAX){g.velocity.x=f.vx*.2;g.velocity.y=f.vy*.2;g.fl=null}
+ moving=true;return}
+if(g.rot){g.rot=approach(g.rot,Math.round(g.rot/TAU)*TAU,dt,.12);if(Math.abs(g.rot-Math.round(g.rot/TAU)*TAU)<.002)g.rot=0;moving=true}
+if(i===dragging){trailPush(now);g.offset.x=approach(g.offset.x,pointer.x-grab.x,dt,.03);g.offset.y=approach(g.offset.y,pointer.y-grab.y,dt,.03);g.velocity.x=0;g.velocity.y=0;moving=true;return}
 const{offset,velocity}=g;if(Math.abs(offset.x)<.05&&Math.abs(offset.y)<.05&&Math.hypot(velocity.x,velocity.y)<.5){offset.x=offset.y=velocity.x=velocity.y=0;return}
 velocity.x+=(-SPRING*offset.x-damping*velocity.x)*dt;velocity.y+=(-SPRING*offset.y-damping*velocity.y)*dt;offset.x+=velocity.x*dt;offset.y+=velocity.y*dt;moving=true});
+if(fxStep(dt))moving=true;
 const focus=dragging>=0?dragging:active?glyphAt(lens.x,lens.y):-1;
 if(focus>=0&&S.selection){const g=glyphs[focus],bx1=g.box.x1+g.offset.x-6,by1=g.box.y1+g.offset.y-6,bx2=g.box.x2+g.offset.x+6,by2=g.box.y2+g.offset.y+6;
 if(frame.index<0||frame.alpha<.02){frame.x1=bx1;frame.y1=by1;frame.x2=bx2;frame.y2=by2}
@@ -1717,6 +1799,7 @@ const hovering=focus>=0&&pointer.inside,nc=dragging>=0?'grabbing':hovering&&S.dr
 if(nc!==cursor){cursor=nc;box.style.cursor=nc}
 ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
 /* clear only what was drawn last frame plus what is about to be drawn (the canvas can be very tall because it reaches the top of the hero) */
+const fxOn=!!sling||projs.length>0||parts.length>0||glyphs.some(g=>g.fl||g.rot||g.dead);if(fxOn||fxWas){ctx.clearRect(0,0,canvas.width,canvas.height);prev=null}fxWas=fxOn;
 {let bx1=1e9,by1=1e9,bx2=-1e9,by2=-1e9;
 for(const g of glyphs){bx1=Math.min(bx1,g.box.x1,g.box.x1+g.offset.x);by1=Math.min(by1,g.box.y1,g.box.y1+g.offset.y);bx2=Math.max(bx2,g.box.x2,g.box.x2+g.offset.x);by2=Math.max(by2,g.box.y2,g.box.y2+g.offset.y)}
 if(glyphs.length){bx1-=12;by1-=12;bx2+=12;by2+=12;if(frame.alpha>.01){bx1=Math.min(bx1,frame.x1-12);by1=Math.min(by1,frame.y1-32);bx2=Math.max(bx2,frame.x2+100);by2=Math.max(by2,frame.y2+12)}}
@@ -1724,8 +1807,8 @@ const cur=glyphs.length?[bx1,by1,bx2,by2]:null,pv=prev||[0,0,width,height],all=c
 const cx1=Math.max(0,Math.floor(all[0]*dpr)),cy1=Math.max(0,Math.floor(all[1]*dpr)),cx2=Math.min(canvas.width,Math.ceil(all[2]*dpr)),cy2=Math.min(canvas.height,Math.ceil(all[3]*dpr));
 if(cx2>cx1&&cy2>cy1)ctx.clearRect(cx1,cy1,cx2-cx1,cy2-cy1);prev=cur}
 for(const g of glyphs){const mv=Math.hypot(g.offset.x,g.offset.y);if(mv>1){ctx.globalAlpha=Math.min(1,mv/24)*.55;blit(ctx,g.dashes,0,0);ctx.globalAlpha=1}}
-glyphs.forEach(g=>{if(g.outline<.999){ctx.globalAlpha=1-g.outline;blit(ctx,g.fill,g.offset.x,g.offset.y)}if(g.outline>.001){ctx.globalAlpha=g.outline;blit(ctx,g.dashes,g.offset.x,g.offset.y)}ctx.globalAlpha=1});
-drawFrame(ink);
+glyphs.forEach(g=>{if(g.dead)return;if(g.rot){blitRot(g);return}if(g.outline<.999){ctx.globalAlpha=1-g.outline;blit(ctx,g.fill,g.offset.x,g.offset.y)}if(g.outline>.001){ctx.globalAlpha=g.outline;blit(ctx,g.dashes,g.offset.x,g.offset.y)}ctx.globalAlpha=1});
+fxDraw(ink);cursorSync(dt);drawFrame(ink);
 idleTick=sweeping&&!moving&&kicks.length===0;lastDraw=now;
 const settling=moving||kicks.length>0||(frame.alpha>.01&&frame.alpha<.99);
 if((active||settling)&&visible)raf=requestAnimationFrame(tick)}
@@ -1739,16 +1822,24 @@ const onMove=e=>{mv.clientX=e.clientX;mv.clientY=e.clientY;mv.has=true;pointer.i
 const onLeave=()=>{if(dragging>=0)return;pointer.inside=false;wake()};
 const onDown=e=>{if(S.ignore&&e.target.closest&&e.target.closest(S.ignore))return;locate(e);mv.has=false;pointer.inside=true;
 const primary=e.pointerType!=='mouse'||e.button===0,index=primary?glyphAt(pointer.x,pointer.y):-1;press.x=pointer.x;press.y=pointer.y;press.time=performance.now();press.index=index;
-if(S.draggable&&index>=0){dragging=index;grab.x=pointer.x-glyphs[index].offset.x;grab.y=pointer.y-glyphs[index].offset.y;box.setPointerCapture&&box.setPointerCapture(e.pointerId)}wake()};
-const onUp=e=>{if(dragging>=0){dragging=-1;box.releasePointerCapture&&box.releasePointerCapture(e.pointerId);const r=box.getBoundingClientRect();pointer.inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom}
-if(e.type==='pointerup'&&press.index>=0&&S.clickKick&&!reduced&&performance.now()-press.time<450){const r=box.getBoundingClientRect();const c=canvas.getBoundingClientRect();if(Math.hypot(e.clientX-c.left-press.x,e.clientY-c.top-press.y)<6)kick(press.index)}
+if(S.draggable&&index>=0){dragging=index;trail.length=0;if(hero)hero.classList.add('grab');if(window.getSelection)getSelection().removeAllRanges();grab.x=pointer.x-glyphs[index].offset.x;grab.y=pointer.y-glyphs[index].offset.y;box.setPointerCapture&&box.setPointerCapture(e.pointerId)}wake()};
+const onUp=e=>{if(dragging>=0){launch(e);dragging=-1;if(hero)hero.classList.remove('grab');box.releasePointerCapture&&box.releasePointerCapture(e.pointerId);const r=box.getBoundingClientRect();pointer.inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom}
+if(e.type==='pointerup'&&press.index>=0&&S.clickKick&&!reduced&&performance.now()-press.time<450){const r=box.getBoundingClientRect();const c=canvas.getBoundingClientRect();if(Math.hypot(e.clientX-c.left-press.x,e.clientY-c.top-press.y)<6)balloon(press.index)}
 press.index=-1;wake()};
 const P={passive:true};
+const toCv=e=>{const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
+if(hero){hero.addEventListener('selectstart',e=>{if(aimOn||dragging>=0||sling)e.preventDefault()});
+hero.addEventListener('pointerdown',e=>{if(!aimOn||dragging>=0||press.index>=0||(e.pointerType==='mouse'&&e.button!==0))return;if(e.target.closest&&e.target.closest('a,button,input,textarea,select,.sling-button,.nt,.wg,.tc'))return;const c=toCv(e),b=ensureCb();sling={ax:c.x,ay:c.y,px:c.x,py:c.y,cx:e.clientX,cy:e.clientY,id:e.pointerId};cp.x=e.clientX;cp.y=e.clientY;cp.show=e.pointerType==='mouse';cancelAnimationFrame(sraf);cbSet(0,0);b.held=true;b.pad.setAttribute('data-held','');b.root.setAttribute('data-held','');wake()},P);
+hero.addEventListener('pointermove',e=>{cp.x=e.clientX;cp.y=e.clientY;cp.show=aimOn&&e.pointerType==='mouse'&&!(e.target.closest&&e.target.closest('a,button,input,textarea,select,.nt,.wg,.tc,.mw'))},P);
+hero.addEventListener('pointerleave',()=>{cp.show=false},P);
+addEventListener('pointermove',e=>{if(!sling||e.pointerId!==sling.id)return;const c=toCv(e);let dx=c.x-sling.ax,dy=c.y-sling.ay;const d=Math.hypot(dx,dy);if(d>SL_R){dx*=SL_R/d;dy*=SL_R/d}sling.px=sling.ax+dx;sling.py=sling.ay+dy;if(cb)cbSet(dx,dy);wake()},P);
+const fire=e=>{if(!sling||e.pointerId!==sling.id)return;const q=sling,dx=q.ax-q.px,dy=q.ay-q.py;sling=null;if(e.type==='pointerup'&&aimOn&&Math.hypot(dx,dy)>12)projs.push({x:q.px,y:q.py,vx:dx*14,vy:dy*14,r:12,t:0,b:0});wake()};
+addEventListener('pointerup',fire,P);addEventListener('pointercancel',fire,P)}
 box.addEventListener('pointermove',onMove,P);box.addEventListener('pointerenter',onMove,P);box.addEventListener('pointerdown',onDown,P);box.addEventListener('pointerup',onUp,P);box.addEventListener('pointercancel',onUp,P);box.addEventListener('pointerleave',onLeave,P);
 {const ro=new ResizeObserver(resize);ro.observe(box);if(hero)ro.observe(hero)}
 /* runs only while the title is on screen AND the tab is showing: leaving either cancels the pending frame outright and drops any hover or drag; coming back resumes from the same pose */
 let inView=false;
-const sync=()=>{const v=inView&&!document.hidden;if(v===visible)return;visible=v;if(v){wake();return}cancelAnimationFrame(raf);raf=0;pointer.inside=false;dragging=-1;press.index=-1;cursor='';box.style.cursor=''};
+const sync=()=>{const v=inView&&!document.hidden;if(v===visible)return;visible=v;if(v){wake();return}cancelAnimationFrame(raf);raf=0;pointer.inside=false;dragging=-1;press.index=-1;cursor='';box.style.cursor='';glyphs.forEach(g=>{g.fl=null;g.dead=0;g.rot=0;g.offset.x=g.offset.y=0});sling=null;projs.length=parts.length=0;aimOn=false;if(hero)hero.classList.remove('aim')};
 new IntersectionObserver(([en])=>{inView=en.isIntersecting;sync()}).observe(box);
 document.addEventListener('visibilitychange',sync);
 /* theme / tone swaps change the ink colour */
