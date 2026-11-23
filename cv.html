@@ -1580,6 +1580,11 @@
                 background: #fff;
                 border-radius: 4px;
             }
+            .rv-doc canvas {
+                display: block;
+                width: 100%;
+                height: 100%;
+            }
             .rv-doc .docx-wrapper {
                 background: none !important;
                 padding: 0 !important;
@@ -2524,11 +2529,11 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                 <span class="rv">
                     <a
                         class="resume-btn"
-                        href="resume.docx"
+                        href="https://github.com/ZACKGORT/zack/raw/main/media/zachary.ryan.gort_design.resume_x.pdf"
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label="Download Resume"
-                        title="Download Resume (Word .docx)"
+                        title="Download Resume (PDF)"
                     >
                         <svg
                             width="16"
@@ -2546,7 +2551,7 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                         </svg>
                     </a>
                     <span class="rv-pv" aria-hidden="true"
-                        ><span class="rv-doc" id="rvDoc"></span><span>resume.docx · click to download</span></span
+                        ><span class="rv-doc" id="rvDoc"></span><span>resume.pdf · click to download</span></span
                     >
                 </span>
                 <button
@@ -7826,22 +7831,33 @@ button.tool-btn{border:0;background:transparent;font:inherit}
                     box = document.getElementById("rvDoc"),
                     done = false;
                 if (!rv || !box) return;
-                var URL_ =
-                    "resume.docx";
+                var URL_ = "https://raw.githubusercontent.com/ZACKGORT/zack/main/media/zachary.ryan.gort_design.resume_x.pdf",
+                    PJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+                    PW = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
                 function lib(u) { return new Promise(function (ok, no) { var t = document.createElement("script"); t.src = u; t.onload = ok; t.onerror = no; document.head.appendChild(t); }); }
-                function libs() { return window.docx ? Promise.resolve() : lib("https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js").then(function () { return lib("https://unpkg.com/docx-preview@0.3.3/dist/docx-preview.min.js"); }); }
+                function libs() {
+                    return (window.pdfjsLib ? Promise.resolve() : lib(PJS)).then(function () {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(
+                            new Blob(['importScripts("' + PW + '")'], { type: "text/javascript" })
+                        );
+                    });
+                }
                 function load() {
                     if (done) return;
                     done = true;
-                    Promise.all([fetch(URL_ + "?t=" + Date.now()).then(function (r) { return r.blob(); }), libs()]) .then(function (a) { return docx.renderAsync(a[0], box, null, {
-                                inWrapper: true,
-                                ignoreWidth: false,
-                                breakPages: true,
-                            });
-                        })
-                        .then(function () {
-                            var pg = box.querySelector("section.docx");
-                            if (pg) box.style.setProperty("--s", box.clientWidth / pg.offsetWidth);
+                    libs()
+                        .then(function () { return pdfjsLib.getDocument(URL_).promise; })
+                        .then(function (pdf) { return pdf.getPage(1); })
+                        .then(function (page) {
+                            var w = box.clientWidth || 208,
+                                dpr = Math.min(window.devicePixelRatio || 1, 2),
+                                v0 = page.getViewport({ scale: 1 }),
+                                vp = page.getViewport({ scale: (w / v0.width) * dpr }),
+                                c = document.createElement("canvas");
+                            c.width = vp.width;
+                            c.height = vp.height;
+                            box.appendChild(c);
+                            return page.render({ canvasContext: c.getContext("2d"), viewport: vp }).promise;
                         })
                         .catch(function () {
                             done = false;
