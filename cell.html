@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cell fracture</title>
+<style>
+  :root {
+    --bg: #1d2431;
+    --panel: rgba(20, 26, 38, 0.78);
+    --line: rgba(255, 255, 255, 0.14);
+    --text: #eceae4;
+    --muted: #9aa5b8;
+    --accent: #46c4d6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
+    font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  #hint { position: fixed; left: 20px; top: 18px; max-width: 320px; pointer-events: none; }
+  #hint h1 { margin: 0 0 4px; font-size: 20px; font-weight: 650; letter-spacing: -0.01em; }
+  #hint p { margin: 0; color: var(--muted); }
+  #panel { position: fixed; left: 20px; bottom: 20px; width: 260px; padding: 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: var(--panel); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: grid; gap: 12px; }
+  label { display: grid; gap: 4px; color: var(--muted); font-size: 13px; }
+  label span { display: flex; justify-content: space-between; }
+  label output { color: var(--text); font-variant-numeric: tabular-nums; }
+  select, button { font: inherit; color: var(--text); background: rgba(255,255,255,0.06); border: 1px solid var(--line);
+    border-radius: 6px; padding: 7px 9px; }
+  select option { color: #111; }
+  button { cursor: pointer; }
+  button:hover { background: rgba(255,255,255,0.12); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  #row { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; }
+  #row b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  #err { position: fixed; inset: 0; display: none; place-items: center; text-align: center; padding: 30px; color: var(--text); }
+  @media (max-width: 560px) {
+    #panel { left: 12px; right: 12px; bottom: 12px; width: auto; }
+    #hint { left: 14px; top: 12px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hint">
+  <h1>Cell fracture</h1>
+  <p>Click any piece to shatter it. Pieces break again, drag to orbit.</p>
+</div>
+
+<div id="panel">
+  <label>Shape
+    <select id="shape">
+      <option value="cube">Cube</option>
+      <option value="orb" selected>Orb</option>
+      <option value="gem">Gem</option>
+      <option value="slab">Slab</option>
+    </select>
+  </label>
+  <label><span>Cells per break <output id="cellsOut">16</output></span>
+    <input id="cells" type="range" min="4" max="40" step="1" value="16">
+  </label>
+  <label><span>Blast force <output id="forceOut">4</output></span>
+    <input id="force" type="range" min="0" max="12" step="0.5" value="4">
+  </label>
+  <div id="row"><span>Pieces <b id="count">1</b></span><button id="reset">Reset</button></div>
+</div>
+<div id="err"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const errEl = document.getElementById('err');
+let RAPIER;
+try {
+  RAPIER = (await import('https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.12.0/rapier.es.js')).default;
+  await RAPIER.init();
+} catch (e) {
+  errEl.style.display = 'grid';
+  errEl.textContent = 'The physics engine could not load. Check your connection and reload.';
+  throw e;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Polyhedron helpers (convex solids as lists of polygon faces)
+ * ------------------------------------------------------------------ */
+const EPS = 1e-6;
+const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+
+// Newell normal (unnormalised, CCW when seen from the outside)
+function newell(pts) {
+  const n = V();
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    n.x += (a.y - b.y) * (a.z + b.z);
+    n.y += (a.z - b.z) * (a.x + b.x);
+    n.z += (a.x - b.x) * (a.y + b.y);
+  }
+  return n;
+}
+function orient(pts, normal) {
+  if (newell(pts).dot(normal) < 0) pts.reverse();
+  return pts;
+}
+
+function boxFaces(h) {
+  const axes = [V(1, 0, 0), V(0, 1, 0), V(0, 0, 1)];
+  const faces = [];
+  for (let a = 0; a < 3; a++) {
+    for (const s of [-1, 1]) {
+      const n = axes[a].clone().multiplyScalar(s);
+      const u = axes[(a + 1) % 3], v = axes[(a + 2) % 3];
+      const c = n.clone().multiplyScalar(h);
+      const pts = [
+        c.clone().addScaledVector(u, h).addScaledVector(v, h),
+        c.clone().addScaledVector(u, -h).addScaledVector(v, h),
+        c.clone().addScaledVector(u, -h).addScaledVector(v, -h),
+        c.clone().addScaledVector(u, h).addScaledVector(v, -h),
+      ];
+      faces.push({ pts: orient(pts, n), inner: false });
+    }
+  }
+  return faces;
+}
+
+// Keep the half-space n·x <= d. New cut faces are tagged `inner`.
+function clip(faces, n, d, inner) {
+  const out = [];
+  for (const f of faces) {
+    const pts = f.pts, res = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length];
+      const da = n.dot(a) - d, db = n.dot(b) - d;
+      if (da <= EPS) res.push(a);
+      if ((da < -EPS && db > EPS) || (da > EPS && db < -EPS)) {
+        res.push(a.clone().lerp(b, da / (da - db)));
+      }
+    }
+    if (res.length >= 3) out.push({ pts: res, inner: f.inner });
+  }
+  if (!out.length) return null;
+
+  const cut = [];
+  for (const f of out) {
+    for (const p of f.pts) {
+      if (Math.abs(n.dot(p) - d) <= 1e-5 && !cut.some(q => q.distanceToSquared(p) < 1e-9)) cut.push(p);
+    }
+  }
+  if (cut.length >= 3) {
+    const c = V();
+    cut.forEach(p => c.add(p));
+    c.divideScalar(cut.length);
+    const t = Math.abs(n.x) < 0.9 ? V(1, 0, 0) : V(0, 1, 0);
+    const u = t.clone().cross(n).normalize();
+    const w = n.clone().cross(u);
+    const ang = p => { const r = p.clone().sub(c); return Math.atan2(r.dot(w), r.dot(u)); };
+    cut.sort((p, q) => ang(p) - ang(q));
+    orient(cut, n);
+    out.push({ pts: cut, inner });
+  }
+  return out;
+}
+
+function metrics(faces) {
+  const c0 = V();
+  let n = 0;
+  for (const f of faces) for (const p of f.pts) { c0.add(p); n++; }
+  c0.divideScalar(n);
+  let vol = 0;
+  const cen = V();
+  for (const f of faces) {
+    const p = f.pts;
+    for (let i = 1; i < p.length - 1; i++) {
+      const a = p[0].clone().sub(c0), b = p[i].clone().sub(c0), c = p[i + 1].clone().sub(c0);
+      const v = Math.abs(a.dot(b.clone().cross(c))) / 6;
+      vol += v;
+      cen.addScaledVector(p[0].clone().add(p[i]).add(p[i + 1]).add(c0).multiplyScalar(0.25), v);
+    }
+  }
+  return { vol, centroid: vol > 1e-12 ? cen.divideScalar(vol) : c0 };
+}
+
+function recentre(faces, c) {
+  return faces.map(f => ({ inner: f.inner, pts: f.pts.map(p => p.clone().sub(c)) }));
+}
+
+function isInside(faces, s, margin = 0.02) {
+  for (const f of faces) {
+    const nn = newell(f.pts);
+    if (nn.lengthSq() < 1e-12) continue;
+    nn.normalize();
+    if (nn.dot(s.clone().sub(f.pts[0])) > -margin) return false;
+  }
+  return true;
+}
+
+function hullPoints(faces) {
+  const seen = new Set(), arr = [];
+  for (const f of faces) for (const p of f.pts) {
+    const k = `${Math.round(p.x * 1e4)},${Math.round(p.y * 1e4)},${Math.round(p.z * 1e4)}`;
+    if (!seen.has(k)) { seen.add(k); arr.push(p.x, p.y, p.z); }
+  }
+  return new Float32Array(arr);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Starting shapes (intersections of half-spaces)
+ * ------------------------------------------------------------------ */
+function shapeFaces(kind) {
+  let faces = boxFaces(12);
+  const planes = [];
+  if (kind === 'cube') {
+    for (const a of [V(1,0,0), V(0,1,0), V(0,0,1)]) { planes.push([a, 1.25]); planes.push([a.clone().negate(), 1.25]); }
+  } else if (kind === 'slab') {
+    planes.push([V(1,0,0), 1.9], [V(-1,0,0), 1.9], [V(0,1,0), 0.3], [V(0,-1,0), 0.3], [V(0,0,1), 1.2], [V(0,0,-1), 1.2]);
+  } else if (kind === 'gem') {
+    for (const a of [V(1,0,0), V(0,1,0), V(0,0,1)]) { planes.push([a, 1.15]); planes.push([a.clone().negate(), 1.15]); }
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+      planes.push([V(sx, sy, sz).normalize(), 1.45]);
+    }
+  } else { // orb: many planes on a fibonacci sphere
+    const N = 48, g = Math.PI * (3 - Math.sqrt(5));
+    for (let i = 0; i < N; i++) {
+      const y = 1 - (i / (N - 1)) * 2, r = Math.sqrt(1 - y * y), th = g * i;
+      planes.push([V(Math.cos(th) * r, y, Math.sin(th) * r), 1.5]);
+    }
+  }
+  for (const [n, d] of planes) faces = clip(faces, n, d, false);
+  return faces;
+}
+
+/* ------------------------------------------------------------------ *
+ *  Scene
+ * ------------------------------------------------------------------ */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1d2431);
+scene.fog = new THREE.Fog(0x1d2431, 14, 38);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(5.2, 4.2, 7.2);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 1.0, 0);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI / 2 - 0.04;
+controls.minDistance = 2.5;
+controls.maxDistance = 20;
+
+scene.add(new THREE.HemisphereLight(0xcfe3ff, 0x2a2f3a, 0.9));
+const sun = new THREE.DirectionalLight(0xfff1dd, 2.4);
+sun.position.set(6, 10, 4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 30 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.02;
+scene.add(sun);
+const rim = new THREE.PointLight(0x46c4d6, 18, 14, 2);
+rim.position.set(-4, 2.2, -3);
+scene.add(rim);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(40, 64).rotateX(-Math.PI / 2),
+  new THREE.MeshStandardMaterial({ color: 0x2b3446, roughness: 0.95, metalness: 0 })
+);
+floor.receiveShadow = true;
+scene.add(floor);
+const grid = new THREE.GridHelper(28, 28, 0x4a566d, 0x353f54);
+grid.position.y = 0.002;
+grid.material.transparent = true;
+grid.material.opacity = 0.55;
+scene.add(grid);
+
+const outerMat = new THREE.MeshStandardMaterial({ color: 0xe7e2d6, roughness: 0.82, metalness: 0.0, vertexColors: true });
+const innerMat = new THREE.MeshStandardMaterial({ color: 0x46c4d6, roughness: 0.28, metalness: 0.1,
+  emissive: 0x0d4a57, emissiveIntensity: 0.9, vertexColors: true });
+
+const cursor = new THREE.Mesh(
+  new THREE.SphereGeometry(0.07, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false })
+);
+cursor.renderOrder = 10;
+cursor.visible = false;
+scene.add(cursor);
+
+/* ------------------------------------------------------------------ *
+ *  Physics world
+ * ------------------------------------------------------------------ */
+const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
+world.createCollider(RAPIER.ColliderDesc.cuboid(40, 0.5, 40).setTranslation(0, -0.5, 0).setFriction(0.9).setRestitution(0.2));
+for (const [x, z, hx, hz] of [[14, 0, 0.5, 14], [-14, 0, 0.5, 14], [0, 14, 14, 0.5], [0, -14, 14, 0.5]]) {
+  world.createCollider(RAPIER.ColliderDesc.cuboid(hx, 8, hz).setTranslation(x, 8, z));
+}
+
+/* ------------------------------------------------------------------ *
+ *  Pieces
+ * ------------------------------------------------------------------ */
+const MAX_PIECES = 450;
+let pieces = [];
+let rootVol = 1;
+let cellsN = 16, force = 4;
+
+function buildGeometry(faces) {
+  const pos = [], nor = [], col = [];
+  const tone = 0.9 + Math.random() * 0.1;
+  let outer = 0, inner = 0;
+  const emit = isInner => {
+    let count = 0;
+    for (const f of faces) {
+      if (f.inner !== isInner) continue;
+      const nn = newell(f.pts);
+      if (nn.lengthSq() < 1e-12) continue;
+      nn.normalize();
+      const p = f.pts;
+      const k = isInner ? 0.62 + Math.random() * 0.38 : tone;
+      for (let i = 1; i < p.length - 1; i++) {
+        for (const q of [p[0], p[i], p[i + 1]]) {
+          pos.push(q.x, q.y, q.z);
+          nor.push(nn.x, nn.y, nn.z);
+          col.push(k, k, k);
+          count++;
+        }
+      }
+    }
+    return count;
+  };
+  outer = emit(false);
+  inner = emit(true);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.addGroup(0, outer, 0);
+  g.addGroup(outer, inner, 1);
+  g.computeBoundingSphere();
+  return g;
+}
+
+function addPiece(faces, vol, pos, rot, lin, ang) {
+  const mesh = new THREE.Mesh(buildGeometry(faces), [outerMat, innerMat]);
+  mesh.castShadow = mesh.receiveShadow = true;
+  mesh.position.copy(pos);
+  mesh.quaternion.copy(rot);
+  scene.add(mesh);
+
+  const body = world.createRigidBody(
+    RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(pos.x, pos.y, pos.z)
+      .setRotation({ x: rot.x, y: rot.y, z: rot.z, w: rot.w })
+      .setLinvel(lin.x, lin.y, lin.z)
+      .setAngvel({ x: ang.x, y: ang.y, z: ang.z })
+      .setLinearDamping(0.04)
+      .setAngularDamping(0.12)
+  );
+  let cd = RAPIER.ColliderDesc.convexHull(hullPoints(faces));
+  if (!cd) cd = RAPIER.ColliderDesc.ball(Math.max(0.02, Math.cbrt(vol) * 0.55));
+  world.createCollider(cd.setRestitution(0.25).setFriction(0.75).setDensity(1), body);
+
+  const piece = { mesh, body, faces, vol };
+  mesh.userData.piece = piece;
+  pieces.push(piece);
+  return piece;
+}
+
+function removePiece(piece) {
+  world.removeRigidBody(piece.body);
+  scene.remove(piece.mesh);
+  piece.mesh.geometry.dispose();
+  const i = pieces.indexOf(piece);
+  if (i >= 0) pieces.splice(i, 1);
+}
+
+function trimPieces() {
+  if (pieces.length <= MAX_PIECES) return;
+  const sorted = [...pieces].sort((a, b) => a.vol - b.vol);
+  for (let i = 0; i < pieces.length - MAX_PIECES + 20 && i < sorted.length; i++) removePiece(sorted[i]);
+}
+
+function spawnRoot(kind) {
+  for (const p of [...pieces]) removePiece(p);
+  const faces0 = shapeFaces(kind);
+  const m = metrics(faces0);
+  rootVol = m.vol;
+  const faces = recentre(faces0, m.centroid);
+  let minY = Infinity;
+  faces.forEach(f => f.pts.forEach(p => { minY = Math.min(minY, p.y); }));
+  addPiece(faces, m.vol, V(0, -minY + 0.02, 0), new THREE.Quaternion(), V(), V());
+}
+
+function fracture(piece, hitWorld) {
+  const mesh = piece.mesh;
+  const faces = piece.faces;
+
+  // too small to split: just knock it
+  if (piece.vol < rootVol * 0.002) {
+    const dir = piece.mesh.position.clone().sub(hitWorld).normalize();
+    const m = piece.body.mass();
+    piece.body.applyImpulse({ x: dir.x * force * m * 0.4, y: (0.4 + Math.abs(dir.y)) * force * m * 0.4, z: dir.z * force * m * 0.4 }, true);
+    return;
+  }
+
+  mesh.updateMatrixWorld(true);
+  const hit = mesh.worldToLocal(hitWorld.clone());
+  const box = new THREE.Box3();
+  faces.forEach(f => f.pts.forEach(p => box.expandByPoint(p)));
+  const ext = box.getSize(V()).length() * 0.5;
+
+  const ratio = Math.cbrt(piece.vol / rootVol);
+  const n = Math.max(3, Math.min(cellsN, Math.round(cellsN * ratio * 1.4)));
+
+  // seeds cluster around the impact point
+  const seeds = [];
+  const first = hit.clone();
+  for (let k = 0; k < 14 && !isInside(faces, first); k++) first.multiplyScalar(0.88);
+  if (!isInside(faces, first)) first.set(0, 0, 0);
+  seeds.push(first);
+  for (let i = 1; i < n; i++) {
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const dir = V(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+      if (dir.lengthSq() < 0.01) continue;
+      dir.normalize();
+      const r = ext * 1.2 * Math.pow(Math.random(), 1.5) + ext * 0.03;
+      const s = first.clone().addScaledVector(dir, r);
+      if (isInside(faces, s, 0.01) && seeds.every(q => q.distanceToSquared(s) > 1e-4)) { seeds.push(s); break; }
+    }
+  }
+  if (seeds.length < 2) return;
+
+  // voronoi cells = shape clipped by each bisector plane
+  const cells = [];
+  for (let i = 0; i < seeds.length; i++) {
+    let f = faces;
+    for (let j = 0; j < seeds.length && f; j++) {
+      if (i === j) continue;
+      const nrm = seeds[j].clone().sub(seeds[i]);
+      const l = nrm.length();
+      if (l < 1e-4) continue;
+      nrm.divideScalar(l);
+      const d = nrm.dot(seeds[i].clone().add(seeds[j])) * 0.5;
+      f = clip(f, nrm, d, true);
+    }
+    if (!f) continue;
+    const m = metrics(f);
+    if (m.vol >= rootVol * 0.0006) cells.push({ f, m });
+  }
+  if (cells.length < 2) return;
+
+  const parentPos = V().copy(piece.body.translation());
+  const pr = piece.body.rotation();
+  const parentRot = new THREE.Quaternion(pr.x, pr.y, pr.z, pr.w);
+  const lin0 = V().copy(piece.body.linvel());
+  const ang0 = V().copy(piece.body.angvel());
+
+  removePiece(piece);
+
+  for (const { f, m } of cells) {
+    const offset = m.centroid.clone().applyQuaternion(parentRot);
+    const center = parentPos.clone().add(offset);
+    const lin = lin0.clone().add(ang0.clone().cross(offset));
+    const np = addPiece(recentre(f, m.centroid), m.vol, center, parentRot, lin, ang0);
+
+    const dir = center.clone().sub(hitWorld);
+    const dist = dir.length();
+    if (dist < 1e-4) dir.set(0, 1, 0); else dir.divideScalar(dist);
+    const mass = np.body.mass();
+    const k = force * mass / (1 + dist * 1.2);
+    np.body.applyImpulse({ x: dir.x * k, y: dir.y * k + k * 0.12, z: dir.z * k }, true);
+    np.body.applyTorqueImpulse({
+      x: (Math.random() - 0.5) * k * 0.08,
+      y: (Math.random() - 0.5) * k * 0.08,
+      z: (Math.random() - 0.5) * k * 0.08,
+    }, true);
+  }
+  trimPieces();
+}
+
+/* ------------------------------------------------------------------ *
+ *  Interaction
+ * ------------------------------------------------------------------ */
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pieces.map(p => p.mesh), false);
+  return hits[0] || null;
+}
+
+let downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => { downAt = { x: e.clientX, y: e.clientY, t: performance.now() }; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+  downAt = null;
+  if (moved > 6) return;
+  const h = pick(e);
+  if (h) fracture(h.object.userData.piece, h.point);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (e.buttons) { cursor.visible = false; return; }
+  const h = pick(e);
+  cursor.visible = !!h;
+  renderer.domElement.style.cursor = h ? 'crosshair' : 'grab';
+  if (h) cursor.position.copy(h.point);
+});
+renderer.domElement.addEventListener('pointerleave', () => { cursor.visible = false; });
+
+const $ = id => document.getElementById(id);
+$('shape').addEventListener('change', e => spawnRoot(e.target.value));
+$('reset').addEventListener('click', () => spawnRoot($('shape').value));
+$('cells').addEventListener('input', e => { cellsN = +e.target.value; $('cellsOut').textContent = cellsN; });
+$('force').addEventListener('input', e => { force = +e.target.value; $('forceOut').textContent = force; });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ------------------------------------------------------------------ *
+ *  Loop
+ * ------------------------------------------------------------------ */
+spawnRoot($('shape').value);
+
+const clock = new THREE.Clock();
+let acc = 0;
+const STEP = 1 / 60;
+function frame() {
+  requestAnimationFrame(frame);
+  acc += Math.min(clock.getDelta(), 0.05);
+  while (acc >= STEP) { world.step(); acc -= STEP; }
+
+  for (const p of pieces) {
+    const t = p.body.translation(), r = p.body.rotation();
+    p.mesh.position.set(t.x, t.y, t.z);
+    p.mesh.quaternion.set(r.x, r.y, r.z, r.w);
+  }
+  $('count').textContent = pieces.length;
+  controls.update();
+  renderer.render(scene, camera);
+}
+frame();
+</script>
+</body>
+</html>
