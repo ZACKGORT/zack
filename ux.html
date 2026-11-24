@@ -485,6 +485,14 @@
 .cs .ac-in{min-height:0;overflow:hidden}
 .cs .ac-bd{padding:2px 0 14px}
 
+/* iframe accordion panels (craft experience) */
+.tc.cs.cx{width:min(720px,calc(100vw - 2*var(--cs-pad)))}
+.cs .cs-fr{position:relative;aspect-ratio:16/10;overflow:hidden;margin:0 0 8px 34px;border:1px solid color-mix(in srgb,var(--cs-ink) 18%,transparent);background:color-mix(in srgb,var(--cs-ink) 5%,var(--cs-bg))}
+.cs .cs-fr iframe{position:absolute;left:0;top:0;width:1600px;height:1000px;max-width:none;border:0;transform:scale(var(--s,.2));transform-origin:0 0;background:#fff}
+.cs .ac-o{display:inline-block;margin:0 0 14px 34px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;line-height:1;color:var(--cs-ink);text-decoration:underline;text-underline-offset:2px}
+.cs .ac-o:hover,.cs .ac-o:focus-visible{color:var(--cs-pink)}
+.csbg.plain{background:radial-gradient(120% 90% at 72% 8%,#2b1a20,#0e0d0e 62%)}
+
 /* jump button */
 .tc-jump{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:#FFD60A;color:#0e0d0e;font:500 12px/1 var(--cs-sans);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .18s,color .18s,box-shadow .18s}
 .tc-jump::after{content:"";flex:none;width:7px;height:7px;margin-right:3px;border:solid currentColor;border-width:0 1.4px 1.4px 0;transform:translateY(-2px) rotate(45deg);transition:transform .22s cubic-bezier(.2,.9,.3,1)}
@@ -861,7 +869,7 @@ const CARDS = [
     back: 'Lead UX — IA, UI prototypes, design systems. Tight cadence with PM, dev, design and client stakeholders.'
   },
   {
-    frame: 'About / Contact', letters: 'craft.experience',
+    frame: 'About / Contact', cs: 'cx', csLabel: 'Enter the sandbox', letters: 'craft.experience',
     head: 'zack gort', nav: 'CX', image: 'gLY9FQsD/ramen.avif',
     deke: 'Product / UX designer',
     video: 'https://raw.githubusercontent.com/ZACKGORT/ZACKGORT/main/waitingontheworldtochange_zackgort_v1720p.mp4',
@@ -2993,7 +3001,7 @@ const carousel = {
     if (k) { pos.x = clamp(k.x, 60 - L.w, innerWidth - 60); pos.y = clamp(k.y, 0, Math.max(0, innerHeight - 48)); }
     let cta = null;
     if (c.cs) {
-      cta = { label: 'See the case study', onClick: (btn) => cs.open(c.cs, btn) };
+      cta = { label: c.csLabel || 'See the case study', onClick: (btn) => cs.open(c.cs, btn) };
     } else if (c.href) {
       const host = c.href.replace(/^https?:\/\//, '').replace(/\/$/, '');
       cta = {
@@ -3002,7 +3010,7 @@ const carousel = {
       };
     }
     this.card = createTiltedCard({
-      frameDoc: c.cs ? cs.preview(c.cs) : '',
+      frameDoc: c.cs && !c.image ? cs.preview(c.cs) : '',
       frameSrc: c.frameSrc || '',
       frameImg: c.image ? imgSrc(c.image) : '',
       link: c.href ? { href: c.href } : null,
@@ -3236,6 +3244,22 @@ const CS_DATA = {
     bgs: ['cSQCgNQY/work1.webp', 'spHgPH6N/1.webp', 'ynjWYqv8/2.webp', 'vx76zjgf/10.webp', 'pBMMxY1Z/11.webp', 'rft2bf0T/9.webp']
   }
 };
+CS_DATA.cx = {
+  id: 'cx', wide: true,
+  title: '¡Viva la craft experience!',
+  client: 'zack.cx', agency: 'R&D_sandbox',
+  role: ['Where the experiments live. Built by hand, left running in public. One site open at a time; each loads live.'],
+  details: [], bgs: [],
+  frames: [
+    ['zack.cx/cv', 'https://zack.cx/cv', 'A writing surface optimized for human and machine-learning authorship and consumption.', 'Open the writing surface'],
+    ['zack.cx/px', 'https://zack.cx/px', 'Selected work.'],
+    ['ifimaybefrank.com/classic', 'https://ifimaybefrank.com/classic', 'A personal writing tool.'],
+    ['neverever.land', 'https://neverever.land', 'Personal provenance.'],
+    ['intoview.pro', 'https://intoview.pro', 'Professional provenance.'],
+    ['Reason &amp; Resolution', 'https://reasonandresolution.com', 'A pre-A.I., hand-coded portfolio, circa 2023-2024.']
+  ],
+  embed: 'https://zack.cx/cv', jumpLabel: 'Open the writing surface'
+};
 const plain = t => t.replace(/\{([^}]+)\}/g, '$1');
 const csSrc = p => {
   if (/^https?:/.test(p)) return p.includes('miro.medium.com') ? AVIF + 'miro_medium_nav.avif' : p;
@@ -3253,16 +3277,17 @@ const cs = (() => {
   const body = P => {
     const id = P.id;
     const items = [
-      ...P.details.map(([l, t]) => [l, `<p class="ac-d">${plain(t)}</p>`]),
-      [P.ins[0], `<p class="cs-big">${P.ins[1]}</p><p class="ac-d2">${P.aside}</p>`],
-      ['Gallery', `<div class="cs-g">${P.stack.map(([p, t]) => `<img src="${csSrc(p)}" alt="${t}" loading="lazy" decoding="async">`).join('')}</div>`]
+      ...(P.details || []).map(([l, t]) => [l, `<p class="ac-d">${plain(t)}</p>`]),
+      ...(P.ins ? [[P.ins[0], `<p class="cs-big">${P.ins[1]}</p><p class="ac-d2">${P.aside}</p>`]] : []),
+      ...(P.stack ? [['Gallery', `<div class="cs-g">${P.stack.map(([p, t]) => `<img src="${csSrc(p)}" alt="${t}" loading="lazy" decoding="async">`).join('')}</div>`]] : []),
+      ...(P.frames || []).map(([l, u, t]) => [l, `<p class="ac-d">${t}</p><div class="cs-fr"><iframe data-src="${u}" title="Preview of ${l}" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div><a class="ac-o" href="${u}" target="_blank" rel="noopener noreferrer">open ↗</a>`])
     ];
     return `<span class="tc-bar" aria-hidden="true"><i class="tc-grip"></i></span><button type="button" class="tc-x" aria-label="Close case study"></button>` +
       `<p class="cs-k">${P.client} · ${P.agency}</p><h2 class="tc-line">${P.title}</h2>` +
       `<div class="cs-s"><div class="cs-role">${P.role.map(r => `<p class="tc-note">${r}</p>`).join('')}</div><div class="ac">` +
       items.map(([l, h], i) => `<div class="ac-i"><h3 class="ac-h"><button type="button" id="cs-${id}-b${i}" aria-expanded="${!i}" aria-controls="cs-${id}-p${i}"><span class="ac-n">0${i + 1}</span><span>${l}</span><i class="ac-c" aria-hidden="true"></i></button></h3><div class="ac-p${i ? '' : ' on'}" id="cs-${id}-p${i}" role="region" aria-labelledby="cs-${id}-b${i}"${i ? ' inert' : ''}><div class="ac-in">${h}</div></div></div>`).join('') +
       `</div></div><p class="tc-links"><a href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.embed.replace(/^https?:\/\//, '')} ↗</a></p>` +
-      `<a class="tc-jump" href="${P.embed}" target="_blank" rel="noopener noreferrer">Read the full case study</a><span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
+      `<a class="tc-jump" href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.jumpLabel || 'Read the full case study'}</a><span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
   };
 
   /* drag + resize, session-only */
@@ -3305,11 +3330,13 @@ const cs = (() => {
   const accordion = (card, onSection) => {
     const bs = [...card.querySelectorAll('.ac-h button')], ps = [...card.querySelectorAll('.ac-p')];
     let t;
+    card._load = () => ps.forEach(p => { if (!p.classList.contains('on')) return; const f = p.querySelector('iframe[data-src]'); if (f && !f.getAttribute('src')) f.src = f.dataset.src; });
     bs.forEach((b, i) => b.addEventListener('click', () => {
       const was = b.getAttribute('aria-expanded') === 'true';
       sfx.acc(i, !was);
       bs.forEach((x, j) => { const on = j === i && !was; x.setAttribute('aria-expanded', on); ps[j].classList.toggle('on', on); ps[j].inert = !on; });
       onSection(was ? -1 : i);
+      card._load();
       clearTimeout(t); t = setTimeout(card._fit, 300);
     }));
     card.querySelector('.ac').addEventListener('keydown', e => {
@@ -3322,9 +3349,9 @@ const cs = (() => {
 
   /* full-bleed backdrop inside the portal, with pointer + wheel parallax */
   const backdrop = (card, P) => {
-    const bg = document.createElement('div'); bg.className = 'csbg'; bg.setAttribute('aria-hidden', 'true');
+    const bg = document.createElement('div'); bg.className = 'csbg' + (P.bgs && P.bgs.length ? '' : ' plain'); bg.setAttribute('aria-hidden', 'true');
     const im = document.createElement('div'); im.className = 'csbg-i'; bg.append(im); ui.prepend(bg);
-    const urls = P.bgs.map(csSrc), lay = {}, gi = [...card.querySelectorAll('.cs-g img')];
+    const urls = (P.bgs || []).map(csSrc), lay = {}, gi = [...card.querySelectorAll('.cs-g img')];
     let cur = '', raf = 0, px = 0, py = 0, wy = 0, cx = 0, cy = 0, cw = 0;
     const lit = el => im.querySelectorAll('.csbg-l').forEach(l => l.classList.toggle('on', l === el));
     const setUrl = url => {
@@ -3336,7 +3363,7 @@ const cs = (() => {
       t.onerror = () => { el.remove(); delete lay[url]; if (cur === url) cur = ''; };
       t.src = url;
     };
-    const section = i => { if (i < 0) return; gi.forEach(x => x.classList.remove('bgon')); setUrl(urls[i] || urls[0]); };
+    const section = i => { if (i < 0 || !urls.length) return; gi.forEach(x => x.classList.remove('bgon')); setUrl(urls[i] || urls[0]); };
     gi.forEach(x => {
       x.tabIndex = 0; x.setAttribute('role', 'button'); x.setAttribute('aria-label', x.alt + ': set as background');
       const pick = () => { sfx.pip(); setUrl(x.currentSrc || x.src); gi.forEach(y => y.classList.toggle('bgon', y === x)); };
@@ -3368,12 +3395,21 @@ const cs = (() => {
     if (made[key]) return made[key];
     const P = CS_DATA[key];
     const card = document.createElement('aside');
-    card.className = 'tc cs'; card.id = 'cs-card-' + key; card.inert = true;
+    card.className = 'tc cs' + (P.wide ? ' cx' : ''); card.id = 'cs-card-' + key; card.inert = true;
     card.setAttribute('role', 'dialog'); card.setAttribute('aria-label', P.client + ' case study');
     card.innerHTML = body(P); ui.append(card);
     dock(card);
     const bg = backdrop(card, P);
-    accordion(card, i => bg.section(i));
+    const jump = card.querySelector('.tc-jump'), lnk = card.querySelector('.tc-links a');
+    const upd = P.frames ? i => {
+      const [l, u, , cta] = P.frames[i < 0 ? 0 : i];
+      jump.href = u; jump.innerHTML = cta || 'Open ' + l;
+      lnk.href = u; lnk.textContent = u.replace(/^https?:\/\//, '') + ' ↗';
+    } : null;
+    accordion(card, i => { bg.section(i); if (upd) upd(i); });
+    const ff = f => { const w = f.clientWidth; if (w) f.firstElementChild.style.setProperty('--s', (w / 1600).toFixed(4)); };
+    const ro = new ResizeObserver(es => es.forEach(e => ff(e.target)));
+    card.querySelectorAll('.cs-fr').forEach(f => { ro.observe(f); ff(f); });
     card.querySelector('.tc-x').addEventListener('click', () => close());
     return made[key] = { card, bg };
   };
@@ -3385,6 +3421,7 @@ const cs = (() => {
     if (current) close(false);
     from = trigger || document.activeElement; current = m;
     m.card._center();
+    m.card._load();
     m.card.classList.add('on'); m.card.inert = false;
     ui.classList.add('cs-open'); widgetsEl.inert = true;
     m.bg.show(true, [...m.card.querySelectorAll('.ac-p')].findIndex(p => p.classList.contains('on')));
