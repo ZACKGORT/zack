@@ -696,11 +696,18 @@ body.breakable canvas{cursor:crosshair}
   .tc-text p{display:block}
 }
 .tilted-card__handle{width:56px;height:24px}
-.tilted-card__rs{position:absolute;z-index:12;touch-action:none}
-.tilted-card__rs--c{right:-6px;bottom:-6px;width:32px;height:32px;cursor:nwse-resize}
-.tilted-card__rs--c::after{content:"";position:absolute;right:11px;bottom:11px;width:11px;height:11px;border:solid #fff;border-width:0 2px 2px 0;mix-blend-mode:difference;opacity:.6}
-.tilted-card__rs--r{right:-6px;top:28px;bottom:32px;width:12px;cursor:ew-resize}
-.tilted-card__rs--b{bottom:-6px;left:28px;right:32px;height:12px;cursor:ns-resize}
+.tilted-card.snap,.tilted-card.snap .tilted-card__body,.tilted-card.snap .tilted-card__shadow{transition:width .38s cubic-bezier(.2,.9,.3,1),height .38s cubic-bezier(.2,.9,.3,1),left .38s cubic-bezier(.2,.9,.3,1),top .38s cubic-bezier(.2,.9,.3,1)}
+.tilted-card[data-layout=split] .tilted-card__front{right:calc(50% + 4px)}
+.tilted-card[data-layout=split] .tilted-card__back{left:calc(50% + 4px);transform:none;backface-visibility:visible;-webkit-backface-visibility:visible}
+.tilted-card[data-layout=split][data-v] .tilted-card__front{right:0;bottom:calc(50% + 4px)}
+.tilted-card[data-layout=split][data-v] .tilted-card__back{left:0;top:calc(50% + 4px)}
+.tilted-card__hud{position:absolute;z-index:14;top:calc(100% + 12px);left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(10,10,11,.84);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:default;white-space:nowrap}
+.tilted-card__hud button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;color:#fff;font:500 10px/1 Satoshi,Inter,sans-serif;letter-spacing:.12em;text-transform:uppercase;opacity:.6;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.tilted-card__hud button:hover,.tilted-card__hud button:focus-visible{opacity:1}
+.tilted-card__hud button[aria-pressed=true]{background:#fff;color:#0a0a0b;opacity:1}
+.tilted-card__hud button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.tilted-card__hud svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5}
+@media(max-width:480px){.tilted-card__hud button span{display:none}.tilted-card__hud button{padding:8px 13px}}
 /* site viewer: every zack.cx link opens here */
 .sv{position:fixed;z-index:80;left:0;top:0;width:min(1100px,92vw);height:min(780px,86vh);display:flex;flex-direction:column;background:#0e0d0e;color:#f5f3ee;border:1px solid rgba(245,243,238,.18);box-shadow:0 30px 80px rgba(0,0,0,.5);font:400 13px/1 Inter,system-ui,sans-serif;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(10px) scale(.985);transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1),visibility 0s .35s}
 .sv.on{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition-delay:0s}
@@ -2457,9 +2464,10 @@ function createTiltedCard(opts) {
     rotateAmplitude = 12, scaleOnHover = 1.05,
     glare = 0.5, shadow = 0.5, radius = 16,
     backContent = '', backVideo = '', backImg = '', backFrameSrc = '', backKicker = '', backTitle = '', cta = null, frameDoc = '', frameSrc = '', frameImg = '', link = null, kicker = '', title = '', body = '',
-    startX = 0, startY = 0, onChange = null, onReset = null
+    startX = 0, startY = 0, onChange = null, onReset = null, onLayout = null
   } = opts;
   let cw = containerWidth, ch = containerHeight;
+  let layout = opts.layout || 'portrait', snapT = 0;
   const fits = [];
 
   const figure = document.createElement('figure');
@@ -2626,11 +2634,20 @@ function createTiltedCard(opts) {
   figure.appendChild(shadowEl);
   figure.appendChild(bodyEl);
   figure.appendChild(handle);
-  [['c', 'xy'], ['r', 'x'], ['b', 'y']].forEach(([k, ax]) => {
-    const r = document.createElement('span');
-    r.className = 'tilted-card__rs tilted-card__rs--' + k; r.dataset.axis = ax; r.setAttribute('aria-hidden', 'true');
-    figure.appendChild(r);
+  const hud = document.createElement('div');
+  hud.className = 'tilted-card__hud'; hud.setAttribute('role', 'group'); hud.setAttribute('aria-label', 'Card layout');
+  const ICON = {
+    portrait: '<rect x="4" y="1.5" width="6" height="11" rx="1"/>',
+    landscape: '<rect x="1.5" y="4" width="11" height="6" rx="1"/>',
+    split: '<rect x="1.5" y="2.5" width="11" height="9" rx="1"/><path d="M7 2.5v9"/>'
+  };
+  hud.innerHTML = ['portrait', 'landscape', 'split'].map(n =>
+    `<button type="button" data-l="${n}" aria-label="${n} layout" aria-pressed="${n === layout}"><svg viewBox="0 0 14 14" aria-hidden="true">${ICON[n]}</svg><span>${n}</span></button>`).join('');
+  hud.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b && b.dataset.l !== layout) { sfx.pip(); onLayout && onLayout(b.dataset.l); }
   });
+  figure.appendChild(hud);
   widgetsEl.appendChild(figure);
   // iframes lay out at a virtual desktop size and scale to whatever box the panel gives them
   const fitFrames = () => fits.forEach(([f, fr, vw]) => {
@@ -2652,6 +2669,7 @@ function createTiltedCard(opts) {
   const press = { active: false, x: 0, y: 0, moved: false, onHandle: false };
   let flipped = false;
   const toggleFlip = () => {
+    if (layout === 'split') return;
     flipped = !flipped;
     sfx.flip(flipped);
     figure.toggleAttribute('data-flipped', flipped);
@@ -2677,6 +2695,16 @@ function createTiltedCard(opts) {
     [figure, shadowEl, bodyEl].forEach(n => { n.style.width = cw + 'px'; n.style.height = ch + 'px'; });
     emit();
   };
+  const layoutState = (name, v) => {   // split shows both faces side by side, so flipping is off
+    layout = name; figure.dataset.layout = name; figure.toggleAttribute('data-v', !!v);
+    const split = name === 'split';
+    if (split && flipped) { flipped = false; figure.removeAttribute('data-flipped'); }
+    back.inert = !split; back.setAttribute('aria-hidden', split ? 'false' : 'true'); front.inert = false;
+    if (split && backFr && !backFr.src) backFr.src = backFrameSrc;
+    if (!split && videoEl) videoEl.pause();
+    hud.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.l === name));
+  };
+  layoutState(layout, opts.vsplit);
   const startMove = (e, mode) => {
     press.moving = true; press.mode = mode;
     figure.setAttribute('data-dragging', ''); sfx.grab();
@@ -2782,9 +2810,7 @@ function createTiltedCard(opts) {
   figure.addEventListener('pointerdown', e => {
     press.active = true; press.moved = false; press.moving = false;
     press.x = e.clientX; press.y = e.clientY;
-    const rs = e.target.closest('.tilted-card__rs');
-    press.axis = rs ? rs.dataset.axis : '';
-    press.mode = rs ? 'size' : handle.contains(e.target) ? 'drag' : e.target.closest('a,button,iframe,video,input') ? '' : 'maybe';
+    press.mode = handle.contains(e.target) ? 'drag' : e.target.closest('a,button,iframe,video,input') ? '' : 'maybe';
     press.onHandle = press.mode === 'drag';
     pointer.mouse = e.pointerType === 'mouse' || e.pointerType === 'pen';
     const rect = figure.getBoundingClientRect();
@@ -2802,7 +2828,7 @@ function createTiltedCard(opts) {
     figure.removeAttribute('data-dragging');
     if (wasMoving) sfx.drop();
     if (e?.pointerType !== 'mouse' && e?.pointerType !== 'pen') pointer.inside = false;
-    if (!wasMoving && !moved && press.mode === 'maybe' && backContent &&
+    if (!wasMoving && !moved && press.mode === 'maybe' && layout !== 'split' && backContent &&
         !e?.target?.closest?.('.tilted-card__cta, .tilted-card__link, .tc-frame, iframe, video')) {
       toggleFlip();
     }
@@ -2829,6 +2855,12 @@ function createTiltedCard(opts) {
   return {
     el: figure, cta: ctaEl,
     setSize(w, h) { size(w, h); },
+    setLayout(name, L, x, y) {
+      figure.classList.add('snap'); clearTimeout(snapT); snapT = setTimeout(() => figure.classList.remove('snap'), 450);
+      layoutState(name, L.v);
+      posX = x; posY = y; figure.style.left = x + 'px'; figure.style.top = y + 'px';
+      size(L.w, L.h); wake();
+    },
     setPosition(x, y) {
       posX = x; posY = y;
       figure.style.left = x + 'px';
@@ -2878,6 +2910,7 @@ const nextBtn = document.querySelector('#carousel-edges .next');
 
 const carousel = {
   keep: null,
+  layoutName: 'portrait',
   idx: 0,
   card: null,
   cardW: 300,
@@ -2899,7 +2932,7 @@ const carousel = {
       const chrome = document.getElementById('carousel-chrome');
       const nav = document.getElementById('navpanel');
       const chromeTop = chrome ? chrome.getBoundingClientRect().top : 0;
-      const bottomEdge = (chromeTop > h * 0.5 ? chromeTop : h - 64) - 14;
+      const bottomEdge = (chromeTop > h * 0.5 ? chromeTop : h - 64) - 54;   // room for the layout HUD under the card
       const navBottom = nav ? nav.getBoundingClientRect().bottom : 0;
       const topLimit = Math.max(navBottom, 0) + 14 + 26; // 26px reserved for the frame label above the card
       const maxH = Math.max(300, bottomEdge - topLimit);
@@ -2913,6 +2946,23 @@ const carousel = {
       x: Math.round((w - this.cardW) / 2),
       y: Math.round(h * 0.16)
     };
+  },
+  // Preset sizes: portrait = the default stack, landscape = wide (preview beside copy), split = front + back side by side
+  dims(name) {
+    const w = innerWidth, h = innerHeight, narrow = w < 720;
+    this.center();
+    const pw = this.cardW, ph = this.cardH;
+    if (name === 'landscape') return narrow ? { w: w - 16, h: Math.min(300, ph) } : { w: Math.min(920, w - 32), h: Math.max(300, Math.min(480, h - 150)) };
+    if (name === 'split') return narrow ? { w: w - 16, h: Math.max(420, Math.min(h - 180, 640)), v: true } : { w: Math.min(pw * 2 + 8, w - 32), h: ph };
+    return { w: pw, h: ph };
+  },
+  setLayout(name) {
+    if (!this.card) return;
+    this.layoutName = name;
+    const L = this.dims(name), r = this.card.el.getBoundingClientRect();
+    const x = clamp(Math.round(r.left + r.width / 2 - L.w / 2), 8, Math.max(8, innerWidth - L.w - 8));
+    const y = clamp(Math.round(r.top), 8, Math.max(8, innerHeight - L.h - 56));
+    this.card.setLayout(name, L, x, y);
   },
   // Frame label (Hypothesis / Thesis / Exhibit A…) rides just above the card, never under it.
   placeLabel(pos) {
@@ -2936,11 +2986,11 @@ const carousel = {
     }
     widgetsEl.innerHTML = '';
     const pos = this.center();
-    const k = this.keep;
-    if (k) {   // keep the size + spot the visitor gave the panel while stepping through cards
-      this.cardW = clamp(k.w, 240, innerWidth - 16); this.cardH = clamp(k.h, 260, innerHeight - 16);
-      pos.x = clamp(k.x, 60 - this.cardW, innerWidth - 60); pos.y = clamp(k.y, 0, innerHeight - 48);
-    }
+    const L = this.dims(this.layoutName);
+    this.cardW = L.w; this.cardH = L.h;
+    if (this.layoutName !== 'portrait') { pos.x = Math.round((innerWidth - L.w) / 2); pos.y = clamp(pos.y, 8, Math.max(8, innerHeight - L.h - 56)); }
+    const k = this.keep;   // keep the spot the visitor dragged the panel to while stepping through cards
+    if (k) { pos.x = clamp(k.x, 60 - L.w, innerWidth - 60); pos.y = clamp(k.y, 0, Math.max(0, innerHeight - 48)); }
     let cta = null;
     if (c.cs) {
       cta = { label: 'See the case study', onClick: (btn) => cs.open(c.cs, btn) };
@@ -2976,8 +3026,11 @@ const carousel = {
       shadow: 0.55,
       startX: pos.x,
       startY: pos.y,
-      onChange: r => { this.keep = r; this.cardW = r.w; this.cardH = r.h; this.placeLabel(r); },
-      onReset: () => { this.keep = null; this.mount(this.idx, 0); }
+      layout: this.layoutName,
+      vsplit: L.v,
+      onLayout: n => this.setLayout(n),
+      onChange: r => { this.keep = { x: r.x, y: r.y }; this.cardW = r.w; this.cardH = r.h; this.placeLabel(r); },
+      onReset: () => { this.keep = null; this.layoutName = 'portrait'; this.mount(this.idx, 0); }
     });
     this.idx = i;
     setGhost(i, dir);
@@ -3071,10 +3124,10 @@ addEventListener('keydown', e => {
 });
 addEventListener('resize', () => {
   if (!carousel.card) return;
-  if (carousel.keep) {
-    const k = carousel.keep;
-    carousel.card.setSize(Math.min(k.w, innerWidth - 16), Math.min(k.h, innerHeight - 16));
-    carousel.card.setPosition(clamp(k.x, 60 - k.w, innerWidth - 60), clamp(k.y, 0, innerHeight - 48));
+  if (carousel.keep || carousel.layoutName !== 'portrait') {
+    const L = carousel.dims(carousel.layoutName);
+    const k = carousel.keep || { x: (innerWidth - L.w) / 2, y: carousel.card.el.getBoundingClientRect().top };
+    carousel.card.setLayout(carousel.layoutName, L, clamp(k.x, 60 - L.w, innerWidth - 60), clamp(k.y, 0, Math.max(0, innerHeight - L.h - 56)));
     return;
   }
   const prevW = carousel.cardW, prevH = carousel.cardH;
