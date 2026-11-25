@@ -451,6 +451,30 @@
 .tc-x{all:unset;position:absolute;top:5px;right:8px;width:20px;height:20px;cursor:pointer;color:var(--cs-alt);display:grid;place-items:center;z-index:2;transition:color .18s}
 .tc-x::before,.tc-x::after{content:"";position:absolute;width:9px;height:1px;background:currentColor;transform:rotate(45deg)}.tc-x::after{transform:rotate(-45deg)}
 .tc-x:hover,.tc-x:focus-visible{color:var(--cs-pink)}
+
+/* case study: the carousel layer's ESC ✕, carried into the card */
+.tc.cs{color-scheme:dark}
+.cs .tc-x{top:12px;right:14px;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--cs-ink);opacity:.7;transition:opacity .2s,color .18s}
+.cs .tc-x::before,.cs .tc-x::after{display:none}
+.cs .tc-x svg{display:block;width:22px;height:22px;stroke:currentColor;stroke-width:1.25;fill:none;stroke-linecap:square}
+.cs .tc-x span{font:500 11px/1 var(--cs-sans);letter-spacing:.2em;margin:8px -.2em 0 0;opacity:.85}
+.cs .tc-x:hover,.cs .tc-x:focus-visible{opacity:1}
+.cs .cs-k{padding-right:56px}
+.cs .tc-line{padding-right:40px}
+
+/* case study: light : dark toggle */
+.cs .tc-th{all:unset;box-sizing:border-box;margin-left:auto;display:inline-flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;color:var(--cs-alt);font:500 11px/1 var(--cs-sans);letter-spacing:.06em;text-transform:uppercase;-webkit-tap-highlight-color:transparent}
+.cs .tc-th span{opacity:.5;transition:opacity .2s,color .2s}
+.cs .tc-th[aria-checked=false] [data-m=light],.cs .tc-th[aria-checked=true] [data-m=dark]{opacity:1;color:var(--cs-ink)}
+.cs .tc-th i{position:relative;flex:none;display:block;width:28px;height:14px;border:1px solid currentColor}
+.cs .tc-th i::after{content:"";position:absolute;top:2px;left:2px;width:8px;height:8px;background:currentColor;transition:transform .22s cubic-bezier(.2,.9,.3,1)}
+.cs .tc-th[aria-checked=true] i::after{transform:translateX(14px)}
+.cs .tc-th:hover,.cs .tc-th:focus-visible{color:var(--cs-pink)}
+.cs .tc-th:hover span,.cs .tc-th:focus-visible span{color:inherit}
+
+.tc.cs[data-theme=light]{--cs-bg:#fff;background:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;--cs-ink:#0e0d0e;--cs-alt:#4d4a45;--cs-pink:#d11f4f;color-scheme:light;box-shadow:0 20px 50px rgba(0,0,0,.28)}
+.tc.cs[data-theme=light] .tc-jump:hover,.tc.cs[data-theme=light] .tc-jump:focus-visible{background:transparent;color:var(--cs-ink);box-shadow:inset 0 0 0 1px var(--cs-ink)}
+.tc.cs[data-theme=light] .tc-jump:focus-visible{outline-color:var(--cs-ink)}
 .tc-rs{position:absolute;right:3px;bottom:3px;width:16px;height:16px;color:var(--cs-ink);opacity:.3;cursor:nwse-resize;touch-action:none;background:linear-gradient(135deg,transparent 0 52%,currentColor 52% 58%,transparent 58% 72%,currentColor 72% 78%,transparent 78%);transition:opacity .2s}
 .tc:hover .tc-rs{opacity:.55}.tc-rs:hover{opacity:.9}
 .tc.drag{box-shadow:0 28px 70px rgba(0,0,0,.45)}.tc.drag,.tc.drag *{cursor:grabbing!important}
@@ -3274,6 +3298,15 @@ const cs = (() => {
   const made = {};
   let current = null, from = null;
 
+  /* light : dark — one choice shared by every case-study card, remembered between visits */
+  let theme = 'light';
+  try { if (localStorage.getItem('cs-theme-v2') === 'dark') theme = 'dark'; } catch (e) {}
+  const applyTheme = card => {
+    card.dataset.theme = theme;
+    const t = card.querySelector('.tc-th');
+    if (t) t.setAttribute('aria-checked', theme === 'dark');
+  };
+
   const body = P => {
     const id = P.id;
     const items = [
@@ -3282,11 +3315,11 @@ const cs = (() => {
       ...(P.stack ? [['Gallery', `<div class="cs-g">${P.stack.map(([p, t]) => `<img src="${csSrc(p)}" alt="${t}" loading="lazy" decoding="async">`).join('')}</div>`]] : []),
       ...(P.frames || []).map(([l, u, t]) => [l, `<p class="ac-d">${t}</p><div class="cs-fr"><iframe data-src="${u}" title="Preview of ${l}" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe></div><a class="ac-o" href="${u}" target="_blank" rel="noopener noreferrer">open ↗</a>`])
     ];
-    return `<span class="tc-bar" aria-hidden="true"><i class="tc-grip"></i></span><button type="button" class="tc-x" aria-label="Close case study"></button>` +
+    return `<span class="tc-bar" aria-hidden="true"><i class="tc-grip"></i></span><button type="button" class="tc-x" aria-label="Close case study"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 2L18 18M18 2L2 18"/></svg><span>ESC</span></button>` +
       `<p class="cs-k">${P.client} · ${P.agency}</p><h2 class="tc-line">${P.title}</h2>` +
       `<div class="cs-s"><div class="cs-role">${P.role.map(r => `<p class="tc-note">${r}</p>`).join('')}</div><div class="ac">` +
       items.map(([l, h], i) => `<div class="ac-i"><h3 class="ac-h"><button type="button" id="cs-${id}-b${i}" aria-expanded="${!i}" aria-controls="cs-${id}-p${i}"><span class="ac-n">0${i + 1}</span><span>${l}</span><i class="ac-c" aria-hidden="true"></i></button></h3><div class="ac-p${i ? '' : ' on'}" id="cs-${id}-p${i}" role="region" aria-labelledby="cs-${id}-b${i}"${i ? ' inert' : ''}><div class="ac-in">${h}</div></div></div>`).join('') +
-      `</div></div><p class="tc-links"><a href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.embed.replace(/^https?:\/\//, '')} ↗</a></p>` +
+      `</div></div><p class="tc-links"><a href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.embed.replace(/^https?:\/\//, '')} ↗</a><button type="button" class="tc-th" role="switch" aria-checked="${theme === 'dark'}" aria-label="Dark theme"><span data-m="light">Light</span><i aria-hidden="true"></i><span data-m="dark">Dark</span></button></p>` +
       `<a class="tc-jump" href="${P.embed}" target="_blank" rel="noopener noreferrer">${P.jumpLabel || 'Read the full case study'}</a><span class="tc-rs" title="drag to resize" aria-hidden="true"></span>`;
   };
 
@@ -3411,6 +3444,13 @@ const cs = (() => {
     const ro = new ResizeObserver(es => es.forEach(e => ff(e.target)));
     card.querySelectorAll('.cs-fr').forEach(f => { ro.observe(f); ff(f); });
     card.querySelector('.tc-x').addEventListener('click', () => close());
+    applyTheme(card);
+    card.querySelector('.tc-th').addEventListener('click', () => {
+      theme = theme === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('cs-theme-v2', theme); } catch (e) {}
+      Object.values(made).forEach(m => applyTheme(m.card));
+      applyTheme(card);
+    });
     return made[key] = { card, bg };
   };
 
@@ -3444,7 +3484,7 @@ const cs = (() => {
     const css = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n');
     return `<!doctype html><html><head><meta charset="utf-8"><link href="https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700&display=swap" rel="stylesheet"><style>${css}</style>` +
       `<style>html,body{background:#0e0d0e}body{margin:0;color:#f5f3ee;--cs-bg:#0e0d0e;--cs-ink:#f5f3ee;--cs-alt:#d7d4cd;--cs-pink:#FF8DA1;--cs-sans:'Satoshi',ui-sans-serif,system-ui,sans-serif;--cs-pad:12px}.tc{left:210px!important;top:28px!important;width:380px!important}</style></head>` +
-      `<body><div class="csbg on" aria-hidden="true"><div class="csbg-i"><div class="csbg-l on" style="background-image:url('${csSrc(P.bgs[0])}')"></div></div></div><aside class="tc cs on">${body(P)}</aside></body></html>`;
+      `<body><div class="csbg on" aria-hidden="true"><div class="csbg-i"><div class="csbg-l on" style="background-image:url('${csSrc(P.bgs[0])}')"></div></div></div><aside class="tc cs on" data-theme="${theme}">${body(P)}</aside></body></html>`;
   };
 
   return { get isOpen() { return !!current; }, open, close, preview };
